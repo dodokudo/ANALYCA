@@ -1,103 +1,254 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
+interface ApiResponse {
+  instagramRaw: any[][];
+  storiesRaw: any[][];
+  reelRawDataRaw: any[][];
+  reelSheetRaw: any[][];
+  dailyRaw: any[][];
+  dataInfo: {
+    instagramRows: number;
+    storiesRows: number;
+    reelRawDataRows: number;
+    reelSheetRows: number;
+    dailyRows: number;
+  };
+}
+
+function KPICard({ title, value, change, icon }: { title: string; value: string; change?: string; icon: string }) {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-xl p-6 backdrop-blur-sm border border-white/10">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-gray-300 text-sm">{title}</p>
+          <p className="text-3xl font-bold text-white">{value}</p>
+          {change && <p className="text-sm text-green-400">{change}</p>}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+          icon === 'F' ? 'bg-purple-500' :
+          icon === 'R' ? 'bg-blue-500' :
+          icon === 'P' ? 'bg-green-500' :
+          icon === 'W' ? 'bg-orange-500' :
+          'bg-green-600'
+        }`}>
+          <span className="text-white font-bold">{icon}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const [data, setData] = useState<ApiResponse>({
+    instagramRaw: [],
+    storiesRaw: [],
+    reelRawDataRaw: [],
+    reelSheetRaw: [],
+    dailyRaw: [],
+    dataInfo: {
+      instagramRows: 0,
+      storiesRows: 0,
+      reelRawDataRows: 0,
+      reelSheetRows: 0,
+      dailyRows: 0
+    }
+  });
+  const [activeTab, setActiveTab] = useState('main');
+  const [timeFilter, setTimeFilter] = useState('1month');
+  const [mounted, setMounted] = useState(false);
+
+  // 修正されたparseDate関数 - 全日付形式対応
+  const parseDate = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') {
+      return null;
+    }
+
+    // 不正なデータをフィルタリング
+    const invalidPatterns = [
+      /^[0-9]{17,}/,  // 17桁以上の数字のみ
+      /今さ、API/,      // 特定の文字列
+      /デイリーのシート/,  // 特定の文字列
+    ];
+    
+    for (const pattern of invalidPatterns) {
+      if (pattern.test(dateStr)) {
+        return null;
+      }
+    }
+
+    try {
+      const str = dateStr.trim();
+      
+      // ISO形式: "2025-06-20"
+      const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (isoMatch) {
+        const [, year, month, day] = isoMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // ISO日時形式: "2025-09-14 12:02:33"
+      const isoDateTimeMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})\s+\d{1,2}:\d{1,2}:\d{1,2}$/);
+      if (isoDateTimeMatch) {
+        const [, year, month, day] = isoDateTimeMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // スラッシュ区切り日時: "2025/09/13 9:57:01"
+      const slashDateTimeMatch = str.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})\s+\d{1,2}:\d{1,2}:\d{1,2}$/);
+      if (slashDateTimeMatch) {
+        const [, year, month, day] = slashDateTimeMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // スラッシュ区切り日付のみ: "2025/09/13"
+      const slashDateMatch = str.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      if (slashDateMatch) {
+        const [, year, month, day] = slashDateMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // 「2025年6月20日(木)」形式
+      const fullDateMatch = str.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日\([^)]+\)$/);
+      if (fullDateMatch) {
+        const [, year, month, day] = fullDateMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // 「2025年6月20日」形式（曜日なし）
+      const fullDateNoWeekMatch = str.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+      if (fullDateNoWeekMatch) {
+        const [, year, month, day] = fullDateNoWeekMatch;
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+
+      // 「6月20日(木)」形式 - 強制的に2025年
+      const monthDayMatch = str.match(/^(\d{1,2})月(\d{1,2})日\([^)]+\)$/);
+      if (monthDayMatch) {
+        const [, month, day] = monthDayMatch;
+        return new Date(2025, parseInt(month) - 1, parseInt(day));
+      }
+
+      // 「6月20日」形式 - 強制的に2025年
+      const monthDaySimpleMatch = str.match(/^(\d{1,2})月(\d{1,2})日$/);
+      if (monthDaySimpleMatch) {
+        const [, month, day] = monthDaySimpleMatch;
+        return new Date(2025, parseInt(month) - 1, parseInt(day));
+      }
+
+      return null;
+    } catch (error) {
+      console.error('parseDate エラー:', error, '元値:', dateStr);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const response = await fetch('/api/data');
+      const result = await response.json();
+      
+      if (result.error) {
+        console.error('API returned error:', result.error);
+        return;
+      }
+      
+      setData(result);
+    } catch (error) {
+      console.error('データ取得エラー:', error);
+    }
+  };
+
+  // マウント前は読み込み画面を表示
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-xl">読み込み中...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-white mb-2">GEM QUEEN</h1>
+          <p className="text-purple-200">Instagram Analytics Dashboard</p>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <KPICard
+            title="フォロワー数"
+            value="0"
+            change="+0"
+            icon="F"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <KPICard
+            title="リーチ数"
+            value="0"
+            icon="R"
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+          <KPICard
+            title="プロフィール表示"
+            value="0"
+            icon="P"
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <KPICard
+            title="Webクリック数"
+            value="0"
+            icon="W"
+          />
+          <KPICard
+            title="LINE登録者数"
+            value="0"
+            change="期間内合計"
+            icon="L"
+          />
+        </div>
+
+        {/* Message */}
+        <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-xl p-6 backdrop-blur-sm border border-white/10 text-center">
+          <h3 className="text-xl font-semibold text-white mb-4">ダッシュボードが正常にデプロイされました！</h3>
+          <p className="text-purple-200 mb-4">Google Sheets APIの設定を完了すると、実際のデータが表示されます。</p>
+          <div className="text-gray-300 text-sm">
+            <p>• フォロワー推移グラフ</p>
+            <p>• トップリール・ストーリー</p>
+            <p>• デイリーデータ</p>
+            <p>• 期間フィルタリング機能</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

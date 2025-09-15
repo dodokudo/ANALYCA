@@ -59,7 +59,7 @@ const convertToGoogleUserContent = (url: string) => {
   return url;
 };
 
-function KPICard({ title, value, change, icon }: { title: string; value: string; change?: string; icon?: string }) {
+function KPICard({ title, value, change }: { title: string; value: string; change?: string }) {
   return (
     <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-xl p-6 backdrop-blur-sm border border-white/10">
       <div>
@@ -659,6 +659,7 @@ export default function Dashboard() {
       // デイリーデータを使用して全指標を計算
       const filteredDailyData = getFilteredDailyData(data.dailyRaw, timeFilter);
 
+      // eslint-disable-next-line prefer-const
       let summary = {
         currentFollowers: 0,
         followerGrowth: 0,

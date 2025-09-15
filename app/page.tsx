@@ -344,6 +344,7 @@ export default function Dashboard() {
         const sortedData = validDataRows.sort((a, b) => {
           const dateA = parseDate(String(a[0] || '').trim());
           const dateB = parseDate(String(b[0] || '').trim());
+          if (!dateA || !dateB) return 0;
           return dateA.getTime() - dateB.getTime(); // 昇順
         });
         console.log(`全期間ソート結果: ${sortedData.length}件`);

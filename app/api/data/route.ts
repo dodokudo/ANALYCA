@@ -90,15 +90,15 @@ export async function GET() {
     console.error('Google Sheets API エラー詳細:', error);
     
     return NextResponse.json(
-      { 
+      {
         error: 'スプレッドシートからのデータ取得に失敗しました',
-        details: error.message,
+        details: error instanceof Error ? error.message : String(error),
         // デバッグ情報
         debug: {
           spreadsheetId: SPREADSHEET_ID,
           hasCredentials: !!GOOGLE_CREDENTIALS.private_key,
-          errorType: error.constructor.name,
-          errorCode: error.code
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorCode: error instanceof Error && 'code' in error ? (error as any).code : undefined
         }
       },
       { 

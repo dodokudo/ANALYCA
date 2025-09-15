@@ -62,8 +62,8 @@ export async function GET() {
     console.error('Test error:', error);
     return NextResponse.json({
       error: 'Google Sheets API Error',
-      details: error.message,
-      code: error.code
+      details: error instanceof Error ? error.message : String(error),
+      code: error instanceof Error && 'code' in error ? (error as any).code : undefined
     }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Line, Bar } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -28,12 +28,12 @@ ChartJS.register(
 );
 
 interface ApiResponse {
-  instagramRaw: any[][];
-  storiesRaw: any[][];
-  storiesProcessed: any[][];
-  reelRawDataRaw: any[][];
-  reelSheetRaw: any[][];
-  dailyRaw: any[][];
+  instagramRaw: string[][];
+  storiesRaw: string[][];
+  storiesProcessed: string[][];
+  reelRawDataRaw: string[][];
+  reelSheetRaw: string[][];
+  dailyRaw: string[][];
   dataInfo: {
     instagramRows: number;
     storiesRows: number;
@@ -72,7 +72,7 @@ function KPICard({ title, value, change, icon }: { title: string; value: string;
 }
 
 // リールデータ結合関数
-const joinReelData = (reelRawDataRaw: any[][], reelSheetRaw: any[][]) => {
+const joinReelData = (reelRawDataRaw: string[][], reelSheetRaw: string[][]) => {
   console.log(`=== リールデータ結合開始 ===`);
   console.log(`RawData行数: ${reelRawDataRaw?.length || 0}, SheetData行数: ${reelSheetRaw?.length || 0}`);
 
@@ -116,7 +116,7 @@ const joinReelData = (reelRawDataRaw: any[][], reelSheetRaw: any[][]) => {
 };
 
 // 結合されたリールデータ用のフィルタリング関数
-const filterJoinedReelData = (joinedData: any[], timeFilter: string, customStartDate?: string, customEndDate?: string) => {
+const filterJoinedReelData = (joinedData: { rawData: string[], sheetData: string[] }[], timeFilter: string, customStartDate?: string, customEndDate?: string) => {
   console.log(`=== リールフィルタリング開始 ===`);
   console.log(`入力データ数: ${joinedData?.length || 0}`);
   console.log(`フィルター: ${timeFilter}`);
@@ -673,7 +673,7 @@ export default function Dashboard() {
       if (filteredDailyData.data && filteredDailyData.data.length > 0) {
         const dataRows = filteredDailyData.data;
 
-        let followerValues = [];
+        const followerValues: number[] = [];
         let reachTotal = 0;
         let profileViewsTotal = 0;
         let webClicksTotal = 0;
@@ -1582,7 +1582,7 @@ export default function Dashboard() {
                       const month = date.getMonth() + 1; // 0-based month
                       const day = date.getDate();
                       normalizedDate = `${year}/${month}/${day}`;
-                    } catch (e) {
+                    } catch {
                       console.log(`Date parsing failed for: ${dateTimeStr}`);
                       return;
                     }

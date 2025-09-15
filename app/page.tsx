@@ -1031,11 +1031,8 @@ export default function Dashboard() {
                             label: 'フォロワー数',
                             data: chartData.map(row => parseInt(String(row[1] || '').replace(/,/g, '')) || 0),
                             borderColor: 'rgb(147, 51, 234)',
-                            backgroundColor: 'rgba(147, 51, 234, 0.1)',
-                            tension: 0.1,
-                            fill: true,
+                            backgroundColor: 'rgba(147, 51, 234, 0.3)',
                             yAxisID: 'y',
-                            type: 'line',
                           },
                           {
                             label: 'フォロワー増加数',
@@ -1049,7 +1046,6 @@ export default function Dashboard() {
                             borderColor: 'rgb(59, 130, 246)',
                             borderWidth: 1,
                             yAxisID: 'y1',
-                            type: 'bar',
                           },
                           {
                             label: 'LINE登録数',
@@ -1058,7 +1054,6 @@ export default function Dashboard() {
                             borderColor: 'rgb(34, 197, 94)',
                             borderWidth: 1,
                             yAxisID: 'y1',
-                            type: 'bar',
                           }
                         ],
                       }}

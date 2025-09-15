@@ -24,13 +24,14 @@ export async function GET() {
     
     const sheets = await getGoogleSheetsClient();
     
-    // 各シートからデータを取得
+    // 実際のシート名に合わせて修正
     const ranges = [
-      'Instagram raw!A:Z',
-      'Stories raw!A:Z', 
-      'Reel rawdata!A:Z',
-      'Reel sheet!A:Z',
-      'Daily!A:Z'
+      'Instagram insight!A:Z',      // Instagram raw → Instagram insight
+      'stories rawdata!A:Z',        // Stories raw → stories rawdata
+      'reel rawdata!A:Z',           // Reel rawdata → reel rawdata
+      'reel!A:Z',                   // Reel sheet → reel
+      'daily!A:Z',                  // Daily → daily
+      'stories!A:Z'                 // 追加: stories シート
     ];
     
     console.log('取得範囲:', ranges);
@@ -42,29 +43,38 @@ export async function GET() {
     
     console.log('API応答取得完了');
     
-    const [instagramData, storiesData, reelRawData, reelSheetData, dailyData] = 
+    const [instagramData, storiesRawData, reelRawData, reelSheetData, dailyData, storiesData] = 
       batchResponse.data.valueRanges?.map(range => range.values || []) || [];
     
     console.log('各シートのデータ行数:');
-    console.log('- Instagram raw:', instagramData?.length || 0);
-    console.log('- Stories raw:', storiesData?.length || 0);
-    console.log('- Reel rawdata:', reelRawData?.length || 0);
-    console.log('- Reel sheet:', reelSheetData?.length || 0);
-    console.log('- Daily:', dailyData?.length || 0);
+    console.log('- Instagram insight:', instagramData?.length || 0);
+    console.log('- stories rawdata:', storiesRawData?.length || 0);
+    console.log('- reel rawdata:', reelRawData?.length || 0);
+    console.log('- reel:', reelSheetData?.length || 0);
+    console.log('- daily:', dailyData?.length || 0);
+    console.log('- stories:', storiesData?.length || 0);
+
+    // データ内容のサンプルを確認
+    console.log('=== データ内容サンプル ===');
+    console.log('stories rawdata 最初の3行:', storiesRawData?.slice(0, 3));
+    console.log('reel rawdata 最初の3行:', reelRawData?.slice(0, 3));
+    console.log('reel sheet 最初の3行:', reelSheetData?.slice(0, 3));
     
     // データの構造化
     const completeData = {
       instagramRaw: instagramData || [],
-      storiesRaw: storiesData || [],
+      storiesRaw: storiesRawData || [],
       reelRawDataRaw: reelRawData || [],
       reelSheetRaw: reelSheetData || [],
       dailyRaw: dailyData || [],
+      storiesProcessed: storiesData || [],
       dataInfo: {
         instagramRows: instagramData?.length || 0,
-        storiesRows: storiesData?.length || 0,
+        storiesRows: storiesRawData?.length || 0,
         reelRawDataRows: reelRawData?.length || 0,
         reelSheetRows: reelSheetData?.length || 0,
-        dailyRows: dailyData?.length || 0
+        dailyRows: dailyData?.length || 0,
+        storiesProcessedRows: storiesData?.length || 0
       }
     };
     

@@ -1033,6 +1033,9 @@ export default function Dashboard() {
                             backgroundColor: 'rgba(147, 51, 234, 0.1)',
                             tension: 0.1,
                             fill: true,
+                            pointRadius: 3,
+                            pointStyle: 'circle',
+                            showLine: true,
                             yAxisID: 'y',
                           },
                           {

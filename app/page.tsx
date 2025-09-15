@@ -1435,7 +1435,7 @@ export default function Dashboard() {
                       case 'date':
                         const dateA = new Date(rawDataA[5] || '');
                         const dateB = new Date(rawDataB[5] || '');
-                        result = dateB - dateA;
+                        result = dateB.getTime() - dateA.getTime();
                         break;
                       case 'views':
                         const viewsA = parseInt(String(rawDataA[6] || '').replace(/,/g, '')) || 0;
@@ -1786,7 +1786,7 @@ export default function Dashboard() {
                       case 'date':
                         const dateA = new Date(a[0] || '');
                         const dateB = new Date(b[0] || '');
-                        result = dateB - dateA;
+                        result = dateB.getTime() - dateA.getTime();
                         break;
                       case 'views':
                         const viewsA = parseInt(String(a[3] || '').replace(/,/g, '')) || 0;

@@ -364,7 +364,7 @@ export default function Dashboard() {
         // 当月: 今月の1日から今日まで
         cutoffDate = new Date(jstToday.getFullYear(), jstToday.getMonth(), 1, 0, 0, 0, 0);
         const todayDate = new Date(jstToday.getFullYear(), jstToday.getMonth(), jstToday.getDate());
-        daysBack = Math.ceil((todayDate - cutoffDate) / (1000 * 60 * 60 * 24));
+        daysBack = Math.ceil((todayDate.getTime() - cutoffDate.getTime()) / (1000 * 60 * 60 * 24));
       } else if (timeFilter === 'custom' && customStartDate && customEndDate) {
         // カスタム期間: 指定された開始日から終了日まで
         const startDate = new Date(customStartDate);
@@ -373,7 +373,7 @@ export default function Dashboard() {
         if (startDate <= endDate) {
           cutoffDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
           jstToday = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999);
-          daysBack = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+          daysBack = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
         } else {
           // 無効な日付範囲の場合はデフォルト（1ヶ月）に戻す
           daysBack = 29;
@@ -816,7 +816,7 @@ export default function Dashboard() {
               </div>
               {customStartDate && customEndDate && new Date(customStartDate) <= new Date(customEndDate) && (
                 <div className="text-green-400 text-sm">
-                  ✓ 期間: {Math.ceil((new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)) + 1}日間
+                  ✓ 期間: {Math.ceil((new Date(customEndDate).getTime() - new Date(customStartDate).getTime()) / (1000 * 60 * 60 * 24)) + 1}日間
                 </div>
               )}
               {customStartDate && customEndDate && new Date(customStartDate) > new Date(customEndDate) && (
@@ -1307,7 +1307,7 @@ export default function Dashboard() {
 
                 // 日付でソートして配列に変換
                 const sortedViewsData = Object.entries(viewsData)
-                  .sort(([a], [b]) => new Date(a) - new Date(b))
+                  .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
                   .slice(-14); // 最新14日分
 
                 // フォロワー数・LINE登録数データ（dailyDataから）

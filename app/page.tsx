@@ -61,11 +61,11 @@ const convertToGoogleUserContent = (url: string) => {
 
 function KPICard({ title, value, change }: { title: string; value: string; change?: string }) {
   return (
-    <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-lg p-3 md:p-4 backdrop-blur-sm border border-white/10 min-w-0 w-full max-w-xs">
+    <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-lg p-2 md:p-3 backdrop-blur-sm border border-white/10 min-w-0 w-full">
       <div>
-        <p className="text-gray-300 text-xs md:text-sm truncate">{title}</p>
-        <p className="text-xl md:text-2xl lg:text-3xl font-bold text-white">{value}</p>
-        {change && <p className="text-xs md:text-sm text-green-400">{change}</p>}
+        <p className="text-gray-300 text-xs truncate">{title}</p>
+        <p className="text-lg md:text-xl font-bold text-white">{value}</p>
+        {change && <p className="text-xs text-green-400">{change}</p>}
       </div>
     </div>
   );
@@ -893,12 +893,12 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-white mb-6 text-center">KPI・ファネル分析</h3>
 
               {/* KPI Cards and Conversion Rates */}
-              <div className="flex items-center justify-center flex-wrap xl:flex-nowrap gap-1 md:gap-2 lg:gap-3 overflow-x-auto min-w-0">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:flex xl:items-center xl:justify-center gap-2 max-w-full overflow-hidden">
                 {/* 現在のフォロワー数 - 左端 */}
                 <div className="flex-shrink-0">
-                  <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 text-center border border-purple-300/30">
-                    <div className="text-purple-300 text-sm mb-2">現在のフォロワー数</div>
-                    <div className="text-2xl font-bold text-white">{summary.currentFollowers.toLocaleString()}</div>
+                  <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-2 md:p-3 text-center border border-purple-300/30 min-w-0">
+                    <div className="text-purple-300 text-xs md:text-sm mb-1 truncate">現在のフォロワー数</div>
+                    <div className="text-lg md:text-xl lg:text-2xl font-bold text-white">{summary.currentFollowers.toLocaleString()}</div>
                   </div>
                 </div>
 
@@ -1008,6 +1008,7 @@ export default function Dashboard() {
                   </div>
                   <div className="h-64">
                     <Chart
+                      type='bar'
                       data={{
                         labels: chartData.map(row => {
                           try {

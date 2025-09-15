@@ -1011,8 +1011,7 @@ export default function Dashboard() {
                     <h3 className="text-xl font-semibold text-white">フォロワー・LINE登録者推移</h3>
                   </div>
                   <div className="h-64">
-                    <Chart
-                      type='bar'
+                    <Line
                       data={{
                         labels: chartData.map(row => {
                           try {
@@ -1031,7 +1030,9 @@ export default function Dashboard() {
                             label: 'フォロワー数',
                             data: chartData.map(row => parseInt(String(row[1] || '').replace(/,/g, '')) || 0),
                             borderColor: 'rgb(147, 51, 234)',
-                            backgroundColor: 'rgba(147, 51, 234, 0.3)',
+                            backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                            tension: 0.1,
+                            fill: true,
                             yAxisID: 'y',
                           },
                           {
@@ -1044,7 +1045,10 @@ export default function Dashboard() {
                             }),
                             backgroundColor: 'rgba(59, 130, 246, 0.8)',
                             borderColor: 'rgb(59, 130, 246)',
-                            borderWidth: 1,
+                            borderWidth: 3,
+                            pointStyle: 'rect',
+                            pointRadius: 8,
+                            showLine: false,
                             yAxisID: 'y1',
                           },
                           {
@@ -1052,7 +1056,10 @@ export default function Dashboard() {
                             data: chartData.map(row => parseInt(String(row[14] || '').replace(/,/g, '')) || 0), // LINE登録数日別
                             backgroundColor: 'rgba(34, 197, 94, 0.8)',
                             borderColor: 'rgb(34, 197, 94)',
-                            borderWidth: 1,
+                            borderWidth: 3,
+                            pointStyle: 'rect',
+                            pointRadius: 8,
+                            showLine: false,
                             yAxisID: 'y1',
                           }
                         ],

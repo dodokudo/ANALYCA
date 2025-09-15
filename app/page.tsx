@@ -1030,7 +1030,6 @@ export default function Dashboard() {
                             tension: 0.1,
                             fill: true,
                             yAxisID: 'y',
-                            type: 'line',
                           },
                           {
                             label: 'フォロワー増加数',
@@ -1044,7 +1043,6 @@ export default function Dashboard() {
                             borderColor: 'rgb(59, 130, 246)',
                             borderWidth: 1,
                             yAxisID: 'y1',
-                            type: 'bar',
                           },
                           {
                             label: 'LINE登録数',
@@ -1053,7 +1051,6 @@ export default function Dashboard() {
                             borderColor: 'rgb(34, 197, 94)',
                             borderWidth: 1,
                             yAxisID: 'y1',
-                            type: 'bar',
                           }
                         ],
                       }}
@@ -1343,8 +1340,7 @@ export default function Dashboard() {
                                   pointBorderColor: '#fff',
                                   pointBorderWidth: 2,
                                   yAxisID: 'y',
-                                  type: 'line',
-                                },
+                                      },
                                 {
                                   label: 'フォロワー増加数',
                                   data: dailyChartData.map((row, index) => {
@@ -1357,7 +1353,6 @@ export default function Dashboard() {
                                   borderColor: 'rgb(59, 130, 246)',
                                   borderWidth: 1,
                                   yAxisID: 'y1',
-                                  type: 'bar',
                                 }
                               ],
                             }}
@@ -1690,7 +1685,6 @@ export default function Dashboard() {
                           }),
                           datasets: [
                             {
-                              type: 'bar',
                               label: '投稿数',
                               data: chartData.map(item => item.postCount),
                               backgroundColor: 'rgba(147, 51, 234, 0.6)',
@@ -1699,8 +1693,7 @@ export default function Dashboard() {
                               yAxisID: 'y1',
                             },
                             {
-                              type: 'line',
-                              label: '最高閲覧率 (%)',
+                                label: '最高閲覧率 (%)',
                               data: chartData.map(item => item.maxViewRate),
                               borderColor: 'rgb(34, 197, 94)',
                               backgroundColor: 'rgba(34, 197, 94, 0.1)',

@@ -27,7 +27,7 @@ export async function GET() {
     } catch (e) {
       return NextResponse.json({
         error: 'Invalid credentials JSON',
-        details: e.message
+        details: e instanceof Error ? e.message : String(e)
       }, { status: 500 });
     }
 

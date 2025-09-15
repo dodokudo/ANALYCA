@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
+import { Line, Chart } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -61,11 +61,11 @@ const convertToGoogleUserContent = (url: string) => {
 
 function KPICard({ title, value, change }: { title: string; value: string; change?: string }) {
   return (
-    <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-xl p-6 backdrop-blur-sm border border-white/10">
+    <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 rounded-lg p-3 md:p-4 backdrop-blur-sm border border-white/10 min-w-0 w-full max-w-xs">
       <div>
-        <p className="text-gray-300 text-sm">{title}</p>
-        <p className="text-3xl font-bold text-white">{value}</p>
-        {change && <p className="text-sm text-green-400">{change}</p>}
+        <p className="text-gray-300 text-xs md:text-sm truncate">{title}</p>
+        <p className="text-xl md:text-2xl lg:text-3xl font-bold text-white">{value}</p>
+        {change && <p className="text-xs md:text-sm text-green-400">{change}</p>}
       </div>
     </div>
   );
@@ -893,7 +893,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-white mb-6 text-center">KPI・ファネル分析</h3>
 
               {/* KPI Cards and Conversion Rates */}
-              <div className="flex items-center justify-center flex-wrap lg:flex-nowrap gap-2 lg:gap-4 overflow-x-auto">
+              <div className="flex items-center justify-center flex-wrap xl:flex-nowrap gap-1 md:gap-2 lg:gap-3 overflow-x-auto min-w-0">
                 {/* 現在のフォロワー数 - 左端 */}
                 <div className="flex-shrink-0">
                   <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 text-center border border-purple-300/30">
@@ -1007,7 +1007,8 @@ export default function Dashboard() {
                     <h3 className="text-xl font-semibold text-white">フォロワー・LINE登録者推移</h3>
                   </div>
                   <div className="h-64">
-                    <Line
+                    <Chart
+                      type="line"
                       data={{
                         labels: chartData.map(row => {
                           try {

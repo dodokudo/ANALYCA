@@ -893,7 +893,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-white mb-6 text-center">KPI・ファネル分析</h3>
 
               {/* KPI Cards and Conversion Rates */}
-              <div className="flex items-center justify-center flex-wrap lg:flex-nowrap gap-4">
+              <div className="flex items-center justify-center flex-wrap lg:flex-nowrap gap-2 lg:gap-4 overflow-x-auto">
                 {/* 現在のフォロワー数 - 左端 */}
                 <div className="flex-shrink-0">
                   <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 text-center border border-purple-300/30">
@@ -1043,6 +1043,7 @@ export default function Dashboard() {
                             borderColor: 'rgb(59, 130, 246)',
                             borderWidth: 1,
                             yAxisID: 'y1',
+                            type: 'bar',
                           },
                           {
                             label: 'LINE登録数',
@@ -1051,6 +1052,7 @@ export default function Dashboard() {
                             borderColor: 'rgb(34, 197, 94)',
                             borderWidth: 1,
                             yAxisID: 'y1',
+                            type: 'bar',
                           }
                         ],
                       }}

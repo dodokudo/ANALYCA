@@ -1008,7 +1008,6 @@ export default function Dashboard() {
                   </div>
                   <div className="h-64">
                     <Chart
-                      type="line"
                       data={{
                         labels: chartData.map(row => {
                           try {
@@ -1031,6 +1030,7 @@ export default function Dashboard() {
                             tension: 0.1,
                             fill: true,
                             yAxisID: 'y',
+                            type: 'line',
                           },
                           {
                             label: 'フォロワー増加数',

@@ -312,7 +312,7 @@ export default function Dashboard() {
   };
 
   // デイリーデータ専用のフィルタリング関数
-  const getFilteredDailyData = (data, timeFilter) => {
+  const getFilteredDailyData = (data: string[][], timeFilter: string) => {
     if (!data || data.length <= 5) {
       return { headers: [], data: [] };
     }
@@ -487,7 +487,7 @@ export default function Dashboard() {
     }
   };
 
-  const getFilteredData = (data, timeFilter, dateColumnIndex = 0) => {
+  const getFilteredData = (data: string[][], timeFilter: string, dateColumnIndex = 0) => {
     console.log(`=== ストーリーズフィルタリング開始 ===`);
     console.log(`入力データ数: ${data?.length || 0}`);
     console.log(`フィルター: ${timeFilter}, 日付列: ${dateColumnIndex}`);

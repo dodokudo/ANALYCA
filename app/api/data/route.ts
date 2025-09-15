@@ -98,7 +98,7 @@ export async function GET() {
           spreadsheetId: SPREADSHEET_ID,
           hasCredentials: !!GOOGLE_CREDENTIALS.private_key,
           errorType: error instanceof Error ? error.constructor.name : typeof error,
-          errorCode: error instanceof Error && 'code' in error ? (error as any).code : undefined
+          errorCode: error instanceof Error && 'code' in error ? (error as { code?: string }).code : undefined
         }
       },
       { 

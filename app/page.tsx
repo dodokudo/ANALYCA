@@ -1011,7 +1011,7 @@ export default function Dashboard() {
                     <h3 className="text-xl font-semibold text-white">フォロワー・LINE登録者推移</h3>
                   </div>
                   <div className="h-64">
-                    <Chart
+                    <Line
                       data={{
                         labels: chartData.map(row => {
                           try {
@@ -1027,18 +1027,15 @@ export default function Dashboard() {
                         }),
                         datasets: [
                           {
-                            type: 'line',
                             label: 'フォロワー数',
                             data: chartData.map(row => parseInt(String(row[1] || '').replace(/,/g, '')) || 0),
                             borderColor: 'rgb(147, 51, 234)',
                             backgroundColor: 'rgba(147, 51, 234, 0.1)',
                             tension: 0.1,
                             fill: true,
-                            pointRadius: 3,
                             yAxisID: 'y',
                           },
                           {
-                            type: 'bar',
                             label: 'フォロワー増加数',
                             data: chartData.map((row, index) => {
                               if (index === 0) return 0; // 最初の日は増加数を計算できない
@@ -1046,18 +1043,21 @@ export default function Dashboard() {
                               const previous = parseInt(String(chartData[index - 1][1] || '').replace(/,/g, '')) || 0;
                               return Math.max(0, current - previous); // 負の値は0にする
                             }),
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
                             borderColor: 'rgb(59, 130, 246)',
-                            borderWidth: 1,
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false,
                             yAxisID: 'y1',
                           },
                           {
-                            type: 'bar',
                             label: 'LINE登録数',
                             data: chartData.map(row => parseInt(String(row[14] || '').replace(/,/g, '')) || 0), // LINE登録数日別
-                            backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
                             borderColor: 'rgb(34, 197, 94)',
-                            borderWidth: 1,
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: false,
                             yAxisID: 'y1',
                           }
                         ],

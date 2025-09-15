@@ -408,7 +408,7 @@ export default function Dashboard() {
 
       // まず実際のデータでどんな日付があるか確認
       console.log(`=== 利用可能な日付データ（最初の10件） ===`);
-      const validDates: string[] = [];
+      const validDates: { original: string; parsed: Date; formatted: string; }[] = [];
       dataRows.slice(0, 10).forEach((row, index) => {
         if (row[0]) {
           const dateStr = String(row[0]).trim();

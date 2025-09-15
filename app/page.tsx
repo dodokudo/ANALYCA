@@ -261,7 +261,7 @@ export default function Dashboard() {
   const [storySortBy, setStorySortBy] = useState('date'); // date, views, viewRate, reactions
   const [storySortOrder, setStorySortOrder] = useState('desc'); // desc, asc
 
-  const parseDate = (dateStr) => {
+  const parseDate = (dateStr: string) => {
     if (!dateStr || typeof dateStr !== 'string') {
       return null;
     }

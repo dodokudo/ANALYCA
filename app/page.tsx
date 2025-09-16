@@ -1318,7 +1318,7 @@ export default function Dashboard() {
                               Reel {index + 1}
                             </div>
                           </div>
-                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium">{rawData[5] || `リール ${index + 1}`}</p>
+                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium">{sheetData[4] || `リール ${index + 1}`}</p>
 
                           {/* 再生数（大きく表示） */}
                           <div className="mb-3 text-center">
@@ -1331,29 +1331,29 @@ export default function Dashboard() {
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-red-500">❤️</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(rawData[8] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(rawData[8] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[13] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-blue-500">💬</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(rawData[9] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(rawData[9] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[14] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-amber-500">💾</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(rawData[10] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(rawData[10] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[16] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[16] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-purple-500">👤</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[17] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[17] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[18] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[18] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                           </div>
@@ -1740,12 +1740,12 @@ export default function Dashboard() {
                         return isNaN(parsed) ? 0 : parsed;
                       };
 
-                      // Extract data according to requirements
-                      const title = sheetData[0] || `リール ${index + 1}`;
-                      const likes = safeParseInt(rawData[8]);
-                      const comments = safeParseInt(rawData[9]);
-                      const follows = safeParseInt(sheetData[17]);
-                      const saves = safeParseInt(rawData[10]);
+                      // Extract data according to requirements - Reelsシート参照
+                      const title = sheetData[4] || `リール ${index + 1}`; // E列（インデックス4）
+                      const likes = safeParseInt(sheetData[13]); // N列（インデックス13）
+                      const comments = safeParseInt(sheetData[14]); // O列（インデックス14）
+                      const saves = safeParseInt(sheetData[16]); // Q列（インデックス16）
+                      const follows = safeParseInt(sheetData[18]); // S列（インデックス18）
                       const views = safeParseInt(rawData[6]);
                       const duration = safeParseInt(rawData[13]);
                       const viewRate = safeParseFloat(sheetData[8]);

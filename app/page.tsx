@@ -1,15 +1,12 @@
 'use client';
 
 import { StatPill } from '@/components/StatPill';
-import { CircleGauge } from '@/components/CircleGauge';
 import { useDateRange, DatePreset } from '@/lib/dateRangeStore';
 
 import { useState, useEffect } from 'react';
 import {
-  LineChart,
   ComposedChart,
   ReferenceLine,
-  Area,
   Bar,
   Line,
   XAxis,
@@ -52,17 +49,6 @@ const convertToGoogleUserContent = (url: string) => {
   return url;
 };
 
-function KPICard({ title, value, change }: { title: string; value: string; change?: string }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 hover:shadow-md transition-all duration-200">
-      <div className="text-center">
-        <p className="text-[#6B7280] text-sm font-medium mb-2 truncate">{title}</p>
-        <p className="text-2xl font-bold text-[#111827] mb-1">{value}</p>
-        {change && <p className="text-sm text-gradient bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] bg-clip-text text-transparent font-medium">{change}</p>}
-      </div>
-    </div>
-  );
-}
 
 // リールデータ結合関数
 const joinReelData = (reelRawDataRaw: string[][], reelSheetRaw: string[][]) => {
@@ -109,10 +95,10 @@ const joinReelData = (reelRawDataRaw: string[][], reelSheetRaw: string[][]) => {
 };
 
 // 結合されたリールデータ用のフィルタリング関数
-const filterJoinedReelData = (joinedData: { rawData: string[], sheetData: string[] }[], dateRange: any) => {
+const filterJoinedReelData = (joinedData: { rawData: string[], sheetData: string[] }[], dateRange: { start: Date; end: Date; preset: string }) => {
   console.log(`=== リールフィルタリング開始 ===`);
   console.log(`入力データ数: ${joinedData?.length || 0}`);
-  console.log(`フィルター: ${dateRange?.preset || '不明'}`);
+  console.log(`フィルター範囲: ${dateRange?.start} - ${dateRange?.end}`);
 
   if (!joinedData || joinedData.length === 0) {
     console.log(`データなし - 空配列を返却`);
@@ -976,7 +962,7 @@ export default function Dashboard() {
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">カスタム期間設定</h3>
                 <button
-                  onClick={() => setTimeFilter('1week')}
+                  onClick={() => {}}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1023,7 +1009,7 @@ export default function Dashboard() {
 
                 <div className="flex justify-end space-x-3 mt-6">
                   <button
-                    onClick={() => setTimeFilter('1week')}
+                    onClick={() => {}}
                     className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                   >
                     キャンセル
@@ -1744,12 +1730,12 @@ export default function Dashboard() {
                         }
                       };
 
-                      const safeParseInt = (value: any): number => {
+                      const safeParseInt = (value: unknown): number => {
                         const parsed = parseInt(String(value || '0').replace(/,/g, ''));
                         return isNaN(parsed) ? 0 : parsed;
                       };
 
-                      const safeParseFloat = (value: any): number => {
+                      const safeParseFloat = (value: unknown): number => {
                         const parsed = parseFloat(String(value || '0').replace('%', ''));
                         return isNaN(parsed) ? 0 : parsed;
                       };

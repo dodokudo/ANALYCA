@@ -1318,12 +1318,12 @@ export default function Dashboard() {
                               Reel {index + 1}
                             </div>
                           </div>
-                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium">{sheetData[4] || `リール ${index + 1}`}</p>
+                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium">{sheetData[0] || `リール ${index + 1}`}</p>
 
                           {/* 再生数（大きく表示） */}
                           <div className="mb-3 text-center">
                             <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(rawData[6] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            <p className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
                           {/* 4アイコン横一列表示 */}
@@ -1331,29 +1331,28 @@ export default function Dashboard() {
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-red-500">❤️</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[13] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {/* いいね数はReelsシートにないため非表示 */}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-blue-500">💬</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[14] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[9] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[9] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-amber-500">💾</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[16] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[16] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[11] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[11] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-purple-500">👤</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[18] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[18] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[17] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[17] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                           </div>
@@ -1741,15 +1740,15 @@ export default function Dashboard() {
                       };
 
                       // Extract data according to requirements - Reelsシート参照
-                      const title = sheetData[4] || `リール ${index + 1}`; // E列（インデックス4）
-                      const likes = safeParseInt(sheetData[13]); // N列（インデックス13）
-                      const comments = safeParseInt(sheetData[14]); // O列（インデックス14）
-                      const saves = safeParseInt(sheetData[16]); // Q列（インデックス16）
-                      const follows = safeParseInt(sheetData[18]); // S列（インデックス18）
-                      const views = safeParseInt(rawData[6]);
-                      const duration = safeParseInt(rawData[13]);
-                      const viewRate = safeParseFloat(sheetData[8]);
-                      const postedAt = rawData[5];
+                      const title = sheetData[0] || `リール ${index + 1}`; // A列（インデックス0）動画タイトル
+                      const likes = 0; // いいね数はReelsシートにないため0
+                      const comments = safeParseInt(sheetData[9]); // J列（インデックス9）コメント数
+                      const saves = safeParseInt(sheetData[11]); // L列（インデックス11）保存数
+                      const follows = safeParseInt(sheetData[17]); // R列（インデックス17）フォロー数
+                      const views = safeParseInt(sheetData[2]); // C列（インデックス2）再生数
+                      const duration = 0; // 尺はReelsシートにないため0
+                      const viewRate = safeParseFloat(sheetData[8]); // I列（インデックス8）平均視聴維持率
+                      const postedAt = sheetData[1]; // B列（インデックス1）投稿日
 
                       const formattedDate = formatDate(postedAt);
                       const formattedDuration = formatDuration(duration);

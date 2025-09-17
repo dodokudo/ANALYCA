@@ -1161,7 +1161,12 @@ export default function Dashboard() {
                       <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="var(--chart-grid)"
+                              horizontal={window.innerWidth < 768 ? false : true}
+                              vertical={false}
+                            />
                             <XAxis
                               dataKey="date"
                               tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: 'var(--chart-axis)' }}
@@ -1169,17 +1174,19 @@ export default function Dashboard() {
                             <YAxis
                               yAxisId="left"
                               orientation="left"
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#7C3AED' }}
+                              tick={window.innerWidth < 768 ? false : { fontSize: 14, fill: '#7C3AED' }}
                               className="dark:fill-purple-400"
                               tickFormatter={(value) => value.toLocaleString()}
                               domain={['dataMin', 'dataMax']}
+                              axisLine={window.innerWidth < 768 ? false : true}
                             />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#3B82F6' }}
+                              tick={window.innerWidth < 768 ? false : { fontSize: 14, fill: '#3B82F6' }}
                               className="dark:fill-blue-400"
                               tickFormatter={(value) => value.toLocaleString()}
+                              axisLine={window.innerWidth < 768 ? false : true}
                             />
                             <Tooltip
                               formatter={(value, name) => [value.toLocaleString(), name]}
@@ -1285,32 +1292,29 @@ export default function Dashboard() {
 
                     return (
                       <>
-                        {/* Mobile vertical layout */}
-                        <div className="lg:hidden">
-                          {funnelSteps.map((step, index) => (
-                            <div key={index}>
-                              {/* Card */}
-                              <div className="bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-4 hover:shadow-md transition-all duration-200">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <div className="text-2xl">{step.icon}</div>
-                                    <div className="text-sm text-[#6B7280] dark:text-gray-400 font-medium">{step.title}</div>
-                                  </div>
-                                  <div className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{step.value.toLocaleString()}</div>
+                        {/* Instagram-style mobile list layout */}
+                        <div className="lg:hidden bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-4">
+                          <h4 className="text-sm font-semibold text-[#111827] dark:text-[#E6E6E6] mb-3">📊 パフォーマンス</h4>
+                          <div className="space-y-2">
+                            {funnelSteps.map((step, index) => (
+                              <div key={index} className="flex items-center justify-between py-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">{step.icon}</span>
+                                  <span className="text-sm text-[#6B7280] dark:text-gray-400">{step.title}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-[#111827] dark:text-[#E6E6E6]">
+                                    {step.value.toLocaleString()}
+                                  </span>
+                                  {index < funnelSteps.length - 1 && (
+                                    <span className="text-xs text-purple-600 dark:text-purple-400 min-w-[40px] text-right">
+                                      {conversionRates[index]}%
+                                    </span>
+                                  )}
                                 </div>
                               </div>
-
-                              {/* Arrow and CVR outside card */}
-                              {index < funnelSteps.length - 1 && (
-                                <div className="flex justify-center items-center gap-2 py-3">
-                                  <div className="text-2xl text-purple-600 dark:text-purple-400">↓</div>
-                                  <div className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                                    {conversionRates[index]}%
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
 
                         {/* Desktop grid layout */}
@@ -1339,7 +1343,7 @@ export default function Dashboard() {
             <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
-                  💎 Top5 リール
+                  💎 Top{window.innerWidth < 1024 ? '3' : '5'} リール
                 </h3>
                 <button
                   onClick={() => {
@@ -1359,12 +1363,13 @@ export default function Dashboard() {
                   const filteredJoinedData = filterJoinedReelData(joinedReelData, dateRange);
 
                   if (filteredJoinedData.length > 0) {
-                    // 再生数でソートしてTop5を取得
+                    // 再生数でソートしてTop表示を取得（スマホ:3件、PC:5件）
+                    const topCount = window.innerWidth < 1024 ? 3 : 5;
                     const sortedReels = filteredJoinedData.sort((a, b) => {
                       const viewsA = parseInt(String(a.rawData[6] || '').replace(/,/g, '')) || 0;
                       const viewsB = parseInt(String(b.rawData[6] || '').replace(/,/g, '')) || 0;
                       return viewsB - viewsA;
-                    }).slice(0, 5);
+                    }).slice(0, topCount);
 
                     return sortedReels.map((joinedReel, index) => {
                       const rawData = joinedReel.rawData;
@@ -1443,7 +1448,7 @@ export default function Dashboard() {
             <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
-                  📖 Top5 ストーリー
+                  📖 Top{window.innerWidth < 1024 ? '3' : '5'} ストーリー
                 </h3>
                 <button
                   onClick={() => {
@@ -1459,11 +1464,12 @@ export default function Dashboard() {
                 {(() => {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
                   if (filteredStoriesProcessed.length > 1) {
+                    const topCount = window.innerWidth < 1024 ? 3 : 5;
                     const sortedStories = filteredStoriesProcessed.slice(1).sort((a, b) => {
                       const viewsA = parseInt(String(a[3] || '').replace(/,/g, '')) || 0; // storiesシート: D列（インデックス3）が閲覧数
                       const viewsB = parseInt(String(b[3] || '').replace(/,/g, '')) || 0;
                       return viewsB - viewsA;
-                    }).slice(0, 5);
+                    }).slice(0, topCount);
 
                     return sortedStories.map((story, index) => (
                       <div key={index} className="w-full lg:min-w-0 min-w-[280px] bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 flex-shrink-0 snap-start">

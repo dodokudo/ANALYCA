@@ -788,9 +788,9 @@ export default function Dashboard() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[#F7F8FB] dark:bg-[#121212] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-[#111827] dark:text-[#E6E6E6] text-xl mb-6 font-medium tracking-wide">💎 システムを起動中 💎</div>
+          <div className="text-gray-900 dark:text-gray-200 text-xl mb-6 font-medium tracking-wide">💎 システムを起動中 💎</div>
           <div className="relative">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700 border-t-purple-600 mx-auto"></div>
           </div>
@@ -803,9 +803,9 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F7F8FB] dark:bg-[#121212] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-[#111827] dark:text-[#E6E6E6] text-xl mb-6 font-medium tracking-wide">💎 データを読み込み中 💎</div>
+          <div className="text-gray-900 dark:text-gray-200 text-xl mb-6 font-medium tracking-wide">💎 データを読み込み中 💎</div>
           <div className="relative">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700 border-t-purple-600 mx-auto"></div>
           </div>
@@ -816,12 +816,12 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#F7F8FB] dark:bg-[#121212] flex items-center justify-center">
-        <div className="text-center bg-white dark:bg-[#1E1E1E] p-8 rounded-2xl border border-gray-200/70 dark:border-white/10 max-w-2xl shadow-sm">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center bg-white dark:bg-slate-800 p-8 rounded-2xl border border-gray-200/70 dark:border-white/10 max-w-2xl shadow-sm">
           <div className="text-red-600 dark:text-red-400 text-xl mb-4 font-medium">{error}</div>
           <button
             onClick={fetchData}
-            className="bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] hover:opacity-90 text-white px-6 py-3 rounded-md font-medium transition-all duration-200 shadow-sm"
+            className="bg-gradient-to-r from-purple-600 to-blue-500 hover:opacity-90 text-white px-6 py-3 rounded-md font-medium transition-all duration-200 shadow-sm"
           >
             💎 再試行
           </button>
@@ -831,21 +831,21 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white lg:bg-[#F7F8FB] dark:bg-[#121212] relative overflow-hidden">
+    <div className="min-h-screen bg-white lg:bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
       {/* SaaS風アクセント - デスクトップのみ */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] hidden lg:block"></div>
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-blue-500 hidden lg:block"></div>
 
       {/* Mobile Fixed Header - YouTube Studio風 */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white shadow-sm h-[60px]">
         <div className="flex items-center justify-between px-5 h-full">
           {/* 左: Analycaロゴ + ANALYCA */}
           <div className="flex items-center flex-shrink-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-[#8B5CF6] to-[#00FF88] rounded-lg flex items-center justify-center mr-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-emerald-400 rounded-lg flex items-center justify-center mr-3">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h1 className="text-lg font-bold text-[#111827]">
+            <h1 className="text-lg font-bold text-gray-900">
               ANALYCA
             </h1>
           </div>
@@ -866,7 +866,7 @@ export default function Dashboard() {
                   updatePreset(value);
                 }
               }}
-              className="rounded-lg border border-[#6B7280] bg-white text-[#111827] px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-[#8B5CF6] focus:border-[#8B5CF6] transition-all duration-200 min-w-[100px]"
+              className="rounded-lg border border-gray-500 bg-white text-gray-900 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 min-w-[100px]"
             >
               <option value="this-week">今週</option>
               <option value="last-week">先週</option>
@@ -881,15 +881,15 @@ export default function Dashboard() {
       {/* Desktop Container */}
       <div className="max-w-7xl mx-auto lg:px-6 lg:py-8 relative z-10 lg:pt-8 pt-16 pb-20 lg:pb-8">
         {/* TopBar: 左サービス名、中央タブ、右期間セレクト - デスクトップのみ */}
-        <div className="hidden lg:flex items-center justify-between mb-8 bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
+        <div className="hidden lg:flex items-center justify-between mb-8 bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
           {/* 左: サービス名 */}
           <div className="flex items-center flex-shrink-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] rounded-lg flex items-center justify-center mr-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-500 rounded-lg flex items-center justify-center mr-3">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6]">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-200">
               GEM QUEEN💎
             </h1>
           </div>
@@ -900,8 +900,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab('dashboard')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'dashboard'
-                  ? 'bg-white dark:bg-gray-700 text-[#111827] dark:text-white shadow-sm'
-                  : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               📊 ホーム
@@ -910,8 +910,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab('reels')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'reels'
-                  ? 'bg-white dark:bg-gray-700 text-[#111827] dark:text-white shadow-sm'
-                  : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               🎬 リール
@@ -920,8 +920,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab('stories')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'stories'
-                  ? 'bg-white dark:bg-gray-700 text-[#111827] dark:text-white shadow-sm'
-                  : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               📱 ストーリー
@@ -930,8 +930,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab('daily')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'daily'
-                  ? 'bg-white dark:bg-gray-700 text-[#111827] dark:text-white shadow-sm'
-                  : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               📈 デイリー
@@ -1084,17 +1084,17 @@ export default function Dashboard() {
             <div className="lg:hidden px-5 py-4">
               <div className="flex items-center">
                 {/* プロフィール画像 */}
-                <div className="w-[60px] h-[60px] rounded-full bg-gradient-to-r from-[#8B5CF6] to-[#00FF88] flex items-center justify-center mr-4 flex-shrink-0">
+                <div className="w-[60px] h-[60px] rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center mr-4 flex-shrink-0">
                   <span className="text-white text-xl font-bold">💎</span>
                 </div>
 
                 {/* アカウント情報 */}
                 <div className="flex-1">
-                  <h2 className="text-[16px] font-bold text-[#111827] mb-1">GEM QUEEN💎</h2>
-                  <p className="text-[12px] text-[#6B7280] mb-1">現在のフォロワー数</p>
+                  <h2 className="text-[16px] font-bold text-gray-900 mb-1">GEM QUEEN💎</h2>
+                  <p className="text-[12px] text-gray-500 mb-1">現在のフォロワー数</p>
                   <div className="flex items-center">
-                    <span className="text-[24px] font-bold text-[#111827] mr-2">{summary.currentFollowers.toLocaleString()}</span>
-                    <span className="text-[14px] font-medium text-[#10B981]">
+                    <span className="text-[24px] font-bold text-gray-900 mr-2">{summary.currentFollowers.toLocaleString()}</span>
+                    <span className="text-[14px] font-medium text-emerald-500">
                       +{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
                     </span>
                   </div>
@@ -1102,198 +1102,86 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* メトリクス縦パネルセクション - モバイルのみ */}
-            <div className="lg:hidden px-5 space-y-3">
-              {/* リーチ数 */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-xl mr-3">👁️</span>
-                  <span className="text-[#111827] font-medium">リーチ数</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[18px] font-bold text-[#111827]">{summary.latestReach.toLocaleString()}</p>
-                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1)}%</p>
-                </div>
-              </div>
+            {/* ファネル分析セクション - モバイルのみ */}
+            <div className="lg:hidden px-5">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 text-center">ファネル分析</h2>
 
-              {/* プロフィール表示 */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-xl mr-3">👤</span>
-                  <span className="text-[#111827] font-medium">プロフィール表示</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[18px] font-bold text-[#111827]">{summary.latestProfileViews.toLocaleString()}</p>
-                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1)}%</p>
-                </div>
-              </div>
+              {/* ファネル分析全体をカードで囲む */}
+              <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
+                <div className="space-y-1">
+                  {/* リーチ数 */}
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-lg mr-3">👁️</span>
+                      <span className="text-gray-900 font-medium">リーチ数</span>
+                    </div>
+                    <span className="text-[16px] font-bold text-gray-900">{summary.latestReach.toLocaleString()}</span>
+                  </div>
 
-              {/* プロフクリック */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-xl mr-3">🔗</span>
-                  <span className="text-[#111827] font-medium">プロフクリック</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[18px] font-bold text-[#111827]">{summary.latestWebsiteClicks.toLocaleString()}</p>
-                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1)}%</p>
-                </div>
-              </div>
+                  {/* 転換率1 */}
+                  <div className="flex justify-center py-2">
+                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1)}%</span>
+                  </div>
 
-              {/* フォロワー増加 */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-xl mr-3">➕</span>
-                  <span className="text-[#111827] font-medium">フォロワー増加</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[18px] font-bold text-[#111827]">{summary.followerGrowth.toLocaleString()}</p>
-                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1)}%</p>
-                </div>
-              </div>
+                  {/* プロフィール表示 */}
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-lg mr-3">👤</span>
+                      <span className="text-gray-900 font-medium">プロフィール表示</span>
+                    </div>
+                    <span className="text-[16px] font-bold text-gray-900">{summary.latestProfileViews.toLocaleString()}</span>
+                  </div>
 
-              {/* LINE登録数 */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-xl mr-3">📱</span>
-                  <span className="text-[#111827] font-medium">LINE登録数</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[18px] font-bold text-[#111827]">{summary.lineRegistrations.toLocaleString()}</p>
+                  {/* 転換率2 */}
+                  <div className="flex justify-center py-2">
+                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1)}%</span>
+                  </div>
+
+                  {/* プロフクリック */}
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-lg mr-3">🔗</span>
+                      <span className="text-gray-900 font-medium">プロフクリック</span>
+                    </div>
+                    <span className="text-[16px] font-bold text-gray-900">{summary.latestWebsiteClicks.toLocaleString()}</span>
+                  </div>
+
+                  {/* 転換率3 */}
+                  <div className="flex justify-center py-2">
+                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1)}%</span>
+                  </div>
+
+                  {/* フォロワー増加 */}
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-lg mr-3">➕</span>
+                      <span className="text-gray-900 font-medium">フォロワー増加</span>
+                    </div>
+                    <span className="text-[16px] font-bold text-gray-900">{summary.followerGrowth.toLocaleString()}</span>
+                  </div>
+
+                  {/* 転換率4 */}
+                  <div className="flex justify-center py-2">
+                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1)}%</span>
+                  </div>
+
+                  {/* LINE登録数 */}
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-lg mr-3">📱</span>
+                      <span className="text-gray-900 font-medium">LINE登録数</span>
+                    </div>
+                    <span className="text-[16px] font-bold text-gray-900">{summary.lineRegistrations.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* 1) KPIエリア（上段）: レスポンシブレイアウト */}
-            <div className="grid lg:grid-cols-12 grid-cols-1 gap-6">
-              {/* 総フォロワー数 - スマホ: Instagram風フルブリード, PC: カード */}
-              <div className="lg:col-span-3 col-span-1">
-                {/* PC版: 従来カード */}
-                <div className="hidden lg:block bg-white dark:bg-[#1E1E1E] border-2 border-gray-300/80 dark:border-white/20 rounded-2xl shadow-lg p-3 h-full flex flex-col justify-center">
-                  <div className="flex items-center mb-2">
-                    <div className="w-8 h-8 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] rounded-lg flex items-center justify-center mr-3">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <div className="border-t bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] w-full h-0.5"></div>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">総フォロワー数</p>
-                    <p className="text-6xl font-black text-[#000000] dark:text-[#FFFFFF] mb-1 leading-none tracking-tighter">{summary.currentFollowers.toLocaleString()}</p>
-                    <div className="flex items-center justify-center text-xs">
-                      <span className={`font-bold ${
-                        summary.followerGrowth >= 0
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div className="mt-1.5 h-6 bg-gray-50 dark:bg-gray-800 rounded flex items-end justify-center space-x-0.5 px-2">
-                      {[3, 5, 4, 6, 7, 5, 8, 6, 9, 7].map((height, i) => (
-                        <div key={i} className="bg-gradient-to-t from-[#7C3AED] to-[#3B82F6] rounded-t" style={{height: `${height * 2.5}px`, width: '2px'}}></div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
 
-                {/* スマホ版: Instagram風フルブリード */}
-                <div className="lg:hidden">
-                  {/* メインフォロワー数 */}
-                  <div className="text-center py-4 mx-3">
-                    <p className="text-sm text-[#6B7280] dark:text-gray-400 mb-2">現在のフォロワー数</p>
-                    <p className="text-4xl font-bold text-[#111] dark:text-[#E6E6E6] leading-none tracking-tight">{summary.currentFollowers.toLocaleString()}</p>
-                    <div className="mt-2">
-                      <span className={`text-sm font-semibold px-2 py-1 rounded-full ${summary.followerGrowth >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : summary.followerGrowth < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400'}`}>
-                        {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ファネル分析 */}
-                  <div className="border-t border-[#E5E7EB] dark:border-white/10 pt-4">
-                    <div className="px-3">
-                      {(() => {
-                        const conversionRates = [
-                          summary.latestReach > 0 ? ((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1) : '—',
-                          summary.latestProfileViews > 0 ? ((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1) : '—',
-                          summary.latestWebsiteClicks > 0 ? ((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1) : '—',
-                          summary.followerGrowth > 0 ? ((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1) : '—'
-                        ];
-
-                        return (
-                          <>
-                            {/* リーチ数 */}
-                            <div className="flex items-center justify-between py-2">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">👀 リーチ数</span>
-                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestReach.toLocaleString()}</span>
-                            </div>
-
-                            {/* 転換率1 */}
-                            <div className="flex justify-center py-1">
-                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
-                                ▼ {conversionRates[0]}% ▼
-                              </span>
-                            </div>
-
-                            {/* プロフィール表示 */}
-                            <div className="flex items-center justify-between py-2">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">👤 プロフィール表示</span>
-                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestProfileViews.toLocaleString()}</span>
-                            </div>
-
-                            {/* 転換率2 */}
-                            <div className="flex justify-center py-1">
-                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
-                                ▼ {conversionRates[1]}% ▼
-                              </span>
-                            </div>
-
-                            {/* プロフクリック */}
-                            <div className="flex items-center justify-between py-2">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">🔗 プロフクリック</span>
-                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestWebsiteClicks.toLocaleString()}</span>
-                            </div>
-
-                            {/* 転換率3 */}
-                            <div className="flex justify-center py-1">
-                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
-                                ▼ {conversionRates[2]}% ▼
-                              </span>
-                            </div>
-
-                            {/* フォロワー増加 */}
-                            <div className="flex items-center justify-between py-2">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">➕ フォロワー増加</span>
-                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.followerGrowth.toLocaleString()}</span>
-                            </div>
-
-                            {/* 転換率4 */}
-                            <div className="flex justify-center py-1">
-                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
-                                ▼ {conversionRates[3]}% ▼
-                              </span>
-                            </div>
-
-                            {/* LINE登録数 */}
-                            <div className="flex items-center justify-between py-2 pb-4">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">📱 LINE登録数</span>
-                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.lineRegistrations.toLocaleString()}</span>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-
-              {/* パフォーマンス推移グラフ - モバイル: フル幅, デスクトップ: 9列 */}
-              <div className="lg:col-span-9 col-span-1">
-                {(() => {
-                  const filteredDailyData = getFilteredDailyData(data.dailyRaw, dateRange.preset);
+          {/* パフォーマンス推移グラフ - モバイル: フル幅, デスクトップ: 9列 */}
+          <div className="lg:col-span-9 col-span-1">
+            {(() => {
+              const filteredDailyData = getFilteredDailyData(data.dailyRaw, dateRange.preset);
 
                   // 今日の日付を取得（JST基準）
                   const today = new Date();
@@ -1328,9 +1216,9 @@ export default function Dashboard() {
                   });
 
                   return rechartsData.length > 0 && (
-                    <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-5 lg:p-5 md:p-4 sm:p-3">
+                    <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-3 lg:p-5 md:p-4 sm:p-3">
                       <div className="mb-4 px-3">
-                        <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6]">パフォーマンス推移</h3>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200">パフォーマンス推移</h3>
                       </div>
                       <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-3">
                         <ResponsiveContainer width="100%" height="100%">
@@ -1424,17 +1312,15 @@ export default function Dashboard() {
                         </ResponsiveContainer>
                       </div>
                     </div>
-                  );
+                  ) || null;
                 })()}
-              </div>
-            </div>
+          </div>
 
-
-            {/* Top 3/5 Reels */}
-            <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
+          {/* Top 3/5 Reels */}
+          <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
               <div className="lg:hidden flex justify-between items-center mb-4 px-5">
-                <h3 className="text-lg font-bold text-[#111827] tracking-tight">
+                <h3 className="text-lg font-bold text-gray-900 tracking-tight">
                   🎬 Top3 リール
                 </h3>
                 <button
@@ -1442,14 +1328,14 @@ export default function Dashboard() {
                     setActiveTab('reels');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
                 >
                   詳細
                 </button>
               </div>
               {/* PC版ヘッダー */}
               <div className="hidden lg:flex justify-between items-center mb-4 px-3">
-                <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">
                   💎 Top{window.innerWidth < 1024 ? '3' : '5'} リール
                 </h3>
                 <button
@@ -1457,12 +1343,12 @@ export default function Dashboard() {
                     setActiveTab('reels');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] hover:from-[#6D28D9] hover:to-[#2563EB] text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
+                  className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
                 >
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex overflow-x-auto lg:overflow-x-visible gap-3 pb-2 lg:pb-0 snap-x snap-mandatory px-5 lg:px-0">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-5 lg:px-0">
                 {(() => {
                   // リールデータを結合
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
@@ -1483,8 +1369,8 @@ export default function Dashboard() {
                       const sheetData = joinedReel.sheetData;
 
                       return (
-                        <div key={index} className="w-[120px] h-[160px] lg:w-full lg:min-w-0 lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start relative bg-white rounded-lg shadow-sm border border-gray-100 lg:border-none lg:shadow-none lg:bg-transparent overflow-hidden">
-                          <div className="w-full aspect-square lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
+                        <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
+                          <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
                             {rawData[15] ? (
                               <img
                                 src={convertToGoogleUserContent(rawData[15])}
@@ -1501,35 +1387,30 @@ export default function Dashboard() {
                             <div className="w-full h-full bg-gray-600 rounded-lg flex items-center justify-center text-white text-xs" style={{display: rawData[15] ? 'none' : 'flex'}}>
                               Reel {index + 1}
                             </div>
-
-                            {/* 数値Pillオーバーレイ (スマホ版のみ) - 中央下配置 */}
-                            <div className="lg:hidden absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-bold">
-                              {parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}
-                            </div>
                           </div>
 
                           {/* モバイル版: 3つの指標 */}
-                          <div className="lg:hidden px-2 py-1 space-y-1">
-                            <div className="flex items-center text-xs text-[#111827]">
+                          <div className="lg:hidden px-2 py-2 space-y-1">
+                            <div className="flex items-center text-xs text-gray-900">
                               <span className="mr-1">👁️</span>
                               <span className="font-medium">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</span>
                             </div>
-                            <div className="flex items-center text-xs text-[#111827]">
+                            <div className="flex items-center text-xs text-gray-900">
                               <span className="mr-1">❤️</span>
                               <span className="font-medium">{parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0}</span>
                             </div>
-                            <div className="flex items-center text-xs text-[#111827]">
+                            <div className="flex items-center text-xs text-gray-900">
                               <span className="mr-1">💬</span>
                               <span className="font-medium">{parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0}</span>
                             </div>
                           </div>
 
-                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{sheetData[4] || `リール ${index + 1}`}</p>
+                          <p className="text-gray-900 dark:text-gray-200 text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{sheetData[4] || `リール ${index + 1}`}</p>
 
                           {/* 再生数（大きく表示） - PC版のみ */}
                           <div className="mb-3 text-center hidden lg:block">
-                            <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-xl lg:text-2xl font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
+                            <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
                           {/* 4アイコン横一列表示 - PC版のみ */}
@@ -1567,17 +1448,17 @@ export default function Dashboard() {
                       );
                     });
                   } else {
-                    return <p className="text-[#6B7280] dark:text-gray-400 text-center col-span-full">データがありません</p>;
+                    return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
                   }
                 })()}
               </div>
             </div>
 
             {/* Top 5 Stories */}
-            <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
+            <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
               <div className="lg:hidden flex justify-between items-center mb-4 px-5">
-                <h3 className="text-lg font-bold text-[#111827] tracking-tight">
+                <h3 className="text-lg font-bold text-gray-900 tracking-tight">
                   📖 Top3 ストーリー
                 </h3>
                 <button
@@ -1585,14 +1466,14 @@ export default function Dashboard() {
                     setActiveTab('stories');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
                 >
                   詳細
                 </button>
               </div>
               {/* PC版ヘッダー */}
               <div className="hidden lg:flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">
                   📖 Top{window.innerWidth < 1024 ? '3' : '5'} ストーリー
                 </h3>
                 <button
@@ -1600,12 +1481,12 @@ export default function Dashboard() {
                     setActiveTab('stories');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] hover:from-[#6D28D9] hover:to-[#2563EB] text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
+                  className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
                 >
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex overflow-x-auto lg:overflow-x-visible gap-3 pb-2 lg:pb-0 snap-x snap-mandatory px-5 lg:px-0">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-5 lg:px-0">
                 {(() => {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
                   if (filteredStoriesProcessed.length > 1) {
@@ -1617,8 +1498,8 @@ export default function Dashboard() {
                     }).slice(0, topCount);
 
                     return sortedStories.map((story, index) => (
-                      <div key={index} className="w-[120px] h-[160px] lg:w-full lg:min-w-0 lg:min-w-[280px] bg-white lg:dark:bg-[#1E1E1E] border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start overflow-hidden">
-                        <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-xl overflow-hidden mb-2 lg:mb-3">
+                      <div key={index} className="w-full lg:w-full lg:min-w-0 lg:min-w-[280px] bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
+                        <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-xl overflow-hidden mb-2 lg:mb-3 relative">
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
                             return thumbnailUrl ? (
@@ -1646,16 +1527,16 @@ export default function Dashboard() {
                         </div>
 
                         {/* モバイル版: 3つの指標 */}
-                        <div className="lg:hidden px-2 py-1 space-y-1">
-                          <div className="flex items-center text-xs text-[#111827]">
+                        <div className="lg:hidden px-2 py-2 space-y-1">
+                          <div className="flex items-center text-xs text-gray-900">
                             <span className="mr-1">👁️</span>
                             <span className="font-medium">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</span>
                           </div>
-                          <div className="flex items-center text-xs text-[#111827]">
+                          <div className="flex items-center text-xs text-gray-900">
                             <span className="mr-1">📊</span>
                             <span className="font-medium">{story[5] || '0%'}</span>
                           </div>
-                          <div className="flex items-center text-xs text-[#111827]">
+                          <div className="flex items-center text-xs text-gray-900">
                             <span className="mr-1">📱</span>
                             <span className="font-medium">{story[4] || 0}</span>
                           </div>
@@ -1664,12 +1545,12 @@ export default function Dashboard() {
                         {/* PC版: 従来表示 */}
                         <div className="hidden lg:block">
                           {/* 投稿日 */}
-                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
+                          <p className="text-gray-900 dark:text-gray-200 text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
 
                           {/* Views（大きく表示） */}
                           <div className="mb-3 text-center">
-                            <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">閲覧数</p>
-                            <p className="text-xl lg:text-2xl font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">閲覧数</p>
+                            <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
                           {/* KPIピル */}
@@ -1681,7 +1562,7 @@ export default function Dashboard() {
                       </div>
                     ));
                   } else {
-                    return <p className="text-[#6B7280] dark:text-gray-400 text-center col-span-full">データがありません</p>;
+                    return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
                   }
                 })()}
               </div>
@@ -1694,10 +1575,10 @@ export default function Dashboard() {
         {activeTab === 'reels' && (
           <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
             {/* リール詳細上部グラフエリア */}
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">リール パフォーマンス分析</h3>
-                <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1">日別リール再生数推移・フォロワー増加数</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">リール パフォーマンス分析</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">日別リール再生数推移・フォロワー増加数</p>
               </div>
 
               {(() => {
@@ -1844,16 +1725,16 @@ export default function Dashboard() {
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className="h-64 flex items-center justify-center text-[#6B7280] dark:text-gray-400">
+                  <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
                     期間内にリールデータがありません
                   </div>
                 );
               })()}
             </div>
 
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-[#111827] dark:text-[#E6E6E6]">リール詳細 ({(() => {
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">リール詳細 ({(() => {
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
                   const filteredJoinedData = filterJoinedReelData(joinedReelData, dateRange);
                   return filteredJoinedData.length;
@@ -1861,7 +1742,7 @@ export default function Dashboard() {
 
                 {/* Sort Controls */}
                 <div className="flex items-center space-x-3">
-                  <span className="text-[#111827] dark:text-[#E6E6E6] text-sm">並び替え:</span>
+                  <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
                   <select
                     value={reelSortBy}
                     onChange={(e) => setReelSortBy(e.target.value)}
@@ -2002,7 +1883,7 @@ export default function Dashboard() {
                       const totalWatchTime = formatTotalWatchTime(views, duration);
 
                       return (
-                        <div key={index} className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
+                        <div key={index} className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
                           {/* サムネイル */}
                           <div className="w-full aspect-[9/16] bg-gray-600 rounded-xl overflow-hidden mb-3">
                             {rawData[15] ? (
@@ -2026,7 +1907,7 @@ export default function Dashboard() {
                           {/* タイトル + 投稿日・尺 */}
                           <div className="mb-3">
                             <h4
-                              className="text-[#111827] dark:text-[#E6E6E6] text-sm font-semibold leading-tight mb-1"
+                              className="text-gray-900 dark:text-gray-200 text-sm font-semibold leading-tight mb-1"
                               title={title}
                               style={{
                                 display: '-webkit-box',
@@ -2038,7 +1919,7 @@ export default function Dashboard() {
                               {title}
                             </h4>
                             {(formattedDate || formattedDuration) && (
-                              <p className="text-[#6B7280] dark:text-gray-400 text-xs">
+                              <p className="text-gray-500 dark:text-gray-400 text-xs">
                                 {formattedDate && formattedDuration
                                   ? `${formattedDate} • ${formattedDuration}`
                                   : formattedDate || formattedDuration
@@ -2049,8 +1930,8 @@ export default function Dashboard() {
 
                           {/* 再生数（太字表示） */}
                           <div className="mb-3 text-center">
-                            <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{views.toLocaleString()}</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-gray-200">{views.toLocaleString()}</p>
                           </div>
 
                           {/* 4アイコン横一列表示 */}
@@ -2084,24 +1965,24 @@ export default function Dashboard() {
                           {/* 概要 */}
                           {(views > 0 || totalWatchTime || viewRate > 0) && (
                             <div>
-                              <h5 className="text-[#6B7280] dark:text-gray-400 text-xs font-medium mb-2">概要</h5>
+                              <h5 className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-2">概要</h5>
                               <div className="space-y-1 text-xs">
                                 {views > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-[#6B7280] dark:text-gray-400">閲覧数</span>
-                                    <span className="text-[#111827] dark:text-[#E6E6E6] font-bold">{views.toLocaleString()}</span>
+                                    <span className="text-gray-500 dark:text-gray-400">閲覧数</span>
+                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{views.toLocaleString()}</span>
                                   </div>
                                 )}
                                 {totalWatchTime && (
                                   <div className="flex justify-between">
-                                    <span className="text-[#6B7280] dark:text-gray-400">合計再生時間</span>
-                                    <span className="text-[#111827] dark:text-[#E6E6E6] font-bold">{totalWatchTime}</span>
+                                    <span className="text-gray-500 dark:text-gray-400">合計再生時間</span>
+                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{totalWatchTime}</span>
                                   </div>
                                 )}
                                 {viewRate > 0 && (
                                   <div className="flex justify-between">
-                                    <span className="text-[#6B7280] dark:text-gray-400">視聴率</span>
-                                    <span className="text-[#111827] dark:text-[#E6E6E6] font-bold">{viewRate.toFixed(1)}%</span>
+                                    <span className="text-gray-500 dark:text-gray-400">視聴率</span>
+                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{viewRate.toFixed(1)}%</span>
                                   </div>
                                 )}
                               </div>
@@ -2111,7 +1992,7 @@ export default function Dashboard() {
                       );
                     })
                   ) : (
-                    <p className="text-[#6B7280] dark:text-gray-400 text-center col-span-full">データがありません</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>
                   );
                 })()}
               </div>
@@ -2123,10 +2004,10 @@ export default function Dashboard() {
         {activeTab === 'stories' && (
           <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
             {/* ストーリー詳細上部グラフエリア */}
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">ストーリー パフォーマンス分析</h3>
-                <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1">日別投稿数・閲覧率の統合表示（左軸：閲覧率0-40%、右軸：投稿数0-4）</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">ストーリー パフォーマンス分析</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">日別投稿数・閲覧率の統合表示（左軸：閲覧率0-40%、右軸：投稿数0-4）</p>
               </div>
 
                   {(() => {
@@ -2140,7 +2021,7 @@ export default function Dashboard() {
 
                     if (filteredStoriesRaw.length <= 1) {
                       return (
-                        <div className="h-48 flex items-center justify-center text-[#6B7280] dark:text-gray-400">
+                        <div className="h-48 flex items-center justify-center text-gray-500 dark:text-gray-400">
                           期間内にストーリーデータがありません
                         </div>
                       );
@@ -2318,20 +2199,20 @@ export default function Dashboard() {
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-48 flex items-center justify-center text-[#6B7280] dark:text-gray-400">
+                      <div className="h-48 flex items-center justify-center text-gray-500 dark:text-gray-400">
                         期間内にストーリーデータがありません
                       </div>
                     );
                   })()}
                 </div>
 
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-[#111827] dark:text-[#E6E6E6]">ストーリー詳細 ({summary.totalStories}件)</h3>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">ストーリー詳細 ({summary.totalStories}件)</h3>
 
                 {/* Sort Controls */}
                 <div className="flex items-center space-x-3">
-                  <span className="text-[#111827] dark:text-[#E6E6E6] text-sm">並び替え:</span>
+                  <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
                   <select
                     value={storySortBy}
                     onChange={(e) => setStorySortBy(e.target.value)}
@@ -2358,7 +2239,7 @@ export default function Dashboard() {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
 
                   if (!filteredStoriesProcessed || filteredStoriesProcessed.length <= 1) {
-                    return <p className="text-[#6B7280] dark:text-gray-400 text-center col-span-full">データがありません</p>;
+                    return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
                   }
 
                   // ソート機能
@@ -2396,7 +2277,7 @@ export default function Dashboard() {
                   });
 
                   return sortedStories.map((story, index) => (
-                      <div key={index} className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-lg p-4 text-center hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
+                      <div key={index} className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg p-4 text-center hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
                         <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden mb-3">
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
@@ -2423,7 +2304,7 @@ export default function Dashboard() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
+                        <p className="text-gray-900 dark:text-gray-200 text-xs mb-3 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
 
                         {/* ストーリー詳細のKPI改善 */}
                         <div className="space-y-2">
@@ -2453,8 +2334,8 @@ export default function Dashboard() {
         {/* Daily Data Detail */}
         {activeTab === 'daily' && (
           <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <h3 className="text-xl font-semibold text-[#111827] dark:text-[#E6E6E6] mb-4">デイリーデータ - 絞込期間: {
+            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200 mb-4">デイリーデータ - 絞込期間: {
                 dateRange.preset === 'this-week' ? '今週' :
                 dateRange.preset === 'last-week' ? '先週' :
                 dateRange.preset === 'this-month' ? '今月' :
@@ -2469,7 +2350,7 @@ export default function Dashboard() {
                       {(() => {
                         const { headers } = getFilteredDailyData(data.dailyRaw, dateRange.preset);
                         return headers.map((header, index) => (
-                          <th key={index} className="text-left text-[#111827] dark:text-[#E6E6E6] text-xs p-2 min-w-[120px]">
+                          <th key={index} className="text-left text-gray-900 dark:text-gray-200 text-xs p-2 min-w-[120px]">
                             {header || '---'}
                           </th>
                         ));
@@ -2499,7 +2380,7 @@ export default function Dashboard() {
                       return dailyData.map((row, index) => (
                         <tr key={index} className="border-b border-gray-200/50 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5">
                           {row.map((cell, cellIndex) => (
-                            <td key={cellIndex} className="text-[#111827] dark:text-[#E6E6E6] text-xs p-2">
+                            <td key={cellIndex} className="text-gray-900 dark:text-gray-200 text-xs p-2">
                               {cell || '---'}
                             </td>
                           ))}
@@ -2572,7 +2453,7 @@ export default function Dashboard() {
         )}
 
         {/* Mobile Bottom Tab Navigation */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] bottom-nav-enhanced z-50">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] bottom-nav-enhanced z-50">
           <div className="flex justify-around items-center px-1 py-2">
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -2623,7 +2504,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <div className="mt-12 text-center border-t border-gray-200/70 dark:border-white/10 pt-6 pb-24 safe-area-bottom lg:pb-6">
-          <p className="text-[#6B7280] dark:text-gray-400 text-sm">© Powered by ANALYCA</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">© Powered by ANALYCA</p>
         </div>
       </div>
     </div>

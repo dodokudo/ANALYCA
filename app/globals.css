@@ -81,3 +81,8 @@ body {
   /* Chrome, Safari and Opera */
   display: none;
 }
+
+/* Safe Area対応のユーティリティクラス */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}

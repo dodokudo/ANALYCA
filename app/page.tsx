@@ -832,12 +832,56 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#F7F8FB] dark:bg-[#121212] relative overflow-hidden">
-      {/* SaaS風アクセント */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6]"></div>
+      {/* SaaS風アクセント - デスクトップのみ */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] hidden lg:block"></div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8 relative z-10">
-        {/* TopBar: 左サービス名、中央タブ、右期間セレクト */}
-        <div className="flex items-center justify-between mb-8 bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
+      {/* Mobile Fixed Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-[#1E1E1E] border-b border-gray-200/70 dark:border-white/10 shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3">
+          {/* 左: サービス名 */}
+          <div className="flex items-center flex-shrink-0">
+            <div className="w-6 h-6 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] rounded-lg flex items-center justify-center mr-2">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <h1 className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">
+              GEM QUEEN💎
+            </h1>
+          </div>
+
+          {/* 右: 期間セレクト */}
+          <div className="flex items-center">
+            <select
+              value={dateRange.preset === 'this-week' ? 'this-week' :
+                     dateRange.preset === 'last-week' ? 'last-week' :
+                     dateRange.preset === 'this-month' ? 'this-month' :
+                     dateRange.preset === 'last-month' ? 'last-month' :
+                     'custom'}
+              onChange={(e) => {
+                const value = e.target.value as DatePreset;
+                if (value === 'custom') {
+                  setShowCustomDateModal(true);
+                } else {
+                  updatePreset(value);
+                }
+              }}
+              className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-2 py-1 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200 min-w-[90px]"
+            >
+              <option value="this-week">今週</option>
+              <option value="last-week">先週</option>
+              <option value="this-month">今月</option>
+              <option value="last-month">先月</option>
+              <option value="custom">カスタム期間</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Container */}
+      <div className="max-w-7xl mx-auto lg:px-6 lg:py-8 relative z-10 lg:pt-8 pt-16">
+        {/* TopBar: 左サービス名、中央タブ、右期間セレクト - デスクトップのみ */}
+        <div className="hidden lg:flex items-center justify-between mb-8 bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
           {/* 左: サービス名 */}
           <div className="flex items-center flex-shrink-0">
             <div className="w-8 h-8 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] rounded-lg flex items-center justify-center mr-3">
@@ -1035,7 +1079,7 @@ export default function Dashboard() {
 
         {/* Main Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-8">
+          <div className="space-y-8 lg:space-y-8 px-4 lg:px-0">
             {/* 1) KPIエリア（上段）: レスポンシブレイアウト */}
             <div className="grid lg:grid-cols-12 grid-cols-1 gap-6">
               {/* 総フォロワー数カード - モバイル: フル幅, デスクトップ: 3列 */}
@@ -1474,7 +1518,7 @@ export default function Dashboard() {
 
         {/* Reels Detail */}
         {activeTab === 'reels' && (
-          <div className="space-y-6">
+          <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
             {/* リール詳細上部グラフエリア */}
             <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
@@ -1899,7 +1943,7 @@ export default function Dashboard() {
 
         {/* Stories Detail */}
         {activeTab === 'stories' && (
-          <div className="space-y-6">
+          <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
             {/* ストーリー詳細上部グラフエリア */}
             <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
@@ -2226,7 +2270,7 @@ export default function Dashboard() {
 
         {/* Daily Data Detail */}
         {activeTab === 'daily' && (
-          <div className="space-y-6">
+          <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
             <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <h3 className="text-xl font-semibold text-[#111827] dark:text-[#E6E6E6] mb-4">デイリーデータ - 絞込期間: {
                 dateRange.preset === 'this-week' ? '今週' :

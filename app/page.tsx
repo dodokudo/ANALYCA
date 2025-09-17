@@ -1116,7 +1116,7 @@ export default function Dashboard() {
                       </div>
                       <div className="h-64 lg:h-64 md:h-56 sm:h-48">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 5 : 10, left: window.innerWidth < 768 ? 5 : 10, bottom: 10 }}>
+                          <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 2 : 10, left: window.innerWidth < 768 ? 2 : 10, bottom: window.innerWidth < 768 ? 5 : 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                             <XAxis
                               dataKey="date"
@@ -1148,7 +1148,7 @@ export default function Dashboard() {
                                 color: 'var(--text-primary)'
                               }}
                             />
-                            <Legend />
+                            <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
                             <Line
                               yAxisId="left"
                               type="monotone"
@@ -1189,11 +1189,14 @@ export default function Dashboard() {
             {/* 2) コンバージョンファネル - フル横幅で下段配置 */}
             <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">コンバージョンファネル</h3>
-                <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1">リーチから最終コンバージョンまでの流れ</p>
+                <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
+                  <span className="lg:hidden">ファネル分析</span>
+                  <span className="hidden lg:inline">コンバージョンファネル</span>
+                </h3>
+                <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 hidden lg:block">リーチから最終コンバージョンまでの流れ</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 lg:gap-6">
+                <div className="lg:grid lg:grid-cols-5 lg:gap-6 flex flex-col gap-3">
                   {(() => {
                     const summary = calculateSummary();
 
@@ -1232,18 +1235,53 @@ export default function Dashboard() {
                       summary.followerGrowth > 0 ? ((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1) : '0.0'
                     ];
 
-                    return funnelSteps.map((step, index) => (
-                      <div key={index} className="bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-3 lg:p-4 text-center hover:shadow-md transition-all duration-200">
-                        <div className="text-xl lg:text-2xl mb-2 lg:mb-3">{step.icon}</div>
-                        <div className="text-xs lg:text-sm text-[#6B7280] dark:text-gray-400 mb-1 lg:mb-2 truncate">{step.title}</div>
-                        <div className="text-base lg:text-lg font-bold text-[#111827] dark:text-[#E6E6E6] mb-1">{step.value.toLocaleString()}</div>
-                        {index < funnelSteps.length - 1 && (
-                          <div className="text-xs font-medium text-purple-600 dark:text-purple-400">
-                            {conversionRates[index]}%
-                          </div>
-                        )}
-                      </div>
-                    ));
+                    return (
+                      <>
+                        {/* Mobile vertical layout */}
+                        <div className="lg:hidden">
+                          {funnelSteps.map((step, index) => (
+                            <div key={index}>
+                              {/* Card */}
+                              <div className="bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-2xl">{step.icon}</div>
+                                    <div className="text-sm text-[#6B7280] dark:text-gray-400 font-medium">{step.title}</div>
+                                  </div>
+                                  <div className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{step.value.toLocaleString()}</div>
+                                </div>
+                              </div>
+
+                              {/* Arrow and CVR outside card */}
+                              {index < funnelSteps.length - 1 && (
+                                <div className="flex justify-center items-center gap-2 py-3">
+                                  <div className="text-2xl text-purple-600 dark:text-purple-400">↓</div>
+                                  <div className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                                    {conversionRates[index]}%
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop grid layout */}
+                        <div className="hidden lg:flex lg:gap-6">
+                          {funnelSteps.map((step, index) => (
+                            <div key={index} className="bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-4 text-center hover:shadow-md transition-all duration-200 flex-1">
+                              <div className="text-2xl mb-3">{step.icon}</div>
+                              <div className="text-sm text-[#6B7280] dark:text-gray-400 mb-2 truncate">{step.title}</div>
+                              <div className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6] mb-1">{step.value.toLocaleString()}</div>
+                              {index < funnelSteps.length - 1 && (
+                                <div className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                                  {conversionRates[index]}%
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
                   })()}
                 </div>
               </div>
@@ -1532,7 +1570,7 @@ export default function Dashboard() {
                 return chartData.length > 0 ? (
                   <div className="h-64 lg:h-64 md:h-56 sm:h-48">
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                      <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 2 : 10, left: window.innerWidth < 768 ? 2 : 10, bottom: window.innerWidth < 768 ? 5 : 10 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" className="dark:stroke-gray-600" />
                         <XAxis
                           dataKey="date"
@@ -1564,7 +1602,7 @@ export default function Dashboard() {
                             color: 'var(--text-primary)'
                           }}
                         />
-                        <Legend />
+                        <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
                         <Line
                           yAxisId="left"
                           type="monotone"
@@ -1985,7 +2023,7 @@ export default function Dashboard() {
                     return chartData.length > 0 && chartData.some(d => d.投稿数 > 0 || d.最高閲覧率 > 0) ? (
                       <div className="h-80 lg:h-80 md:h-64 sm:h-56">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 5 : 10, left: window.innerWidth < 768 ? 5 : 10, bottom: 10 }}>
+                          <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 2 : 10, left: window.innerWidth < 768 ? 2 : 10, bottom: window.innerWidth < 768 ? 5 : 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                             <XAxis
                               dataKey="date"
@@ -2024,7 +2062,7 @@ export default function Dashboard() {
                                 color: 'var(--text-primary)'
                               }}
                             />
-                            <Legend />
+                            <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
                             {/* 20%基準線（点線） */}
                             <ReferenceLine
                               yAxisId="left"
@@ -2309,49 +2347,49 @@ export default function Dashboard() {
 
         {/* Mobile Bottom Tab Navigation */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-lg z-50">
-          <div className="flex justify-around items-center px-2 py-2">
+          <div className="flex justify-around items-center px-1 py-1">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'dashboard'
                   ? 'text-purple-600 dark:text-purple-400'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
-              <div className="text-lg mb-1">📊</div>
+              <div className="text-base mb-0.5">📊</div>
               <span className="text-xs font-medium">ホーム</span>
             </button>
             <button
               onClick={() => setActiveTab('reels')}
-              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'reels'
                   ? 'text-purple-600 dark:text-purple-400'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
-              <div className="text-lg mb-1">🎬</div>
+              <div className="text-base mb-0.5">🎬</div>
               <span className="text-xs font-medium">リール</span>
             </button>
             <button
               onClick={() => setActiveTab('stories')}
-              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'stories'
                   ? 'text-purple-600 dark:text-purple-400'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
-              <div className="text-lg mb-1">📱</div>
+              <div className="text-base mb-0.5">📱</div>
               <span className="text-xs font-medium">ストーリー</span>
             </button>
             <button
               onClick={() => setActiveTab('daily')}
-              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'daily'
                   ? 'text-purple-600 dark:text-purple-400'
                   : 'text-gray-600 dark:text-gray-400'
               }`}
             >
-              <div className="text-lg mb-1">📈</div>
+              <div className="text-base mb-0.5">📈</div>
               <span className="text-xs font-medium">デイリー</span>
             </button>
           </div>

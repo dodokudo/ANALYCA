@@ -2402,8 +2402,8 @@ export default function Dashboard() {
         )}
 
         {/* Mobile Bottom Tab Navigation */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-lg z-50">
-          <div className="flex justify-around items-center px-1 py-1">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] z-50 safe-area-bottom">
+          <div className="flex justify-around items-center px-1 py-2">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${

@@ -2402,7 +2402,7 @@ export default function Dashboard() {
         )}
 
         {/* Mobile Bottom Tab Navigation */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] z-50 safe-area-bottom">
+        <div className="lg:hidden bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] bottom-nav-enhanced">
           <div className="flex justify-around items-center px-1 py-2">
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -2452,7 +2452,7 @@ export default function Dashboard() {
         </div>
 
         {/* Footer */}
-        <div className="mt-12 text-center border-t border-gray-200/70 dark:border-white/10 pt-6 pb-20 lg:pb-6">
+        <div className="mt-12 text-center border-t border-gray-200/70 dark:border-white/10 pt-6 pb-24 safe-area-bottom lg:pb-6">
           <p className="text-[#6B7280] dark:text-gray-400 text-sm">© 2025 Powered by GEM QUEEN💎</p>
         </div>
       </div>

@@ -1417,30 +1417,38 @@ export default function Dashboard() {
                           <div className="grid grid-cols-4 gap-4 hidden lg:grid">
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-red-500">❤️</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[13] || '').replace(/,/g, '')).toLocaleString() : ''}
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                                {(() => {
+                                  const val = parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0;
+                                  return val > 0 ? val.toLocaleString() : '';
+                                })()}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-blue-500">💬</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[14] || '').replace(/,/g, '')).toLocaleString() : ''}
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                                {(() => {
+                                  const val = parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0;
+                                  return val > 0 ? val.toLocaleString() : '';
+                                })()}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-amber-500">💾</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[16] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[16] || '').replace(/,/g, '')).toLocaleString() : ''}
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                                {(() => {
+                                  const val = parseInt(String(sheetData[16] || '').replace(/,/g, '')) || 0;
+                                  return val > 0 ? val.toLocaleString() : '';
+                                })()}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-purple-500">👤</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[18] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[18] || '').replace(/,/g, '')).toLocaleString() : ''}
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                                {(() => {
+                                  const val = parseInt(String(sheetData[18] || '').replace(/,/g, '')) || 0;
+                                  return val > 0 ? val.toLocaleString() : '';
+                                })()}
                               </span>
                             </div>
                           </div>

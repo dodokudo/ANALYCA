@@ -879,7 +879,7 @@ export default function Dashboard() {
       </div>
 
       {/* Desktop Container */}
-      <div className="max-w-7xl mx-auto lg:px-6 lg:py-8 relative z-10 lg:pt-8 pt-16">
+      <div className="max-w-7xl mx-auto lg:px-6 lg:py-8 relative z-10 lg:pt-8 pt-16 pb-20 lg:pb-8">
         {/* TopBar: 左サービス名、中央タブ、右期間セレクト - デスクトップのみ */}
         <div className="hidden lg:flex items-center justify-between mb-8 bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
           {/* 左: サービス名 */}
@@ -1079,12 +1079,13 @@ export default function Dashboard() {
 
         {/* Main Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-8 lg:space-y-8 px-4 lg:px-0">
+          <div className="space-y-3 lg:space-y-8 lg:px-0">
             {/* 1) KPIエリア（上段）: レスポンシブレイアウト */}
             <div className="grid lg:grid-cols-12 grid-cols-1 gap-6">
-              {/* 総フォロワー数カード - モバイル: フル幅, デスクトップ: 3列 */}
+              {/* 総フォロワー数 - スマホ: Instagram風フルブリード, PC: カード */}
               <div className="lg:col-span-3 col-span-1">
-                <div className="bg-white dark:bg-[#1E1E1E] border-2 border-gray-300/80 dark:border-white/20 rounded-2xl shadow-lg p-3 h-full flex flex-col justify-center">
+                {/* PC版: 従来カード */}
+                <div className="hidden lg:block bg-white dark:bg-[#1E1E1E] border-2 border-gray-300/80 dark:border-white/20 rounded-2xl shadow-lg p-3 h-full flex flex-col justify-center">
                   <div className="flex items-center mb-2">
                     <div className="w-8 h-8 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] rounded-lg flex items-center justify-center mr-3">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1095,7 +1096,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-center">
                     <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">総フォロワー数</p>
-                    <p className="text-4xl lg:text-6xl font-black text-[#000000] dark:text-[#FFFFFF] mb-1 leading-none tracking-tighter">{summary.currentFollowers.toLocaleString()}</p>
+                    <p className="text-6xl font-black text-[#000000] dark:text-[#FFFFFF] mb-1 leading-none tracking-tighter">{summary.currentFollowers.toLocaleString()}</p>
                     <div className="flex items-center justify-center text-xs">
                       <span className={`font-bold ${
                         summary.followerGrowth >= 0
@@ -1105,11 +1106,47 @@ export default function Dashboard() {
                         {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
                       </span>
                     </div>
-                    {/* スパークライン（簡易版） */}
                     <div className="mt-1.5 h-6 bg-gray-50 dark:bg-gray-800 rounded flex items-end justify-center space-x-0.5 px-2">
                       {[3, 5, 4, 6, 7, 5, 8, 6, 9, 7].map((height, i) => (
                         <div key={i} className="bg-gradient-to-t from-[#7C3AED] to-[#3B82F6] rounded-t" style={{height: `${height * 2.5}px`, width: '2px'}}></div>
                       ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* スマホ版: Instagram風フルブリード */}
+                <div className="lg:hidden">
+                  {/* メインフォロワー数 */}
+                  <div className="text-center py-4 mx-3">
+                    <p className="text-5xl font-black text-[#111] dark:text-[#E6E6E6] leading-none tracking-tight">{summary.currentFollowers.toLocaleString()}</p>
+                    <p className="text-sm text-[#666] dark:text-gray-400 mt-2 font-medium">
+                      {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
+                    </p>
+                  </div>
+
+                  {/* パフォーマンスリスト */}
+                  <div className="border-t border-[#EDEDED] dark:border-white/10">
+                    <div className="space-y-0">
+                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
+                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">リーチ数</span>
+                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestReach.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
+                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">プロフィール表示</span>
+                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestProfileViews.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
+                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">プロフィールクリック</span>
+                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestWebsiteClicks.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
+                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">フォロワー増加</span>
+                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.followerGrowth.toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-3 px-3">
+                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">LINE登録</span>
+                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.lineRegistrations.toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1154,56 +1191,70 @@ export default function Dashboard() {
                   });
 
                   return rechartsData.length > 0 && (
-                    <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5 lg:p-5 md:p-4 sm:p-3">
-                      <div className="mb-4">
+                    <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-5 lg:p-5 md:p-4 sm:p-3">
+                      <div className="mb-4 px-3">
                         <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6]">パフォーマンス推移</h3>
                       </div>
-                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-0">
+                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-3">
                         <ResponsiveContainer width="100%" height="100%">
                           <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
                             <CartesianGrid
-                              strokeDasharray="3 3"
-                              stroke="var(--chart-grid)"
-                              horizontal={window.innerWidth < 768 ? false : true}
+                              strokeDasharray="1 1"
+                              stroke={window.innerWidth < 768 ? "#F0F0F0" : "var(--chart-grid)"}
+                              horizontal={window.innerWidth < 768 ? true : true}
                               vertical={false}
+                              strokeOpacity={window.innerWidth < 768 ? 0.3 : 1}
                             />
                             <XAxis
                               dataKey="date"
                               tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: 'var(--chart-axis)' }}
+                              interval={window.innerWidth < 768 ? Math.max(Math.floor(rechartsData.length / 3) - 1, 0) : 0}
+                              axisLine={window.innerWidth < 768 ? false : true}
+                              tickLine={window.innerWidth < 768 ? false : true}
                             />
                             <YAxis
                               yAxisId="left"
                               orientation="left"
-                              tick={window.innerWidth < 768 ? false : { fontSize: 14, fill: '#7C3AED' }}
+                              tick={false}
                               className="dark:fill-purple-400"
                               tickFormatter={(value) => value.toLocaleString()}
                               domain={['dataMin', 'dataMax']}
-                              axisLine={window.innerWidth < 768 ? false : true}
+                              axisLine={false}
+                              tickLine={false}
                             />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
-                              tick={window.innerWidth < 768 ? false : { fontSize: 14, fill: '#3B82F6' }}
+                              tick={false}
                               className="dark:fill-blue-400"
                               tickFormatter={(value) => value.toLocaleString()}
-                              axisLine={window.innerWidth < 768 ? false : true}
+                              axisLine={false}
+                              tickLine={false}
                             />
                             <Tooltip
                               formatter={(value, name) => [value.toLocaleString(), name]}
-                              labelStyle={{ color: 'var(--text-primary)', fontSize: window.innerWidth < 768 ? '11px' : '14px' }}
+                              labelStyle={{ color: 'var(--text-primary)', fontSize: window.innerWidth < 768 ? '9px' : '14px' }}
                               contentStyle={{
-                                backgroundColor: 'var(--card-background)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: window.innerWidth < 768 ? '6px' : '8px',
-                                boxShadow: window.innerWidth < 768 ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                color: 'var(--text-primary)',
-                                padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
-                                fontSize: window.innerWidth < 768 ? '11px' : '14px',
+                                backgroundColor: window.innerWidth < 768 ? '#FFFFFF' : 'var(--card-background)',
+                                border: window.innerWidth < 768 ? '1px solid #E0E0E0' : '1px solid var(--border-color)',
+                                borderRadius: window.innerWidth < 768 ? '4px' : '8px',
+                                boxShadow: window.innerWidth < 768 ? '0 1px 3px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                color: window.innerWidth < 768 ? '#111' : 'var(--text-primary)',
+                                padding: window.innerWidth < 768 ? '4px 6px' : '8px 12px',
+                                fontSize: window.innerWidth < 768 ? '9px' : '14px',
                                 minWidth: window.innerWidth < 768 ? 'auto' : undefined,
-                                maxWidth: window.innerWidth < 768 ? '140px' : undefined
+                                maxWidth: window.innerWidth < 768 ? '100px' : undefined,
+                                transform: window.innerWidth < 768 ? 'scale(0.8)' : undefined
                               }}
+                              offset={window.innerWidth < 768 ? 5 : 10}
+                              allowEscapeViewBox={{ x: false, y: true }}
                             />
-                            <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
+                            <Legend wrapperStyle={{
+                              fontSize: window.innerWidth < 768 ? '10px' : '12px',
+                              marginTop: window.innerWidth < 768 ? '2px' : '8px',
+                              lineHeight: window.innerWidth < 768 ? '12px' : '16px',
+                              display: window.innerWidth < 768 ? 'none' : 'block'
+                            }} />
                             <Line
                               yAxisId="left"
                               type="monotone"
@@ -1242,15 +1293,15 @@ export default function Dashboard() {
             </div>
 
             {/* 2) コンバージョンファネル - フル横幅で下段配置 */}
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <div className="mb-6">
+            <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
+              <div className="mb-6 px-3">
                 <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
                   <span className="lg:hidden">ファネル分析</span>
                   <span className="hidden lg:inline">コンバージョンファネル</span>
                 </h3>
                 <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 hidden lg:block">リーチから最終コンバージョンまでの流れ</p>
               </div>
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+              <div className="lg:bg-gray-50 lg:dark:bg-gray-800/50 lg:rounded-xl lg:p-6">
                 <div className="lg:grid lg:grid-cols-5 lg:gap-6 flex flex-col gap-3">
                   {(() => {
                     const summary = calculateSummary();
@@ -1293,25 +1344,26 @@ export default function Dashboard() {
                     return (
                       <>
                         {/* Instagram-style mobile list layout */}
-                        <div className="lg:hidden bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-4">
-                          <h4 className="text-sm font-semibold text-[#111827] dark:text-[#E6E6E6] mb-3">📊 パフォーマンス</h4>
-                          <div className="space-y-2">
+                        <div className="lg:hidden border-t border-[#EDEDED] dark:border-white/10">
+                          <div className="space-y-0">
                             {funnelSteps.map((step, index) => (
-                              <div key={index} className="flex items-center justify-between py-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm">{step.icon}</span>
-                                  <span className="text-sm text-[#6B7280] dark:text-gray-400">{step.title}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-semibold text-[#111827] dark:text-[#E6E6E6]">
+                              <div key={index}>
+                                <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base">{step.icon}</span>
+                                    <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">{step.title}</span>
+                                  </div>
+                                  <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">
                                     {step.value.toLocaleString()}
                                   </span>
-                                  {index < funnelSteps.length - 1 && (
-                                    <span className="text-xs text-purple-600 dark:text-purple-400 min-w-[40px] text-right">
+                                </div>
+                                {index < funnelSteps.length - 1 && (
+                                  <div className="flex justify-center py-2">
+                                    <span className="text-xs text-[#666] dark:text-gray-400 bg-[#F5F5F5] dark:bg-gray-700 px-2 py-1 rounded-full">
                                       {conversionRates[index]}%
                                     </span>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1339,9 +1391,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Top 5 Reels */}
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
+            {/* Top 3/5 Reels */}
+            <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
+              <div className="flex justify-between items-center mb-4 px-3">
                 <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
                   💎 Top{window.innerWidth < 1024 ? '3' : '5'} リール
                 </h3>
@@ -1376,8 +1428,8 @@ export default function Dashboard() {
                       const sheetData = joinedReel.sheetData;
 
                       return (
-                        <div key={index} className="w-full lg:min-w-0 min-w-[280px] bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 flex-shrink-0 snap-start">
-                          <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden mb-3">
+                        <div key={index} className="w-full lg:min-w-0 lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start relative">
+                          <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden lg:mb-3 relative">
                             {rawData[15] ? (
                               <img
                                 src={convertToGoogleUserContent(rawData[15])}
@@ -1394,17 +1446,22 @@ export default function Dashboard() {
                             <div className="w-full h-full bg-gray-600 rounded-lg flex items-center justify-center text-white text-xs" style={{display: rawData[15] ? 'none' : 'flex'}}>
                               Reel {index + 1}
                             </div>
-                          </div>
-                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium line-clamp-2">{sheetData[4] || `リール ${index + 1}`}</p>
 
-                          {/* 再生数（大きく表示） */}
-                          <div className="mb-3 text-center">
+                            {/* 数値Pillオーバーレイ (スマホ版のみ) */}
+                            <div className="lg:hidden absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-bold">
+                              {parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}
+                            </div>
+                          </div>
+                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{sheetData[4] || `リール ${index + 1}`}</p>
+
+                          {/* 再生数（大きく表示） - PC版のみ */}
+                          <div className="mb-3 text-center hidden lg:block">
                             <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">再生数</p>
                             <p className="text-xl lg:text-2xl font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
-                          {/* 4アイコン横一列表示 */}
-                          <div className="grid grid-cols-4 gap-4">
+                          {/* 4アイコン横一列表示 - PC版のみ */}
+                          <div className="grid grid-cols-4 gap-4 hidden lg:grid">
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-red-500">❤️</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
@@ -2408,7 +2465,7 @@ export default function Dashboard() {
         )}
 
         {/* Mobile Bottom Tab Navigation */}
-        <div className="lg:hidden bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] bottom-nav-enhanced">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] bottom-nav-enhanced z-50">
           <div className="flex justify-around items-center px-1 py-2">
             <button
               onClick={() => setActiveTab('dashboard')}

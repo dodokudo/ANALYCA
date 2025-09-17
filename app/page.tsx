@@ -1134,14 +1134,15 @@ export default function Dashboard() {
                         const conversionRates = [
                           summary.latestReach > 0 ? ((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1) : '—',
                           summary.latestProfileViews > 0 ? ((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1) : '—',
-                          summary.latestWebsiteClicks > 0 ? ((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1) : '—'
+                          summary.latestWebsiteClicks > 0 ? ((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1) : '—',
+                          summary.followerGrowth > 0 ? ((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1) : '—'
                         ];
 
                         return (
                           <>
                             {/* リーチ数 */}
                             <div className="flex items-center justify-between py-2">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">リーチ数</span>
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">👀 リーチ数</span>
                               <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestReach.toLocaleString()}</span>
                             </div>
 
@@ -1154,7 +1155,7 @@ export default function Dashboard() {
 
                             {/* プロフィール表示 */}
                             <div className="flex items-center justify-between py-2">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">プロフィール表示</span>
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">👤 プロフィール表示</span>
                               <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestProfileViews.toLocaleString()}</span>
                             </div>
 
@@ -1167,7 +1168,7 @@ export default function Dashboard() {
 
                             {/* プロフクリック */}
                             <div className="flex items-center justify-between py-2">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">プロフクリック</span>
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">🔗 プロフクリック</span>
                               <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestWebsiteClicks.toLocaleString()}</span>
                             </div>
 
@@ -1179,9 +1180,22 @@ export default function Dashboard() {
                             </div>
 
                             {/* フォロワー増加 */}
-                            <div className="flex items-center justify-between py-2 pb-4">
-                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">フォロワー増加</span>
+                            <div className="flex items-center justify-between py-2">
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">➕ フォロワー増加</span>
                               <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.followerGrowth.toLocaleString()}</span>
+                            </div>
+
+                            {/* 転換率4 */}
+                            <div className="flex justify-center py-1">
+                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
+                                ▼ {conversionRates[3]}% ▼
+                              </span>
+                            </div>
+
+                            {/* LINE登録数 */}
+                            <div className="flex items-center justify-between py-2 pb-4">
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">📱 LINE登録数</span>
+                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.lineRegistrations.toLocaleString()}</span>
                             </div>
                           </>
                         );
@@ -1348,7 +1362,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex lg:block overflow-x-auto lg:overflow-x-visible gap-4 pb-2 lg:pb-0 snap-x snap-mandatory">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex overflow-x-auto lg:overflow-x-visible gap-4 pb-2 lg:pb-0 snap-x snap-mandatory">
                 {(() => {
                   // リールデータを結合
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
@@ -1369,7 +1383,7 @@ export default function Dashboard() {
                       const sheetData = joinedReel.sheetData;
 
                       return (
-                        <div key={index} className="w-full lg:min-w-0 lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start relative">
+                        <div key={index} className="w-32 lg:w-full lg:min-w-0 lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start relative">
                           <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden lg:mb-3 relative">
                             {rawData[15] ? (
                               <img

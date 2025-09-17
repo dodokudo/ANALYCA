@@ -1118,35 +1118,74 @@ export default function Dashboard() {
                 <div className="lg:hidden">
                   {/* メインフォロワー数 */}
                   <div className="text-center py-4 mx-3">
-                    <p className="text-5xl font-black text-[#111] dark:text-[#E6E6E6] leading-none tracking-tight">{summary.currentFollowers.toLocaleString()}</p>
-                    <p className="text-sm text-[#666] dark:text-gray-400 mt-2 font-medium">
-                      {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
-                    </p>
+                    <p className="text-sm text-[#6B7280] dark:text-gray-400 mb-2">現在のフォロワー数</p>
+                    <p className="text-4xl font-bold text-[#111] dark:text-[#E6E6E6] leading-none tracking-tight">{summary.currentFollowers.toLocaleString()}</p>
+                    <div className="mt-2">
+                      <span className={`text-sm font-semibold px-2 py-1 rounded-full ${summary.followerGrowth >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : summary.followerGrowth < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400'}`}>
+                        {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
                   </div>
 
-                  {/* パフォーマンスリスト */}
-                  <div className="border-t border-[#EDEDED] dark:border-white/10">
-                    <div className="space-y-0">
-                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
-                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">リーチ数</span>
-                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestReach.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
-                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">プロフィール表示</span>
-                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestProfileViews.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
-                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">プロフィールクリック</span>
-                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestWebsiteClicks.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
-                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">フォロワー増加</span>
-                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.followerGrowth.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between py-3 px-3">
-                        <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">LINE登録</span>
-                        <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">{summary.lineRegistrations.toLocaleString()}</span>
-                      </div>
+                  {/* ファネル分析 */}
+                  <div className="border-t border-[#E5E7EB] dark:border-white/10 pt-4">
+                    <div className="px-3">
+                      {(() => {
+                        const conversionRates = [
+                          summary.latestReach > 0 ? ((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1) : '—',
+                          summary.latestProfileViews > 0 ? ((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1) : '—',
+                          summary.latestWebsiteClicks > 0 ? ((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1) : '—'
+                        ];
+
+                        return (
+                          <>
+                            {/* リーチ数 */}
+                            <div className="flex items-center justify-between py-2">
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">リーチ数</span>
+                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestReach.toLocaleString()}</span>
+                            </div>
+
+                            {/* 転換率1 */}
+                            <div className="flex justify-center py-1">
+                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
+                                ▼ {conversionRates[0]}% ▼
+                              </span>
+                            </div>
+
+                            {/* プロフィール表示 */}
+                            <div className="flex items-center justify-between py-2">
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">プロフィール表示</span>
+                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestProfileViews.toLocaleString()}</span>
+                            </div>
+
+                            {/* 転換率2 */}
+                            <div className="flex justify-center py-1">
+                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
+                                ▼ {conversionRates[1]}% ▼
+                              </span>
+                            </div>
+
+                            {/* プロフクリック */}
+                            <div className="flex items-center justify-between py-2">
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">プロフクリック</span>
+                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.latestWebsiteClicks.toLocaleString()}</span>
+                            </div>
+
+                            {/* 転換率3 */}
+                            <div className="flex justify-center py-1">
+                              <span className="text-[13px] font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400">
+                                ▼ {conversionRates[2]}% ▼
+                              </span>
+                            </div>
+
+                            {/* フォロワー増加 */}
+                            <div className="flex items-center justify-between py-2 pb-4">
+                              <span className="text-[15px] text-[#111] dark:text-[#E6E6E6] font-medium">フォロワー増加</span>
+                              <span className="text-[17px] font-bold text-[#111] dark:text-[#E6E6E6]">{summary.followerGrowth.toLocaleString()}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1292,104 +1331,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* 2) コンバージョンファネル - フル横幅で下段配置 */}
-            <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
-              <div className="mb-6 px-3">
-                <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
-                  <span className="lg:hidden">ファネル分析</span>
-                  <span className="hidden lg:inline">コンバージョンファネル</span>
-                </h3>
-                <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1 hidden lg:block">リーチから最終コンバージョンまでの流れ</p>
-              </div>
-              <div className="lg:bg-gray-50 lg:dark:bg-gray-800/50 lg:rounded-xl lg:p-6">
-                <div className="lg:grid lg:grid-cols-5 lg:gap-6 flex flex-col gap-3">
-                  {(() => {
-                    const summary = calculateSummary();
-
-                    const funnelSteps = [
-                      {
-                        icon: "👀",
-                        title: "リーチ",
-                        value: summary.latestReach
-                      },
-                      {
-                        icon: "📱",
-                        title: "プロフ表示",
-                        value: summary.latestProfileViews
-                      },
-                      {
-                        icon: "🔗",
-                        title: "プロフクリック",
-                        value: summary.latestWebsiteClicks
-                      },
-                      {
-                        icon: "📈",
-                        title: "フォロワー増加",
-                        value: summary.followerGrowth
-                      },
-                      {
-                        icon: "💚",
-                        title: "LINE登録",
-                        value: summary.lineRegistrations
-                      }
-                    ];
-
-                    const conversionRates = [
-                      summary.latestReach > 0 ? ((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1) : '0.0',
-                      summary.latestProfileViews > 0 ? ((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1) : '0.0',
-                      summary.latestWebsiteClicks > 0 ? ((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1) : '0.0',
-                      summary.followerGrowth > 0 ? ((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1) : '0.0'
-                    ];
-
-                    return (
-                      <>
-                        {/* Instagram-style mobile list layout */}
-                        <div className="lg:hidden border-t border-[#EDEDED] dark:border-white/10">
-                          <div className="space-y-0">
-                            {funnelSteps.map((step, index) => (
-                              <div key={index}>
-                                <div className="flex items-center justify-between py-3 px-3 border-b border-[#EDEDED] dark:border-white/10">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-base">{step.icon}</span>
-                                    <span className="text-sm text-[#111] dark:text-[#E6E6E6] font-medium">{step.title}</span>
-                                  </div>
-                                  <span className="text-base font-bold text-[#111] dark:text-[#E6E6E6]">
-                                    {step.value.toLocaleString()}
-                                  </span>
-                                </div>
-                                {index < funnelSteps.length - 1 && (
-                                  <div className="flex justify-center py-2">
-                                    <span className="text-xs text-[#666] dark:text-gray-400 bg-[#F5F5F5] dark:bg-gray-700 px-2 py-1 rounded-full">
-                                      {conversionRates[index]}%
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Desktop grid layout */}
-                        <div className="hidden lg:flex lg:gap-6">
-                          {funnelSteps.map((step, index) => (
-                            <div key={index} className="bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-4 text-center hover:shadow-md transition-all duration-200 flex-1">
-                              <div className="text-2xl mb-3">{step.icon}</div>
-                              <div className="text-sm text-[#6B7280] dark:text-gray-400 mb-2 truncate">{step.title}</div>
-                              <div className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6] mb-1">{step.value.toLocaleString()}</div>
-                              {index < funnelSteps.length - 1 && (
-                                <div className="text-xs font-medium text-purple-600 dark:text-purple-400">
-                                  {conversionRates[index]}%
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            </div>
 
             {/* Top 3/5 Reels */}
             <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
@@ -1447,8 +1388,8 @@ export default function Dashboard() {
                               Reel {index + 1}
                             </div>
 
-                            {/* 数値Pillオーバーレイ (スマホ版のみ) */}
-                            <div className="lg:hidden absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-bold">
+                            {/* 数値Pillオーバーレイ (スマホ版のみ) - 中央下配置 */}
+                            <div className="lg:hidden absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-bold">
                               {parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}
                             </div>
                           </div>

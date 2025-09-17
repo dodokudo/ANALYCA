@@ -884,13 +884,13 @@ export default function Dashboard() {
         <div className="hidden lg:flex items-center justify-between mb-8 bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
           {/* 左: サービス名 */}
           <div className="flex items-center flex-shrink-0">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-500 rounded-lg flex items-center justify-center mr-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-emerald-400 rounded-lg flex items-center justify-center mr-3">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-200">
-              GEM QUEEN💎
+              ANALYCA
             </h1>
           </div>
 
@@ -1081,102 +1081,217 @@ export default function Dashboard() {
         {activeTab === 'dashboard' && (
           <div className="space-y-3 lg:space-y-8 lg:px-0">
             {/* アカウント情報セクション - モバイルのみ */}
-            <div className="lg:hidden px-5 py-4">
-              <div className="flex items-center">
-                {/* プロフィール画像 */}
-                <div className="w-[60px] h-[60px] rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center mr-4 flex-shrink-0">
-                  <span className="text-white text-xl font-bold">💎</span>
-                </div>
+            <div className="lg:hidden px-4">
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-5 mx-0 mb-4">
+                <div className="flex items-center">
+                  {/* プロフィール画像 */}
+                  <div className="w-[60px] h-[60px] rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center mr-4 flex-shrink-0">
+                    <span className="text-white text-xl font-bold">💎</span>
+                  </div>
 
-                {/* アカウント情報 */}
-                <div className="flex-1">
-                  <h2 className="text-[16px] font-bold text-gray-900 mb-1">GEM QUEEN💎</h2>
-                  <p className="text-[12px] text-gray-500 mb-1">現在のフォロワー数</p>
-                  <div className="flex items-center">
-                    <span className="text-[24px] font-bold text-gray-900 mr-2">{summary.currentFollowers.toLocaleString()}</span>
-                    <span className="text-[14px] font-medium text-emerald-500">
-                      +{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
-                    </span>
+                  {/* アカウント情報 */}
+                  <div className="flex-1">
+                    <h2 className="text-[16px] font-bold text-gray-900 mb-1">GEM QUEEN💎</h2>
+                    <p className="text-[12px] text-gray-500 mb-1">現在のフォロワー数</p>
+                    <div className="flex items-center">
+                      <span className="text-[24px] font-bold text-gray-900 mr-2">{summary.currentFollowers.toLocaleString()}</span>
+                      <span className="text-[14px] font-medium text-purple-500">
+                        +{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* ファネル分析セクション - モバイルのみ */}
-            <div className="lg:hidden px-5">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 text-center">ファネル分析</h2>
-
+            <div className="lg:hidden px-4">
               {/* ファネル分析全体をカードで囲む */}
-              <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
-                <div className="space-y-1">
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-4">
+                {/* カード内タイトル */}
+                <div className="flex items-center justify-center mb-2">
+                  <span className="text-base mr-2">📊</span>
+                  <h2 className="text-base font-bold text-gray-900">ファネル分析</h2>
+                </div>
+
+                <div className="space-y-2">
                   {/* リーチ数 */}
-                  <div className="px-4 py-3 flex items-center justify-between">
+                  <div className="px-3 py-2 flex items-center justify-between h-10">
                     <div className="flex items-center">
-                      <span className="text-lg mr-3">👁️</span>
-                      <span className="text-gray-900 font-medium">リーチ数</span>
+                      <span className="text-base mr-3">👁️</span>
+                      <span className="text-gray-900 font-medium text-sm">リーチ数</span>
                     </div>
-                    <span className="text-[16px] font-bold text-gray-900">{summary.latestReach.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-gray-900">{summary.latestReach.toLocaleString()}</span>
                   </div>
 
                   {/* 転換率1 */}
-                  <div className="flex justify-center py-2">
-                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1)}%</span>
+                  <div className="flex justify-center py-1 h-5">
+                    <span className="text-sm font-semibold text-purple-600">↓ {((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1)}%</span>
                   </div>
 
                   {/* プロフィール表示 */}
-                  <div className="px-4 py-3 flex items-center justify-between">
+                  <div className="px-3 py-2 flex items-center justify-between h-10">
                     <div className="flex items-center">
-                      <span className="text-lg mr-3">👤</span>
-                      <span className="text-gray-900 font-medium">プロフィール表示</span>
+                      <span className="text-base mr-3">👤</span>
+                      <span className="text-gray-900 font-medium text-sm">プロフィール表示</span>
                     </div>
-                    <span className="text-[16px] font-bold text-gray-900">{summary.latestProfileViews.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-gray-900">{summary.latestProfileViews.toLocaleString()}</span>
                   </div>
 
                   {/* 転換率2 */}
-                  <div className="flex justify-center py-2">
-                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1)}%</span>
+                  <div className="flex justify-center py-1 h-5">
+                    <span className="text-sm font-semibold text-purple-600">↓ {((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1)}%</span>
                   </div>
 
                   {/* プロフクリック */}
-                  <div className="px-4 py-3 flex items-center justify-between">
+                  <div className="px-3 py-2 flex items-center justify-between h-10">
                     <div className="flex items-center">
-                      <span className="text-lg mr-3">🔗</span>
-                      <span className="text-gray-900 font-medium">プロフクリック</span>
+                      <span className="text-base mr-3">🔗</span>
+                      <span className="text-gray-900 font-medium text-sm">プロフクリック</span>
                     </div>
-                    <span className="text-[16px] font-bold text-gray-900">{summary.latestWebsiteClicks.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-gray-900">{summary.latestWebsiteClicks.toLocaleString()}</span>
                   </div>
 
                   {/* 転換率3 */}
-                  <div className="flex justify-center py-2">
-                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1)}%</span>
+                  <div className="flex justify-center py-1 h-5">
+                    <span className="text-sm font-semibold text-purple-600">↓ {((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1)}%</span>
                   </div>
 
                   {/* フォロワー増加 */}
-                  <div className="px-4 py-3 flex items-center justify-between">
+                  <div className="px-3 py-2 flex items-center justify-between h-10">
                     <div className="flex items-center">
-                      <span className="text-lg mr-3">➕</span>
-                      <span className="text-gray-900 font-medium">フォロワー増加</span>
+                      <span className="text-base mr-3">➕</span>
+                      <span className="text-gray-900 font-medium text-sm">フォロワー増加</span>
                     </div>
-                    <span className="text-[16px] font-bold text-gray-900">{summary.followerGrowth.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-gray-900">{summary.followerGrowth.toLocaleString()}</span>
                   </div>
 
                   {/* 転換率4 */}
-                  <div className="flex justify-center py-2">
-                    <span className="text-[14px] font-medium text-purple-500">↓ {((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1)}%</span>
+                  <div className="flex justify-center py-1 h-5">
+                    <span className="text-sm font-semibold text-purple-600">↓ {((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1)}%</span>
                   </div>
 
                   {/* LINE登録数 */}
-                  <div className="px-4 py-3 flex items-center justify-between">
+                  <div className="px-3 py-2 flex items-center justify-between h-10">
                     <div className="flex items-center">
-                      <span className="text-lg mr-3">📱</span>
-                      <span className="text-gray-900 font-medium">LINE登録数</span>
+                      <span className="text-base mr-3">📱</span>
+                      <span className="text-gray-900 font-medium text-sm">LINE登録数</span>
                     </div>
-                    <span className="text-[16px] font-bold text-gray-900">{summary.lineRegistrations.toLocaleString()}</span>
+                    <span className="text-lg font-bold text-gray-900">{summary.lineRegistrations.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* PC版上部セクション: アカウント情報 + ファネル分析 */}
+            <div className="hidden lg:block">
+              <div className="grid lg:grid-cols-12 gap-6 mb-8">
+                {/* 左: アカウント情報 (3列) */}
+                <div className="lg:col-span-3">
+                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6 h-[200px] flex flex-col justify-center">
+                    <div className="flex items-center mb-4">
+                      {/* プロフィール画像 */}
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center mr-4 flex-shrink-0">
+                        <span className="text-white text-2xl font-bold">💎</span>
+                      </div>
+                      {/* アカウント情報 */}
+                      <div className="flex-1">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200 mb-1">GEM QUEEN💎</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">現在のフォロワー数</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-3xl font-bold text-gray-900 dark:text-gray-200 mr-3">{summary.currentFollowers.toLocaleString()}</span>
+                      <span className="text-sm font-medium text-purple-500">
+                        +{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 右: ファネル分析パネル (9列) */}
+                <div className="lg:col-span-9">
+                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6 h-[200px] flex flex-col">
+                    <div className="flex items-center mb-6">
+                      <span className="text-2xl mr-2">📊</span>
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200">ファネル分析</h2>
+                    </div>
+
+                    {/* 横並びファネルフロー */}
+                    <div className="flex items-center justify-between flex-1">
+                      {/* リーチ */}
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center mb-2">
+                          <span className="text-xl mr-1">👁️</span>
+                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm">リーチ</span>
+                        </div>
+                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.latestReach.toLocaleString()}</span>
+                      </div>
+
+                      {/* 矢印1 + CVR1 */}
+                      <div className="flex flex-col items-center mx-3">
+                        <div className="text-xl text-purple-500 mb-1">→</div>
+                        <span className="text-xs font-medium text-purple-500">{((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1)}%</span>
+                      </div>
+
+                      {/* プロフ表示 */}
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center mb-2">
+                          <span className="text-xl mr-1">👤</span>
+                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm whitespace-nowrap">プロフ表示</span>
+                        </div>
+                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.latestProfileViews.toLocaleString()}</span>
+                      </div>
+
+                      {/* 矢印2 + CVR2 */}
+                      <div className="flex flex-col items-center mx-3">
+                        <div className="text-xl text-purple-500 mb-1">→</div>
+                        <span className="text-xs font-medium text-purple-500">{((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1)}%</span>
+                      </div>
+
+                      {/* リンククリック */}
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center mb-2">
+                          <span className="text-xl mr-1">🔗</span>
+                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm whitespace-nowrap">リンククリック</span>
+                        </div>
+                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.latestWebsiteClicks.toLocaleString()}</span>
+                      </div>
+
+                      {/* 矢印3 + CVR3 */}
+                      <div className="flex flex-col items-center mx-3">
+                        <div className="text-xl text-purple-500 mb-1">→</div>
+                        <span className="text-xs font-medium text-purple-500">{((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1)}%</span>
+                      </div>
+
+                      {/* フォロワー増加 */}
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center mb-2">
+                          <span className="text-xl mr-1">➕</span>
+                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm whitespace-nowrap">フォロワー増加</span>
+                        </div>
+                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.followerGrowth.toLocaleString()}</span>
+                      </div>
+
+                      {/* 矢印4 + CVR4 */}
+                      <div className="flex flex-col items-center mx-3">
+                        <div className="text-xl text-purple-500 mb-1">→</div>
+                        <span className="text-xs font-medium text-purple-500">{((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1)}%</span>
+                      </div>
+
+                      {/* LINE登録 */}
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center mb-2">
+                          <span className="text-xl mr-1">📱</span>
+                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm">LINE登録</span>
+                        </div>
+                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.lineRegistrations.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
           {/* パフォーマンス推移グラフ - モバイル: フル幅, デスクトップ: 9列 */}
           <div className="lg:col-span-9 col-span-1">
@@ -1506,8 +1621,8 @@ export default function Dashboard() {
                     }).slice(0, topCount);
 
                     return sortedStories.map((story, index) => (
-                      <div key={index} className="w-full lg:w-full lg:min-w-0 lg:min-w-[280px] bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
-                        <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-xl overflow-hidden mb-2 lg:mb-3 relative">
+                      <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
+                        <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
                             return thumbnailUrl ? (
@@ -1525,7 +1640,7 @@ export default function Dashboard() {
                               />
                             ) : null;
                           })()}
-                          <div className="w-full h-full bg-gray-600 rounded-xl flex items-center justify-center text-white text-xs" style={{display: toLh3(story[7] || '') ? 'none' : 'flex'}}>
+                          <div className="w-full h-full bg-gray-600 rounded-lg flex items-center justify-center text-white text-xs" style={{display: toLh3(story[7] || '') ? 'none' : 'flex'}}>
                             <div className="text-center">
                               <div className="text-sm mb-1">📱</div>
                               <div>Story {index + 1}</div>

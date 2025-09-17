@@ -850,8 +850,8 @@ export default function Dashboard() {
             </h1>
           </div>
 
-          {/* 中央: タブ */}
-          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          {/* 中央: タブ (デスクトップのみ) */}
+          <div className="hidden lg:flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
@@ -860,7 +860,7 @@ export default function Dashboard() {
                   : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
               }`}
             >
-              メインダッシュボード
+              📊 ホーム
             </button>
             <button
               onClick={() => setActiveTab('reels')}
@@ -870,7 +870,7 @@ export default function Dashboard() {
                   : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
               }`}
             >
-              リール詳細
+              🎬 リール
             </button>
             <button
               onClick={() => setActiveTab('stories')}
@@ -880,7 +880,7 @@ export default function Dashboard() {
                   : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
               }`}
             >
-              ストーリー詳細
+              📱 ストーリー
             </button>
             <button
               onClick={() => setActiveTab('daily')}
@@ -890,7 +890,7 @@ export default function Dashboard() {
                   : 'text-[#6B7280] dark:text-gray-400 hover:text-[#111827] dark:hover:text-white'
               }`}
             >
-              デイリーデータ
+              📈 デイリー
             </button>
           </div>
 
@@ -1036,22 +1036,22 @@ export default function Dashboard() {
         {/* Main Dashboard */}
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
-            {/* 1) KPIエリア（上段）: 左端に総フォロワー数特大カード + 右側にパフォーマンス推移カード */}
-            <div className="grid grid-cols-12 gap-6">
-              {/* 左端: 総フォロワー数独立・特大カード */}
-              <div className="col-span-3">
+            {/* 1) KPIエリア（上段）: レスポンシブレイアウト */}
+            <div className="grid lg:grid-cols-12 grid-cols-1 gap-6">
+              {/* 総フォロワー数カード - モバイル: フル幅, デスクトップ: 3列 */}
+              <div className="lg:col-span-3 col-span-1">
                 <div className="bg-white dark:bg-[#1E1E1E] border-2 border-gray-300/80 dark:border-white/20 rounded-2xl shadow-lg p-3 h-full flex flex-col justify-center">
                   <div className="flex items-center mb-2">
                     <div className="w-8 h-8 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] rounded-lg flex items-center justify-center mr-3">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 515.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                     </div>
                     <div className="border-t bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] w-full h-0.5"></div>
                   </div>
                   <div className="text-center">
                     <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">総フォロワー数</p>
-                    <p className="text-6xl font-black text-[#000000] dark:text-[#FFFFFF] mb-1 leading-none tracking-tighter">{summary.currentFollowers.toLocaleString()}</p>
+                    <p className="text-4xl lg:text-6xl font-black text-[#000000] dark:text-[#FFFFFF] mb-1 leading-none tracking-tighter">{summary.currentFollowers.toLocaleString()}</p>
                     <div className="flex items-center justify-center text-xs">
                       <span className={`font-bold ${
                         summary.followerGrowth >= 0
@@ -1072,8 +1072,8 @@ export default function Dashboard() {
               </div>
 
 
-              {/* パフォーマンス推移グラフ - 右上の9列を使用 */}
-              <div className="col-span-9">
+              {/* パフォーマンス推移グラフ - モバイル: フル幅, デスクトップ: 9列 */}
+              <div className="lg:col-span-9 col-span-1">
                 {(() => {
                   const filteredDailyData = getFilteredDailyData(data.dailyRaw, dateRange.preset);
 
@@ -1110,22 +1110,22 @@ export default function Dashboard() {
                   });
 
                   return rechartsData.length > 0 && (
-                    <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
+                    <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5 lg:p-5 md:p-4 sm:p-3">
                       <div className="mb-4">
                         <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6]">パフォーマンス推移</h3>
                       </div>
-                      <div className="h-64">
+                      <div className="h-64 lg:h-64 md:h-56 sm:h-48">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={rechartsData}>
+                          <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 5 : 10, left: window.innerWidth < 768 ? 5 : 10, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                             <XAxis
                               dataKey="date"
-                              tick={{ fontSize: 12, fill: 'var(--chart-axis)' }}
+                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: 'var(--chart-axis)' }}
                             />
                             <YAxis
                               yAxisId="left"
                               orientation="left"
-                              tick={{ fontSize: 12, fill: '#7C3AED' }}
+                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#7C3AED' }}
                               className="dark:fill-purple-400"
                               tickFormatter={(value) => value.toLocaleString()}
                               domain={['dataMin', 'dataMax']}
@@ -1133,7 +1133,7 @@ export default function Dashboard() {
                             <YAxis
                               yAxisId="right"
                               orientation="right"
-                              tick={{ fontSize: 12, fill: '#3B82F6' }}
+                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#3B82F6' }}
                               className="dark:fill-blue-400"
                               tickFormatter={(value) => value.toLocaleString()}
                             />
@@ -1193,7 +1193,7 @@ export default function Dashboard() {
                 <p className="text-sm text-[#6B7280] dark:text-gray-400 mt-1">リーチから最終コンバージョンまでの流れ</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
-                <div className="flex items-center justify-center gap-4 overflow-x-auto pb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 lg:gap-6">
                   {(() => {
                     const summary = calculateSummary();
 
@@ -1232,32 +1232,18 @@ export default function Dashboard() {
                       summary.followerGrowth > 0 ? ((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1) : '0.0'
                     ];
 
-                    const elements = [];
-
-                    funnelSteps.forEach((step, index) => {
-                      elements.push(
-                        <div key={`card-${index}`} className="bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-6 text-center w-40">
-                          <div className="text-2xl mb-3">{step.icon}</div>
-                          <div className="text-sm text-[#6B7280] dark:text-gray-400 mb-3 truncate">{step.title}</div>
-                          <div className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{step.value.toLocaleString()}</div>
-                        </div>
-                      );
-
-                      if (index < funnelSteps.length - 1) {
-                        elements.push(
-                          <div key={`arrow-${index}`} className="flex flex-col items-center mx-4">
-                            <svg className="w-8 h-8 text-[#6B7280] dark:text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                            <div className="text-sm font-bold bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] bg-clip-text text-transparent px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded">
-                              {conversionRates[index]}%
-                            </div>
+                    return funnelSteps.map((step, index) => (
+                      <div key={index} className="bg-white dark:bg-gray-700 border border-gray-200/70 dark:border-white/10 rounded-xl p-3 lg:p-4 text-center hover:shadow-md transition-all duration-200">
+                        <div className="text-xl lg:text-2xl mb-2 lg:mb-3">{step.icon}</div>
+                        <div className="text-xs lg:text-sm text-[#6B7280] dark:text-gray-400 mb-1 lg:mb-2 truncate">{step.title}</div>
+                        <div className="text-base lg:text-lg font-bold text-[#111827] dark:text-[#E6E6E6] mb-1">{step.value.toLocaleString()}</div>
+                        {index < funnelSteps.length - 1 && (
+                          <div className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                            {conversionRates[index]}%
                           </div>
-                        );
-                      }
-                    });
-
-                    return elements;
+                        )}
+                      </div>
+                    ));
                   })()}
                 </div>
               </div>
@@ -1279,7 +1265,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full grid grid-cols-5 gap-6 min-w-0 max-sm:overflow-x-auto max-sm:flex max-sm:space-x-4 max-sm:gap-0 max-sm:pb-2">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex lg:block overflow-x-auto lg:overflow-x-visible gap-4 pb-2 lg:pb-0 snap-x snap-mandatory">
                 {(() => {
                   // リールデータを結合
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
@@ -1299,7 +1285,7 @@ export default function Dashboard() {
                       const sheetData = joinedReel.sheetData;
 
                       return (
-                        <div key={index} className="w-full min-w-0 bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 max-sm:flex-shrink-0 max-sm:w-[280px] max-sm:snap-start">
+                        <div key={index} className="w-full lg:min-w-0 min-w-[280px] bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 flex-shrink-0 snap-start">
                           <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden mb-3">
                             {rawData[15] ? (
                               <img
@@ -1318,12 +1304,12 @@ export default function Dashboard() {
                               Reel {index + 1}
                             </div>
                           </div>
-                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium">{sheetData[0] || `リール ${index + 1}`}</p>
+                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium line-clamp-2">{sheetData[4] || `リール ${index + 1}`}</p>
 
                           {/* 再生数（大きく表示） */}
                           <div className="mb-3 text-center">
                             <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            <p className="text-xl lg:text-2xl font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
                           {/* 4アイコン横一列表示 */}
@@ -1331,28 +1317,29 @@ export default function Dashboard() {
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-red-500">❤️</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {/* いいね数はReelsシートにないため非表示 */}
+                                {parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[13] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-blue-500">💬</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[9] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[9] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[14] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-amber-500">💾</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[11] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[11] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[16] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[16] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-purple-500">👤</div>
                               <span className="mt-1 text-sm font-semibold leading-none text-[var(--text-primary)]">
-                                {parseInt(String(sheetData[17] || '').replace(/,/g, '')) || 0 > 0 ?
-                                  parseInt(String(sheetData[17] || '').replace(/,/g, '')).toLocaleString() : ''}
+                                {parseInt(String(sheetData[18] || '').replace(/,/g, '')) || 0 > 0 ?
+                                  parseInt(String(sheetData[18] || '').replace(/,/g, '')).toLocaleString() : ''}
                               </span>
                             </div>
                           </div>
@@ -1382,7 +1369,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full grid grid-cols-5 gap-6 min-w-0 max-sm:overflow-x-auto max-sm:flex max-sm:space-x-4 max-sm:gap-0 max-sm:pb-2">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex lg:block overflow-x-auto lg:overflow-x-visible gap-4 pb-2 lg:pb-0 snap-x snap-mandatory">
                 {(() => {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
                   if (filteredStoriesProcessed.length > 1) {
@@ -1393,7 +1380,7 @@ export default function Dashboard() {
                     }).slice(0, 5);
 
                     return sortedStories.map((story, index) => (
-                      <div key={index} className="w-full min-w-0 bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 max-sm:flex-shrink-0 max-sm:w-[280px] max-sm:snap-start">
+                      <div key={index} className="w-full lg:min-w-0 min-w-[280px] bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 flex-shrink-0 snap-start">
                         <div className="w-full aspect-[9/16] bg-gray-600 rounded-xl overflow-hidden mb-3">
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
@@ -1427,7 +1414,7 @@ export default function Dashboard() {
                         {/* Views（大きく表示） */}
                         <div className="mb-3 text-center">
                           <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">閲覧数</p>
-                          <p className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
+                          <p className="text-xl lg:text-2xl font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
                         </div>
 
                         {/* KPIピル */}
@@ -1543,26 +1530,26 @@ export default function Dashboard() {
                   .map(key => dailyReelData[key]);
 
                 return chartData.length > 0 ? (
-                  <div className="h-64">
+                  <div className="h-64 lg:h-64 md:h-56 sm:h-48">
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData}>
+                      <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" className="dark:stroke-gray-600" />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: 12, fill: '#6B7280' }}
+                          tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#6B7280' }}
                           className="dark:fill-gray-300"
                         />
                         <YAxis
                           yAxisId="left"
                           orientation="left"
-                          tick={{ fontSize: 12, fill: '#E11D48' }}
+                          tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#E11D48' }}
                           className="dark:fill-rose-400"
                           tickFormatter={(value) => value.toLocaleString()}
                         />
                         <YAxis
                           yAxisId="right"
                           orientation="right"
-                          tick={{ fontSize: 12, fill: '#10B981' }}
+                          tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#10B981' }}
                           className="dark:fill-emerald-400"
                           tickFormatter={(value) => value.toString()}
                         />
@@ -1639,7 +1626,7 @@ export default function Dashboard() {
 
 
 
-              <div className="w-full grid grid-cols-5 gap-4 max-sm:overflow-x-auto max-sm:flex max-sm:space-x-4 max-sm:gap-0 max-sm:pb-2">
+              <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
                 {(() => {
                   const joinedData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
                   const filteredJoinedData = filterJoinedReelData(joinedData, dateRange);
@@ -1740,11 +1727,11 @@ export default function Dashboard() {
                       };
 
                       // Extract data according to requirements - Reelsシート参照
-                      const title = sheetData[0] || `リール ${index + 1}`; // A列（インデックス0）動画タイトル
-                      const likes = 0; // いいね数はReelsシートにないため0
-                      const comments = safeParseInt(sheetData[9]); // J列（インデックス9）コメント数
-                      const saves = safeParseInt(sheetData[11]); // L列（インデックス11）保存数
-                      const follows = safeParseInt(sheetData[17]); // R列（インデックス17）フォロー数
+                      const title = sheetData[4] || `リール ${index + 1}`; // E列（インデックス4）投稿内容
+                      const likes = safeParseInt(sheetData[13]); // N列（インデックス13）いいね数
+                      const comments = safeParseInt(sheetData[14]); // O列（インデックス14）コメント数
+                      const saves = safeParseInt(sheetData[16]); // Q列（インデックス16）保存数
+                      const follows = safeParseInt(sheetData[18]); // S列（インデックス18）フォロー数
                       const views = safeParseInt(sheetData[2]); // C列（インデックス2）再生数
                       const duration = 0; // 尺はReelsシートにないため0
                       const viewRate = safeParseFloat(sheetData[8]); // I列（インデックス8）平均視聴維持率
@@ -1755,7 +1742,7 @@ export default function Dashboard() {
                       const totalWatchTime = formatTotalWatchTime(views, duration);
 
                       return (
-                        <div key={index} className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                        <div key={index} className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
                           {/* サムネイル */}
                           <div className="w-full aspect-[9/16] bg-gray-600 rounded-xl overflow-hidden mb-3">
                             {rawData[15] ? (
@@ -1996,19 +1983,19 @@ export default function Dashboard() {
                     });
 
                     return chartData.length > 0 && chartData.some(d => d.投稿数 > 0 || d.最高閲覧率 > 0) ? (
-                      <div className="h-80">
+                      <div className="h-80 lg:h-80 md:h-64 sm:h-56">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartData}>
+                          <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 5 : 10, left: window.innerWidth < 768 ? 5 : 10, bottom: 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                             <XAxis
                               dataKey="date"
-                              tick={{ fontSize: 12, fill: 'var(--chart-axis)' }}
+                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: 'var(--chart-axis)' }}
                             />
                             {/* 左Y軸：閲覧率（動的スケール） */}
                             <YAxis
                               yAxisId="left"
                               domain={viewRateDomain}
-                              tick={{ fontSize: 12, fill: '#F59E0B' }}
+                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#F59E0B' }}
                               className="dark:fill-amber-400"
                               tickFormatter={(value) => `${value}%`}
                             />
@@ -2017,7 +2004,7 @@ export default function Dashboard() {
                               yAxisId="right"
                               orientation="right"
                               domain={postCountDomain}
-                              tick={{ fontSize: 12, fill: '#8B5CF6' }}
+                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#8B5CF6' }}
                               className="dark:fill-purple-400"
                               tickFormatter={(value) => value.toString()}
                             />
@@ -2102,7 +2089,7 @@ export default function Dashboard() {
               </div>
 
 
-              <div className="w-full grid grid-cols-5 gap-4 max-sm:overflow-x-auto max-sm:flex max-sm:space-x-4 max-sm:gap-0 max-sm:pb-2">
+              <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
                 {(() => {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
 
@@ -2145,7 +2132,7 @@ export default function Dashboard() {
                   });
 
                   return sortedStories.map((story, index) => (
-                      <div key={index} className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-lg p-4 text-center hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                      <div key={index} className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-lg p-4 text-center hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
                         <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden mb-3">
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
@@ -2320,8 +2307,58 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Mobile Bottom Tab Navigation */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#1E1E1E] border-t border-gray-200 dark:border-white/10 shadow-lg z-50">
+          <div className="flex justify-around items-center px-2 py-2">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+                activeTab === 'dashboard'
+                  ? 'text-purple-600 dark:text-purple-400'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <div className="text-lg mb-1">📊</div>
+              <span className="text-xs font-medium">ホーム</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('reels')}
+              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+                activeTab === 'reels'
+                  ? 'text-purple-600 dark:text-purple-400'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <div className="text-lg mb-1">🎬</div>
+              <span className="text-xs font-medium">リール</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('stories')}
+              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+                activeTab === 'stories'
+                  ? 'text-purple-600 dark:text-purple-400'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <div className="text-lg mb-1">📱</div>
+              <span className="text-xs font-medium">ストーリー</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('daily')}
+              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 ${
+                activeTab === 'daily'
+                  ? 'text-purple-600 dark:text-purple-400'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <div className="text-lg mb-1">📈</div>
+              <span className="text-xs font-medium">デイリー</span>
+            </button>
+          </div>
+        </div>
+
         {/* Footer */}
-        <div className="mt-12 text-center border-t border-gray-200/70 dark:border-white/10 pt-6">
+        <div className="mt-12 text-center border-t border-gray-200/70 dark:border-white/10 pt-6 pb-20 lg:pb-6">
           <p className="text-[#6B7280] dark:text-gray-400 text-sm">© 2025 Powered by GEM QUEEN💎</p>
         </div>
       </div>

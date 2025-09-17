@@ -831,22 +831,22 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F8FB] dark:bg-[#121212] relative overflow-hidden">
+    <div className="min-h-screen bg-white lg:bg-[#F7F8FB] dark:bg-[#121212] relative overflow-hidden">
       {/* SaaS風アクセント - デスクトップのみ */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] hidden lg:block"></div>
 
-      {/* Mobile Fixed Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-[#1E1E1E] border-b border-gray-200/70 dark:border-white/10 shadow-sm">
-        <div className="flex items-center justify-between px-4 py-3">
-          {/* 左: サービス名 */}
+      {/* Mobile Fixed Header - YouTube Studio風 */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white shadow-sm h-[60px]">
+        <div className="flex items-center justify-between px-5 h-full">
+          {/* 左: Analycaロゴ + ANALYCA */}
           <div className="flex items-center flex-shrink-0">
-            <div className="w-6 h-6 bg-gradient-to-r from-[#7C3AED] to-[#3B82F6] rounded-lg flex items-center justify-center mr-2">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 bg-gradient-to-r from-[#8B5CF6] to-[#00FF88] rounded-lg flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h1 className="text-lg font-bold text-[#111827] dark:text-[#E6E6E6]">
-              GEM QUEEN💎
+            <h1 className="text-lg font-bold text-[#111827]">
+              ANALYCA
             </h1>
           </div>
 
@@ -866,7 +866,7 @@ export default function Dashboard() {
                   updatePreset(value);
                 }
               }}
-              className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-2 py-1 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200 min-w-[90px]"
+              className="rounded-lg border border-[#6B7280] bg-white text-[#111827] px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-[#8B5CF6] focus:border-[#8B5CF6] transition-all duration-200 min-w-[100px]"
             >
               <option value="this-week">今週</option>
               <option value="last-week">先週</option>
@@ -1080,6 +1080,90 @@ export default function Dashboard() {
         {/* Main Dashboard */}
         {activeTab === 'dashboard' && (
           <div className="space-y-3 lg:space-y-8 lg:px-0">
+            {/* アカウント情報セクション - モバイルのみ */}
+            <div className="lg:hidden px-5 py-4">
+              <div className="flex items-center">
+                {/* プロフィール画像 */}
+                <div className="w-[60px] h-[60px] rounded-full bg-gradient-to-r from-[#8B5CF6] to-[#00FF88] flex items-center justify-center mr-4 flex-shrink-0">
+                  <span className="text-white text-xl font-bold">💎</span>
+                </div>
+
+                {/* アカウント情報 */}
+                <div className="flex-1">
+                  <h2 className="text-[16px] font-bold text-[#111827] mb-1">GEM QUEEN💎</h2>
+                  <p className="text-[12px] text-[#6B7280] mb-1">現在のフォロワー数</p>
+                  <div className="flex items-center">
+                    <span className="text-[24px] font-bold text-[#111827] mr-2">{summary.currentFollowers.toLocaleString()}</span>
+                    <span className="text-[14px] font-medium text-[#10B981]">
+                      +{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* メトリクス縦パネルセクション - モバイルのみ */}
+            <div className="lg:hidden px-5 space-y-3">
+              {/* リーチ数 */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-xl mr-3">👁️</span>
+                  <span className="text-[#111827] font-medium">リーチ数</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[18px] font-bold text-[#111827]">{summary.latestReach.toLocaleString()}</p>
+                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.latestProfileViews / summary.latestReach) * 100).toFixed(1)}%</p>
+                </div>
+              </div>
+
+              {/* プロフィール表示 */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-xl mr-3">👤</span>
+                  <span className="text-[#111827] font-medium">プロフィール表示</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[18px] font-bold text-[#111827]">{summary.latestProfileViews.toLocaleString()}</p>
+                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.latestWebsiteClicks / summary.latestProfileViews) * 100).toFixed(1)}%</p>
+                </div>
+              </div>
+
+              {/* プロフクリック */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-xl mr-3">🔗</span>
+                  <span className="text-[#111827] font-medium">プロフクリック</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[18px] font-bold text-[#111827]">{summary.latestWebsiteClicks.toLocaleString()}</p>
+                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.followerGrowth / summary.latestWebsiteClicks) * 100).toFixed(1)}%</p>
+                </div>
+              </div>
+
+              {/* フォロワー増加 */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-xl mr-3">➕</span>
+                  <span className="text-[#111827] font-medium">フォロワー増加</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[18px] font-bold text-[#111827]">{summary.followerGrowth.toLocaleString()}</p>
+                  <p className="text-[14px] font-medium text-[#8B5CF6]">▼ {((summary.lineRegistrations / summary.followerGrowth) * 100).toFixed(1)}%</p>
+                </div>
+              </div>
+
+              {/* LINE登録数 */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 h-[80px] flex items-center justify-between">
+                <div className="flex items-center">
+                  <span className="text-xl mr-3">📱</span>
+                  <span className="text-[#111827] font-medium">LINE登録数</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[18px] font-bold text-[#111827]">{summary.lineRegistrations.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+
             {/* 1) KPIエリア（上段）: レスポンシブレイアウト */}
             <div className="grid lg:grid-cols-12 grid-cols-1 gap-6">
               {/* 総フォロワー数 - スマホ: Instagram風フルブリード, PC: カード */}
@@ -1348,7 +1432,23 @@ export default function Dashboard() {
 
             {/* Top 3/5 Reels */}
             <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
-              <div className="flex justify-between items-center mb-4 px-3">
+              {/* モバイル版ヘッダー */}
+              <div className="lg:hidden flex justify-between items-center mb-4 px-5">
+                <h3 className="text-lg font-bold text-[#111827] tracking-tight">
+                  🎬 Top3 リール
+                </h3>
+                <button
+                  onClick={() => {
+                    setActiveTab('reels');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                >
+                  詳細
+                </button>
+              </div>
+              {/* PC版ヘッダー */}
+              <div className="hidden lg:flex justify-between items-center mb-4 px-3">
                 <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
                   💎 Top{window.innerWidth < 1024 ? '3' : '5'} リール
                 </h3>
@@ -1362,7 +1462,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex overflow-x-auto lg:overflow-x-visible gap-4 pb-2 lg:pb-0 snap-x snap-mandatory">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex overflow-x-auto lg:overflow-x-visible gap-3 pb-2 lg:pb-0 snap-x snap-mandatory px-5 lg:px-0">
                 {(() => {
                   // リールデータを結合
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
@@ -1383,8 +1483,8 @@ export default function Dashboard() {
                       const sheetData = joinedReel.sheetData;
 
                       return (
-                        <div key={index} className="w-32 lg:w-full lg:min-w-0 lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start relative">
-                          <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden lg:mb-3 relative">
+                        <div key={index} className="w-[120px] h-[160px] lg:w-full lg:min-w-0 lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start relative bg-white rounded-lg shadow-sm border border-gray-100 lg:border-none lg:shadow-none lg:bg-transparent overflow-hidden">
+                          <div className="w-full aspect-square lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
                             {rawData[15] ? (
                               <img
                                 src={convertToGoogleUserContent(rawData[15])}
@@ -1407,6 +1507,23 @@ export default function Dashboard() {
                               {parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}
                             </div>
                           </div>
+
+                          {/* モバイル版: 3つの指標 */}
+                          <div className="lg:hidden px-2 py-1 space-y-1">
+                            <div className="flex items-center text-xs text-[#111827]">
+                              <span className="mr-1">👁️</span>
+                              <span className="font-medium">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</span>
+                            </div>
+                            <div className="flex items-center text-xs text-[#111827]">
+                              <span className="mr-1">❤️</span>
+                              <span className="font-medium">{parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0}</span>
+                            </div>
+                            <div className="flex items-center text-xs text-[#111827]">
+                              <span className="mr-1">💬</span>
+                              <span className="font-medium">{parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0}</span>
+                            </div>
+                          </div>
+
                           <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{sheetData[4] || `リール ${index + 1}`}</p>
 
                           {/* 再生数（大きく表示） - PC版のみ */}
@@ -1457,8 +1574,24 @@ export default function Dashboard() {
             </div>
 
             {/* Top 5 Stories */}
-            <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
+            <div className="lg:bg-white lg:dark:bg-[#1E1E1E] lg:border lg:border-gray-200/70 lg:dark:border-white/10 lg:rounded-2xl lg:shadow-sm lg:p-6">
+              {/* モバイル版ヘッダー */}
+              <div className="lg:hidden flex justify-between items-center mb-4 px-5">
+                <h3 className="text-lg font-bold text-[#111827] tracking-tight">
+                  📖 Top3 ストーリー
+                </h3>
+                <button
+                  onClick={() => {
+                    setActiveTab('stories');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                >
+                  詳細
+                </button>
+              </div>
+              {/* PC版ヘッダー */}
+              <div className="hidden lg:flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6] tracking-tight">
                   📖 Top{window.innerWidth < 1024 ? '3' : '5'} ストーリー
                 </h3>
@@ -1472,7 +1605,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex lg:block overflow-x-auto lg:overflow-x-visible gap-4 pb-2 lg:pb-0 snap-x snap-mandatory">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 flex overflow-x-auto lg:overflow-x-visible gap-3 pb-2 lg:pb-0 snap-x snap-mandatory px-5 lg:px-0">
                 {(() => {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
                   if (filteredStoriesProcessed.length > 1) {
@@ -1484,8 +1617,8 @@ export default function Dashboard() {
                     }).slice(0, topCount);
 
                     return sortedStories.map((story, index) => (
-                      <div key={index} className="w-full lg:min-w-0 min-w-[280px] bg-white dark:bg-[#1E1E1E] border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 flex-shrink-0 snap-start">
-                        <div className="w-full aspect-[9/16] bg-gray-600 rounded-xl overflow-hidden mb-3">
+                      <div key={index} className="w-[120px] h-[160px] lg:w-full lg:min-w-0 lg:min-w-[280px] bg-white lg:dark:bg-[#1E1E1E] border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 snap-start overflow-hidden">
+                        <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-xl overflow-hidden mb-2 lg:mb-3">
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
                             return thumbnailUrl ? (
@@ -1512,19 +1645,38 @@ export default function Dashboard() {
                           </div>
                         </div>
 
-                        {/* 投稿日 */}
-                        <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
-
-                        {/* Views（大きく表示） */}
-                        <div className="mb-3 text-center">
-                          <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">閲覧数</p>
-                          <p className="text-xl lg:text-2xl font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
+                        {/* モバイル版: 3つの指標 */}
+                        <div className="lg:hidden px-2 py-1 space-y-1">
+                          <div className="flex items-center text-xs text-[#111827]">
+                            <span className="mr-1">👁️</span>
+                            <span className="font-medium">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center text-xs text-[#111827]">
+                            <span className="mr-1">📊</span>
+                            <span className="font-medium">{story[5] || '0%'}</span>
+                          </div>
+                          <div className="flex items-center text-xs text-[#111827]">
+                            <span className="mr-1">📱</span>
+                            <span className="font-medium">{story[4] || 0}</span>
+                          </div>
                         </div>
 
-                        {/* KPIピル */}
-                        <div className="flex flex-wrap gap-1">
-                          <StatPill icon="💬" value={story[4] || 0} color="green" />
-                          <StatPill icon="📈" value={story[5] || '0%'} color="purple" />
+                        {/* PC版: 従来表示 */}
+                        <div className="hidden lg:block">
+                          {/* 投稿日 */}
+                          <p className="text-[#111827] dark:text-[#E6E6E6] text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
+
+                          {/* Views（大きく表示） */}
+                          <div className="mb-3 text-center">
+                            <p className="text-[#6B7280] dark:text-gray-400 text-xs mb-1">閲覧数</p>
+                            <p className="text-xl lg:text-2xl font-bold text-[#111827] dark:text-[#E6E6E6]">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
+                          </div>
+
+                          {/* KPIピル */}
+                          <div className="flex flex-wrap gap-1">
+                            <StatPill icon="💬" value={story[4] || 0} color="green" />
+                            <StatPill icon="📈" value={story[5] || '0%'} color="purple" />
+                          </div>
                         </div>
                       </div>
                     ));
@@ -2471,7 +2623,7 @@ export default function Dashboard() {
 
         {/* Footer */}
         <div className="mt-12 text-center border-t border-gray-200/70 dark:border-white/10 pt-6 pb-24 safe-area-bottom lg:pb-6">
-          <p className="text-[#6B7280] dark:text-gray-400 text-sm">© 2025 Powered by GEM QUEEN💎</p>
+          <p className="text-[#6B7280] dark:text-gray-400 text-sm">© Powered by ANALYCA</p>
         </div>
       </div>
     </div>

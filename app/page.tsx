@@ -1158,9 +1158,9 @@ export default function Dashboard() {
                       <div className="mb-4">
                         <h3 className="text-xl font-bold text-[#111827] dark:text-[#E6E6E6]">パフォーマンス推移</h3>
                       </div>
-                      <div className="h-64 lg:h-64 md:h-56 sm:h-48">
+                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-0">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 2 : 10, left: window.innerWidth < 768 ? 2 : 10, bottom: window.innerWidth < 768 ? 5 : 10 }}>
+                          <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                             <XAxis
                               dataKey="date"
@@ -1183,13 +1183,17 @@ export default function Dashboard() {
                             />
                             <Tooltip
                               formatter={(value, name) => [value.toLocaleString(), name]}
-                              labelStyle={{ color: 'var(--text-primary)' }}
+                              labelStyle={{ color: 'var(--text-primary)', fontSize: window.innerWidth < 768 ? '11px' : '14px' }}
                               contentStyle={{
                                 backgroundColor: 'var(--card-background)',
                                 border: '1px solid var(--border-color)',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                color: 'var(--text-primary)'
+                                borderRadius: window.innerWidth < 768 ? '6px' : '8px',
+                                boxShadow: window.innerWidth < 768 ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                color: 'var(--text-primary)',
+                                padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
+                                fontSize: window.innerWidth < 768 ? '11px' : '14px',
+                                minWidth: window.innerWidth < 768 ? 'auto' : undefined,
+                                maxWidth: window.innerWidth < 768 ? '140px' : undefined
                               }}
                             />
                             <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
@@ -1612,9 +1616,9 @@ export default function Dashboard() {
                   .map(key => dailyReelData[key]);
 
                 return chartData.length > 0 ? (
-                  <div className="h-64 lg:h-64 md:h-56 sm:h-48">
+                  <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-0">
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 2 : 10, left: window.innerWidth < 768 ? 2 : 10, bottom: window.innerWidth < 768 ? 5 : 10 }}>
+                      <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" className="dark:stroke-gray-600" />
                         <XAxis
                           dataKey="date"
@@ -1637,13 +1641,17 @@ export default function Dashboard() {
                         />
                         <Tooltip
                           formatter={(value, name) => [value.toLocaleString(), name]}
-                          labelStyle={{ color: '#111827' }}
+                          labelStyle={{ color: '#111827', fontSize: window.innerWidth < 768 ? '11px' : '14px' }}
                           contentStyle={{
                             backgroundColor: 'var(--card-background)',
                             border: '1px solid var(--border-color)',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                            color: 'var(--text-primary)'
+                            borderRadius: window.innerWidth < 768 ? '6px' : '8px',
+                            boxShadow: window.innerWidth < 768 ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            color: 'var(--text-primary)',
+                            padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
+                            fontSize: window.innerWidth < 768 ? '11px' : '14px',
+                            minWidth: window.innerWidth < 768 ? 'auto' : undefined,
+                            maxWidth: window.innerWidth < 768 ? '140px' : undefined
                           }}
                         />
                         <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
@@ -2065,9 +2073,9 @@ export default function Dashboard() {
                     });
 
                     return chartData.length > 0 && chartData.some(d => d.投稿数 > 0 || d.最高閲覧率 > 0) ? (
-                      <div className="h-80 lg:h-80 md:h-64 sm:h-56">
+                      <div className="h-80 lg:h-80 md:h-64 sm:h-56 lg:px-0 px-0">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 2 : 10, left: window.innerWidth < 768 ? 2 : 10, bottom: window.innerWidth < 768 ? 5 : 10 }}>
+                          <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                             <XAxis
                               dataKey="date"
@@ -2097,13 +2105,17 @@ export default function Dashboard() {
                                 }
                                 return [value.toLocaleString(), name];
                               }}
-                              labelStyle={{ color: 'var(--text-primary)' }}
+                              labelStyle={{ color: 'var(--text-primary)', fontSize: window.innerWidth < 768 ? '11px' : '14px' }}
                               contentStyle={{
                                 backgroundColor: 'var(--card-background)',
                                 border: '1px solid var(--border-color)',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                color: 'var(--text-primary)'
+                                borderRadius: window.innerWidth < 768 ? '6px' : '8px',
+                                boxShadow: window.innerWidth < 768 ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                color: 'var(--text-primary)',
+                                padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
+                                fontSize: window.innerWidth < 768 ? '11px' : '14px',
+                                minWidth: window.innerWidth < 768 ? 'auto' : undefined,
+                                maxWidth: window.innerWidth < 768 ? '140px' : undefined
                               }}
                             />
                             <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />

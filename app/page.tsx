@@ -1337,13 +1337,14 @@ export default function Dashboard() {
                       </div>
                       <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-4">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
+                          <ComposedChart data={rechartsData} margin={{ top: window.innerWidth < 768 ? 8 : 10, right: window.innerWidth < 768 ? 25 : 10, left: window.innerWidth < 768 ? 35 : 10, bottom: window.innerWidth < 768 ? 8 : 10 }}>
                             <CartesianGrid
                               strokeDasharray="1 1"
                               stroke={window.innerWidth < 768 ? "#F0F0F0" : "var(--chart-grid)"}
-                              horizontal={window.innerWidth < 768 ? true : true}
+                              horizontal={true}
                               vertical={false}
                               strokeOpacity={window.innerWidth < 768 ? 0.3 : 1}
+                              strokeWidth={window.innerWidth < 768 ? 0.5 : 1}
                             />
                             <XAxis
                               dataKey="date"
@@ -1355,21 +1356,53 @@ export default function Dashboard() {
                             <YAxis
                               yAxisId="left"
                               orientation="left"
-                              tick={false}
+                              tick={window.innerWidth < 768 ? {
+                                fontSize: 10,
+                                fill: 'var(--chart-axis)',
+                                fontWeight: 'bold'
+                              } : {
+                                fontSize: 14,
+                                fill: 'var(--chart-axis)'
+                              }}
                               className="dark:fill-purple-400"
-                              tickFormatter={(value) => value.toLocaleString()}
+                              tickFormatter={(value) => {
+                                if (window.innerWidth < 768) {
+                                  if (value >= 1000) {
+                                    return (value / 1000).toFixed(value % 1000 === 0 ? 0 : 1) + 'K';
+                                  }
+                                  return value.toString();
+                                }
+                                return value.toLocaleString();
+                              }}
                               domain={['dataMin', 'dataMax']}
                               axisLine={false}
                               tickLine={false}
+                              width={window.innerWidth < 768 ? 35 : 60}
                             />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
-                              tick={false}
+                              tick={window.innerWidth < 768 ? {
+                                fontSize: 10,
+                                fill: 'var(--chart-axis)',
+                                fontWeight: 'bold'
+                              } : {
+                                fontSize: 14,
+                                fill: 'var(--chart-axis)'
+                              }}
                               className="dark:fill-blue-400"
-                              tickFormatter={(value) => value.toLocaleString()}
+                              tickFormatter={(value) => {
+                                if (window.innerWidth < 768) {
+                                  if (value >= 1000) {
+                                    return (value / 1000).toFixed(value % 1000 === 0 ? 0 : 1) + 'K';
+                                  }
+                                  return value.toString();
+                                }
+                                return value.toLocaleString();
+                              }}
                               axisLine={false}
                               tickLine={false}
+                              width={window.innerWidth < 768 ? 25 : 60}
                             />
                             <Tooltip
                               formatter={(value, name) => [value.toLocaleString(), name]}
@@ -1391,7 +1424,7 @@ export default function Dashboard() {
                             />
                             <Legend wrapperStyle={{
                               fontSize: window.innerWidth < 768 ? '10px' : '12px',
-                              marginTop: window.innerWidth < 768 ? '2px' : '8px',
+                              marginTop: window.innerWidth < 768 ? '4px' : '8px',
                               lineHeight: window.innerWidth < 768 ? '12px' : '16px',
                               display: window.innerWidth < 768 ? 'none' : 'block'
                             }} />
@@ -1400,8 +1433,16 @@ export default function Dashboard() {
                               type="monotone"
                               dataKey="フォロワー数"
                               stroke="#7C3AED"
-                              strokeWidth={3}
-                              dot={{ fill: '#7C3AED', strokeWidth: 2, r: 4 }}
+                              strokeWidth={window.innerWidth < 768 ? 3 : 3}
+                              dot={window.innerWidth < 768 ? {
+                                fill: '#7C3AED',
+                                strokeWidth: 2,
+                                r: 3
+                              } : {
+                                fill: '#7C3AED',
+                                strokeWidth: 2,
+                                r: 4
+                              }}
                             />
                             <Bar
                               yAxisId="right"

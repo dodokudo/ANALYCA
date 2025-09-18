@@ -831,7 +831,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-white lg:bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
       {/* SaaS風アクセント - デスクトップのみ */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-blue-500 hidden lg:block"></div>
 
@@ -1294,7 +1294,7 @@ export default function Dashboard() {
             </div>
 
           {/* パフォーマンス推移グラフ - モバイル: フル幅, デスクトップ: 9列 */}
-          <div className="lg:col-span-9 col-span-1">
+          <div className="lg:col-span-9 col-span-1 lg:px-0 px-4">
             {(() => {
               const filteredDailyData = getFilteredDailyData(data.dailyRaw, dateRange.preset);
 
@@ -1332,10 +1332,10 @@ export default function Dashboard() {
 
                   return rechartsData.length > 0 && (
                     <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-3 lg:p-5 md:p-4 sm:p-3">
-                      <div className="mb-4 px-3">
+                      <div className="mb-4 lg:px-3 px-4">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200">パフォーマンス推移</h3>
                       </div>
-                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-3">
+                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-4">
                         <ResponsiveContainer width="100%" height="100%">
                           <ComposedChart data={rechartsData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
                             <CartesianGrid
@@ -1432,9 +1432,10 @@ export default function Dashboard() {
           </div>
 
           {/* Top 3/5 Reels */}
-          <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
+          <div className="lg:px-0 px-4">
+            <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
-              <div className="lg:hidden flex justify-between items-center mb-4 px-5">
+              <div className="lg:hidden flex justify-between items-center mb-4 px-4">
                 <h3 className="text-lg font-bold text-gray-900 tracking-tight">
                   🎬 Top3 リール
                 </h3>
@@ -1463,7 +1464,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-5 lg:px-0">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-4 lg:px-0">
                 {(() => {
                   // リールデータを結合
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
@@ -1576,11 +1577,13 @@ export default function Dashboard() {
                 })()}
               </div>
             </div>
+          </div>
 
             {/* Top 5 Stories */}
+          <div className="lg:px-0 px-4">
             <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
-              <div className="lg:hidden flex justify-between items-center mb-4 px-5">
+              <div className="lg:hidden flex justify-between items-center mb-4 px-4">
                 <h3 className="text-lg font-bold text-gray-900 tracking-tight">
                   📖 Top3 ストーリー
                 </h3>
@@ -1609,7 +1612,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-5 lg:px-0">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-4 lg:px-0">
                 {(() => {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
                   if (filteredStoriesProcessed.length > 1) {
@@ -1691,8 +1694,8 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
         )}
-
 
         {/* Reels Detail */}
         {activeTab === 'reels' && (
@@ -1854,602 +1857,22 @@ export default function Dashboard() {
                 );
               })()}
             </div>
-
-            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">リール詳細 ({(() => {
-                  const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
-                  const filteredJoinedData = filterJoinedReelData(joinedReelData, dateRange);
-                  return filteredJoinedData.length;
-                })()}件)</h3>
-
-                {/* Sort Controls */}
-                <div className="flex items-center space-x-3">
-                  <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
-                  <select
-                    value={reelSortBy}
-                    onChange={(e) => setReelSortBy(e.target.value)}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                  >
-                    <option value="date">投稿日</option>
-                    <option value="views">再生数</option>
-                    <option value="likes">いいね</option>
-                    <option value="saves">保存数</option>
-                    <option value="follows">フォロー数</option>
-                    <option value="comments">コメント</option>
-                  </select>
-                  <button
-                    onClick={() => setReelSortOrder(reelSortOrder === 'desc' ? 'asc' : 'desc')}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                    title={reelSortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
-                  >
-                    {reelSortOrder === 'desc' ? '↓' : '↑'}
-                  </button>
-                </div>
-              </div>
-
-
-
-              <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
-                {(() => {
-                  const joinedData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
-                  const filteredJoinedData = filterJoinedReelData(joinedData, dateRange);
-
-                  // ソート機能
-                  const sortedData = filteredJoinedData.sort((a, b) => {
-                    const rawDataA = a.rawData;
-                    const rawDataB = b.rawData;
-                    const sheetDataA = a.sheetData;
-                    const sheetDataB = b.sheetData;
-
-                    let result = 0;
-
-                    switch (reelSortBy) {
-                      case 'date':
-                        const dateA = new Date(rawDataA[5] || '');
-                        const dateB = new Date(rawDataB[5] || '');
-                        result = dateB.getTime() - dateA.getTime();
-                        break;
-                      case 'views':
-                        const viewsA = parseInt(String(rawDataA[6] || '').replace(/,/g, '')) || 0;
-                        const viewsB = parseInt(String(rawDataB[6] || '').replace(/,/g, '')) || 0;
-                        result = viewsB - viewsA;
-                        break;
-                      case 'likes':
-                        const likesA = parseInt(String(rawDataA[8] || '').replace(/,/g, '')) || 0;
-                        const likesB = parseInt(String(rawDataB[8] || '').replace(/,/g, '')) || 0;
-                        result = likesB - likesA;
-                        break;
-                      case 'saves':
-                        const savesA = parseInt(String(rawDataA[10] || '').replace(/,/g, '')) || 0;
-                        const savesB = parseInt(String(rawDataB[10] || '').replace(/,/g, '')) || 0;
-                        result = savesB - savesA;
-                        break;
-                      case 'follows':
-                        const followsA = parseInt(String(sheetDataA[18] || '').replace(/,/g, '')) || 0;
-                        const followsB = parseInt(String(sheetDataB[18] || '').replace(/,/g, '')) || 0;
-                        result = followsB - followsA;
-                        break;
-                      case 'comments':
-                        const commentsA = parseInt(String(rawDataA[9] || '').replace(/,/g, '')) || 0;
-                        const commentsB = parseInt(String(rawDataB[9] || '').replace(/,/g, '')) || 0;
-                        result = commentsB - commentsA;
-                        break;
-                      default:
-                        result = 0;
-                    }
-
-                    // 昇順の場合は結果を反転
-                    return reelSortOrder === 'asc' ? -result : result;
-                  });
-
-                  return sortedData && sortedData.length > 0 ? (
-                    sortedData.map((item, index) => {
-                      const rawData = item.rawData;
-                      const sheetData = item.sheetData;
-
-                      // Helper functions for data formatting
-                      const formatDuration = (seconds: number): string => {
-                        if (!seconds || isNaN(seconds)) return '';
-                        const mins = Math.floor(seconds / 60);
-                        const secs = seconds % 60;
-                        return `${mins}:${secs.toString().padStart(2, '0')}`;
-                      };
-
-                      const formatTotalWatchTime = (views: number, duration: number): string => {
-                        if (!views || !duration || isNaN(views) || isNaN(duration)) return '';
-                        const totalSeconds = views * duration;
-                        const hours = Math.floor(totalSeconds / 3600);
-                        const minutes = Math.floor((totalSeconds % 3600) / 60);
-                        const seconds = totalSeconds % 60;
-                        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                      };
-
-                      const formatDate = (dateStr: string): string => {
-                        if (!dateStr) return '';
-                        try {
-                          const date = new Date(dateStr);
-                          if (isNaN(date.getTime())) return '';
-                          return date.toLocaleDateString('ja-JP', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit'
-                          }).replace(/\//g, '/');
-                        } catch {
-                          return '';
-                        }
-                      };
-
-                      const safeParseInt = (value: unknown): number => {
-                        const parsed = parseInt(String(value || '0').replace(/,/g, ''));
-                        return isNaN(parsed) ? 0 : parsed;
-                      };
-
-                      const safeParseFloat = (value: unknown): number => {
-                        const parsed = parseFloat(String(value || '0').replace('%', ''));
-                        return isNaN(parsed) ? 0 : parsed;
-                      };
-
-                      // Extract data according to requirements - Reelsシート参照
-                      const title = sheetData[4] || `リール ${index + 1}`; // E列（インデックス4）投稿内容
-                      const likes = safeParseInt(sheetData[13]); // N列（インデックス13）いいね数
-                      const comments = safeParseInt(sheetData[14]); // O列（インデックス14）コメント数
-                      const saves = safeParseInt(sheetData[16]); // Q列（インデックス16）保存数
-                      const follows = safeParseInt(sheetData[18]); // S列（インデックス18）フォロー数
-                      const views = safeParseInt(sheetData[2]); // C列（インデックス2）再生数
-                      const duration = 0; // 尺はReelsシートにないため0
-                      const viewRate = safeParseFloat(sheetData[8]); // I列（インデックス8）平均視聴維持率
-                      const postedAt = sheetData[1]; // B列（インデックス1）投稿日
-
-                      const formattedDate = formatDate(postedAt);
-                      const formattedDuration = formatDuration(duration);
-                      const totalWatchTime = formatTotalWatchTime(views, duration);
-
-                      return (
-                        <div key={index} className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
-                          {/* サムネイル */}
-                          <div className="w-full aspect-[9/16] bg-gray-600 rounded-xl overflow-hidden mb-3">
-                            {rawData[15] ? (
-                              <img
-                                src={convertToGoogleUserContent(rawData[15])}
-                                alt={title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const fallback = target.nextElementSibling as HTMLElement;
-                                  if (fallback) fallback.style.display = 'flex';
-                                }}
-                              />
-                            ) : null}
-                            <div className="w-full h-full bg-gray-600 rounded-xl flex items-center justify-center text-white text-xs" style={{display: rawData[15] ? 'none' : 'flex'}}>
-                              {title}
-                            </div>
-                          </div>
-
-                          {/* タイトル + 投稿日・尺 */}
-                          <div className="mb-3">
-                            <h4
-                              className="text-gray-900 dark:text-gray-200 text-sm font-semibold leading-tight mb-1"
-                              title={title}
-                              style={{
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              {title}
-                            </h4>
-                            {(formattedDate || formattedDuration) && (
-                              <p className="text-gray-500 dark:text-gray-400 text-xs">
-                                {formattedDate && formattedDuration
-                                  ? `${formattedDate} • ${formattedDuration}`
-                                  : formattedDate || formattedDuration
-                                }
-                              </p>
-                            )}
-                          </div>
-
-                          {/* 再生数（太字表示） */}
-                          <div className="mb-3 text-center">
-                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-gray-200">{views.toLocaleString()}</p>
-                          </div>
-
-                          {/* 4アイコン横一列表示 */}
-                          <div className="grid grid-cols-4 gap-6 mb-3">
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-red-500">❤️</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`いいね ${likes}`}>
-                                {likes > 0 ? likes.toLocaleString() : ''}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-blue-500">💬</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`コメント ${comments}`}>
-                                {comments > 0 ? comments.toLocaleString() : ''}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-amber-500">💾</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`保存 ${saves}`}>
-                                {saves > 0 ? saves.toLocaleString() : ''}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-purple-500">👤</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`フォロー ${follows}`}>
-                                {follows > 0 ? follows.toLocaleString() : ''}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* 概要 */}
-                          {(views > 0 || totalWatchTime || viewRate > 0) && (
-                            <div>
-                              <h5 className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-2">概要</h5>
-                              <div className="space-y-1 text-xs">
-                                {views > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500 dark:text-gray-400">閲覧数</span>
-                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{views.toLocaleString()}</span>
-                                  </div>
-                                )}
-                                {totalWatchTime && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500 dark:text-gray-400">合計再生時間</span>
-                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{totalWatchTime}</span>
-                                  </div>
-                                )}
-                                {viewRate > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500 dark:text-gray-400">視聴率</span>
-                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{viewRate.toFixed(1)}%</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>
-                  );
-                })()}
-              </div>
-            </div>
           </div>
         )}
 
         {/* Stories Detail */}
         {activeTab === 'stories' && (
           <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
-            {/* ストーリー詳細上部グラフエリア */}
+            {/* Stories詳細上部グラフエリア */}
             <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">ストーリー パフォーマンス分析</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">日別投稿数・閲覧率の統合表示（左軸：閲覧率0-40%、右軸：投稿数0-4）</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">ストーリーズ パフォーマンス分析</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">日別ストーリーズインプレッション推移・フォロワー増加数</p>
               </div>
 
-                  {(() => {
-                    const filteredStoriesRaw = getFilteredData(data.storiesProcessed || [], 0, dateRange);
-
-                    console.log('=== ストーリーパフォーマンス分析デバッグ ===');
-                    console.log('data.storiesProcessed?.length:', data.storiesProcessed?.length);
-                    console.log('filteredStoriesRaw.length:', filteredStoriesRaw.length);
-                    console.log('filteredStoriesRaw 最初の3行:', filteredStoriesRaw.slice(0, 3));
-                    console.log('dateRange:', dateRange);
-
-                    if (filteredStoriesRaw.length <= 1) {
-                      return (
-                        <div className="h-48 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                          期間内にストーリーデータがありません
-                        </div>
-                      );
-                    }
-
-                    // 日別データを集計（storiesシート構造に対応）
-                    const dailyStoryData = {};
-                    console.log('=== データ処理開始 ===');
-                    filteredStoriesRaw.slice(1).forEach((story, index) => {
-                      const dateStr = String(story[0] || '').trim(); // storiesシート: A列（インデックス0）が投稿日
-                      console.log(`[${index}] 日付文字列: "${dateStr}", story:`, story.slice(0, 8));
-                      const date = parseDate(dateStr);
-                      if (date) {
-                        console.log(`日付解析成功: ${date.toISOString()}`);
-                        // ローカル日付の開始時刻で統一
-                        const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-                        const dateKey = localDate.toISOString().split('T')[0];
-                        if (!dailyStoryData[dateKey]) {
-                          dailyStoryData[dateKey] = {
-                            date: localDate.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }),
-                            投稿数: 0,
-                            最高閲覧率: 0
-                          };
-                        }
-                        // 新構造: 各行が1つのストーリーなので投稿数は1ずつ増加
-                        dailyStoryData[dateKey].投稿数 += 1;
-
-                        // 閲覧率はF列（インデックス5）の値を直接使用
-                        const viewRateStr = String(story[5] || '').replace(/%/g, '');
-                        const viewRate = parseFloat(viewRateStr) || 0;
-                        console.log(`閲覧率: "${story[5]}" → ${viewRate}%`);
-                        // 最大値を更新
-                        if (viewRate > dailyStoryData[dateKey].最高閲覧率) {
-                          dailyStoryData[dateKey].最高閲覧率 = viewRate;
-                        }
-                      } else {
-                        console.log(`日付解析失敗: "${dateStr}"`);
-                      }
-                    });
-
-                    // データ欠損日の0埋め処理
-                    if (Object.keys(dailyStoryData).length > 0) {
-                      const dates = Object.keys(dailyStoryData).sort();
-                      const startDate = new Date(dates[0]);
-                      const endDate = new Date(dates[dates.length - 1]);
-
-                      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                        const localDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-                        const dateKey = localDate.toISOString().split('T')[0];
-                        if (!dailyStoryData[dateKey]) {
-                          dailyStoryData[dateKey] = {
-                            date: localDate.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }),
-                            投稿数: 0,
-                            最高閲覧率: 0
-                          };
-                        }
-                      }
-                    }
-
-                    console.log('=== 最終データ集計結果 ===');
-                    console.log('dailyStoryData:', dailyStoryData);
-
-                    // 統合チャートデータを作成
-                    const chartData = Object.keys(dailyStoryData)
-                      .sort()
-                      .map(key => ({
-                        date: dailyStoryData[key].date,
-                        投稿数: dailyStoryData[key].投稿数,
-                        最高閲覧率: dailyStoryData[key].最高閲覧率
-                      }));
-
-                    console.log('chartData:', chartData);
-                    console.log('chartData.length:', chartData.length);
-                    console.log('has data?', chartData.some(d => d.投稿数 > 0 || d.最高閲覧率 > 0));
-
-                    // 動的軸スケール用の最大値・最小値を計算
-                    const viewRates = chartData.map(d => d.最高閲覧率).filter(v => v > 0);
-                    const postCounts = chartData.map(d => d.投稿数).filter(v => v > 0);
-
-                    const viewRateMax = viewRates.length > 0 ? Math.max(...viewRates) : 40;
-                    const viewRateMin = viewRates.length > 0 ? Math.min(...viewRates) : 0;
-                    const postCountMax = postCounts.length > 0 ? Math.max(...postCounts) : 4;
-                    const postCountMin = postCounts.length > 0 ? Math.min(...postCounts) : 0;
-
-                    // 軸の範囲を少し余裕を持たせて調整
-                    const viewRateDomain = [
-                      Math.max(0, Math.floor(viewRateMin * 0.9)),
-                      Math.ceil(viewRateMax * 1.1)
-                    ];
-                    const postCountDomain = [
-                      Math.max(0, Math.floor(postCountMin * 0.9)),
-                      Math.ceil(postCountMax * 1.1)
-                    ];
-
-                    console.log('Dynamic axis ranges:', {
-                      viewRateDomain,
-                      postCountDomain,
-                      viewRateMax,
-                      postCountMax
-                    });
-
-                    return chartData.length > 0 && chartData.some(d => d.投稿数 > 0 || d.最高閲覧率 > 0) ? (
-                      <div className="h-80 lg:h-80 md:h-64 sm:h-56 lg:px-0 px-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                            <XAxis
-                              dataKey="date"
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: 'var(--chart-axis)' }}
-                            />
-                            {/* 左Y軸：閲覧率（動的スケール） */}
-                            <YAxis
-                              yAxisId="left"
-                              domain={viewRateDomain}
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#F59E0B' }}
-                              className="dark:fill-amber-400"
-                              tickFormatter={(value) => `${value}%`}
-                            />
-                            {/* 右Y軸：投稿数（動的スケール） */}
-                            <YAxis
-                              yAxisId="right"
-                              orientation="right"
-                              domain={postCountDomain}
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#8B5CF6' }}
-                              className="dark:fill-purple-400"
-                              tickFormatter={(value) => value.toString()}
-                            />
-                            <Tooltip
-                              formatter={(value, name) => {
-                                if (name === '最高閲覧率') {
-                                  return [`${Number(value).toFixed(1)}%`, name];
-                                }
-                                return [value.toLocaleString(), name];
-                              }}
-                              labelStyle={{ color: 'var(--text-primary)', fontSize: window.innerWidth < 768 ? '11px' : '14px' }}
-                              contentStyle={{
-                                backgroundColor: 'var(--card-background)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: window.innerWidth < 768 ? '6px' : '8px',
-                                boxShadow: window.innerWidth < 768 ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                color: 'var(--text-primary)',
-                                padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
-                                fontSize: window.innerWidth < 768 ? '11px' : '14px',
-                                minWidth: window.innerWidth < 768 ? 'auto' : undefined,
-                                maxWidth: window.innerWidth < 768 ? '140px' : undefined
-                              }}
-                            />
-                            <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
-                            {/* 20%基準線（点線） */}
-                            <ReferenceLine
-                              yAxisId="left"
-                              y={20}
-                              stroke="#DC2626"
-                              strokeDasharray="5 5"
-                              strokeWidth={2}
-                            />
-                            {/* 投稿数（棒グラフ、右Y軸） */}
-                            <Bar
-                              yAxisId="right"
-                              dataKey="投稿数"
-                              fill="#8B5CF6"
-                              radius={[2, 2, 0, 0]}
-                              opacity={0.7}
-                            />
-                            {/* 閲覧率（折れ線グラフ、左Y軸） */}
-                            <Line
-                              yAxisId="left"
-                              type="monotone"
-                              dataKey="最高閲覧率"
-                              stroke="#F59E0B"
-                              strokeWidth={3}
-                              dot={{ fill: '#F59E0B', strokeWidth: 2, r: 4 }}
-                            />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-48 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                        期間内にストーリーデータがありません
-                      </div>
-                    );
-                  })()}
-                </div>
-
-            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">ストーリー詳細 ({summary.totalStories}件)</h3>
-
-                {/* Sort Controls */}
-                <div className="flex items-center space-x-3">
-                  <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
-                  <select
-                    value={storySortBy}
-                    onChange={(e) => setStorySortBy(e.target.value)}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                  >
-                    <option value="date">投稿日</option>
-                    <option value="views">閲覧数</option>
-                    <option value="viewRate">閲覧率</option>
-                    <option value="reactions">反応数</option>
-                  </select>
-                  <button
-                    onClick={() => setStorySortOrder(storySortOrder === 'desc' ? 'asc' : 'desc')}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                    title={storySortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
-                  >
-                    {storySortOrder === 'desc' ? '↓' : '↑'}
-                  </button>
-                </div>
-              </div>
-
-
-              <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
-                {(() => {
-                  const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
-
-                  if (!filteredStoriesProcessed || filteredStoriesProcessed.length <= 1) {
-                    return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
-                  }
-
-                  // ソート機能
-                  const storyData = filteredStoriesProcessed.slice(1);
-                  const sortedStories = storyData.sort((a, b) => {
-                    let result = 0;
-
-                    switch (storySortBy) {
-                      case 'date':
-                        const dateA = new Date(a[0] || ''); // storiesシート: A列（インデックス0）が投稿日
-                        const dateB = new Date(b[0] || '');
-                        result = dateB.getTime() - dateA.getTime();
-                        break;
-                      case 'views':
-                        const viewsA = parseInt(String(a[3] || '').replace(/,/g, '')) || 0; // storiesシート: D列（インデックス3）が閲覧数
-                        const viewsB = parseInt(String(b[3] || '').replace(/,/g, '')) || 0;
-                        result = viewsB - viewsA;
-                        break;
-                      case 'viewRate':
-                        const viewRateA = parseFloat(String(a[5] || '').replace(/%/g, '')) || 0; // storiesシート: F列（インデックス5）が閲覧率
-                        const viewRateB = parseFloat(String(b[5] || '').replace(/%/g, '')) || 0;
-                        result = viewRateB - viewRateA;
-                        break;
-                      case 'reactions':
-                        const reactionsA = parseInt(String(a[4] || '').replace(/,/g, '')) || 0; // storiesシート: E列（インデックス4）が反応数
-                        const reactionsB = parseInt(String(b[4] || '').replace(/,/g, '')) || 0;
-                        result = reactionsB - reactionsA;
-                        break;
-                      default:
-                        return 0;
-                    }
-
-                    // 昇順の場合は結果を反転
-                    return storySortOrder === 'asc' ? -result : result;
-                  });
-
-                  return sortedStories.map((story, index) => (
-                      <div key={index} className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg p-4 text-center hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
-                        <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden mb-3">
-                          {(() => {
-                            const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
-                            return thumbnailUrl ? (
-                              <img
-                                src={thumbnailUrl}
-                                alt={`Story ${index + 1}`}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  console.log('Story thumbnail load error:', thumbnailUrl);
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const fallback = target.nextElementSibling as HTMLElement;
-                                  if (fallback) fallback.style.display = 'flex';
-                                }}
-                              />
-                            ) : null;
-                          })()}
-                          <div className="w-full h-full bg-gray-600 rounded-lg flex items-center justify-center text-white text-xs" style={{display: toLh3(story[7] || '') ? 'none' : 'flex'}}>
-                            <div className="text-center">
-                              <div className="text-sm mb-1">📱</div>
-                              <div>Story {index + 1}</div>
-                              <div className="text-xs text-gray-400 mt-1">No thumbnail</div>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-gray-900 dark:text-gray-200 text-xs mb-3 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
-
-                        {/* ストーリー詳細のKPI改善 */}
-                        <div className="space-y-2">
-                          {/* Views=blueピル */}
-                          <div className="flex justify-center">
-                            <StatPill icon="👁️" value={parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()} color="blue" size="sm" />
-                          </div>
-
-                          {/* Replies=greenピル */}
-                          <div className="flex justify-center">
-                            <StatPill icon="💬" value={story[4] || 0} color="green" size="sm" />
-                          </div>
-
-                          {/* 閲覧率=F列の値を表示 */}
-                          <div className="flex justify-center">
-                            <StatPill icon="📈" value={story[5] || '0%'} color="purple" size="sm" />
-                          </div>
-                        </div>
-                      </div>
-                    ));
-                })()}
-              </div>
+              <p className="text-gray-500 dark:text-gray-400 text-center">
+                ストーリーズの詳細分析は準備中です
+              </p>
             </div>
           </div>
         )}
@@ -2465,7 +1888,7 @@ export default function Dashboard() {
                 dateRange.preset === 'last-month' ? '先月' :
                 'カスタム期間'
               }</h3>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -2625,8 +2048,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-12 text-center border-t border-gray-200/70 dark:border-white/10 pt-6 pb-24 safe-area-bottom lg:pb-6">
+        <div className="mt-12 text-center border-t border-gray-200 dark:border-white pt-6 pb-24 lg:pb-6">
           <p className="text-gray-500 dark:text-gray-400 text-sm">© Powered by ANALYCA</p>
         </div>
       </div>

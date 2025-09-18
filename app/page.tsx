@@ -1499,7 +1499,7 @@ export default function Dashboard() {
                     setActiveTab('reels');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded-lg text-sm font-medium transition-all duration-200"
                 >
                   詳細
                 </button>
@@ -1647,7 +1647,7 @@ export default function Dashboard() {
                     setActiveTab('stories');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded-lg text-sm font-medium transition-all duration-200"
                 >
                   詳細
                 </button>
@@ -1914,37 +1914,68 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
+              {/* Header with count */}
+              <div className={`${window.innerWidth < 768 ? 'mb-3' : 'flex justify-between items-center mb-4'}`}>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">リール詳細 ({(() => {
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
                   const filteredJoinedData = filterJoinedReelData(joinedReelData, dateRange);
                   return filteredJoinedData.length;
                 })()}件)</h3>
 
-                {/* Sort Controls */}
-                <div className="flex items-center space-x-3">
-                  <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
-                  <select
-                    value={reelSortBy}
-                    onChange={(e) => setReelSortBy(e.target.value)}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                  >
-                    <option value="date">投稿日</option>
-                    <option value="views">再生数</option>
-                    <option value="likes">いいね</option>
-                    <option value="saves">保存数</option>
-                    <option value="follows">フォロー数</option>
-                    <option value="comments">コメント</option>
-                  </select>
-                  <button
-                    onClick={() => setReelSortOrder(reelSortOrder === 'desc' ? 'asc' : 'desc')}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                    title={reelSortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
-                  >
-                    {reelSortOrder === 'desc' ? '↓' : '↑'}
-                  </button>
-                </div>
+                {/* Sort Controls - PC版のみ横並び */}
+                {window.innerWidth >= 768 && (
+                  <div className="flex items-center space-x-3">
+                    <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
+                    <select
+                      value={reelSortBy}
+                      onChange={(e) => setReelSortBy(e.target.value)}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                    >
+                      <option value="date">投稿日</option>
+                      <option value="views">再生数</option>
+                      <option value="likes">いいね</option>
+                      <option value="saves">保存数</option>
+                      <option value="follows">フォロー数</option>
+                      <option value="comments">コメント</option>
+                    </select>
+                    <button
+                      onClick={() => setReelSortOrder(reelSortOrder === 'desc' ? 'asc' : 'desc')}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      title={reelSortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
+                    >
+                      {reelSortOrder === 'desc' ? '↓' : '↑'}
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Sort Controls - モバイル版のみ縦並び */}
+              {window.innerWidth < 768 && (
+                <div className="flex items-center justify-end mb-4">
+                  <span className="text-gray-900 dark:text-gray-200 text-sm mr-3">並び替え:</span>
+                  <div className="flex items-center space-x-3">
+                    <select
+                      value={reelSortBy}
+                      onChange={(e) => setReelSortBy(e.target.value)}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                    >
+                      <option value="date">投稿日</option>
+                      <option value="views">再生数</option>
+                      <option value="likes">いいね</option>
+                      <option value="saves">保存数</option>
+                      <option value="follows">フォロー数</option>
+                      <option value="comments">コメント</option>
+                    </select>
+                    <button
+                      onClick={() => setReelSortOrder(reelSortOrder === 'desc' ? 'asc' : 'desc')}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      title={reelSortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
+                    >
+                      {reelSortOrder === 'desc' ? '↓' : '↑'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
                 {(() => {
@@ -2062,7 +2093,7 @@ export default function Dashboard() {
                       const totalWatchTime = formatTotalWatchTime(views, duration);
 
                       return (
-                        <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-start space-x-4 h-30' : ''}`}>
+                        <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-center space-x-4 p-3' : 'p-4'}`}>
                           {/* サムネイル */}
                           <div className={`bg-gray-600 rounded-xl overflow-hidden ${window.innerWidth < 768 ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                             {rawData[15] ? (
@@ -2086,7 +2117,7 @@ export default function Dashboard() {
                           {/* コンテンツエリア（モバイル時は右側、PC時は通常位置） */}
                           <div className={`${window.innerWidth < 768 ? 'flex-1 min-w-0' : 'mb-3'}`}>
                             <h4
-                              className={`text-gray-900 dark:text-gray-200 font-semibold leading-tight mb-1 ${window.innerWidth < 768 ? 'text-base mb-2' : 'text-sm'}`}
+                              className={`text-gray-900 dark:text-gray-200 font-semibold leading-tight mb-1 ${window.innerWidth < 768 ? 'text-sm mb-2' : 'text-sm'}`}
                               title={title}
                               style={{
                                 display: '-webkit-box',
@@ -2124,25 +2155,25 @@ export default function Dashboard() {
                               <div className="grid grid-cols-4 gap-6 mb-3">
                                 <div className="flex flex-col items-center">
                                   <div className="h-5 w-5 text-red-500">❤️</div>
-                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`いいね ${likes}`}>
+                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`いいね ${likes}`}>
                                     {likes > 0 ? likes.toLocaleString() : ''}
                                   </span>
                                 </div>
                                 <div className="flex flex-col items-center">
                                   <div className="h-5 w-5 text-blue-500">💬</div>
-                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`コメント ${comments}`}>
+                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`コメント ${comments}`}>
                                     {comments > 0 ? comments.toLocaleString() : ''}
                                   </span>
                                 </div>
                                 <div className="flex flex-col items-center">
                                   <div className="h-5 w-5 text-amber-500">💾</div>
-                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`保存 ${saves}`}>
+                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`保存 ${saves}`}>
                                     {saves > 0 ? saves.toLocaleString() : ''}
                                   </span>
                                 </div>
                                 <div className="flex flex-col items-center">
                                   <div className="h-5 w-5 text-purple-500">👤</div>
-                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`フォロー ${follows}`}>
+                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`フォロー ${follows}`}>
                                     {follows > 0 ? follows.toLocaleString() : ''}
                                   </span>
                                 </div>
@@ -2395,31 +2426,60 @@ export default function Dashboard() {
                 </div>
 
             <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <div className="flex justify-between items-center mb-4">
+              {/* Header with count */}
+              <div className={`${window.innerWidth < 768 ? 'mb-3' : 'flex justify-between items-center mb-4'}`}>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">ストーリー詳細 ({summary.totalStories}件)</h3>
 
-                {/* Sort Controls */}
-                <div className="flex items-center space-x-3">
-                  <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
-                  <select
-                    value={storySortBy}
-                    onChange={(e) => setStorySortBy(e.target.value)}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                  >
-                    <option value="date">投稿日</option>
-                    <option value="views">閲覧数</option>
-                    <option value="viewRate">閲覧率</option>
-                    <option value="reactions">反応数</option>
-                  </select>
-                  <button
-                    onClick={() => setStorySortOrder(storySortOrder === 'desc' ? 'asc' : 'desc')}
-                    className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
-                    title={storySortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
-                  >
-                    {storySortOrder === 'desc' ? '↓' : '↑'}
-                  </button>
-                </div>
+                {/* Sort Controls - PC版のみ横並び */}
+                {window.innerWidth >= 768 && (
+                  <div className="flex items-center space-x-3">
+                    <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
+                    <select
+                      value={storySortBy}
+                      onChange={(e) => setStorySortBy(e.target.value)}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                    >
+                      <option value="date">投稿日</option>
+                      <option value="views">閲覧数</option>
+                      <option value="viewRate">閲覧率</option>
+                      <option value="reactions">反応数</option>
+                    </select>
+                    <button
+                      onClick={() => setStorySortOrder(storySortOrder === 'desc' ? 'asc' : 'desc')}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      title={storySortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
+                    >
+                      {storySortOrder === 'desc' ? '↓' : '↑'}
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Sort Controls - モバイル版のみ縦並び */}
+              {window.innerWidth < 768 && (
+                <div className="flex items-center justify-end mb-4">
+                  <span className="text-gray-900 dark:text-gray-200 text-sm mr-3">並び替え:</span>
+                  <div className="flex items-center space-x-3">
+                    <select
+                      value={storySortBy}
+                      onChange={(e) => setStorySortBy(e.target.value)}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                    >
+                      <option value="date">投稿日</option>
+                      <option value="views">閲覧数</option>
+                      <option value="viewRate">閲覧率</option>
+                      <option value="reactions">反応数</option>
+                    </select>
+                    <button
+                      onClick={() => setStorySortOrder(storySortOrder === 'desc' ? 'asc' : 'desc')}
+                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      title={storySortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
+                    >
+                      {storySortOrder === 'desc' ? '↓' : '↑'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
                 {(() => {
@@ -2465,7 +2525,7 @@ export default function Dashboard() {
 
                   return sortedStories.length > 0 ? (
                     sortedStories.map((story, index) => (
-                      <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-start space-x-4 h-30' : 'text-center'}`}>
+                      <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-center space-x-4 p-3' : 'text-center p-4'}`}>
                         <div className={`bg-gray-600 rounded-lg overflow-hidden ${window.innerWidth < 768 ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
@@ -2497,7 +2557,7 @@ export default function Dashboard() {
                         {window.innerWidth < 768 && (
                           <div className="flex-1 flex flex-col justify-between">
                             {/* タイトル */}
-                            <h3 className="text-base font-bold text-gray-900 dark:text-gray-200 line-clamp-2 mb-1">
+                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-200 line-clamp-2 mb-1">
                               ストーリー {index + 1}
                             </h3>
 

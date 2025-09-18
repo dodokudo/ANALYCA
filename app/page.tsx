@@ -1332,11 +1332,11 @@ export default function Dashboard() {
 
                   return rechartsData.length > 0 && (
                     <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-3 lg:p-5 md:p-4 sm:p-3">
-                      <div className="mb-4 lg:px-3 px-4">
+                      <div className="mb-3 lg:px-3 px-2">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200">パフォーマンス推移</h3>
                       </div>
-                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-4">
-                        <ResponsiveContainer width="100%" height="100%">
+                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-2">
+                        <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? "90%" : "100%"}>
                           <ComposedChart data={rechartsData} margin={{ top: window.innerWidth < 768 ? 8 : 10, right: window.innerWidth < 768 ? 25 : 10, left: window.innerWidth < 768 ? 35 : 10, bottom: window.innerWidth < 768 ? 8 : 10 }}>
                             <CartesianGrid
                               strokeDasharray="1 1"
@@ -1374,7 +1374,7 @@ export default function Dashboard() {
                                 }
                                 return value.toLocaleString();
                               }}
-                              domain={['dataMin', 'dataMax']}
+                              domain={window.innerWidth < 768 ? ['dataMin - 100', 'dataMax + 100'] : ['dataMin', 'dataMax']}
                               axisLine={false}
                               tickLine={false}
                               width={window.innerWidth < 768 ? 35 : 60}
@@ -1403,6 +1403,7 @@ export default function Dashboard() {
                               axisLine={false}
                               tickLine={false}
                               width={window.innerWidth < 768 ? 25 : 60}
+                              domain={[0, 'dataMax + 5']}
                             />
                             <Tooltip
                               formatter={(value, name) => [value.toLocaleString(), name]}
@@ -1422,23 +1423,34 @@ export default function Dashboard() {
                               offset={window.innerWidth < 768 ? 5 : 10}
                               allowEscapeViewBox={{ x: false, y: true }}
                             />
-                            <Legend wrapperStyle={{
-                              fontSize: window.innerWidth < 768 ? '10px' : '12px',
-                              marginTop: window.innerWidth < 768 ? '4px' : '8px',
-                              lineHeight: window.innerWidth < 768 ? '12px' : '16px',
-                              display: window.innerWidth < 768 ? 'none' : 'block'
-                            }} />
+                            <Legend
+                              wrapperStyle={{
+                                fontSize: window.innerWidth < 768 ? '9px' : '12px',
+                                marginTop: window.innerWidth < 768 ? '6px' : '8px',
+                                lineHeight: window.innerWidth < 768 ? '10px' : '16px',
+                                display: 'block',
+                                textAlign: 'center'
+                              }}
+                              iconType={window.innerWidth < 768 ? 'circle' : 'line'}
+                              formatter={(value, entry) => {
+                                if (window.innerWidth < 768) {
+                                  const icons = {
+                                    'LINE登録数': '🟢',
+                                    'フォロワー増加数': '🔵',
+                                    'フォロワー数': '🟣'
+                                  };
+                                  return `${icons[value] || ''} ${value}`;
+                                }
+                                return value;
+                              }}
+                            />
                             <Line
                               yAxisId="left"
                               type="monotone"
                               dataKey="フォロワー数"
                               stroke="#7C3AED"
-                              strokeWidth={window.innerWidth < 768 ? 3 : 3}
-                              dot={window.innerWidth < 768 ? {
-                                fill: '#7C3AED',
-                                strokeWidth: 2,
-                                r: 3
-                              } : {
+                              strokeWidth={window.innerWidth < 768 ? 2 : 3}
+                              dot={window.innerWidth < 768 ? false : {
                                 fill: '#7C3AED',
                                 strokeWidth: 2,
                                 r: 4
@@ -1450,6 +1462,7 @@ export default function Dashboard() {
                               fill="#3B82F6"
                               radius={[2, 2, 0, 0]}
                               opacity={0.7}
+                              maxBarSize={window.innerWidth < 768 ? 20 : 40}
                             />
                             <Bar
                               yAxisId="right"
@@ -1457,6 +1470,7 @@ export default function Dashboard() {
                               fill="#22C55E"
                               radius={[2, 2, 0, 0]}
                               opacity={0.7}
+                              maxBarSize={window.innerWidth < 768 ? 20 : 40}
                             />
                             <defs>
                               <linearGradient id="followerGradient" x1="0" y1="0" x2="0" y2="1">

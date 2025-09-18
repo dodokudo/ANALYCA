@@ -2062,9 +2062,9 @@ export default function Dashboard() {
                       const totalWatchTime = formatTotalWatchTime(views, duration);
 
                       return (
-                        <div key={index} className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
+                        <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-start space-x-4 h-30' : ''}`}>
                           {/* サムネイル */}
-                          <div className="w-full aspect-[9/16] bg-gray-600 rounded-xl overflow-hidden mb-3">
+                          <div className={`bg-gray-600 rounded-xl overflow-hidden ${window.innerWidth < 768 ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                             {rawData[15] ? (
                               <img
                                 src={convertToGoogleUserContent(rawData[15])}
@@ -2083,10 +2083,10 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          {/* タイトル + 投稿日・尺 */}
-                          <div className="mb-3">
+                          {/* コンテンツエリア（モバイル時は右側、PC時は通常位置） */}
+                          <div className={`${window.innerWidth < 768 ? 'flex-1 min-w-0' : 'mb-3'}`}>
                             <h4
-                              className="text-gray-900 dark:text-gray-200 text-sm font-semibold leading-tight mb-1"
+                              className={`text-gray-900 dark:text-gray-200 font-semibold leading-tight mb-1 ${window.innerWidth < 768 ? 'text-base mb-2' : 'text-sm'}`}
                               title={title}
                               style={{
                                 display: '-webkit-box',
@@ -2097,52 +2097,61 @@ export default function Dashboard() {
                             >
                               {title}
                             </h4>
-                            {(formattedDate || formattedDuration) && (
-                              <p className="text-gray-500 dark:text-gray-400 text-xs">
-                                {formattedDate && formattedDuration
-                                  ? `${formattedDate} • ${formattedDuration}`
-                                  : formattedDate || formattedDuration
-                                }
+                            {formattedDate && (
+                              <p className={`text-gray-500 dark:text-gray-400 mb-2 ${window.innerWidth < 768 ? 'text-sm' : 'text-xs'}`}>
+                                投稿日: {formattedDate}
                               </p>
+                            )}
+                            {window.innerWidth < 768 && (
+                              <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                                <span>👁️ {views}</span>
+                                <span>❤️ {likes}</span>
+                                <span>💬 {comments}</span>
+                              </div>
                             )}
                           </div>
 
-                          {/* 再生数（太字表示） */}
-                          <div className="mb-3 text-center">
-                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-gray-200">{views.toLocaleString()}</p>
-                          </div>
+                          {/* PC版のみの詳細表示 */}
+                          {window.innerWidth >= 768 && (
+                            <>
+                              {/* 再生数（太字表示） */}
+                              <div className="mb-3 text-center">
+                                <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
+                                <p className="text-lg font-bold text-gray-900 dark:text-gray-200">{views.toLocaleString()}</p>
+                              </div>
 
-                          {/* 4アイコン横一列表示 */}
-                          <div className="grid grid-cols-4 gap-6 mb-3">
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-red-500">❤️</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`いいね ${likes}`}>
-                                {likes > 0 ? likes.toLocaleString() : ''}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-blue-500">💬</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`コメント ${comments}`}>
-                                {comments > 0 ? comments.toLocaleString() : ''}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-amber-500">💾</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`保存 ${saves}`}>
-                                {saves > 0 ? saves.toLocaleString() : ''}
-                              </span>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="h-5 w-5 text-purple-500">👤</div>
-                              <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`フォロー ${follows}`}>
-                                {follows > 0 ? follows.toLocaleString() : ''}
-                              </span>
-                            </div>
-                          </div>
+                              {/* 4アイコン横一列表示 */}
+                              <div className="grid grid-cols-4 gap-6 mb-3">
+                                <div className="flex flex-col items-center">
+                                  <div className="h-5 w-5 text-red-500">❤️</div>
+                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`いいね ${likes}`}>
+                                    {likes > 0 ? likes.toLocaleString() : ''}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <div className="h-5 w-5 text-blue-500">💬</div>
+                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`コメント ${comments}`}>
+                                    {comments > 0 ? comments.toLocaleString() : ''}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <div className="h-5 w-5 text-amber-500">💾</div>
+                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`保存 ${saves}`}>
+                                    {saves > 0 ? saves.toLocaleString() : ''}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <div className="h-5 w-5 text-purple-500">👤</div>
+                                  <span className="mt-1 text-sm font-semibold text-[var(--text-primary)]" aria-label={`フォロー ${follows}`}>
+                                    {follows > 0 ? follows.toLocaleString() : ''}
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          )}
 
-                          {/* 概要 */}
-                          {(views > 0 || totalWatchTime || viewRate > 0) && (
+                          {/* 概要（PC版のみ） */}
+                          {window.innerWidth >= 768 && (views > 0 || totalWatchTime || viewRate > 0) && (
                             <div>
                               <h5 className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-2">概要</h5>
                               <div className="space-y-1 text-xs">
@@ -2456,8 +2465,8 @@ export default function Dashboard() {
 
                   return sortedStories.length > 0 ? (
                     sortedStories.map((story, index) => (
-                      <div key={index} className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg p-4 text-center hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95">
-                        <div className="w-full aspect-[9/16] bg-gray-600 rounded-lg overflow-hidden mb-3">
+                      <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg p-4 hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-start space-x-4 h-30' : 'text-center'}`}>
+                        <div className={`bg-gray-600 rounded-lg overflow-hidden ${window.innerWidth < 768 ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
                             return thumbnailUrl ? (
@@ -2484,39 +2493,56 @@ export default function Dashboard() {
                           </div>
                         </div>
 
-                        {/* モバイル版: 3つの指標 */}
-                        <div className="lg:hidden px-2 py-2 space-y-1">
-                          <div className="flex items-center text-xs text-gray-900">
-                            <span className="mr-1">👁️</span>
-                            <span className="font-medium">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</span>
+                        {/* モバイル版: 新しいレイアウト */}
+                        {window.innerWidth < 768 && (
+                          <div className="flex-1 flex flex-col justify-between">
+                            {/* タイトル */}
+                            <h3 className="text-base font-bold text-gray-900 dark:text-gray-200 line-clamp-2 mb-1">
+                              ストーリー {index + 1}
+                            </h3>
+
+                            {/* 投稿日 */}
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                              投稿日: {story[0]}
+                            </p>
+
+                            {/* メトリクス（横並び） */}
+                            <div className="flex items-center space-x-4 text-sm">
+                              <div className="flex items-center">
+                                <span className="mr-1">👁️</span>
+                                <span>{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="mr-1">📊</span>
+                                <span>{story[5] || '0%'}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="mr-1">📱</span>
+                                <span>{story[4] || 0}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center text-xs text-gray-900">
-                            <span className="mr-1">📊</span>
-                            <span className="font-medium">{story[5] || '0%'}</span>
-                          </div>
-                          <div className="flex items-center text-xs text-gray-900">
-                            <span className="mr-1">📱</span>
-                            <span className="font-medium">{story[4] || 0}</span>
-                          </div>
-                        </div>
+                        )}
 
                         {/* PC版: 従来表示 */}
-                        <div className="hidden lg:block">
-                          {/* 投稿日 */}
-                          <p className="text-gray-900 dark:text-gray-200 text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
+                        {window.innerWidth >= 768 && (
+                          <div>
+                            {/* 投稿日 */}
+                            <p className="text-gray-900 dark:text-gray-200 text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
 
-                          {/* Views（大きく表示） */}
-                          <div className="mb-3 text-center">
-                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">閲覧数</p>
-                            <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
-                          </div>
+                            {/* Views（大きく表示） */}
+                            <div className="mb-3 text-center">
+                              <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">閲覧数</p>
+                              <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            </div>
 
-                          {/* KPIピル */}
-                          <div className="flex flex-wrap gap-1">
-                            <StatPill icon="💬" value={story[4] || 0} color="green" />
-                            <StatPill icon="📈" value={story[5] || '0%'} color="purple" />
+                            {/* KPIピル */}
+                            <div className="flex flex-wrap gap-1">
+                              <StatPill icon="💬" value={story[4] || 0} color="green" />
+                              <StatPill icon="📈" value={story[5] || '0%'} color="purple" />
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     ))
                   ) : (

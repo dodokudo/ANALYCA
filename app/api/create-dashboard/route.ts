@@ -1,87 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { InstagramAPI } from '@/lib/instagram';
+import {
+  upsertUser,
+  insertInstagramReels,
+  insertInstagramStories,
+  insertInstagramInsights
+} from '@/lib/bigquery';
 
 export async function POST(request: NextRequest) {
   try {
     const { accessToken } = await request.json();
 
-    // 1. 短期トークンから長期トークンに変換
-    const longTermToken = await exchangeForLongTermToken(accessToken);
+    if (!accessToken) {
+      return NextResponse.json({
+        success: false,
+        error: 'アクセストークンが提供されていません'
+      }, { status: 400 });
+    }
 
-    // 2. Instagramアカウント情報を取得
-    const instagramAccount = await getInstagramAccount(longTermToken);
+    // 1. 短期トークンを長期トークンに変換
+    const longTermToken = await InstagramAPI.exchangeForLongTermToken(accessToken);
 
-    // 3. データを取得（現在のGASスクリプトと同じロジック）
-    const instagramData = await fetchInstagramData(instagramAccount.id, longTermToken);
+    // 2. Instagram APIクライアントを初期化
+    const instagram = new InstagramAPI(longTermToken);
 
-    // 4. スプレッドシートに保存（既存のシステム活用）
-    await saveToSpreadsheet(instagramData);
+    // 3. ユーザー情報とドライブフォルダIDを設定から取得
+    const driveFolder = process.env.GOOGLE_DRIVE_FOLDER_ID || '1lH92NxycLKE4adG3hlURhIAr6qW1LBeb';
+
+    // 4. BigQueryにユーザー情報を保存
+    const account = await instagram.getInstagramAccount();
+    const userId = await upsertUser({
+      instagram_user_id: account.id,
+      instagram_username: account.username,
+      access_token: longTermToken,
+      token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // 60日後
+      drive_folder_id: driveFolder
+    });
+
+    // 5. 完全なデータセットを取得（GAS構造準拠）
+    const { reels, stories, insights } = await instagram.getCompleteDataset(userId);
+
+    // 6. データをBigQueryに保存
+    await Promise.all([
+      insertInstagramReels(reels),
+      insertInstagramStories(stories),
+      insertInstagramInsights([insights])
+    ]);
 
     return NextResponse.json({
       success: true,
-      message: 'ダッシュボードが作成されました！',
+      userId,
       accountInfo: {
-        username: instagramAccount.username,
-        followerCount: instagramAccount.followers_count
-      }
+        username: account.username,
+        followerCount: account.followers_count.toLocaleString(),
+        mediaCount: account.media_count.toLocaleString(),
+        totalReels: reels.length,
+        totalStories: stories.length,
+        totalReelsViews: reels.reduce((sum, reel) => sum + (reel.views || 0), 0),
+        totalStoriesViews: stories.reduce((sum, story) => sum + (story.views || 0), 0),
+      },
+      message: `ダッシュボードが作成されました！\\n\\nユーザー: ${account.username}\\nフォロワー数: ${account.followers_count.toLocaleString()}\\nリール: ${reels.length}件\\nストーリーズ: ${stories.length}件`
     });
 
   } catch (error) {
     console.error('Error creating dashboard:', error);
     return NextResponse.json({
       success: false,
-      error: 'ダッシュボード作成に失敗しました'
+      error: 'ダッシュボード作成に失敗しました',
+      details: error instanceof Error ? error.message : '不明なエラー'
     }, { status: 500 });
   }
-}
-
-// 短期トークンを長期トークンに変換
-async function exchangeForLongTermToken(shortToken: string) {
-  const response = await fetch(
-    `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_APP_ID}&client_secret=${process.env.FACEBOOK_APP_SECRET}&fb_exchange_token=${shortToken}`
-  );
-  const data = await response.json();
-  return data.access_token;
-}
-
-// Instagramアカウント情報取得
-async function getInstagramAccount(accessToken: string) {
-  const response = await fetch(
-    `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}`
-  );
-  const data = await response.json();
-
-  // Instagramに接続されているページを探す
-  for (const page of data.data) {
-    const igResponse = await fetch(
-      `https://graph.facebook.com/v18.0/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
-    );
-    const igData = await igResponse.json();
-
-    if (igData.instagram_business_account) {
-      return {
-        id: igData.instagram_business_account.id,
-        username: page.name, // または実際のInstagramユーザー名を取得
-        followers_count: 0 // 後で取得
-      };
-    }
-  }
-
-  throw new Error('Instagramアカウントが見つかりません');
-}
-
-// Instagramデータ取得（既存のGASロジックと同じ）
-async function fetchInstagramData(accountId: string, accessToken: string) {
-  // ここに現在のGASで使っているデータ取得ロジックを移植
-  const response = await fetch(
-    `https://graph.facebook.com/v18.0/${accountId}/media?fields=id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count&access_token=${accessToken}`
-  );
-
-  return await response.json();
-}
-
-// スプレッドシートに保存（既存システム活用）
-async function saveToSpreadsheet(data: unknown) {
-  // 既存のGoogle Sheets APIを使用
-  // または現在のGASスクリプトを呼び出し
-  console.log('Data to save:', data);
 }

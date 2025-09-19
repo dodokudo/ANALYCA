@@ -29,9 +29,23 @@ export default function LoginPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accessToken })
-        }).then(() => {
-          // ダッシュボードに移動
-          window.location.href = '/';
+        }).then(async (response) => {
+          const result = await response.json();
+
+          if (result.success) {
+            // 成功メッセージを表示
+            alert(`ダッシュボードが作成されました！\n\nユーザー: ${result.accountInfo.username}\nフォロワー数: ${result.accountInfo.followerCount}\n投稿数: ${result.accountInfo.mediaCount}`);
+
+            // ダッシュボードに移動
+            window.location.href = '/';
+          } else {
+            alert(`エラー: ${result.error}`);
+            setIsLoading(false);
+          }
+        }).catch((error) => {
+          console.error('Dashboard creation failed:', error);
+          alert('ダッシュボード作成に失敗しました');
+          setIsLoading(false);
         });
       } else {
         alert('ログインに失敗しました');
@@ -80,7 +94,7 @@ export default function LoginPage() {
 
       {/* Facebook SDK */}
       <script async defer crossOrigin="anonymous"
-        src={`https://connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v18.0&appId=${process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1418141859432290'}`}>
+        src={`https://connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v23.0&appId=${process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1418141859432290'}`}>
       </script>
     </div>
   );

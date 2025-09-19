@@ -1,6 +1,7 @@
 'use client';
 
 import { StatPill } from '@/components/StatPill';
+import ProfileHeader from '@/components/ProfileHeader';
 import { useDateRange, DatePreset } from '@/lib/dateRangeStore';
 
 import { useState, useEffect } from 'react';
@@ -245,6 +246,7 @@ export default function Dashboard() {
   });
   // グローバルストアからdateRangeを取得
   const { dateRange, updatePreset } = useDateRange();
+  const [userId, setUserId] = useState<string>('demo-user'); // Demo用のユーザーID
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [customStartDate, setCustomStartDate] = useState('');
@@ -834,6 +836,9 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
       {/* SaaS風アクセント - デスクトップのみ */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-blue-500 hidden lg:block"></div>
+
+      {/* プロフィールヘッダー */}
+      <ProfileHeader userId={userId} />
 
       {/* Mobile Fixed Header - YouTube Studio風 */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white shadow-sm h-[60px]">

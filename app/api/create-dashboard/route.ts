@@ -80,7 +80,8 @@ async function fetchInstagramData(accountId: string, accessToken: string) {
 }
 
 // スプレッドシートに保存（既存システム活用）
-async function saveToSpreadsheet(data: any) {
+async function saveToSpreadsheet(data: unknown) {
   // 既存のGoogle Sheets APIを使用
   // または現在のGASスクリプトを呼び出し
+  console.log('Data to save:', data);
 }

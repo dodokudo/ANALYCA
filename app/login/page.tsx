@@ -9,7 +9,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     // Facebook Login SDKを使用
-    window.FB.login((response: any) => {
+    window.FB.login((response: unknown) => {
       if (response.authResponse) {
         // 成功時：トークンをサーバーに送信
         const accessToken = response.authResponse.accessToken;

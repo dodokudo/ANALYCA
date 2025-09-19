@@ -2,6 +2,15 @@
 
 import { useState } from 'react';
 
+// Facebook SDK型定義
+declare global {
+  interface Window {
+    FB: {
+      login: (callback: (response: unknown) => void, options?: { scope: string }) => void;
+    };
+  }
+}
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -10,9 +19,10 @@ export default function LoginPage() {
 
     // Facebook Login SDKを使用
     window.FB.login((response: unknown) => {
-      if (response.authResponse) {
+      if (response && typeof response === 'object' && 'authResponse' in response) {
         // 成功時：トークンをサーバーに送信
-        const accessToken = response.authResponse.accessToken;
+        const authResponse = response.authResponse as { accessToken: string };
+        const accessToken = authResponse.accessToken;
 
         // サーバーに送信してダッシュボード作成
         fetch('/api/create-dashboard', {
@@ -70,7 +80,7 @@ export default function LoginPage() {
 
       {/* Facebook SDK */}
       <script async defer crossOrigin="anonymous"
-        src="https://connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v18.0&appId=あなたのアプリID">
+        src={`https://connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v18.0&appId=${process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1418141859432290'}`}>
       </script>
     </div>
   );

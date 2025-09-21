@@ -66,6 +66,14 @@ const convertToGoogleUserContent = (url: string) => {
   return url;
 };
 
+const formatDateForInput = (date?: Date | null): string => {
+  if (!date || Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
+  return local.toISOString().split('T')[0];
+};
 
 // リールデータ結合関数
 const joinReelData = (reelRawDataRaw: string[][], reelSheetRaw: string[][]) => {
@@ -185,11 +193,39 @@ const filterJoinedReelData = (joinedData: { rawData: string[], sheetData: string
       endDate = tmp;
     }
 
-    const filteredData = joinedData.filter(item => {
+    let filteredData = joinedData.filter(item => {
       const dateStr = String(item.rawData[5]).trim(); // 投稿日時は列5
       const date = parseDate(dateStr);
       return date && !isNaN(date.getTime()) && date >= startDate && date <= endDate;
     });
+
+    if (filteredData.length === 0) {
+      const fallbackEnd = new Date(endDate);
+      const fallbackStart = new Date(fallbackEnd);
+      fallbackStart.setDate(fallbackStart.getDate() - 6);
+
+      filteredData = joinedData.filter(item => {
+        const dateStr = String(item.rawData[5]).trim();
+        const date = parseDate(dateStr);
+        return date && !isNaN(date.getTime()) && date >= fallbackStart && date <= fallbackEnd;
+      });
+
+      if (filteredData.length === 0) {
+        const latest = joinedData
+          .filter(item => {
+            const dateStr = String(item.rawData[5]).trim();
+            const date = parseDate(dateStr);
+            return date && !isNaN(date.getTime()) && date <= fallbackEnd;
+          })
+          .sort((a, b) => {
+            const dateA = parseDate(String(a.rawData[5]).trim());
+            const dateB = parseDate(String(b.rawData[5]).trim());
+            if (!dateA || !dateB) return 0;
+            return dateA.getTime() - dateB.getTime();
+          });
+        filteredData = latest.length > 0 ? [latest[latest.length - 1]] : [];
+      }
+    }
 
     console.log(`リールフィルタリング結果: ${filteredData.length}件 (${dateRange.preset})`);
     console.log(`期間: ${startDate?.toISOString().split('T')[0]} 〜 ${endDate?.toISOString().split('T')[0]}`);
@@ -236,8 +272,8 @@ export default function Dashboard() {
   const userId = 'demo-user'; // Demo用のユーザーID
 
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
+  const [customStartDate, setCustomStartDate] = useState(() => formatDateForInput(dateRange.start));
+  const [customEndDate, setCustomEndDate] = useState(() => formatDateForInput(dateRange.end));
   const [showCustomDateModal, setShowCustomDateModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -368,6 +404,10 @@ export default function Dashboard() {
         }
       } else {
         switch (preset) {
+          case 'yesterday':
+            cutoffDate = new Date(jstToday.getFullYear(), jstToday.getMonth(), jstToday.getDate() - 1, 0, 0, 0, 0);
+            jstToday = new Date(cutoffDate.getFullYear(), cutoffDate.getMonth(), cutoffDate.getDate(), 23, 59, 59, 999);
+            break;
           case 'this-week':
             // 今週（月曜日から日曜日）
             const todayDayOfWeek = jstToday.getDay(); // 0:日曜, 1:月曜, ..., 6:土曜
@@ -504,7 +544,8 @@ export default function Dashboard() {
     }
   };
 
-  const getFilteredData = (data: string[][], dateColumnIndex = 0, dateRange = {preset: 'this-week', start: new Date(), end: new Date()}) => {
+  const getFilteredData = (data: string[][], dateColumnIndex = 0, dateRange = {preset: 'this-week', start: new Date(), end: new Date()}, options: { allowFallback?: boolean } = {}) => {
+  const { allowFallback = true } = options;
     try {
       if (!data || data.length <= 1 || dateRange.preset === 'all') {
         return data || [];
@@ -548,7 +589,45 @@ export default function Dashboard() {
         return dateA.getTime() - dateB.getTime();
       });
 
-      return [...headerRows, ...sortedRows];
+      let rowsToReturn = sortedRows;
+      if (allowFallback && rowsToReturn.length === 0) {
+        const fallbackEnd = new Date(jstToday);
+        const fallbackStart = new Date(fallbackEnd);
+        fallbackStart.setDate(fallbackStart.getDate() - 6);
+
+        const fallbackRows = dataRows
+          .filter(row => {
+            if (!row || !row[dateColumnIndex]) return false;
+            const parsed = parseDate(String(row[dateColumnIndex]).trim());
+            return parsed && !isNaN(parsed.getTime()) && parsed >= fallbackStart && parsed <= fallbackEnd;
+          })
+          .sort((a, b) => {
+            const dateA = parseDate(String(a[dateColumnIndex] || '').trim());
+            const dateB = parseDate(String(b[dateColumnIndex] || '').trim());
+            if (!dateA || !dateB) return 0;
+            return dateA.getTime() - dateB.getTime();
+          });
+
+        if (fallbackRows.length === 0) {
+          const latestRow = dataRows
+            .filter(row => {
+              if (!row || !row[dateColumnIndex]) return false;
+              const parsed = parseDate(String(row[dateColumnIndex]).trim());
+              return parsed && !isNaN(parsed.getTime()) && parsed <= fallbackEnd;
+            })
+            .sort((a, b) => {
+              const dateA = parseDate(String(a[dateColumnIndex] || '').trim());
+              const dateB = parseDate(String(b[dateColumnIndex] || '').trim());
+              if (!dateA || !dateB) return 0;
+              return dateA.getTime() - dateB.getTime();
+            });
+          rowsToReturn = latestRow.length > 0 ? [latestRow[latestRow.length - 1]] : [];
+        } else {
+          rowsToReturn = fallbackRows;
+        }
+      }
+
+      return [...headerRows, ...rowsToReturn];
     } catch (error) {
       console.error('フィルタリングエラー:', error);
       return data;
@@ -574,6 +653,11 @@ export default function Dashboard() {
       document.documentElement.classList.remove('dark');
     }
   }, []);
+
+  useEffect(() => {
+    setCustomStartDate(formatDateForInput(dateRange.start));
+    setCustomEndDate(formatDateForInput(dateRange.end));
+  }, [dateRange.start, dateRange.end, dateRange.preset]);
 
   const fetchData = async () => {
     console.log('=== fetchData 関数開始 ===');
@@ -784,7 +868,8 @@ export default function Dashboard() {
           {/* 右: 期間セレクト */}
           <div className="flex items-center">
             <select
-              value={dateRange.preset === 'this-week' ? 'this-week' :
+              value={dateRange.preset === 'yesterday' ? 'yesterday' :
+                     dateRange.preset === 'this-week' ? 'this-week' :
                      dateRange.preset === 'last-week' ? 'last-week' :
                      dateRange.preset === 'this-month' ? 'this-month' :
                      dateRange.preset === 'last-month' ? 'last-month' :
@@ -792,6 +877,8 @@ export default function Dashboard() {
               onChange={(e) => {
                 const value = e.target.value as DatePreset;
                 if (value === 'custom') {
+                  setCustomStartDate(formatDateForInput(dateRange.start));
+                  setCustomEndDate(formatDateForInput(dateRange.end));
                   setShowCustomDateModal(true);
                 } else {
                   updatePreset(value);
@@ -799,6 +886,7 @@ export default function Dashboard() {
               }}
               className="rounded-lg border border-gray-500 bg-white text-gray-900 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 min-w-[100px]"
             >
+              <option value="yesterday">昨日</option>
               <option value="this-week">今週</option>
               <option value="last-week">先週</option>
               <option value="this-month">今月</option>
@@ -873,7 +961,8 @@ export default function Dashboard() {
           <div className="flex items-center space-x-3 flex-shrink-0">
             {/* 統一されたプルダウンフィルター */}
             <select
-              value={dateRange.preset === 'this-week' ? 'this-week' :
+              value={dateRange.preset === 'yesterday' ? 'yesterday' :
+                     dateRange.preset === 'this-week' ? 'this-week' :
                      dateRange.preset === 'last-week' ? 'last-week' :
                      dateRange.preset === 'this-month' ? 'this-month' :
                      dateRange.preset === 'last-month' ? 'last-month' :
@@ -881,6 +970,8 @@ export default function Dashboard() {
               onChange={(e) => {
                 const value = e.target.value as DatePreset;
                 if (value === 'custom') {
+                  setCustomStartDate(formatDateForInput(dateRange.start));
+                  setCustomEndDate(formatDateForInput(dateRange.end));
                   setShowCustomDateModal(true);
                 } else {
                   updatePreset(value);
@@ -888,6 +979,7 @@ export default function Dashboard() {
               }}
               className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200 min-w-[120px]"
             >
+              <option value="yesterday">昨日</option>
               <option value="this-week">今週</option>
               <option value="last-week">先週</option>
               <option value="this-month">今月</option>
@@ -929,84 +1021,6 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-
-        {/* Custom Date Range Modal */}
-        {dateRange.preset === 'custom' && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">カスタム期間設定</h3>
-                <button
-                  onClick={() => {}}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">開始日</label>
-                  <input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">終了日</label>
-                  <input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
-                </div>
-
-                {customStartDate && customEndDate && new Date(customStartDate) <= new Date(customEndDate) && (
-                  <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-                    <div className="text-green-700 dark:text-green-300 text-sm">
-                      ✓ 期間: {Math.ceil((new Date(customEndDate).getTime() - new Date(customStartDate).getTime()) / (1000 * 60 * 60 * 24)) + 1}日間
-                    </div>
-                  </div>
-                )}
-                {customStartDate && customEndDate && new Date(customStartDate) > new Date(customEndDate) && (
-                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg">
-                    <div className="text-red-700 dark:text-red-300 text-sm">
-                      ✗ 無効な期間です
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    onClick={() => {}}
-                    className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-                  >
-                    キャンセル
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (customStartDate && customEndDate && new Date(customStartDate) <= new Date(customEndDate)) {
-                        // カスタム期間が有効な場合のみモーダルを閉じる
-                        // preset は 'custom' のままで OK
-                      }
-                    }}
-                    disabled={!customStartDate || !customEndDate || new Date(customStartDate) > new Date(customEndDate)}
-                    className="px-4 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                  >
-                    適用
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
 
         {/* Main Dashboard */}
         {activeTab === 'dashboard' && (
@@ -1591,7 +1605,7 @@ export default function Dashboard() {
               </div>
               <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-1 sm:px-2 lg:px-0">
                 {(() => {
-                  const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
+                  const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange, { allowFallback: false });
                   if (filteredStoriesProcessed.length > 1) {
                     const topCount = window.innerWidth < 1024 ? 3 : 5;
                     const sortedStories = filteredStoriesProcessed.slice(1).sort((a, b) => {
@@ -2209,7 +2223,7 @@ export default function Dashboard() {
               </div>
 
                   {(() => {
-                    const filteredStoriesRaw = getFilteredData(data.storiesProcessed || [], 0, dateRange);
+                    const filteredStoriesRaw = getFilteredData(data.storiesProcessed || [], 0, dateRange, { allowFallback: false });
 
                     console.log('=== ストーリーパフォーマンス分析デバッグ ===');
                     console.log('data.storiesProcessed?.length:', data.storiesProcessed?.length);
@@ -2507,7 +2521,7 @@ export default function Dashboard() {
 
               <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
                 {(() => {
-                  const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
+                  const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange, { allowFallback: false });
 
                   if (!filteredStoriesProcessed || filteredStoriesProcessed.length <= 1) {
                     return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
@@ -2551,6 +2565,7 @@ export default function Dashboard() {
                     sortedStories.map((story, index) => {
                       const mobileViews = parseInt(String(story[3] || '').replace(/,/g, '')) || 0;
                       const mobileViewRate = String(story[5] || '0%');
+                      const mobileComments = parseInt(String(story[4] || '').replace(/,/g, '')) || 0;
 
                       return (
                       <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-center space-x-4 p-3' : 'text-center p-4'}`}>
@@ -2587,14 +2602,21 @@ export default function Dashboard() {
                             <p className="text-[11px] text-gray-500 mb-2 truncate">
                               {story[0] || `ストーリー ${index + 1}`}
                             </p>
-                            <div className="flex items-center justify-between text-[11px] text-gray-700">
-                              <span className="flex items-center">
-                                <span className="mr-1">👁️</span>
-                                {mobileViews.toLocaleString()}
+                            <div className="grid grid-cols-3 gap-2 text-[11px] text-gray-700 text-center">
+                              <span className="flex flex-col items-center gap-0.5">
+                                <span className="text-xs">👁️</span>
+                                <span className="font-semibold">{mobileViews.toLocaleString()}</span>
+                                <span className="text-[10px] text-gray-400">ビュー</span>
                               </span>
-                              <span className="flex items-center">
-                                <span className="mr-1">📊</span>
-                                {mobileViewRate}
+                              <span className="flex flex-col items-center gap-0.5">
+                                <span className="text-xs">💬</span>
+                                <span className="font-semibold">{mobileComments.toLocaleString()}</span>
+                                <span className="text-[10px] text-gray-400">コメント</span>
+                              </span>
+                              <span className="flex flex-col items-center gap-0.5">
+                                <span className="text-xs">📈</span>
+                                <span className="font-semibold">{mobileViewRate}</span>
+                                <span className="text-[10px] text-gray-400">閲覧率</span>
                               </span>
                             </div>
                           </div>

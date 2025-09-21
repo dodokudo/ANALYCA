@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type DatePreset = 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'custom';
+export type DatePreset = 'yesterday' | 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'custom';
 
 export interface DateRange {
   start: Date;
@@ -55,6 +55,17 @@ const getLastWeekRange = () => {
   return { start: lastWeekStart, end: lastWeekEnd };
 };
 
+const getYesterdayRange = () => {
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+};
+
 // 今月の開始と終了を取得する関数
 const getThisMonthRange = () => {
   const today = new Date();
@@ -82,6 +93,8 @@ const getLastMonthRange = () => {
 // プリセットから日付範囲を取得する関数
 const getDateRangeFromPreset = (preset: DatePreset, customStart?: Date, customEnd?: Date): { start: Date; end: Date } => {
   switch (preset) {
+    case 'yesterday':
+      return getYesterdayRange();
     case 'this-week':
       return getThisWeekRange();
     case 'last-week':
@@ -106,13 +119,17 @@ const getDateRangeFromPreset = (preset: DatePreset, customStart?: Date, customEn
 };
 
 export const DateRangeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // 初期値: 今週
-  const initialRange = getThisWeekRange();
-  const [dateRange, setDateRange] = useState<DateRange>({
-    start: initialRange.start,
-    end: initialRange.end,
-    preset: 'this-week'
-  });
+  const getInitialRange = (): DateRange => {
+    const yesterdayRange = getYesterdayRange();
+
+    return {
+      start: yesterdayRange.start,
+      end: yesterdayRange.end,
+      preset: 'yesterday'
+    };
+  };
+
+  const [dateRange, setDateRange] = useState<DateRange>(getInitialRange);
 
   const updatePreset = (preset: DatePreset, customStart?: Date, customEnd?: Date) => {
     const range = getDateRangeFromPreset(preset, customStart, customEnd);

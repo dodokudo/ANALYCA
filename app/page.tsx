@@ -2,6 +2,7 @@
 
 import { StatPill } from '@/components/StatPill';
 import ProfileHeader from '@/components/ProfileHeader';
+import LoadingScreen from '@/components/LoadingScreen';
 import { useDateRange, DatePreset } from '@/lib/dateRangeStore';
 
 import { useState, useEffect } from 'react';
@@ -230,7 +231,6 @@ export default function Dashboard() {
       dailyRows: 0
     }
   });
-  const [meta, setMeta] = useState<ApiMeta | null>(null);
   // グローバルストアからdateRangeを取得
   const { dateRange, updatePreset } = useDateRange();
   const userId = 'demo-user'; // Demo用のユーザーID
@@ -612,9 +612,6 @@ export default function Dashboard() {
         setError(`エラー: ${result.error} (${result.details || '詳細不明'})`);
         return;
       }
-
-      setMeta(result.meta || null);
-
       console.log('取得したデータ:', {
         instagram: result.instagramRaw?.length || 0,
         storiesRaw: result.storiesRaw?.length || 0,
@@ -735,31 +732,14 @@ export default function Dashboard() {
   };
 
   if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-gray-900 dark:text-gray-200 text-xl mb-6 font-medium tracking-wide">💎 システムを起動中 💎</div>
-          <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700 border-t-purple-600 mx-auto"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const summary = calculateSummary();
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-gray-900 dark:text-gray-200 text-xl mb-6 font-medium tracking-wide">💎 データを読み込み中 💎</div>
-          <div className="relative">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 dark:border-gray-700 border-t-purple-600 mx-auto"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error) {
@@ -782,15 +762,6 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
       {/* SaaS風アクセント - デスクトップのみ */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-blue-500 hidden lg:block"></div>
-
-      {meta?.fallbackReason && (
-        <div className="max-w-6xl mx-auto px-4 pt-6">
-          <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 shadow-sm">
-            <p className="font-semibold">BigQueryデータへの切り替えを試みましたが、Sheetsデータを表示しています。</p>
-            <p className="mt-1">{meta.fallbackReason}</p>
-          </div>
-        </div>
-      )}
 
       {/* プロフィールヘッダー */}
       <ProfileHeader userId={userId} />
@@ -1254,7 +1225,7 @@ export default function Dashboard() {
             </div>
 
           {/* パフォーマンス推移グラフ - モバイル: フル幅, デスクトップ: 9列 */}
-          <div className="lg:col-span-9 col-span-1 lg:px-0 px-4">
+          <div className="lg:col-span-9 col-span-1 lg:px-0 sm:px-3 px-1">
             {(() => {
               const filteredDailyData = getFilteredDailyData(data.dailyRaw, dateRange.preset);
 
@@ -1291,33 +1262,37 @@ export default function Dashboard() {
 
                   return rechartsData.length > 0 && (
                     <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-3 lg:p-5 md:p-4 sm:p-3">
-                      <div className="mb-3 lg:px-3 px-2">
+                      <div className="mb-3 lg:px-3 sm:px-2 px-1">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200">パフォーマンス推移</h3>
                       </div>
-                      <div className="h-72 lg:h-80 md:h-64 sm:h-60 lg:px-0 px-2">
-                        <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? "90%" : "100%"}>
-                          <ComposedChart data={rechartsData} margin={{ top: window.innerWidth < 768 ? 8 : 10, right: window.innerWidth < 768 ? 25 : 10, left: window.innerWidth < 768 ? 35 : 10, bottom: window.innerWidth < 768 ? 8 : 10 }}>
+                      <div className="h-72 lg:h-80 md:h-64 sm:h-60 lg:px-0 sm:px-1 px-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <ComposedChart
+                            data={rechartsData}
+                            margin={isMobile ? { top: 8, right: 12, left: 12, bottom: 6 } : { top: 10, right: 16, left: 24, bottom: 12 }}
+                          >
                             <CartesianGrid
-                              strokeDasharray="1 1"
-                              stroke={window.innerWidth < 768 ? "#F0F0F0" : "var(--chart-grid)"}
-                              horizontal={true}
+                              strokeDasharray={isMobile ? '2 2' : '3 3'}
+                              stroke={isMobile ? '#E5E7EB' : 'var(--chart-grid)'}
+                              horizontal
                               vertical={false}
-                              strokeOpacity={window.innerWidth < 768 ? 0.3 : 1}
-                              strokeWidth={window.innerWidth < 768 ? 0.5 : 1}
+                              strokeOpacity={isMobile ? 0.6 : 1}
+                              strokeWidth={1}
                             />
                             <XAxis
                               dataKey="date"
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: 'var(--chart-axis)' }}
-                              interval={window.innerWidth < 768 ? Math.max(Math.floor(rechartsData.length / 3) - 1, 0) : 0}
-                              axisLine={window.innerWidth < 768 ? false : true}
-                              tickLine={window.innerWidth < 768 ? false : true}
+                              tick={{ fontSize: isMobile ? 10 : 14, fill: 'var(--chart-axis)' }}
+                              interval={isMobile ? Math.max(Math.floor(rechartsData.length / 3) - 1, 0) : 0}
+                              axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tickLine={isMobile ? { stroke: '#D1D5DB', strokeWidth: 1 } : { stroke: 'var(--chart-axis)', strokeWidth: 1 }}
+                              height={isMobile ? 28 : undefined}
                             />
                             <YAxis
                               yAxisId="left"
                               orientation="left"
-                              axisLine
-                              tickLine
-                              tick={window.innerWidth < 768 ? {
+                              axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tickLine={isMobile ? { stroke: '#D1D5DB', strokeWidth: 1 } : { stroke: 'var(--chart-axis)', strokeWidth: 1 }}
+                              tick={isMobile ? {
                                 fontSize: 10,
                                 fill: 'var(--chart-axis)',
                                 fontWeight: 'bold'
@@ -1327,15 +1302,15 @@ export default function Dashboard() {
                               }}
                               className="dark:fill-purple-400"
                               tickFormatter={(value) => value.toLocaleString()}
-                              domain={window.innerWidth < 768 ? ['dataMin - 100', 'dataMax + 100'] : ['dataMin', 'dataMax']}
-                              width={window.innerWidth < 768 ? 35 : 60}
+                              domain={isMobile ? ['dataMin - 100', 'dataMax + 100'] : ['dataMin', 'dataMax']}
+                              width={isMobile ? 38 : 60}
                             />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
-                              axisLine
-                              tickLine
-                              tick={window.innerWidth < 768 ? {
+                              axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tickLine={isMobile ? { stroke: '#D1D5DB', strokeWidth: 1 } : { stroke: 'var(--chart-axis)', strokeWidth: 1 }}
+                              tick={isMobile ? {
                                 fontSize: 10,
                                 fill: 'var(--chart-axis)',
                                 fontWeight: 'bold'
@@ -1345,58 +1320,60 @@ export default function Dashboard() {
                               }}
                               className="dark:fill-blue-400"
                               tickFormatter={(value) => value.toLocaleString()}
-                              width={window.innerWidth < 768 ? 25 : 60}
+                              width={isMobile ? 32 : 60}
                               domain={[0, 'dataMax + 5']}
                             />
                             <Tooltip
                               formatter={(value, name) => [value.toLocaleString(), name]}
-                              labelStyle={{ color: 'var(--text-primary)', fontSize: window.innerWidth < 768 ? '9px' : '14px' }}
+                              labelStyle={{ color: 'var(--text-primary)', fontSize: isMobile ? '10px' : '14px' }}
                               contentStyle={{
-                                backgroundColor: window.innerWidth < 768 ? '#FFFFFF' : 'var(--card-background)',
-                                border: window.innerWidth < 768 ? '1px solid #E0E0E0' : '1px solid var(--border-color)',
-                                borderRadius: window.innerWidth < 768 ? '4px' : '8px',
-                                boxShadow: window.innerWidth < 768 ? '0 1px 3px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                color: window.innerWidth < 768 ? '#111' : 'var(--text-primary)',
-                                padding: window.innerWidth < 768 ? '4px 6px' : '8px 12px',
-                                fontSize: window.innerWidth < 768 ? '9px' : '14px',
-                                minWidth: window.innerWidth < 768 ? 'auto' : undefined,
-                                maxWidth: window.innerWidth < 768 ? '100px' : undefined,
-                                transform: window.innerWidth < 768 ? 'scale(0.8)' : undefined
+                                backgroundColor: isMobile ? '#FFFFFF' : 'var(--card-background)',
+                                border: `1px solid ${isMobile ? '#E0E0E0' : 'var(--border-color)'}`,
+                                borderRadius: isMobile ? '6px' : '8px',
+                                boxShadow: isMobile ? '0 2px 6px rgba(15, 23, 42, 0.12)' : '0 6px 12px -1px rgba(15, 23, 42, 0.15)',
+                                color: isMobile ? '#111827' : 'var(--text-primary)',
+                                padding: isMobile ? '6px 8px' : '8px 12px',
+                                fontSize: isMobile ? '10px' : '14px',
+                                minWidth: isMobile ? 'auto' : undefined,
+                                maxWidth: isMobile ? '120px' : undefined
                               }}
-                              offset={window.innerWidth < 768 ? 5 : 10}
+                              cursor={{ stroke: '#7C3AED', strokeWidth: 1, strokeDasharray: '4 4' }}
+                              offset={isMobile ? 8 : 12}
                               allowEscapeViewBox={{ x: false, y: true }}
                             />
                             <Legend
                               wrapperStyle={{
-                                fontSize: window.innerWidth < 768 ? '9px' : '12px',
-                                marginTop: window.innerWidth < 768 ? '6px' : '8px',
-                                lineHeight: window.innerWidth < 768 ? '10px' : '16px',
+                                fontSize: isMobile ? '10px' : '12px',
+                                marginTop: isMobile ? '4px' : '8px',
+                                lineHeight: isMobile ? '12px' : '16px',
                                 display: 'block',
                                 textAlign: 'center'
                               }}
-                              iconType={window.innerWidth < 768 ? 'circle' : 'line'}
-                              formatter={(value) => {
-                                if (window.innerWidth < 768) {
-                                  const icons = {
-                                    'LINE登録数': '🟢',
-                                    'フォロワー増加数': '🔵',
-                                    'フォロワー数': '🟣'
-                                  };
-                                  return `${icons[value] || ''} ${value}`;
-                                }
-                                return value;
-                              }}
+                              iconSize={isMobile ? 10 : 14}
+                              iconType={isMobile ? 'circle' : 'line'}
+                              formatter={(value) => value}
                             />
                             <Line
                               yAxisId="left"
                               type="monotone"
                               dataKey="フォロワー数"
                               stroke="#7C3AED"
-                              strokeWidth={window.innerWidth < 768 ? 2 : 3}
-                              dot={window.innerWidth < 768 ? false : {
+                              strokeWidth={isMobile ? 2 : 3}
+                              dot={isMobile ? {
+                                r: 3,
+                                stroke: '#FFFFFF',
+                                strokeWidth: 1.5,
+                                fill: '#7C3AED'
+                              } : {
                                 fill: '#7C3AED',
                                 strokeWidth: 2,
                                 r: 4
+                              }}
+                              activeDot={{
+                                r: isMobile ? 5 : 6,
+                                stroke: '#7C3AED',
+                                strokeWidth: 2,
+                                fill: '#FFFFFF'
                               }}
                             />
                             <Bar
@@ -1405,7 +1382,7 @@ export default function Dashboard() {
                               fill="#3B82F6"
                               radius={[2, 2, 0, 0]}
                               opacity={0.7}
-                              maxBarSize={window.innerWidth < 768 ? 20 : 40}
+                              maxBarSize={isMobile ? 18 : 40}
                             />
                             <Bar
                               yAxisId="right"
@@ -1413,7 +1390,7 @@ export default function Dashboard() {
                               fill="#22C55E"
                               radius={[2, 2, 0, 0]}
                               opacity={0.7}
-                              maxBarSize={window.innerWidth < 768 ? 20 : 40}
+                              maxBarSize={isMobile ? 18 : 40}
                             />
                             <defs>
                               <linearGradient id="followerGradient" x1="0" y1="0" x2="0" y2="1">
@@ -1430,10 +1407,10 @@ export default function Dashboard() {
           </div>
 
           {/* Top 3/5 Reels */}
-          <div className="lg:px-0 px-4">
+          <div className="lg:px-0 sm:px-3 px-1">
             <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
-              <div className="lg:hidden flex justify-between items-center mb-4 px-4">
+              <div className="lg:hidden flex justify-between items-center mb-4 px-2">
                 <h3 className="text-lg font-bold text-gray-900 tracking-tight">
                   🎬 Top3 リール
                 </h3>
@@ -1462,7 +1439,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-4 grid grid-cols-3 gap-2 px-4 lg:px-0">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-4 grid grid-cols-3 gap-2 px-1 sm:px-2 lg:px-0">
                 {(() => {
                   // リールデータを結合
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
@@ -1485,7 +1462,7 @@ export default function Dashboard() {
 
                     return (
                       <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
-                          <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
+                          <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-white border border-gray-200 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
                             {rawData[15] ? (
                               <img
                                 src={convertToGoogleUserContent(rawData[15])}
@@ -1499,7 +1476,7 @@ export default function Dashboard() {
                                 }}
                               />
                             ) : null}
-                            <div className="w-full h-full bg-gray-600 rounded-lg flex items-center justify-center text-white text-xs" style={{display: rawData[15] ? 'none' : 'flex'}}>
+                            <div className="w-full h-full bg-white border border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-600 text-xs" style={{display: rawData[15] ? 'none' : 'flex'}}>
                               Reel {index + 1}
                             </div>
                           </div>
@@ -1580,10 +1557,10 @@ export default function Dashboard() {
           </div>
 
             {/* Top 5 Stories */}
-          <div className="lg:px-0 px-4">
+          <div className="lg:px-0 sm:px-3 px-1">
             <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
-              <div className="lg:hidden flex justify-between items-center mb-4 px-4">
+              <div className="lg:hidden flex justify-between items-center mb-4 px-2">
                 <h3 className="text-lg font-bold text-gray-900 tracking-tight">
                   📖 Top3 ストーリー
                 </h3>
@@ -1612,7 +1589,7 @@ export default function Dashboard() {
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-4 lg:px-0">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-1 sm:px-2 lg:px-0">
                 {(() => {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange);
                   if (filteredStoriesProcessed.length > 1) {
@@ -1809,52 +1786,95 @@ export default function Dashboard() {
                   .map(key => dailyReelData[key]);
 
                 return chartData.length > 0 ? (
-                  <div className="h-72 lg:h-80 md:h-64 sm:h-60 lg:px-0 px-0">
+                  <div className="h-72 lg:h-80 md:h-64 sm:h-60 lg:px-0 sm:px-1 px-0">
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" className="dark:stroke-gray-600" />
+                      <ComposedChart
+                        data={chartData}
+                        margin={isMobile ? { top: 8, right: 12, left: 12, bottom: 6 } : { top: 12, right: 20, left: 24, bottom: 12 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray={isMobile ? '2 2' : '3 3'}
+                          stroke={isMobile ? '#E5E7EB' : '#E5E7EB'}
+                          horizontal
+                          vertical={false}
+                          strokeOpacity={isMobile ? 0.6 : 1}
+                        />
                         <XAxis
                           dataKey="date"
-                          tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#6B7280' }}
-                          className="dark:fill-gray-300"
+                          tick={{ fontSize: isMobile ? 10 : 14, fill: '#6B7280' }}
+                          axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                          tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                         />
                         <YAxis
                           yAxisId="left"
                           orientation="left"
-                          tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#E11D48' }}
+                          axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                          tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                          tick={{ fontSize: isMobile ? 10 : 14, fill: '#E11D48' }}
                           className="dark:fill-rose-400"
                           tickFormatter={(value) => value.toLocaleString()}
+                          width={isMobile ? 38 : 60}
                         />
                         <YAxis
                           yAxisId="right"
                           orientation="right"
-                          tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#10B981' }}
+                          axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                          tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                          tick={{ fontSize: isMobile ? 10 : 14, fill: '#10B981' }}
                           className="dark:fill-emerald-400"
                           tickFormatter={(value) => value.toString()}
+                          width={isMobile ? 32 : 56}
                         />
                         <Tooltip
                           formatter={(value, name) => [value.toLocaleString(), name]}
-                          labelStyle={{ color: '#111827', fontSize: window.innerWidth < 768 ? '11px' : '14px' }}
+                          labelStyle={{ color: '#111827', fontSize: isMobile ? '10px' : '14px' }}
                           contentStyle={{
-                            backgroundColor: 'var(--card-background)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: window.innerWidth < 768 ? '6px' : '8px',
-                            boxShadow: window.innerWidth < 768 ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                            color: 'var(--text-primary)',
-                            padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
-                            fontSize: window.innerWidth < 768 ? '11px' : '14px',
-                            minWidth: window.innerWidth < 768 ? 'auto' : undefined,
-                            maxWidth: window.innerWidth < 768 ? '140px' : undefined
+                            backgroundColor: isMobile ? '#FFFFFF' : 'var(--card-background)',
+                            border: `1px solid ${isMobile ? '#E0E0E0' : 'var(--border-color)'}`,
+                            borderRadius: isMobile ? '6px' : '8px',
+                            boxShadow: isMobile ? '0 2px 6px rgba(15, 23, 42, 0.12)' : '0 6px 12px -1px rgba(15, 23, 42, 0.15)',
+                            color: isMobile ? '#111827' : 'var(--text-primary)',
+                            padding: isMobile ? '6px 8px' : '8px 12px',
+                            fontSize: isMobile ? '10px' : '14px',
+                            minWidth: isMobile ? 'auto' : undefined,
+                            maxWidth: isMobile ? '120px' : undefined
                           }}
+                          cursor={{ stroke: '#E11D48', strokeWidth: 1, strokeDasharray: '4 4' }}
+                          offset={isMobile ? 8 : 12}
+                          allowEscapeViewBox={{ x: false, y: true }}
                         />
-                        <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
+                        <Legend
+                          wrapperStyle={{
+                            fontSize: isMobile ? '10px' : '12px',
+                            marginTop: isMobile ? '4px' : '8px',
+                            lineHeight: isMobile ? '12px' : '16px',
+                            display: 'block',
+                            textAlign: 'center'
+                          }}
+                          iconSize={isMobile ? 10 : 14}
+                        />
                         <Line
                           yAxisId="left"
                           type="monotone"
                           dataKey="総再生数"
                           stroke="#E11D48"
-                          strokeWidth={3}
-                          dot={{ fill: '#E11D48', strokeWidth: 2, r: 4 }}
+                          strokeWidth={isMobile ? 2 : 3}
+                          dot={isMobile ? {
+                            r: 3,
+                            stroke: '#FFFFFF',
+                            strokeWidth: 1.5,
+                            fill: '#E11D48'
+                          } : {
+                            fill: '#E11D48',
+                            strokeWidth: 2,
+                            r: 4
+                          }}
+                          activeDot={{
+                            r: isMobile ? 5 : 6,
+                            stroke: '#E11D48',
+                            strokeWidth: 2,
+                            fill: '#FFFFFF'
+                          }}
                         />
                         <Bar
                           yAxisId="right"
@@ -1862,6 +1882,7 @@ export default function Dashboard() {
                           fill="#10B981"
                           radius={[2, 2, 0, 0]}
                           opacity={0.7}
+                          maxBarSize={isMobile ? 18 : 40}
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
@@ -2050,11 +2071,11 @@ export default function Dashboard() {
                         <div
                           key={index}
                           className={`rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 border border-gray-200/70 dark:border-white/10 ${
-                            isMobile ? 'flex items-center space-x-4 p-3 bg-slate-900 text-white border-transparent' : 'p-4 bg-white dark:bg-slate-800'
+                            isMobile ? 'flex items-center space-x-4 p-3 bg-white text-gray-900 shadow-sm' : 'p-4 bg-white dark:bg-slate-800'
                           }`}
                         >
                           {/* サムネイル */}
-                          <div className={`bg-gray-600 rounded-xl overflow-hidden ${isMobile ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
+                          <div className={`bg-gray-200 rounded-xl overflow-hidden ${isMobile ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                             {rawData[15] ? (
                               <img
                                 src={convertToGoogleUserContent(rawData[15])}
@@ -2068,15 +2089,15 @@ export default function Dashboard() {
                                 }}
                               />
                             ) : null}
-                            <div className="w-full h-full bg-gray-600 rounded-xl flex items-center justify-center text-white text-xs" style={{display: rawData[15] ? 'none' : 'flex'}}>
+                            <div className="w-full h-full bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 text-xs" style={{display: rawData[15] ? 'none' : 'flex'}}>
                               {title}
                             </div>
                           </div>
 
                           {/* コンテンツエリア（モバイル時は右側、PC時は通常位置） */}
-                            <div className={`${isMobile ? 'flex-1 min-w-0 text-white' : 'mb-3'}`}>
+                            <div className={`${isMobile ? 'flex-1 min-w-0 text-gray-900' : 'mb-3'}`}>
                             <h4
-                              className={`${isMobile ? 'text-white' : 'text-gray-900 dark:text-gray-200'} font-semibold leading-tight mb-1 ${isMobile ? 'text-sm mb-2' : 'text-sm'}`}
+                              className={`${isMobile ? 'text-gray-900' : 'text-gray-900 dark:text-gray-200'} font-semibold leading-tight mb-1 ${isMobile ? 'text-sm mb-2' : 'text-sm'}`}
                               title={title}
                               style={{
                                 display: '-webkit-box',
@@ -2088,15 +2109,15 @@ export default function Dashboard() {
                               {title}
                             </h4>
                             {formattedDate && (
-                              <p className={`${isMobile ? 'text-white text-opacity-80' : 'text-gray-500 dark:text-gray-400'} mb-2 ${isMobile ? 'text-sm' : 'text-xs'}`}>
+                              <p className={`${isMobile ? 'text-gray-500' : 'text-gray-500 dark:text-gray-400'} mb-2 ${isMobile ? 'text-sm' : 'text-xs'}`}>
                                 投稿日: {formattedDate}
                               </p>
                             )}
                             {isMobile && (
-                              <div className="flex items-center space-x-3 text-xs text-white text-opacity-80">
-                                <span>👁️ {views}</span>
-                                <span>❤️ {likes}</span>
-                                <span>💬 {comments}</span>
+                              <div className="flex items-center space-x-3 text-xs text-gray-600">
+                                <span>👁️ {views.toLocaleString()}</span>
+                                <span>❤️ {likes.toLocaleString()}</span>
+                                <span>💬 {comments.toLocaleString()}</span>
                               </div>
                             )}
                           </div>
@@ -2301,34 +2322,47 @@ export default function Dashboard() {
                     });
 
                     return chartData.length > 0 && chartData.some(d => d.投稿数 > 0 || d.最高閲覧率 > 0) ? (
-                      <div className="h-80 lg:h-80 md:h-64 sm:h-56 lg:px-0 px-0">
+                      <div className="h-80 lg:h-80 md:h-64 sm:h-56 lg:px-0 sm:px-1 px-0">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                          <ComposedChart
+                            data={chartData}
+                            margin={isMobile ? { top: 8, right: 12, left: 12, bottom: 6 } : { top: 12, right: 20, left: 24, bottom: 12 }}
+                          >
+                            <CartesianGrid
+                              strokeDasharray={isMobile ? '2 2' : '3 3'}
+                              stroke={isMobile ? '#E5E7EB' : 'var(--chart-grid)'}
+                              horizontal
+                              vertical={false}
+                              strokeOpacity={isMobile ? 0.6 : 1}
+                            />
                             <XAxis
                               dataKey="date"
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: 'var(--chart-axis)' }}
+                              tick={{ fontSize: isMobile ? 10 : 14, fill: 'var(--chart-axis)' }}
+                              axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                             />
                             {/* 左Y軸：閲覧率（動的スケール） */}
                             <YAxis
                               yAxisId="left"
                               domain={viewRateDomain}
-                              axisLine
-                              tickLine
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#F59E0B' }}
+                              axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tick={{ fontSize: isMobile ? 10 : 14, fill: '#F59E0B' }}
                               className="dark:fill-amber-400"
                               tickFormatter={(value) => `${value}%`}
+                              width={isMobile ? 38 : 60}
                             />
                             {/* 右Y軸：投稿数（動的スケール） */}
                             <YAxis
                               yAxisId="right"
                               orientation="right"
                               domain={postCountDomain}
-                              axisLine
-                              tickLine
-                              tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#8B5CF6' }}
+                              axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
+                              tick={{ fontSize: isMobile ? 10 : 14, fill: '#8B5CF6' }}
                               className="dark:fill-purple-400"
                               tickFormatter={(value) => value.toString()}
+                              width={isMobile ? 32 : 56}
                             />
                             <Tooltip
                               formatter={(value, name) => {
@@ -2337,20 +2371,32 @@ export default function Dashboard() {
                                 }
                                 return [value.toLocaleString(), name];
                               }}
-                              labelStyle={{ color: 'var(--text-primary)', fontSize: window.innerWidth < 768 ? '11px' : '14px' }}
+                              labelStyle={{ color: 'var(--text-primary)', fontSize: isMobile ? '10px' : '14px' }}
                               contentStyle={{
-                                backgroundColor: 'var(--card-background)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: window.innerWidth < 768 ? '6px' : '8px',
-                                boxShadow: window.innerWidth < 768 ? '0 2px 4px rgba(0, 0, 0, 0.1)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                color: 'var(--text-primary)',
-                                padding: window.innerWidth < 768 ? '6px 8px' : '8px 12px',
-                                fontSize: window.innerWidth < 768 ? '11px' : '14px',
-                                minWidth: window.innerWidth < 768 ? 'auto' : undefined,
-                                maxWidth: window.innerWidth < 768 ? '140px' : undefined
+                                backgroundColor: isMobile ? '#FFFFFF' : 'var(--card-background)',
+                                border: `1px solid ${isMobile ? '#E0E0E0' : 'var(--border-color)'}`,
+                                borderRadius: isMobile ? '6px' : '8px',
+                                boxShadow: isMobile ? '0 2px 6px rgba(15, 23, 42, 0.12)' : '0 6px 12px -1px rgba(15, 23, 42, 0.15)',
+                                color: isMobile ? '#111827' : 'var(--text-primary)',
+                                padding: isMobile ? '6px 8px' : '8px 12px',
+                                fontSize: isMobile ? '10px' : '14px',
+                                minWidth: isMobile ? 'auto' : undefined,
+                                maxWidth: isMobile ? '120px' : undefined
                               }}
+                              cursor={{ stroke: '#F59E0B', strokeWidth: 1, strokeDasharray: '4 4' }}
+                              offset={isMobile ? 8 : 12}
+                              allowEscapeViewBox={{ x: false, y: true }}
                             />
-                            <Legend wrapperStyle={{ fontSize: window.innerWidth < 768 ? '10px' : '12px', marginTop: window.innerWidth < 768 ? '2px' : '8px', lineHeight: window.innerWidth < 768 ? '12px' : '16px' }} />
+                            <Legend
+                              wrapperStyle={{
+                                fontSize: isMobile ? '10px' : '12px',
+                                marginTop: isMobile ? '4px' : '8px',
+                                lineHeight: isMobile ? '12px' : '16px',
+                                display: 'block',
+                                textAlign: 'center'
+                              }}
+                              iconSize={isMobile ? 10 : 14}
+                            />
                             {/* 20%基準線（点線） */}
                             <ReferenceLine
                               yAxisId="left"
@@ -2366,6 +2412,7 @@ export default function Dashboard() {
                               fill="#8B5CF6"
                               radius={[2, 2, 0, 0]}
                               opacity={0.7}
+                              maxBarSize={isMobile ? 18 : 40}
                             />
                             {/* 閲覧率（折れ線グラフ、左Y軸） */}
                             <Line
@@ -2373,8 +2420,23 @@ export default function Dashboard() {
                               type="monotone"
                               dataKey="最高閲覧率"
                               stroke="#F59E0B"
-                              strokeWidth={3}
-                              dot={{ fill: '#F59E0B', strokeWidth: 2, r: 4 }}
+                              strokeWidth={isMobile ? 2 : 3}
+                              dot={isMobile ? {
+                                r: 3,
+                                stroke: '#FFFFFF',
+                                strokeWidth: 1.5,
+                                fill: '#F59E0B'
+                              } : {
+                                fill: '#F59E0B',
+                                strokeWidth: 2,
+                                r: 4
+                              }}
+                              activeDot={{
+                                r: isMobile ? 5 : 6,
+                                stroke: '#F59E0B',
+                                strokeWidth: 2,
+                                fill: '#FFFFFF'
+                              }}
                             />
                           </ComposedChart>
                         </ResponsiveContainer>
@@ -2486,7 +2548,11 @@ export default function Dashboard() {
                   });
 
                   return sortedStories.length > 0 ? (
-                    sortedStories.map((story, index) => (
+                    sortedStories.map((story, index) => {
+                      const mobileViews = parseInt(String(story[3] || '').replace(/,/g, '')) || 0;
+                      const mobileViewRate = String(story[5] || '0%');
+
+                      return (
                       <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-center space-x-4 p-3' : 'text-center p-4'}`}>
                         <div className={`bg-gray-600 rounded-lg overflow-hidden ${window.innerWidth < 768 ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                           {(() => {
@@ -2517,31 +2583,19 @@ export default function Dashboard() {
 
                         {/* モバイル版: 新しいレイアウト */}
                         {window.innerWidth < 768 && (
-                          <div className="flex-1 flex flex-col justify-between">
-                            {/* タイトル */}
-                            <h3 className="text-sm font-bold text-gray-900 dark:text-gray-200 line-clamp-2 mb-1">
-                              ストーリー {index + 1}
-                            </h3>
-
-                            {/* 投稿日 */}
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                              投稿日: {story[0]}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-500 mb-2 truncate">
+                              {story[0] || `ストーリー ${index + 1}`}
                             </p>
-
-                            {/* メトリクス（横並び） */}
-                            <div className="flex items-center space-x-4 text-sm">
-                              <div className="flex items-center">
+                            <div className="flex items-center justify-between text-[11px] text-gray-700">
+                              <span className="flex items-center">
                                 <span className="mr-1">👁️</span>
-                                <span>{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</span>
-                              </div>
-                             <div className="flex items-center">
-                               <span className="mr-1">📊</span>
-                               <span>{story[5] || '0%'}</span>
-                             </div>
-                             <div className="flex items-center">
-                               <span className="mr-1">📱</span>
-                                <span>{parseInt(String(story[6] || '').replace(/,/g, '')) || 0}</span>
-                              </div>
+                                {mobileViews.toLocaleString()}
+                              </span>
+                              <span className="flex items-center">
+                                <span className="mr-1">📊</span>
+                                {mobileViewRate}
+                              </span>
                             </div>
                           </div>
                         )}
@@ -2555,19 +2609,19 @@ export default function Dashboard() {
                             {/* Views（大きく表示） */}
                             <div className="mb-3 text-center">
                               <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">閲覧数</p>
-                              <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
+                              <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{mobileViews.toLocaleString()}</p>
                             </div>
 
                             {/* KPIピル */}
                             <div className="flex flex-wrap gap-1">
                               <StatPill icon="💬" value={story[4] || 0} color="green" />
-                              <StatPill icon="📱" value={parseInt(String(story[6] || '').replace(/,/g, '')) || 0} color="blue" />
                               <StatPill icon="📈" value={story[5] || '0%'} color="purple" />
                             </div>
                           </div>
                         )}
                       </div>
-                    ))
+                    );
+                  })
                   ) : (
                     <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>
                   );

@@ -18,7 +18,22 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+interface ApiMeta {
+  requestedSource: 'gem-queen' | 'bigquery';
+  source: 'gem-queen' | 'bigquery';
+  manualColumns?: {
+    reel: {
+      title: number;
+      duration: number;
+      follows: number;
+      followRate?: number;
+    };
+  };
+  fallbackReason?: string;
+}
+
 interface ApiResponse {
+  meta?: ApiMeta;
   instagramRaw: string[][];
   storiesRaw: string[][];
   storiesProcessed: string[][];
@@ -148,54 +163,25 @@ const filterJoinedReelData = (joinedData: { rawData: string[], sheetData: string
   };
 
   try {
-    let startDate, endDate;
-    const today = new Date();
-    const millisecondsPerDay = 24 * 60 * 60 * 1000;
+    const normalizeStart = (input: Date) => {
+      const d = new Date(input);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
 
-    // 期間設定
-    if (dateRange.preset === 'current_month') {
-      // 当月: 今月の1日から今日まで
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-    } else if (dateRange.preset === 'custom' && dateRange.start && dateRange.end) {
-      // カスタム期間
-      startDate = new Date(dateRange.start);
-      endDate = new Date(dateRange.end);
-    } else {
-      // 固定期間（1週間、1ヶ月など）
-      // 最新の日付を取得
-      let latestDate = null;
-      for (const item of joinedData) {
-        const dateStr = String(item.rawData[5]).trim(); // 投稿日時は列5
-        const date = parseDate(dateStr);
-        if (date && !isNaN(date.getTime())) {
-          if (!latestDate || date > latestDate) {
-            latestDate = date;
-          }
-        }
-      }
+    const normalizeEnd = (input: Date) => {
+      const d = new Date(input);
+      d.setHours(23, 59, 59, 999);
+      return d;
+    };
 
-      if (!latestDate) return joinedData;
+    let startDate = normalizeStart(dateRange.start);
+    let endDate = normalizeEnd(dateRange.end);
 
-      switch (dateRange.preset) {
-        case 'this-week':
-        case 'last-week':
-          startDate = new Date(latestDate.getTime() - 7 * millisecondsPerDay);
-          break;
-        case 'this-month':
-        case 'last-month':
-          startDate = new Date(latestDate.getTime() - 30 * millisecondsPerDay);
-          break;
-        case '3months':
-          startDate = new Date(latestDate.getTime() - 90 * millisecondsPerDay);
-          break;
-        case '1year':
-          startDate = new Date(latestDate.getTime() - 365 * millisecondsPerDay);
-          break;
-        default:
-          return joinedData;
-      }
-      endDate = latestDate;
+    if (startDate > endDate) {
+      const tmp = startDate;
+      startDate = endDate;
+      endDate = tmp;
     }
 
     const filteredData = joinedData.filter(item => {
@@ -244,9 +230,10 @@ export default function Dashboard() {
       dailyRows: 0
     }
   });
+  const [meta, setMeta] = useState<ApiMeta | null>(null);
   // グローバルストアからdateRangeを取得
   const { dateRange, updatePreset } = useDateRange();
-  const [userId, setUserId] = useState<string>('demo-user'); // Demo用のユーザーID
+  const userId = 'demo-user'; // Demo用のユーザーID
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [customStartDate, setCustomStartDate] = useState('');
@@ -318,17 +305,17 @@ export default function Dashboard() {
     }
 
     try {
-      // 5行目（index 4）がヘッダー、A〜Q列（1〜17列）取得
+      // 5行目（index 4）がヘッダー、A〜V列（1〜22列）取得
       const fullHeaders = data[4] || [];
-      const headers = fullHeaders.slice(0, 17); // A〜Q列（17列）
+      const headers = fullHeaders.slice(0, 22); // A〜V列（22列）
 
       console.log(`=== ヘッダー情報 ===`);
       console.log(`全ヘッダー数: ${fullHeaders.length}`);
-      console.log(`表示ヘッダー (A-Q列, 1-17):`, headers);
+      console.log(`表示ヘッダー (A-V列, 1-22):`, headers);
 
-      // 6行目以降（index 5〜）がデータ、A〜Q列（1〜17列）取得
+      // 6行目以降（index 5〜）がデータ、A〜V列（1〜22列）取得
       const allDataRows = data.slice(5);
-      const dataRows = allDataRows.map(row => row.slice(0, 17)); // A〜Q列（17列）
+      const dataRows = allDataRows.map(row => row.slice(0, 22)); // A〜V列（22列）
 
       console.log(`デイリーデータ読み込み: 全データ行数=${dataRows.length}`);
 
@@ -519,96 +506,49 @@ export default function Dashboard() {
 
   const getFilteredData = (data: string[][], dateColumnIndex = 0, dateRange = {preset: 'this-week', start: new Date(), end: new Date()}) => {
     try {
-      console.log(`=== ストーリーズフィルタリング開始 ===`);
-      console.log(`入力データ数: ${data?.length || 0}`);
-      console.log(`フィルター: ${dateRange?.preset || 'undefined'}, 日付列: ${dateColumnIndex}`);
-
-      // データが実際に存在するかログ出力
-      if (data && data.length > 0) {
-        console.log('データサンプル（最初の3行）:', data.slice(0, 3));
-      }
-
       if (!data || data.length <= 1 || dateRange.preset === 'all') {
-        console.log(`全期間選択またはデータなし - 元データを返却: ${data?.length || 0}件`);
         return data || [];
       }
 
-      const dataRows = data.slice(1);
-      let startDate, endDate;
-      const today = new Date();
-      const millisecondsPerDay = 24 * 60 * 60 * 1000;
+      const normalizeStart = (input: Date) => {
+        const d = new Date(input);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+      const normalizeEnd = (input: Date) => {
+        const d = new Date(input);
+        d.setHours(23, 59, 59, 999);
+        return d;
+      };
 
-      // 期間設定
-      if (dateRange.preset === 'current_month') {
-        // 当月: 今月の1日から今日まで
-        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-      } else if (dateRange.preset === 'custom' && dateRange.start && dateRange.end) {
-        // カスタム期間
-        startDate = new Date(dateRange.start);
-        endDate = new Date(dateRange.end);
-      } else {
-        // 固定期間（1週間、1ヶ月など）
-        let latestDate = null;
+      let startDate = normalizeStart(dateRange.start);
+      let endDate = normalizeEnd(dateRange.end);
 
-        console.log(`フィルタリング開始: 日付列=${dateColumnIndex}, 総行数=${dataRows.length}`);
-        for (let i = 0; i < Math.min(10, dataRows.length); i++) {
-          const row = dataRows[i];
-          if (row && row[dateColumnIndex]) {
-            const dateStr = String(row[dateColumnIndex]).trim();
-            console.log(`日付解析試行[${i}]: "${dateStr}"`);
-            if (dateStr && dateStr !== '') {
-              const date = parseDate(dateStr);
-              if (date && !isNaN(date.getTime())) {
-                console.log(`解析成功: ${date.toISOString()}`);
-                if (!latestDate || date > latestDate) {
-                  latestDate = date;
-                }
-              } else {
-                console.log(`解析失敗: ${dateStr}`);
-              }
-            }
-          }
-        }
-        console.log(`最新日付: ${latestDate ? latestDate.toISOString() : 'null'}`);
-
-        if (!latestDate) {
-          return data;
-        }
-
-        switch (dateRange.preset) {
-          case 'this-week':
-          case 'last-week':
-            startDate = new Date(latestDate.getTime() - 7 * millisecondsPerDay);
-            break;
-          case 'this-month':
-          case 'last-month':
-            startDate = new Date(latestDate.getTime() - 30 * millisecondsPerDay);
-            break;
-          case '3months':
-            startDate = new Date(latestDate.getTime() - 90 * millisecondsPerDay);
-            break;
-          case '1year':
-            startDate = new Date(latestDate.getTime() - 365 * millisecondsPerDay);
-            break;
-          default:
-            return data;
-        }
-        endDate = latestDate;
+      if (startDate > endDate) {
+        const tmp = startDate;
+        startDate = endDate;
+        endDate = tmp;
       }
 
       const headerRows = data.slice(0, 1);
+      const dataRows = data.slice(1);
+
       const filteredRows = dataRows.filter(row => {
         if (!row || !row[dateColumnIndex]) return false;
         const dateStr = String(row[dateColumnIndex]).trim();
-        if (!dateStr || dateStr === '') return false;
+        if (!dateStr) return false;
         const date = parseDate(dateStr);
         return date && !isNaN(date.getTime()) && date >= startDate && date <= endDate;
       });
-      console.log(`フィルタ結果: ${filteredRows.length}行 (${dateRange.preset})`);
-      console.log(`期間: ${startDate?.toISOString().split('T')[0]} 〜 ${endDate?.toISOString().split('T')[0]}`);
 
-      return [...headerRows, ...filteredRows];
+      const sortedRows = filteredRows.sort((a, b) => {
+        const dateA = parseDate(String(a[dateColumnIndex] || '').trim());
+        const dateB = parseDate(String(b[dateColumnIndex] || '').trim());
+        if (!dateA || !dateB) return 0;
+        return dateA.getTime() - dateB.getTime();
+      });
+
+      return [...headerRows, ...sortedRows];
     } catch (error) {
       console.error('フィルタリングエラー:', error);
       return data;
@@ -643,7 +583,7 @@ export default function Dashboard() {
 
       console.log('実際のスプレッドシートからデータを取得中...');
       
-      const response = await fetch('/api/data', {
+      const response = await fetch('/api/data?source=bigquery', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -666,13 +606,15 @@ export default function Dashboard() {
       }
       
       const result = await response.json();
-      
+
       if (result.error) {
         console.error('API returned error:', result);
         setError(`エラー: ${result.error} (${result.details || '詳細不明'})`);
         return;
       }
-      
+
+      setMeta(result.meta || null);
+
       console.log('取得したデータ:', {
         instagram: result.instagramRaw?.length || 0,
         storiesRaw: result.storiesRaw?.length || 0,
@@ -686,7 +628,7 @@ export default function Dashboard() {
       console.log('result.storiesRaw?.length:', result.storiesRaw?.length);
       console.log('result.storiesRaw 最初の3行:', result.storiesRaw?.slice(0, 3));
 
-      setData(result);
+      setData(result as ApiResponse);
 
       console.log('=== setData実行後 ===');
       // 状態の更新は非同期なので、次のレンダリングサイクルで確認する
@@ -719,6 +661,7 @@ export default function Dashboard() {
         const dataRows = filteredDailyData.data;
 
         const followerValues: number[] = [];
+        let followerGrowthTotal = 0;
         let reachTotal = 0;
         let profileViewsTotal = 0;
         let webClicksTotal = 0;
@@ -730,6 +673,10 @@ export default function Dashboard() {
           if (followers > 0) {
             followerValues.push(followers);
           }
+
+          // C列: 増加数 (index 2)
+          const dailyFollowerGrowth = parseInt(String(row[2] || '').replace(/,/g, '')) || 0;
+          followerGrowthTotal += dailyFollowerGrowth;
 
           // G列: リーチ数 (index 6) - 期間内合計
           const reach = parseInt(String(row[6] || '').replace(/,/g, '')) || 0;
@@ -751,9 +698,8 @@ export default function Dashboard() {
         // フォロワー数: 期間内最大値と増加数
         if (followerValues.length > 0) {
           summary.currentFollowers = Math.max(...followerValues);
-          const minFollowers = Math.min(...followerValues);
-          summary.followerGrowth = summary.currentFollowers - minFollowers;
         }
+        summary.followerGrowth = followerGrowthTotal;
 
         // 各指標の合計値を設定
         summary.latestReach = reachTotal;
@@ -836,6 +782,15 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
       {/* SaaS風アクセント - デスクトップのみ */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-blue-500 hidden lg:block"></div>
+
+      {meta?.fallbackReason && (
+        <div className="max-w-6xl mx-auto px-4 pt-6">
+          <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 shadow-sm">
+            <p className="font-semibold">BigQueryデータへの切り替えを試みましたが、Sheetsデータを表示しています。</p>
+            <p className="mt-1">{meta.fallbackReason}</p>
+          </div>
+        </div>
+      )}
 
       {/* プロフィールヘッダー */}
       <ProfileHeader userId={userId} />
@@ -1084,7 +1039,7 @@ export default function Dashboard() {
 
         {/* Main Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-3 lg:space-y-8 lg:px-0">
+          <div className="space-y-4 lg:space-y-6 lg:px-0">
             {/* アカウント情報セクション - モバイルのみ */}
             <div className="lg:hidden px-4">
               <div className="bg-white rounded-xl shadow-md border border-gray-100 p-5 mx-0 mb-4">
@@ -1190,10 +1145,10 @@ export default function Dashboard() {
 
             {/* PC版上部セクション: アカウント情報 + ファネル分析 */}
             <div className="hidden lg:block">
-              <div className="grid lg:grid-cols-12 gap-6 mb-8">
+              <div className="grid lg:grid-cols-12 gap-4 mb-6">
                 {/* 左: アカウント情報 (3列) */}
                 <div className="lg:col-span-3">
-                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6 h-[200px] flex flex-col justify-center">
+                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5 h-[200px] flex flex-col justify-center">
                     <div className="flex items-center mb-4">
                       {/* プロフィール画像 */}
                       <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center mr-4 flex-shrink-0">
@@ -1216,7 +1171,7 @@ export default function Dashboard() {
 
                 {/* 右: ファネル分析パネル (9列) */}
                 <div className="lg:col-span-9">
-                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6 h-[200px] flex flex-col">
+                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5 h-[200px] flex flex-col">
                     <div className="flex items-center mb-6">
                       <span className="text-2xl mr-2">📊</span>
                       <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200">ファネル分析</h2>
@@ -1318,14 +1273,13 @@ export default function Dashboard() {
                   }) : [];
 
                   // Rechartsに合わせてデータを変換
-                  const rechartsData = chartData.map((row, index) => {
+                  const rechartsData = chartData.map((row) => {
                     const dateStr = String(row[0] || '').trim();
                     const date = parseDate(dateStr);
                     const formattedDate = date ? date.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }) : dateStr;
 
                     const current = parseInt(String(row[1] || '').replace(/,/g, '')) || 0;
-                    const previous = index > 0 ? parseInt(String(chartData[index - 1][1] || '').replace(/,/g, '')) || 0 : current;
-                    const followerGrowth = index > 0 ? Math.max(0, current - previous) : 0;
+                    const followerGrowth = parseInt(String(row[2] || '').replace(/,/g, '')) || 0;
 
                     return {
                       date: formattedDate,
@@ -1340,7 +1294,7 @@ export default function Dashboard() {
                       <div className="mb-3 lg:px-3 px-2">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200">パフォーマンス推移</h3>
                       </div>
-                      <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-2">
+                      <div className="h-72 lg:h-80 md:h-64 sm:h-60 lg:px-0 px-2">
                         <ResponsiveContainer width="100%" height={window.innerWidth < 768 ? "90%" : "100%"}>
                           <ComposedChart data={rechartsData} margin={{ top: window.innerWidth < 768 ? 8 : 10, right: window.innerWidth < 768 ? 25 : 10, left: window.innerWidth < 768 ? 35 : 10, bottom: window.innerWidth < 768 ? 8 : 10 }}>
                             <CartesianGrid
@@ -1361,6 +1315,8 @@ export default function Dashboard() {
                             <YAxis
                               yAxisId="left"
                               orientation="left"
+                              axisLine
+                              tickLine
                               tick={window.innerWidth < 768 ? {
                                 fontSize: 10,
                                 fill: 'var(--chart-axis)',
@@ -1370,23 +1326,15 @@ export default function Dashboard() {
                                 fill: 'var(--chart-axis)'
                               }}
                               className="dark:fill-purple-400"
-                              tickFormatter={(value) => {
-                                if (window.innerWidth < 768) {
-                                  if (value >= 1000) {
-                                    return (value / 1000).toFixed(value % 1000 === 0 ? 0 : 1) + 'K';
-                                  }
-                                  return value.toString();
-                                }
-                                return value.toLocaleString();
-                              }}
+                              tickFormatter={(value) => value.toLocaleString()}
                               domain={window.innerWidth < 768 ? ['dataMin - 100', 'dataMax + 100'] : ['dataMin', 'dataMax']}
-                              axisLine={false}
-                              tickLine={false}
                               width={window.innerWidth < 768 ? 35 : 60}
                             />
                             <YAxis
                               yAxisId="right"
                               orientation="right"
+                              axisLine
+                              tickLine
                               tick={window.innerWidth < 768 ? {
                                 fontSize: 10,
                                 fill: 'var(--chart-axis)',
@@ -1396,17 +1344,7 @@ export default function Dashboard() {
                                 fill: 'var(--chart-axis)'
                               }}
                               className="dark:fill-blue-400"
-                              tickFormatter={(value) => {
-                                if (window.innerWidth < 768) {
-                                  if (value >= 1000) {
-                                    return (value / 1000).toFixed(value % 1000 === 0 ? 0 : 1) + 'K';
-                                  }
-                                  return value.toString();
-                                }
-                                return value.toLocaleString();
-                              }}
-                              axisLine={false}
-                              tickLine={false}
+                              tickFormatter={(value) => value.toLocaleString()}
                               width={window.innerWidth < 768 ? 25 : 60}
                               domain={[0, 'dataMax + 5']}
                             />
@@ -1437,7 +1375,7 @@ export default function Dashboard() {
                                 textAlign: 'center'
                               }}
                               iconType={window.innerWidth < 768 ? 'circle' : 'line'}
-                              formatter={(value, entry) => {
+                              formatter={(value) => {
                                 if (window.innerWidth < 768) {
                                   const icons = {
                                     'LINE登録数': '🟢',
@@ -1504,7 +1442,7 @@ export default function Dashboard() {
                     setActiveTab('reels');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded-lg text-sm font-medium transition-all duration-200"
+                  className="bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white px-2 py-1 rounded-lg text-sm font-medium shadow-sm transition-all duration-200"
                 >
                   詳細
                 </button>
@@ -1519,12 +1457,12 @@ export default function Dashboard() {
                     setActiveTab('reels');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
+                  className="bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
                 >
                   詳細 →
                 </button>
               </div>
-              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-6 grid grid-cols-3 gap-2 px-4 lg:px-0">
+              <div className="w-full lg:grid lg:grid-cols-5 lg:gap-4 grid grid-cols-3 gap-2 px-4 lg:px-0">
                 {(() => {
                   // リールデータを結合
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
@@ -1540,12 +1478,13 @@ export default function Dashboard() {
                       return viewsB - viewsA;
                     }).slice(0, topCount);
 
-                    return sortedReels.map((joinedReel, index) => {
-                      const rawData = joinedReel.rawData;
-                      const sheetData = joinedReel.sheetData;
+                  return sortedReels.map((joinedReel, index) => {
+                    const rawData = joinedReel.rawData;
+                    const sheetData = joinedReel.sheetData;
+                    const postedDate = sheetData[0] || `リール ${index + 1}`;
 
-                      return (
-                        <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
+                    return (
+                      <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
                           <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
                             {rawData[15] ? (
                               <img
@@ -1567,9 +1506,10 @@ export default function Dashboard() {
 
                           {/* モバイル版: 3つの指標 */}
                           <div className="lg:hidden px-2 py-2 space-y-1">
+                            <p className="text-[11px] text-gray-500">{postedDate}</p>
                             <div className="flex items-center text-xs text-gray-900">
                               <span className="mr-1">👁️</span>
-                              <span className="font-medium">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</span>
+                              <span className="font-medium">{parseInt(String(sheetData[10] || '').replace(/,/g, '')).toLocaleString()}</span>
                             </div>
                             <div className="flex items-center text-xs text-gray-900">
                               <span className="mr-1">❤️</span>
@@ -1581,12 +1521,12 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <p className="text-gray-900 dark:text-gray-200 text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{sheetData[4] || `リール ${index + 1}`}</p>
+                          <p className="text-gray-900 dark:text-gray-200 text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{postedDate}</p>
 
                           {/* 再生数（大きく表示） - PC版のみ */}
                           <div className="mb-3 text-center hidden lg:block">
                             <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(sheetData[2] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(sheetData[10] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
                           {/* 4アイコン横一列表示 - PC版のみ */}
@@ -1652,7 +1592,7 @@ export default function Dashboard() {
                     setActiveTab('stories');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-2 py-1 rounded-lg text-sm font-medium transition-all duration-200"
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-2 py-1 rounded-lg text-sm font-medium shadow-sm transition-all duration-200"
                 >
                   詳細
                 </button>
@@ -1667,7 +1607,7 @@ export default function Dashboard() {
                     setActiveTab('stories');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-sm"
                 >
                   詳細 →
                 </button>
@@ -1764,7 +1704,6 @@ export default function Dashboard() {
             <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">リール パフォーマンス分析</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">日別リール再生数推移・フォロワー増加数</p>
               </div>
 
               {(() => {
@@ -1790,27 +1729,40 @@ export default function Dashboard() {
 
                 // フォロワー増加数を計算
                 const followerGrowthData = {};
-                dailyChartData.forEach((row, index) => {
+                dailyChartData.forEach((row) => {
                   const dateStr = String(row[0] || '').trim();
                   const date = parseDate(dateStr);
                   if (date) {
                     const dateKey = date.toISOString().split('T')[0];
-                    const current = parseInt(String(row[1] || '').replace(/,/g, '')) || 0;
-                    const previous = index > 0 ? parseInt(String(dailyChartData[index - 1][1] || '').replace(/,/g, '')) || 0 : current;
-                    const followerGrowth = index > 0 ? Math.max(0, current - previous) : 0;
+                    const followerGrowth = parseInt(String(row[2] || '').replace(/,/g, '')) || 0;
 
                     followerGrowthData[dateKey] = followerGrowth;
                   }
                 });
 
                 // 選択期間内の日付範囲でdailyReelDataを初期化
+                const normalizeStart = (input: Date) => {
+                  const d = new Date(input);
+                  d.setHours(0, 0, 0, 0);
+                  return d;
+                };
+                const normalizeEnd = (input: Date) => {
+                  const d = new Date(input);
+                  d.setHours(23, 59, 59, 999);
+                  return d;
+                };
+
+                let rangeStart = normalizeStart(dateRange.start);
+                let rangeEnd = normalizeEnd(dateRange.end);
+
+                if (rangeStart > rangeEnd) {
+                  const tmp = rangeStart;
+                  rangeStart = rangeEnd;
+                  rangeEnd = tmp;
+                }
+
                 const dailyReelData = {};
-
-                // 期間範囲内の全日付を作成
-                const startDate = new Date(dateRange.start);
-                const endDate = new Date(dateRange.end);
-
-                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
                   const dateKey = d.toISOString().split('T')[0];
                   dailyReelData[dateKey] = {
                     date: d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' }),
@@ -1831,10 +1783,14 @@ export default function Dashboard() {
                     // 期間内の日付のみ処理
                     if (dailyReelData[dateKey]) {
                       dailyReelData[dateKey].投稿数 += 1;
-                      dailyReelData[dateKey].総再生数 += parseInt(String(item.rawData[6] || '').replace(/,/g, '')) || 0;
-                      dailyReelData[dateKey].総いいね数 += parseInt(String(item.rawData[8] || '').replace(/,/g, '')) || 0;
+                      const views = parseInt(String(item.rawData[6] || '').replace(/,/g, '')) || 0;
+                      dailyReelData[dateKey].総再生数 += views;
+                      const likes = parseInt(String(item.rawData[9] || '').replace(/,/g, '')) || 0;
+                      dailyReelData[dateKey].総いいね数 += likes;
 
-                      const engagementRate = parseFloat(String(item.sheetData[5] || '').replace('%', '')) || 0;
+                      const interactions = parseInt(String(item.rawData[8] || '').replace(/,/g, '')) || 0;
+                      const reachValue = parseInt(String(item.rawData[7] || '').replace(/,/g, '')) || 0;
+                      const engagementRate = reachValue > 0 ? (interactions / reachValue) * 100 : 0;
                       dailyReelData[dateKey].平均エンゲージメント率 += engagementRate;
                     }
                   }
@@ -1853,7 +1809,7 @@ export default function Dashboard() {
                   .map(key => dailyReelData[key]);
 
                 return chartData.length > 0 ? (
-                  <div className="h-64 lg:h-64 md:h-56 sm:h-48 lg:px-0 px-0">
+                  <div className="h-72 lg:h-80 md:h-64 sm:h-60 lg:px-0 px-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={chartData} margin={{ top: 10, right: window.innerWidth < 768 ? 0 : 10, left: window.innerWidth < 768 ? 0 : 10, bottom: window.innerWidth < 768 ? 2 : 10 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" className="dark:stroke-gray-600" />
@@ -1982,7 +1938,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-              <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-4 lg:gap-6">
+              <div className="w-full grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-3 lg:gap-4">
                 {(() => {
                   const joinedData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
                   const filteredJoinedData = filterJoinedReelData(joinedData, dateRange);
@@ -2039,15 +1995,9 @@ export default function Dashboard() {
                     sortedData.map((item, index) => {
                       const rawData = item.rawData;
                       const sheetData = item.sheetData;
+                      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
                       // Helper functions for data formatting
-                      const formatDuration = (seconds: number): string => {
-                        if (!seconds || isNaN(seconds)) return '';
-                        const mins = Math.floor(seconds / 60);
-                        const secs = seconds % 60;
-                        return `${mins}:${secs.toString().padStart(2, '0')}`;
-                      };
-
                       const formatTotalWatchTime = (views: number, duration: number): string => {
                         if (!views || !duration || isNaN(views) || isNaN(duration)) return '';
                         const totalSeconds = views * duration;
@@ -2088,19 +2038,23 @@ export default function Dashboard() {
                       const comments = safeParseInt(sheetData[14]); // O列（インデックス14）コメント数
                       const saves = safeParseInt(sheetData[16]); // Q列（インデックス16）保存数
                       const follows = safeParseInt(sheetData[18]); // S列（インデックス18）フォロー数
-                      const views = safeParseInt(sheetData[2]); // C列（インデックス2）再生数
-                      const duration = 0; // 尺はReelsシートにないため0
-                      const viewRate = safeParseFloat(sheetData[8]); // I列（インデックス8）平均視聴維持率
-                      const postedAt = sheetData[1]; // B列（インデックス1）投稿日
+                      const views = safeParseInt(sheetData[10]); // K列（インデックス10）閲覧数
+                      const duration = safeParseInt(sheetData[6]); // G列（インデックス6）リール長さ(秒)
+                      const viewRate = safeParseFloat(sheetData[9]); // J列（インデックス9）平均視聴維持率
+                      const postedAt = sheetData[0]; // A列（インデックス0）投稿日
 
                       const formattedDate = formatDate(postedAt);
-                      const formattedDuration = formatDuration(duration);
                       const totalWatchTime = formatTotalWatchTime(views, duration);
 
                       return (
-                        <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-center space-x-4 p-3' : 'p-4'}`}>
+                        <div
+                          key={index}
+                          className={`rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 border border-gray-200/70 dark:border-white/10 ${
+                            isMobile ? 'flex items-center space-x-4 p-3 bg-slate-900 text-white border-transparent' : 'p-4 bg-white dark:bg-slate-800'
+                          }`}
+                        >
                           {/* サムネイル */}
-                          <div className={`bg-gray-600 rounded-xl overflow-hidden ${window.innerWidth < 768 ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
+                          <div className={`bg-gray-600 rounded-xl overflow-hidden ${isMobile ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                             {rawData[15] ? (
                               <img
                                 src={convertToGoogleUserContent(rawData[15])}
@@ -2120,9 +2074,9 @@ export default function Dashboard() {
                           </div>
 
                           {/* コンテンツエリア（モバイル時は右側、PC時は通常位置） */}
-                          <div className={`${window.innerWidth < 768 ? 'flex-1 min-w-0' : 'mb-3'}`}>
+                            <div className={`${isMobile ? 'flex-1 min-w-0 text-white' : 'mb-3'}`}>
                             <h4
-                              className={`text-gray-900 dark:text-gray-200 font-semibold leading-tight mb-1 ${window.innerWidth < 768 ? 'text-sm mb-2' : 'text-sm'}`}
+                              className={`${isMobile ? 'text-white' : 'text-gray-900 dark:text-gray-200'} font-semibold leading-tight mb-1 ${isMobile ? 'text-sm mb-2' : 'text-sm'}`}
                               title={title}
                               style={{
                                 display: '-webkit-box',
@@ -2134,12 +2088,12 @@ export default function Dashboard() {
                               {title}
                             </h4>
                             {formattedDate && (
-                              <p className={`text-gray-500 dark:text-gray-400 mb-2 ${window.innerWidth < 768 ? 'text-sm' : 'text-xs'}`}>
+                              <p className={`${isMobile ? 'text-white text-opacity-80' : 'text-gray-500 dark:text-gray-400'} mb-2 ${isMobile ? 'text-sm' : 'text-xs'}`}>
                                 投稿日: {formattedDate}
                               </p>
                             )}
-                            {window.innerWidth < 768 && (
-                              <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                            {isMobile && (
+                              <div className="flex items-center space-x-3 text-xs text-white text-opacity-80">
                                 <span>👁️ {views}</span>
                                 <span>❤️ {likes}</span>
                                 <span>💬 {comments}</span>
@@ -2148,7 +2102,7 @@ export default function Dashboard() {
                           </div>
 
                           {/* PC版のみの詳細表示 */}
-                          {window.innerWidth >= 768 && (
+                          {!isMobile && (
                             <>
                               {/* 再生数（太字表示） */}
                               <div className="mb-3 text-center">
@@ -2231,7 +2185,6 @@ export default function Dashboard() {
             <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">ストーリー パフォーマンス分析</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">日別投稿数・閲覧率の統合表示（左軸：閲覧率0-40%、右軸：投稿数0-4）</p>
               </div>
 
                   {(() => {
@@ -2360,6 +2313,8 @@ export default function Dashboard() {
                             <YAxis
                               yAxisId="left"
                               domain={viewRateDomain}
+                              axisLine
+                              tickLine
                               tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#F59E0B' }}
                               className="dark:fill-amber-400"
                               tickFormatter={(value) => `${value}%`}
@@ -2369,6 +2324,8 @@ export default function Dashboard() {
                               yAxisId="right"
                               orientation="right"
                               domain={postCountDomain}
+                              axisLine
+                              tickLine
                               tick={{ fontSize: window.innerWidth < 768 ? 10 : 14, fill: '#8B5CF6' }}
                               className="dark:fill-purple-400"
                               tickFormatter={(value) => value.toString()}
@@ -2516,8 +2473,8 @@ export default function Dashboard() {
                         result = viewRateB - viewRateA;
                         break;
                       case 'reactions':
-                        const reactionsA = parseInt(String(a[4] || '').replace(/,/g, '')) || 0; // storiesシート: E列（インデックス4）が反応数
-                        const reactionsB = parseInt(String(b[4] || '').replace(/,/g, '')) || 0;
+                        const reactionsA = parseInt(String(a[6] || '').replace(/,/g, '')) || 0; // storiesシート: G列（インデックス6）がストーリー画面（インタラクション数）
+                        const reactionsB = parseInt(String(b[6] || '').replace(/,/g, '')) || 0;
                         result = reactionsB - reactionsA;
                         break;
                       default:
@@ -2577,13 +2534,13 @@ export default function Dashboard() {
                                 <span className="mr-1">👁️</span>
                                 <span>{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</span>
                               </div>
-                              <div className="flex items-center">
-                                <span className="mr-1">📊</span>
-                                <span>{story[5] || '0%'}</span>
-                              </div>
-                              <div className="flex items-center">
-                                <span className="mr-1">📱</span>
-                                <span>{story[4] || 0}</span>
+                             <div className="flex items-center">
+                               <span className="mr-1">📊</span>
+                               <span>{story[5] || '0%'}</span>
+                             </div>
+                             <div className="flex items-center">
+                               <span className="mr-1">📱</span>
+                                <span>{parseInt(String(story[6] || '').replace(/,/g, '')) || 0}</span>
                               </div>
                             </div>
                           </div>
@@ -2604,6 +2561,7 @@ export default function Dashboard() {
                             {/* KPIピル */}
                             <div className="flex flex-wrap gap-1">
                               <StatPill icon="💬" value={story[4] || 0} color="green" />
+                              <StatPill icon="📱" value={parseInt(String(story[6] || '').replace(/,/g, '')) || 0} color="blue" />
                               <StatPill icon="📈" value={story[5] || '0%'} color="purple" />
                             </div>
                           </div>
@@ -2638,7 +2596,12 @@ export default function Dashboard() {
                       {(() => {
                         const { headers } = getFilteredDailyData(data.dailyRaw, dateRange.preset);
                         return headers.map((header, index) => (
-                          <th key={index} className="text-left text-gray-900 dark:text-gray-200 text-xs p-2 min-w-[120px]">
+                          <th
+                            key={index}
+                            className={`text-left text-gray-900 dark:text-gray-200 text-xs p-2 min-w-[120px] whitespace-nowrap ${
+                              index === 0 ? 'sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-sm border-r border-gray-200/60 dark:border-white/10' : ''
+                            }`}
+                          >
                             {header || '---'}
                           </th>
                         ));
@@ -2668,7 +2631,12 @@ export default function Dashboard() {
                       return dailyData.map((row, index) => (
                         <tr key={index} className="border-b border-gray-200/50 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5">
                           {row.map((cell, cellIndex) => (
-                            <td key={cellIndex} className="text-gray-900 dark:text-gray-200 text-xs p-2">
+                            <td
+                              key={cellIndex}
+                              className={`text-gray-900 dark:text-gray-200 text-xs p-2 whitespace-nowrap ${
+                                cellIndex === 0 ? 'sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-sm border-r border-gray-200/60 dark:border-white/10 font-medium' : ''
+                              }`}
+                            >
                               {cell || '---'}
                             </td>
                           ))}

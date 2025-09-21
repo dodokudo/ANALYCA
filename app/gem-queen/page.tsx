@@ -429,30 +429,22 @@ export default function GemQueenPage() {
 
         {/* 統計サマリー */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatPill
-            label="フォロワー数"
-            value={stats.currentFollowers?.toLocaleString() || '0'}
-            trend={0}
-            className="bg-white rounded-xl shadow-sm"
-          />
-          <StatPill
-            label="総リーチ"
-            value={stats.totalReach?.toLocaleString() || '0'}
-            trend={0}
-            className="bg-white rounded-xl shadow-sm"
-          />
-          <StatPill
-            label="エンゲージメント率"
-            value={`${stats.avgEngagementRate?.toFixed(2) || '0'}%`}
-            trend={0}
-            className="bg-white rounded-xl shadow-sm"
-          />
-          <StatPill
-            label="総ビュー数"
-            value={stats.totalViews?.toLocaleString() || '0'}
-            trend={0}
-            className="bg-white rounded-xl shadow-sm"
-          />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2">
+            <span className="text-xs font-medium text-gray-500">フォロワー数</span>
+            <StatPill icon="👥" value={stats.currentFollowers || 0} color="purple" />
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2">
+            <span className="text-xs font-medium text-gray-500">総リーチ</span>
+            <StatPill icon="📣" value={stats.totalReach || 0} color="blue" />
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2">
+            <span className="text-xs font-medium text-gray-500">エンゲージメント率</span>
+            <StatPill icon="⚡" value={`${stats.avgEngagementRate?.toFixed(2) || '0'}%`} color="teal" />
+          </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col gap-2">
+            <span className="text-xs font-medium text-gray-500">総ビュー数</span>
+            <StatPill icon="🎥" value={stats.totalViews || 0} color="orange" />
+          </div>
         </div>
 
         {/* パフォーマンスチャート */}

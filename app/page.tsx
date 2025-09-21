@@ -591,7 +591,7 @@ export default function Dashboard() {
 
       let rowsToReturn = sortedRows;
       if (allowFallback && rowsToReturn.length === 0) {
-        const fallbackEnd = new Date(jstToday);
+        const fallbackEnd = new Date();
         const fallbackStart = new Date(fallbackEnd);
         fallbackStart.setDate(fallbackStart.getDate() - 6);
 

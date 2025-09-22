@@ -75,6 +75,48 @@ const formatDateForInput = (date?: Date | null): string => {
   return local.toISOString().split('T')[0];
 };
 
+const parseDurationValueToSeconds = (value: unknown): number => {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value));
+  }
+
+  const str = String(value).trim();
+  if (!str) {
+    return 0;
+  }
+
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(str)) {
+    const [hours, minutes, seconds] = str.split(':').map(Number);
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  const numeric = Number(str.replace(/,/g, ''));
+  if (Number.isFinite(numeric)) {
+    return Math.max(0, Math.round(numeric));
+  }
+
+  return 0;
+};
+
+const formatSecondsToHms = (totalSeconds: number): string => {
+  if (!totalSeconds || !Number.isFinite(totalSeconds)) {
+    return '';
+  }
+
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainSeconds = seconds % 60;
+
+  return `${hours}:${minutes.toString().padStart(2, '0')}:${remainSeconds
+    .toString()
+    .padStart(2, '0')}`;
+};
+
 // リールデータ結合関数
 const joinReelData = (reelRawDataRaw: string[][], reelSheetRaw: string[][]) => {
   console.log(`=== リールデータ結合開始 ===`);
@@ -861,7 +903,7 @@ export default function Dashboard() {
               </svg>
             </div>
             <h1 className="text-lg font-bold text-gray-900">
-              ANALYCA
+              GEM QUEEN💎
             </h1>
           </div>
 
@@ -909,7 +951,7 @@ export default function Dashboard() {
               </svg>
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-200">
-              ANALYCA
+              GEM QUEEN💎
             </h1>
           </div>
 
@@ -1030,13 +1072,24 @@ export default function Dashboard() {
               <div className="bg-white rounded-xl shadow-md border border-gray-100 p-5 mx-0 mb-4">
                 <div className="flex items-center">
                   {/* プロフィール画像 */}
-                  <div className="w-[60px] h-[60px] rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center mr-4 flex-shrink-0">
-                    <span className="text-white text-xl font-bold">💎</span>
+                  <div className="w-[60px] h-[60px] rounded-full overflow-hidden bg-gray-100 flex items-center justify-center mr-4 flex-shrink-0">
+                    <img
+                      src="/yoko-icon.jpg"
+                      alt="YOKO icon"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.classList.add('hidden');
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden w-full h-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center text-white text-xl font-bold">
+                      Y
+                    </div>
                   </div>
 
                   {/* アカウント情報 */}
                   <div className="flex-1">
-                    <h2 className="text-[16px] font-bold text-gray-900 mb-1">GEM QUEEN💎</h2>
+                    <h2 className="text-[16px] font-bold text-gray-900 mb-1">YOKO</h2>
                     <p className="text-[12px] text-gray-500 mb-1">現在のフォロワー数</p>
                     <div className="flex items-center">
                       <span className="text-[24px] font-bold text-gray-900 mr-2">{summary.currentFollowers.toLocaleString()}</span>
@@ -1136,12 +1189,23 @@ export default function Dashboard() {
                   <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5 h-[200px] flex flex-col justify-center">
                     <div className="flex items-center mb-4">
                       {/* プロフィール画像 */}
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center mr-4 flex-shrink-0">
-                        <span className="text-white text-2xl font-bold">💎</span>
+                      <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center mr-4 flex-shrink-0">
+                        <img
+                          src="/yoko-icon.jpg"
+                          alt="YOKO icon"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.classList.add('hidden');
+                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                        <div className="hidden w-full h-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center text-white text-2xl font-bold">
+                          Y
+                        </div>
                       </div>
                       {/* アカウント情報 */}
                       <div className="flex-1">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200 mb-1">GEM QUEEN💎</h2>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200 mb-1">YOKO</h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400">現在のフォロワー数</p>
                       </div>
                     </div>
@@ -2032,16 +2096,6 @@ export default function Dashboard() {
                       const sheetData = item.sheetData;
                       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-                      // Helper functions for data formatting
-                      const formatTotalWatchTime = (views: number, duration: number): string => {
-                        if (!views || !duration || isNaN(views) || isNaN(duration)) return '';
-                        const totalSeconds = views * duration;
-                        const hours = Math.floor(totalSeconds / 3600);
-                        const minutes = Math.floor((totalSeconds % 3600) / 60);
-                        const seconds = totalSeconds % 60;
-                        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                      };
-
                       const formatDate = (dateStr: string): string => {
                         if (!dateStr) return '';
                         try {
@@ -2079,7 +2133,11 @@ export default function Dashboard() {
                       const postedAt = sheetData[0]; // A列（インデックス0）投稿日
 
                       const formattedDate = formatDate(postedAt);
-                      const totalWatchTime = formatTotalWatchTime(views, duration);
+                      const totalWatchSecondsFromSheet = parseDurationValueToSeconds(sheetData[7]);
+                      const totalWatchSecondsFromRaw = parseDurationValueToSeconds(rawData[13]);
+                      const totalWatchSeconds =
+                        totalWatchSecondsFromSheet || totalWatchSecondsFromRaw || (views && duration ? views * duration : 0);
+                      const totalWatchTime = totalWatchSeconds ? formatSecondsToHms(totalWatchSeconds) : '';
 
                       return (
                         <div
@@ -2134,73 +2192,63 @@ export default function Dashboard() {
                                 <span>💬 {comments.toLocaleString()}</span>
                               </div>
                             )}
+                            {!isMobile && (
+                              <>
+                                <div className="mb-3 text-center">
+                                  <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
+                                  <p className="text-lg font-bold text-gray-900 dark:text-gray-200">{views.toLocaleString()}</p>
+                                </div>
+                                <div className="grid grid-cols-4 gap-6 mb-3">
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-5 w-5 text-red-500">❤️</div>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`いいね ${likes}`}>
+                                      {likes > 0 ? likes.toLocaleString() : ''}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-5 w-5 text-blue-500">💬</div>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`コメント ${comments}`}>
+                                      {comments > 0 ? comments.toLocaleString() : ''}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-5 w-5 text-amber-500">💾</div>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`保存 ${saves}`}>
+                                      {saves > 0 ? saves.toLocaleString() : ''}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col items-center">
+                                    <div className="h-5 w-5 text-purple-500">👤</div>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`フォロー ${follows}`}>
+                                      {follows > 0 ? follows.toLocaleString() : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {/* 概要（PC版のみ） */}
+                            {window.innerWidth >= 768 && (views > 0 || totalWatchTime || viewRate > 0) && (
+                              <div className="mt-2">
+                                <h5 className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-2">概要</h5>
+                                <div className="space-y-1 text-xs">
+                                  {totalWatchTime && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500 dark:text-gray-400">合計再生時間</span>
+                                      <span className="text-gray-900 dark:text-gray-200 font-bold">{totalWatchTime}</span>
+                                    </div>
+                                  )}
+                                  {viewRate > 0 && (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500 dark:text-gray-400">視聴率</span>
+                                      <span className="text-gray-900 dark:text-gray-200 font-bold">{viewRate.toFixed(1)}%</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          {/* PC版のみの詳細表示 */}
-                          {!isMobile && (
-                            <>
-                              {/* 再生数（太字表示） */}
-                              <div className="mb-3 text-center">
-                                <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
-                                <p className="text-lg font-bold text-gray-900 dark:text-gray-200">{views.toLocaleString()}</p>
-                              </div>
-
-                              {/* 4アイコン横一列表示 */}
-                              <div className="grid grid-cols-4 gap-6 mb-3">
-                                <div className="flex flex-col items-center">
-                                  <div className="h-5 w-5 text-red-500">❤️</div>
-                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`いいね ${likes}`}>
-                                    {likes > 0 ? likes.toLocaleString() : ''}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col items-center">
-                                  <div className="h-5 w-5 text-blue-500">💬</div>
-                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`コメント ${comments}`}>
-                                    {comments > 0 ? comments.toLocaleString() : ''}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col items-center">
-                                  <div className="h-5 w-5 text-amber-500">💾</div>
-                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`保存 ${saves}`}>
-                                    {saves > 0 ? saves.toLocaleString() : ''}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col items-center">
-                                  <div className="h-5 w-5 text-purple-500">👤</div>
-                                  <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`フォロー ${follows}`}>
-                                    {follows > 0 ? follows.toLocaleString() : ''}
-                                  </span>
-                                </div>
-                              </div>
-                            </>
-                          )}
-
-                          {/* 概要（PC版のみ） */}
-                          {window.innerWidth >= 768 && (views > 0 || totalWatchTime || viewRate > 0) && (
-                            <div>
-                              <h5 className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-2">概要</h5>
-                              <div className="space-y-1 text-xs">
-                                {views > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500 dark:text-gray-400">閲覧数</span>
-                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{views.toLocaleString()}</span>
-                                  </div>
-                                )}
-                                {totalWatchTime && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500 dark:text-gray-400">合計再生時間</span>
-                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{totalWatchTime}</span>
-                                  </div>
-                                )}
-                                {viewRate > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-500 dark:text-gray-400">視聴率</span>
-                                    <span className="text-gray-900 dark:text-gray-200 font-bold">{viewRate.toFixed(1)}%</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       );
                     })

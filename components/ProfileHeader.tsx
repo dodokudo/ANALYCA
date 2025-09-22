@@ -64,34 +64,36 @@ export default function ProfileHeader({ userId }: ProfileHeaderProps) {
     return null;
   }
 
+  const displayName = 'GEM QUEEN💎';
+  const displayUsername = 'YOKO';
+  const profileImageUrl = '/yoko-icon.jpg';
+
   return (
     <div className="bg-white dark:bg-slate-800 border-b border-gray-200/70 dark:border-white/10 p-4 sticky top-0 z-10">
       <div className="flex items-center space-x-3">
         {/* プロフィール画像 */}
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-          {profile.profile_picture_url ? (
-            <img
-              src={profile.profile_picture_url}
-              alt={profile.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-          ) : null}
+          <img
+            src={profileImageUrl}
+            alt={displayName}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
           <div className="w-full h-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center text-white font-bold text-lg hidden">
-            {profile.name?.charAt(0)?.toUpperCase() || profile.username?.charAt(0)?.toUpperCase() || '?'}
+            {displayName.charAt(0)}
           </div>
         </div>
 
         {/* アカウント情報 */}
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-gray-900 dark:text-gray-200 truncate">
-            {profile.name || profile.username}
+            {displayName}
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-            @{profile.username} • {profile.followers_count.toLocaleString()}フォロワー
+            @{displayUsername} • {profile.followers_count.toLocaleString()}フォロワー
           </p>
         </div>
 

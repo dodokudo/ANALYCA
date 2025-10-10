@@ -52,7 +52,7 @@ export class ThreadsAPI {
    */
   static async exchangeForLongTermToken(shortToken: string): Promise<string> {
     const response = await fetch(
-      `https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=${process.env.FACEBOOK_APP_SECRET}&access_token=${shortToken}`
+      `https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=${process.env.THREADS_APP_SECRET}&access_token=${shortToken}`
     );
 
     if (!response.ok) {

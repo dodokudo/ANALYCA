@@ -52,7 +52,7 @@ export default function LoginPage() {
         setIsLoading(false);
       }
     }, {
-      scope: 'instagram_basic,pages_show_list,instagram_manage_insights'
+      scope: 'instagram_basic,pages_show_list,instagram_manage_insights,threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies'
     });
   };
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">ANALYCA</h1>
-          <p className="text-gray-600 mt-2">Instagramデータを自動分析</p>
+          <p className="text-gray-600 mt-2">Instagram & Threadsデータを自動分析</p>
         </div>
 
         {/* ログインボタン */}
@@ -87,7 +87,7 @@ export default function LoginPage() {
         </button>
 
         <p className="text-xs text-gray-500 mt-4 text-center">
-          ログインすると自動でInstagramデータを取得し、<br />
+          ログインすると自動でInstagram & Threadsデータを取得し、<br />
           ダッシュボードを作成します
         </p>
       </div>

@@ -16,6 +16,10 @@ export interface User {
   access_token: string;
   token_expires_at: Date;
   drive_folder_id?: string;
+  threads_user_id?: string;
+  threads_username?: string;
+  threads_access_token?: string;
+  threads_token_expires_at?: Date;
 }
 
 export interface InstagramReel {
@@ -87,6 +91,22 @@ export interface LineDaily {
   api_multicast: number;
   api_narrowcast: number;
   api_reply: number;
+}
+
+export interface ThreadsPost {
+  id: string;
+  user_id: string;
+  threads_id: string;
+  text: string;
+  timestamp: Date;
+  permalink: string;
+  media_type: string;
+  is_quote_post: boolean;
+  views: number;
+  likes: number;
+  replies: number;
+  reposts: number;
+  quotes: number;
 }
 
 // ユーザー作成・更新
@@ -280,19 +300,56 @@ export async function getUserLineData(userId: string, limit: number = 30): Promi
   return rows;
 }
 
+// Threads投稿データ保存
+export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<void> {
+  if (posts.length === 0) return;
+
+  const table = dataset.table('threads_posts');
+  await table.insert(posts.map(post => ({
+    ...post,
+    timestamp: post.timestamp.toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  })));
+}
+
+// ユーザーのThreads投稿データ取得
+export async function getUserThreadsPosts(userId: string, limit: number = 50): Promise<ThreadsPost[]> {
+  const query = `
+    SELECT *
+    FROM \`mark-454114.analyca.threads_posts\`
+    WHERE user_id = @user_id
+    ORDER BY timestamp DESC
+    LIMIT @limit
+  `;
+
+  const options = {
+    query,
+    params: { user_id: userId, limit },
+  };
+
+  const [rows] = await bigquery.query(options);
+  return rows.map(row => ({
+    ...row,
+    timestamp: new Date(row.timestamp),
+  }));
+}
+
 // 統合ダッシュボードデータ取得
 export async function getUserDashboardData(userId: string): Promise<{
   reels: InstagramReel[];
   stories: InstagramStory[];
   insights: InstagramInsights[];
   lineData: LineDaily[];
+  threadsPosts: ThreadsPost[];
 }> {
-  const [reels, stories, insights, lineData] = await Promise.all([
+  const [reels, stories, insights, lineData, threadsPosts] = await Promise.all([
     getUserReels(userId, 50),
     getUserStories(userId, 50),
     getUserInsights(userId, 30),
-    getUserLineData(userId, 30)
+    getUserLineData(userId, 30),
+    getUserThreadsPosts(userId, 50)
   ]);
 
-  return { reels, stories, insights, lineData };
+  return { reels, stories, insights, lineData, threadsPosts };
 }

@@ -20,7 +20,7 @@ export default function HomePage() {
         </div>
 
         {/* メインコンテンツ */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* 新規ログイン */}
           <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-shadow">
             <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mb-6">
@@ -56,6 +56,25 @@ export default function HomePage() {
               className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors text-center"
             >
               ダッシュボードを開く
+            </Link>
+          </div>
+
+          {/* Threads ダッシュボード */}
+          <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-shadow">
+            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
+              <svg className="w-8 h-8 text-gray-900" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-.542-1.94-1.5-3.42-2.849-4.4-1.468-1.066-3.37-1.62-5.652-1.639-2.853.02-4.96.908-6.26 2.639C4.743 6.467 4.018 8.818 4 11.982v.014c.018 3.163.743 5.511 2.157 7.222 1.3 1.575 3.405 2.394 6.257 2.438 1.852.018 3.45-.245 4.755-.752 1.434-.555 2.625-1.44 3.54-2.632.873-1.134 1.504-2.56 1.876-4.241l2.04.568c-.452 2.042-1.24 3.805-2.342 5.236-1.147 1.492-2.632 2.653-4.416 3.451-1.622.725-3.497 1.114-5.575 1.15zM12 9.75c-1.243 0-2.25 1.007-2.25 2.25s1.007 2.25 2.25 2.25 2.25-1.007 2.25-2.25-1.007-2.25-2.25-2.25zm6-3c-1.243 0-2.25 1.007-2.25 2.25s1.007 2.25 2.25 2.25 2.25-1.007 2.25-2.25-1.007-2.25-2.25-2.25z"/>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Threads インサイト</h2>
+            <p className="text-gray-600 mb-6">
+              Threads投稿のパフォーマンスを詳細に分析
+            </p>
+            <Link
+              href="/threads"
+              className="block w-full bg-gray-900 hover:bg-black text-white font-semibold py-3 px-6 rounded-xl transition-colors text-center"
+            >
+              インサイトを見る
             </Link>
           </div>
         </div>

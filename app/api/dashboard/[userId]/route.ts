@@ -9,7 +9,7 @@ export async function GET(
     const { userId } = await params;
 
     // ユーザーの全データを取得
-    const { reels, stories, insights, lineData } = await getUserDashboardData(userId);
+    const { reels, stories, insights, lineData, threadsPosts } = await getUserDashboardData(userId);
 
     // データを統合ダッシュボード形式に変換
     const dashboardData = {
@@ -62,11 +62,32 @@ export async function GET(
         latest: lineData[0] || null,
         data: lineData
       },
+      threads: {
+        total: threadsPosts.length,
+        totalViews: threadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
+        totalLikes: threadsPosts.reduce((sum, post) => sum + (post.likes || 0), 0),
+        totalReplies: threadsPosts.reduce((sum, post) => sum + (post.replies || 0), 0),
+        data: threadsPosts.map(post => ({
+          id: post.id,
+          threads_id: post.threads_id,
+          text: post.text,
+          timestamp: post.timestamp,
+          permalink: post.permalink,
+          media_type: post.media_type,
+          is_quote_post: post.is_quote_post,
+          views: post.views,
+          likes: post.likes,
+          replies: post.replies,
+          reposts: post.reposts,
+          quotes: post.quotes,
+        }))
+      },
       summary: {
         totalReelsViews: reels.reduce((sum, reel) => sum + (reel.views || 0), 0),
         totalStoriesViews: stories.reduce((sum, story) => sum + (story.views || 0), 0),
         currentFollowers: insights[0]?.followers_count || 0,
         lineFollowers: lineData[0]?.followers || 0,
+        totalThreadsViews: threadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
       }
     };
 

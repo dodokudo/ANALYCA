@@ -46,7 +46,7 @@ export default function LoginPage() {
 
           if (result.success) {
             alert(`Instagramダッシュボードが作成されました！\n\nユーザー: ${result.accountInfo.username}\nフォロワー数: ${result.accountInfo.followerCount}\n投稿数: ${result.accountInfo.mediaCount}`);
-            window.location.href = '/';
+            window.location.href = `/analyca/${result.userId}?tab=instagram`;
           } else {
             alert(`エラー: ${result.error}`);
             setIsInstagramLoading(false);
@@ -96,7 +96,7 @@ export default function LoginPage() {
 
           if (result.success) {
             alert(`Threadsダッシュボードが作成されました！\n\nユーザー: ${result.accountInfo.threadsUsername || result.accountInfo.username}\n投稿数: ${result.accountInfo.totalThreadsPosts || 0}`);
-            window.location.href = '/';
+            window.location.href = `/analyca/${result.userId}?tab=threads`;
           } else {
             alert(`エラー: ${result.error}`);
             setIsThreadsLoading(false);

@@ -18,6 +18,18 @@ export default function LoginPage() {
   const handleInstagramLogin = () => {
     setIsInstagramLoading(true);
 
+    // Instagram用のApp IDで再初期化
+    if (window.FB) {
+      const instagramAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1418141859432290';
+      // @ts-ignore
+      window.FB.init({
+        appId: instagramAppId,
+        cookie: true,
+        xfbml: true,
+        version: 'v23.0'
+      });
+    }
+
     // Instagram Login
     window.FB.login((response: unknown) => {
       if (response && typeof response === 'object' && 'authResponse' in response) {
@@ -55,6 +67,18 @@ export default function LoginPage() {
 
   const handleThreadsLogin = () => {
     setIsThreadsLoading(true);
+
+    // Threads用のApp IDで再初期化
+    if (window.FB) {
+      const threadsAppId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
+      // @ts-ignore
+      window.FB.init({
+        appId: threadsAppId,
+        cookie: true,
+        xfbml: true,
+        version: 'v23.0'
+      });
+    }
 
     // Threads Login
     window.FB.login((response: unknown) => {
@@ -146,10 +170,23 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Facebook SDK */}
-      <script async defer crossOrigin="anonymous"
-        src={`https://connect.facebook.net/ja_JP/sdk.js#xfbml=1&version=v23.0&appId=${process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1418141859432290'}`}>
-      </script>
+      {/* Facebook SDK - 動的に初期化 */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.fbAsyncInit = function() {
+              // デフォルトはInstagram用のApp IDで初期化
+              FB.init({
+                appId: '${process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1418141859432290'}',
+                cookie: true,
+                xfbml: true,
+                version: 'v23.0'
+              });
+            };
+          `
+        }}
+      />
+      <script async defer crossOrigin="anonymous" src="https://connect.facebook.net/ja_JP/sdk.js" />
     </div>
   );
 }

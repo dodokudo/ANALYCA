@@ -21,7 +21,7 @@ export default function LoginPage() {
     // Instagram用のApp IDで再初期化
     if (window.FB) {
       const instagramAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1418141859432290';
-      // @ts-ignore
+      // @ts-expect-error - FB.init can be called multiple times
       window.FB.init({
         appId: instagramAppId,
         cookie: true,

@@ -71,7 +71,7 @@ export default function LoginPage() {
     // Threads用のApp IDで再初期化
     if (window.FB) {
       const threadsAppId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
-      // @ts-ignore
+      // @ts-expect-error - FB.init can be called multiple times
       window.FB.init({
         appId: threadsAppId,
         cookie: true,

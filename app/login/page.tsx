@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Facebook SDK型定義
 declare global {
@@ -14,6 +14,21 @@ declare global {
 export default function LoginPage() {
   const [isInstagramLoading, setIsInstagramLoading] = useState(false);
   const [isThreadsLoading, setIsThreadsLoading] = useState(false);
+  const [storedUserId, setStoredUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedUserId = window.localStorage.getItem('analycaUserId');
+    if (savedUserId) {
+      setStoredUserId(savedUserId);
+    }
+  }, []);
+
+  const persistUserId = (userId: string) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('analycaUserId', userId);
+    setStoredUserId(userId);
+  };
 
   const handleInstagramLogin = () => {
     setIsInstagramLoading(true);
@@ -40,11 +55,12 @@ export default function LoginPage() {
         fetch('/api/create-dashboard', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken, type: 'instagram' })
+          body: JSON.stringify({ accessToken, type: 'instagram', userId: storedUserId ?? undefined })
         }).then(async (response) => {
           const result = await response.json();
 
           if (result.success) {
+            persistUserId(result.userId);
             alert(`Instagramダッシュボードが作成されました！\n\nユーザー: ${result.accountInfo.username}\nフォロワー数: ${result.accountInfo.followerCount}\n投稿数: ${result.accountInfo.mediaCount}`);
             window.location.href = `/analyca/${result.userId}?tab=instagram`;
           } else {
@@ -90,11 +106,12 @@ export default function LoginPage() {
         fetch('/api/create-dashboard', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken, type: 'threads' })
+          body: JSON.stringify({ accessToken, type: 'threads', userId: storedUserId ?? undefined })
         }).then(async (response) => {
           const result = await response.json();
 
           if (result.success) {
+            persistUserId(result.userId);
             alert(`Threadsダッシュボードが作成されました！\n\nユーザー: ${result.accountInfo.threadsUsername || result.accountInfo.username}\n投稿数: ${result.accountInfo.totalThreadsPosts || 0}`);
             window.location.href = `/analyca/${result.userId}?tab=threads`;
           } else {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-interface DashboardData {
+interface DashboardResponse {
   success: boolean;
   data?: {
     reels: {
@@ -23,40 +23,65 @@ interface DashboardData {
     lineData: unknown;
     summary: unknown;
   };
+  channels?: {
+    instagram: boolean;
+    threads: boolean;
+  };
   error?: string;
 }
 
-export default function UserDashboardPage({ params }: { params: Promise<{ userId: string }> }) {
-  const [userId, setUserId] = useState<string>('');
-  const [data, setData] = useState<DashboardData | null>(null);
+export default function UserDashboardPage({ params }: { params: { userId: string } }) {
+  const userId = params.userId;
+  const [dashboardResponse, setDashboardResponse] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
-  const tab = searchParams?.get('tab') || 'instagram';
+  const tabParam = searchParams?.get('tab') || undefined;
 
   useEffect(() => {
-    params.then((resolvedParams) => {
-      setUserId(resolvedParams.userId);
-      fetchData(resolvedParams.userId);
-    });
-  }, [params]);
+    if (!userId) return;
 
-  const fetchData = async (uid: string) => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/dashboard/${uid}`);
-      const result = await response.json();
-      if (!result.success) {
-        setData({ success: false, error: result.error || 'データの取得に失敗しました' });
-      } else {
-        setData(result);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/dashboard/${userId}`);
+        const result = await response.json();
+        if (!result.success) {
+          setDashboardResponse({ success: false, error: result.error || 'データの取得に失敗しました' });
+        } else {
+          setDashboardResponse(result);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        setDashboardResponse({ success: false, error: 'データの取得に失敗しました' });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      setData({ success: false, error: 'データの取得に失敗しました' });
-    } finally {
-      setLoading(false);
+    };
+
+    fetchData();
+  }, [userId]);
+
+  const hasInstagram = dashboardResponse?.channels?.instagram ?? false;
+  const hasThreads = dashboardResponse?.channels?.threads ?? false;
+  const dashboardData = dashboardResponse?.data;
+
+  const effectiveTab = (() => {
+    if (tabParam === 'threads') {
+      if (hasThreads) return 'threads';
+      if (hasInstagram) return 'instagram';
+      return 'none';
     }
-  };
+
+    if (tabParam === 'instagram' || !tabParam) {
+      if (hasInstagram) return 'instagram';
+      if (hasThreads) return 'threads';
+      return 'none';
+    }
+
+    if (hasInstagram) return 'instagram';
+    if (hasThreads) return 'threads';
+    return 'none';
+  })();
 
   if (loading) {
     return (
@@ -69,13 +94,13 @@ export default function UserDashboardPage({ params }: { params: Promise<{ userId
     );
   }
 
-  if (data?.error) {
+  if (dashboardResponse?.error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 p-8">
         <div className="max-w-2xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-xl p-6">
             <h3 className="text-red-800 font-semibold">エラー</h3>
-            <p className="text-red-600 mt-2">{data.error}</p>
+            <p className="text-red-600 mt-2">{dashboardResponse.error}</p>
           </div>
         </div>
       </div>
@@ -95,34 +120,42 @@ export default function UserDashboardPage({ params }: { params: Promise<{ userId
         </div>
 
         {/* タブナビゲーション */}
-        <div className="flex border-b border-gray-200 mb-8">
-          <Link
-            href={`/analyca/${userId}?tab=instagram`}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              tab === 'instagram'
-                ? 'border-b-2 border-purple-600 text-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Instagram
-          </Link>
-          <Link
-            href={`/analyca/${userId}?tab=threads`}
-            className={`px-6 py-3 text-sm font-medium transition-colors ${
-              tab === 'threads'
-                ? 'border-b-2 border-gray-900 text-gray-900'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Threads
-          </Link>
-        </div>
+        {(hasInstagram || hasThreads) ? (
+          <div className="flex border-b border-gray-200 mb-8">
+            {hasInstagram ? (
+              <Link
+                href={`/analyca/${userId}?tab=instagram`}
+                className={`px-6 py-3 text-sm font-medium transition-colors ${
+                  effectiveTab === 'instagram'
+                    ? 'border-b-2 border-purple-600 text-purple-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Instagram
+              </Link>
+            ) : null}
+            {hasThreads ? (
+              <Link
+                href={`/analyca/${userId}?tab=threads`}
+                className={`px-6 py-3 text-sm font-medium transition-colors ${
+                  effectiveTab === 'threads'
+                    ? 'border-b-2 border-gray-900 text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Threads
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* タブコンテンツ */}
-        {tab === 'instagram' ? (
-          <InstagramTab data={data?.data} />
+        {effectiveTab === 'instagram' ? (
+          <InstagramTab data={dashboardData} />
+        ) : effectiveTab === 'threads' ? (
+          <ThreadsTab data={dashboardData} />
         ) : (
-          <ThreadsTab data={data?.data} />
+          <NoChannelMessage />
         )}
       </div>
     </div>
@@ -287,6 +320,23 @@ function ThreadsTab({ data }: { data?: unknown }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function NoChannelMessage() {
+  return (
+    <div className="bg-white rounded-xl shadow p-8 text-center">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">利用可能なデータがありません</h2>
+      <p className="text-gray-600">
+        Instagram または Threads にログインすると、ここでダッシュボードを確認できます。
+      </p>
+      <Link
+        href="/login"
+        className="inline-block mt-4 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700"
+      >
+        ログインページへ
+      </Link>
     </div>
   );
 }

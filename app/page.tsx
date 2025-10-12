@@ -40,25 +40,6 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* GEM QUEEN ダッシュボード */}
-          <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-shadow">
-            <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mb-6">
-              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 4 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">GEM QUEEN</h2>
-            <p className="text-gray-600 mb-6">
-              Google Sheets連携でInstagramのリール・ストーリーズデータを詳細に分析
-            </p>
-            <Link
-              href="/gem-queen"
-              className="block w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors text-center"
-            >
-              ダッシュボードを開く
-            </Link>
-          </div>
-
           {/* Threads ダッシュボード */}
           <div className="bg-white rounded-2xl shadow-xl p-8 hover:shadow-2xl transition-shadow">
             <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
@@ -71,10 +52,10 @@ export default function HomePage() {
               Threads投稿のパフォーマンスを詳細に分析
             </p>
             <Link
-              href="/threads"
+              href="/login"
               className="block w-full bg-gray-900 hover:bg-black text-white font-semibold py-3 px-6 rounded-xl transition-colors text-center"
             >
-              インサイトを見る
+              ログインして見る
             </Link>
           </div>
         </div>

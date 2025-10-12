@@ -8,6 +8,12 @@ CREATE TABLE `mark-454114.analyca.users` (
   access_token STRING,
   token_expires_at TIMESTAMP,
   drive_folder_id STRING,
+  threads_user_id STRING,
+  threads_username STRING,
+  threads_access_token STRING,
+  threads_token_expires_at TIMESTAMP,
+  has_instagram BOOL DEFAULT FALSE,
+  has_threads BOOL DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
@@ -93,9 +99,30 @@ CREATE TABLE `mark-454114.analyca.line_daily` (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
 
+-- 6. Threads 投稿データテーブル
+CREATE TABLE `mark-454114.analyca.threads_posts` (
+  id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  threads_id STRING NOT NULL,
+  text STRING,
+  timestamp TIMESTAMP,
+  permalink STRING,
+  media_type STRING,
+  is_quote_post BOOL,
+  views INT64,
+  likes INT64,
+  replies INT64,
+  reposts INT64,
+  quotes INT64,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
 -- インデックス作成
 CREATE INDEX idx_users_instagram_user_id ON `mark-454114.analyca.users`(instagram_user_id);
+CREATE INDEX idx_users_threads_user_id ON `mark-454114.analyca.users`(threads_user_id);
 CREATE INDEX idx_reels_user_timestamp ON `mark-454114.analyca.instagram_reels`(user_id, timestamp DESC);
 CREATE INDEX idx_stories_user_timestamp ON `mark-454114.analyca.instagram_stories`(user_id, timestamp DESC);
 CREATE INDEX idx_insights_user_date ON `mark-454114.analyca.instagram_insights`(user_id, date DESC);
 CREATE INDEX idx_line_user_date ON `mark-454114.analyca.line_daily`(user_id, date DESC);
+CREATE INDEX idx_threads_user_timestamp ON `mark-454114.analyca.threads_posts`(user_id, timestamp DESC);

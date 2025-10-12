@@ -6,13 +6,19 @@ import {
   insertInstagramReels,
   insertInstagramStories,
   insertInstagramInsights,
-  insertThreadsPosts
+  insertThreadsPosts,
+  upsertThreadsUser,
+  findUserIdByThreadsId,
+  findUserIdByInstagramId,
+  getUserById
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
   try {
-    const { accessToken, type = 'instagram' } = await request.json();
+    const body = await request.json();
+    const { accessToken, type = 'instagram' } = body;
+    const providedUserId = typeof body.userId === 'string' && body.userId.trim().length > 0 ? body.userId.trim() : undefined;
 
     if (!accessToken) {
       return NextResponse.json({
@@ -28,7 +34,10 @@ export async function POST(request: NextRequest) {
       const driveFolder = process.env.GOOGLE_DRIVE_FOLDER_ID || '1lH92NxycLKE4adG3hlURhIAr6qW1LBeb';
 
       const account = await instagram.getInstagramAccount();
+      const existingUserId = providedUserId || (await findUserIdByInstagramId(account.id));
+
       const userId = await upsertUser({
+        user_id: existingUserId || undefined,
         instagram_user_id: account.id,
         instagram_username: account.username,
         access_token: instagramLongTermToken,
@@ -44,6 +53,8 @@ export async function POST(request: NextRequest) {
         insertInstagramInsights([insights])
       ]);
 
+      const userRecord = await getUserById(userId);
+
       return NextResponse.json({
         success: true,
         userId,
@@ -56,19 +67,35 @@ export async function POST(request: NextRequest) {
           totalReelsViews: reels.reduce((sum, reel) => sum + (reel.views || 0), 0),
           totalStoriesViews: stories.reduce((sum, story) => sum + (story.views || 0), 0),
         },
+        channels: {
+          instagram: !!userRecord?.has_instagram,
+          threads: !!userRecord?.has_threads,
+        },
         message: `Instagramダッシュボードが作成されました！\n\nユーザー: ${account.username}\nフォロワー数: ${account.followers_count.toLocaleString()}\nリール: ${reels.length}件\nストーリーズ: ${stories.length}件`
       });
 
     } else if (type === 'threads') {
       // Threads用の処理
       const threadsLongTermToken = await ThreadsAPI.exchangeForLongTermToken(accessToken);
+      const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // 60日後
       const threads = new ThreadsAPI(threadsLongTermToken);
 
       const account = await threads.getAccountInfo();
-      const userId = uuidv4();
+      const existingUserId = providedUserId || (await findUserIdByThreadsId(account.id));
+
+      // ユーザー情報を保存（新規の場合は作成）
+      const userId = await upsertThreadsUser({
+        user_id: existingUserId || undefined,
+        threads_user_id: account.id,
+        threads_username: account.username,
+        threads_access_token: threadsLongTermToken,
+        threads_token_expires_at: tokenExpiresAt,
+      });
 
       // Threadsデータを取得
       const postsWithInsights = await threads.getPostsWithInsights(100);
+      const accountMetrics = await threads.getAccountMetrics();
+
       const threadsPostsWithInsights = postsWithInsights.map(post => ({
         id: uuidv4(),
         user_id: userId,
@@ -85,7 +112,11 @@ export async function POST(request: NextRequest) {
         quotes: post.insights.quotes || 0,
       }));
 
-      await insertThreadsPosts(threadsPostsWithInsights);
+      if (threadsPostsWithInsights.length > 0) {
+        await insertThreadsPosts(threadsPostsWithInsights);
+      }
+
+      const userRecord = await getUserById(userId);
 
       return NextResponse.json({
         success: true,
@@ -93,8 +124,15 @@ export async function POST(request: NextRequest) {
         accountInfo: {
           username: account.username,
           threadsUsername: account.username,
+          followers: accountMetrics.followers_count,
           totalThreadsPosts: threadsPostsWithInsights.length,
           totalThreadsViews: threadsPostsWithInsights.reduce((sum, post) => sum + post.views, 0),
+          totalThreadsLikes: threadsPostsWithInsights.reduce((sum, post) => sum + post.likes, 0),
+          totalThreadsReplies: threadsPostsWithInsights.reduce((sum, post) => sum + post.replies, 0),
+        },
+        channels: {
+          instagram: !!userRecord?.has_instagram,
+          threads: !!userRecord?.has_threads,
         },
         message: `Threadsダッシュボードが作成されました！\n\nユーザー: ${account.username}\n投稿: ${threadsPostsWithInsights.length}件`
       });

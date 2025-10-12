@@ -11,15 +11,17 @@ const dataset = bigquery.dataset('analyca');
 
 export interface User {
   user_id: string;
-  instagram_user_id: string;
-  instagram_username: string;
-  access_token: string;
-  token_expires_at: Date;
-  drive_folder_id?: string;
-  threads_user_id?: string;
-  threads_username?: string;
-  threads_access_token?: string;
-  threads_token_expires_at?: Date;
+  instagram_user_id?: string | null;
+  instagram_username?: string | null;
+  access_token?: string | null;
+  token_expires_at?: Date | null;
+  drive_folder_id?: string | null;
+  threads_user_id?: string | null;
+  threads_username?: string | null;
+  threads_access_token?: string | null;
+  threads_token_expires_at?: Date | null;
+  has_instagram?: boolean | null;
+  has_threads?: boolean | null;
 }
 
 export interface InstagramReel {
@@ -122,19 +124,43 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
         @instagram_username as instagram_username,
         @access_token as access_token,
         @token_expires_at as token_expires_at,
+        @drive_folder_id as drive_folder_id,
+        TRUE as has_instagram,
         CURRENT_TIMESTAMP() as updated_at
     ) S
     ON T.user_id = S.user_id
     WHEN MATCHED THEN
       UPDATE SET
-        instagram_user_id = S.instagram_user_id,
-        instagram_username = S.instagram_username,
-        access_token = S.access_token,
-        token_expires_at = S.token_expires_at,
+        instagram_user_id = IFNULL(S.instagram_user_id, T.instagram_user_id),
+        instagram_username = IFNULL(S.instagram_username, T.instagram_username),
+        access_token = IFNULL(S.access_token, T.access_token),
+        token_expires_at = IFNULL(S.token_expires_at, T.token_expires_at),
+        drive_folder_id = IFNULL(S.drive_folder_id, T.drive_folder_id),
+        has_instagram = TRUE,
         updated_at = S.updated_at
     WHEN NOT MATCHED THEN
-      INSERT (user_id, instagram_user_id, instagram_username, access_token, token_expires_at, created_at, updated_at)
-      VALUES (S.user_id, S.instagram_user_id, S.instagram_username, S.access_token, S.token_expires_at, CURRENT_TIMESTAMP(), S.updated_at)
+      INSERT (
+        user_id,
+        instagram_user_id,
+        instagram_username,
+        access_token,
+        token_expires_at,
+        drive_folder_id,
+        has_instagram,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        S.user_id,
+        S.instagram_user_id,
+        S.instagram_username,
+        S.access_token,
+        S.token_expires_at,
+        S.drive_folder_id,
+        TRUE,
+        CURRENT_TIMESTAMP(),
+        S.updated_at
+      )
   `;
 
   const options = {
@@ -144,12 +170,115 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
       instagram_user_id: userData.instagram_user_id,
       instagram_username: userData.instagram_username,
       access_token: userData.access_token,
-      token_expires_at: userData.token_expires_at.toISOString(),
+      token_expires_at: userData.token_expires_at ? userData.token_expires_at.toISOString() : null,
+      drive_folder_id: userData.drive_folder_id || null,
     },
   };
 
   await bigquery.query(options);
   return userId;
+}
+
+export async function upsertThreadsUser(userData: {
+  threads_user_id: string;
+  threads_username: string;
+  threads_access_token: string;
+  threads_token_expires_at: Date;
+  user_id?: string;
+}): Promise<string> {
+  const userId = userData.user_id || uuidv4();
+
+  const query = `
+    MERGE \`mark-454114.analyca.users\` T
+    USING (
+      SELECT
+        @user_id as user_id,
+        @threads_user_id as threads_user_id,
+        @threads_username as threads_username,
+        @threads_access_token as threads_access_token,
+        @threads_token_expires_at as threads_token_expires_at,
+        TRUE as has_threads,
+        CURRENT_TIMESTAMP() as updated_at
+    ) S
+    ON T.user_id = S.user_id
+    WHEN MATCHED THEN
+      UPDATE SET
+        threads_user_id = IFNULL(S.threads_user_id, T.threads_user_id),
+        threads_username = IFNULL(S.threads_username, T.threads_username),
+        threads_access_token = IFNULL(S.threads_access_token, T.threads_access_token),
+        threads_token_expires_at = IFNULL(S.threads_token_expires_at, T.threads_token_expires_at),
+        has_threads = TRUE,
+        updated_at = S.updated_at
+    WHEN NOT MATCHED THEN
+      INSERT (
+        user_id,
+        threads_user_id,
+        threads_username,
+        threads_access_token,
+        threads_token_expires_at,
+        has_threads,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        S.user_id,
+        S.threads_user_id,
+        S.threads_username,
+        S.threads_access_token,
+        S.threads_token_expires_at,
+        TRUE,
+        CURRENT_TIMESTAMP(),
+        S.updated_at
+      )
+  `;
+
+  const options = {
+    query,
+    params: {
+      user_id: userId,
+      threads_user_id: userData.threads_user_id,
+      threads_username: userData.threads_username,
+      threads_access_token: userData.threads_access_token,
+      threads_token_expires_at: userData.threads_token_expires_at.toISOString(),
+    },
+  };
+
+  await bigquery.query(options);
+  return userId;
+}
+
+export async function findUserIdByInstagramId(instagramUserId: string): Promise<string | null> {
+  const query = `
+    SELECT user_id
+    FROM \`mark-454114.analyca.users\`
+    WHERE instagram_user_id = @instagram_user_id
+    LIMIT 1
+  `;
+
+  const options = {
+    query,
+    params: { instagram_user_id: instagramUserId },
+  };
+
+  const [rows] = await bigquery.query(options);
+  return rows.length > 0 ? (rows[0].user_id as string) : null;
+}
+
+export async function findUserIdByThreadsId(threadsUserId: string): Promise<string | null> {
+  const query = `
+    SELECT user_id
+    FROM \`mark-454114.analyca.users\`
+    WHERE threads_user_id = @threads_user_id
+    LIMIT 1
+  `;
+
+  const options = {
+    query,
+    params: { threads_user_id: threadsUserId },
+  };
+
+  const [rows] = await bigquery.query(options);
+  return rows.length > 0 ? (rows[0].user_id as string) : null;
 }
 
 // Instagram Reels データ保存
@@ -216,6 +345,39 @@ export async function getUserToken(userId: string): Promise<string | null> {
 
   const [rows] = await bigquery.query(options);
   return rows.length > 0 ? rows[0].access_token : null;
+}
+
+export async function getUserById(userId: string): Promise<User | null> {
+  const query = `
+    SELECT *
+    FROM \`mark-454114.analyca.users\`
+    WHERE user_id = @user_id
+    LIMIT 1
+  `;
+
+  const options = {
+    query,
+    params: { user_id: userId },
+  };
+
+  const [rows] = await bigquery.query(options);
+  if (rows.length === 0) return null;
+
+  const row = rows[0];
+  return {
+    user_id: row.user_id,
+    instagram_user_id: row.instagram_user_id ?? null,
+    instagram_username: row.instagram_username ?? null,
+    access_token: row.access_token ?? null,
+    token_expires_at: row.token_expires_at ? new Date(row.token_expires_at) : null,
+    drive_folder_id: row.drive_folder_id ?? null,
+    threads_user_id: row.threads_user_id ?? null,
+    threads_username: row.threads_username ?? null,
+    threads_access_token: row.threads_access_token ?? null,
+    threads_token_expires_at: row.threads_token_expires_at ? new Date(row.threads_token_expires_at) : null,
+    has_instagram: row.has_instagram ?? false,
+    has_threads: row.has_threads ?? false,
+  };
 }
 
 // ユーザーのリールデータ取得

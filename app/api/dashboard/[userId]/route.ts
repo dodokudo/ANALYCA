@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserDashboardData } from '@/lib/bigquery';
+import { getUserById, getUserDashboardData } from '@/lib/bigquery';
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +9,12 @@ export async function GET(
     const { userId } = await params;
 
     // ユーザーの全データを取得
-    const { reels, stories, insights, lineData, threadsPosts } = await getUserDashboardData(userId);
+    const userRecordPromise = getUserById(userId);
+    const dashboardDataPromise = getUserDashboardData(userId);
+    const [userRecord, { reels, stories, insights, lineData, threadsPosts }] = await Promise.all([
+      userRecordPromise,
+      dashboardDataPromise,
+    ]);
 
     // データを統合ダッシュボード形式に変換
     const dashboardData = {
@@ -93,7 +98,11 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: dashboardData
+      data: dashboardData,
+      channels: {
+        instagram: !!userRecord?.has_instagram,
+        threads: !!userRecord?.has_threads,
+      },
     });
 
   } catch (error) {

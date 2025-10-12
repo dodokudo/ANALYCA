@@ -96,36 +96,51 @@ export class InstagramAPI {
     );
 
     if (!pagesResponse.ok) {
-      throw new Error('Failed to fetch Facebook pages');
+      const errorData = await pagesResponse.text();
+      console.error('[Instagram API] Failed to fetch Facebook pages:', errorData);
+      throw new Error(`Failed to fetch Facebook pages: ${errorData}`);
     }
 
     const pagesData = await pagesResponse.json();
+    console.log('[Instagram API] Found Facebook pages:', pagesData.data?.length || 0);
+
+    if (!pagesData.data || pagesData.data.length === 0) {
+      throw new Error('No Facebook pages found. Please create a Facebook Page and link it to your Instagram Business Account. Visit: https://www.facebook.com/pages/create');
+    }
 
     // 2. Instagramに接続されているページを探す
     for (const page of pagesData.data) {
+      console.log('[Instagram API] Checking page:', page.name || page.id);
       const igResponse = await fetch(
         `https://graph.facebook.com/v23.0/${page.id}?fields=instagram_business_account&access_token=${this.accessToken}`
       );
 
-      if (!igResponse.ok) continue;
+      if (!igResponse.ok) {
+        const errorData = await igResponse.text();
+        console.warn('[Instagram API] Failed to check page for Instagram account:', errorData);
+        continue;
+      }
 
       const igData = await igResponse.json();
 
       if (igData.instagram_business_account) {
+        console.log('[Instagram API] Found Instagram Business Account:', igData.instagram_business_account.id);
         // 3. Instagramアカウント詳細を取得
         const accountResponse = await fetch(
           `https://graph.facebook.com/v23.0/${igData.instagram_business_account.id}?fields=id,username,account_type,media_count,followers_count,follows_count,profile_picture_url,name,biography,website&access_token=${this.accessToken}`
         );
 
         if (!accountResponse.ok) {
-          throw new Error('Failed to fetch Instagram account details');
+          const errorData = await accountResponse.text();
+          console.error('[Instagram API] Failed to fetch Instagram account details:', errorData);
+          throw new Error(`Failed to fetch Instagram account details: ${errorData}`);
         }
 
         return await accountResponse.json();
       }
     }
 
-    throw new Error('No Instagram business account found');
+    throw new Error('No Instagram Business Account found linked to your Facebook Pages. Please:\n1. Convert your Instagram account to a Business or Creator account\n2. Create a Facebook Page\n3. Link your Instagram account to the Facebook Page\nVisit: https://help.instagram.com/502981923235522');
   }
 
   // Instagramメディア一覧取得

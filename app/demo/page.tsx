@@ -12,15 +12,68 @@ import {
   Legend,
   ResponsiveContainer,
   LineChart,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
+
+// ============ アイコンコンポーネント ============
+function AnalycaIcon({ className = 'w-6 h-6' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 22V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M22 7L12 12L2 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M2 17L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M22 17L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function InstagramIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+  );
+}
+
+function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.068V12c.013-3.501.87-6.338 2.495-8.435C5.853 1.483 8.604.287 12.127.264h.014c2.914.017 5.4.835 7.392 2.432 1.99 1.596 3.268 3.855 3.798 6.716l-2.153.485c-.428-2.292-1.407-4.065-2.91-5.274-1.503-1.21-3.437-1.829-5.75-1.843h-.011c-2.886.019-5.09.959-6.55 2.795-1.306 1.642-2.002 3.974-2.012 6.732v.058c.006 2.802.697 5.15 2 6.801 1.457 1.847 3.66 2.797 6.551 2.817 2.368-.018 4.216-.623 5.661-1.851.526-.447.967-.953 1.332-1.494l1.814 1.113c-.498.74-1.1 1.414-1.819 2.022-1.823 1.548-4.161 2.365-6.963 2.432zm4.18-7.789c-.609-1.99-2.208-3.166-4.556-3.385-.166-.015-.335-.023-.507-.023-1.5 0-2.728.5-3.548 1.444-.73.838-1.088 1.989-1.006 3.232.094 1.45.621 2.504 1.52 3.044.77.462 1.782.626 2.787.452 1.182-.205 2.116-.785 2.697-1.68.347-.535.573-1.165.676-1.87.055-.379.079-.768.079-1.154 0-.34-.015-.682-.044-1.016l2.028-.215c.042.478.063.968.063 1.46 0 .504-.033 1.018-.1 1.528-.15 1.017-.467 1.952-.942 2.77-.87 1.497-2.286 2.536-4.093 3.004-1.547.401-3.203.297-4.58-.286-1.57-.666-2.719-1.994-3.053-3.534l2.102-.373c.213.961.892 1.63 1.866 1.837.7.149 1.532.108 2.306-.114 1.136-.326 1.981-.946 2.443-1.793a3.56 3.56 0 0 0 .425-1.272c.01-.053.018-.107.025-.162l-.003-.014c-.42.39-.917.706-1.474.93-.742.298-1.565.451-2.418.451-.368 0-.742-.028-1.117-.085-1.61-.247-2.867-1.02-3.638-2.237-.67-1.058-1.018-2.426-1.007-3.961.012-1.773.541-3.38 1.488-4.52 1.096-1.322 2.751-2.05 4.657-2.05.265 0 .534.013.806.04 2.862.28 4.965 1.729 6.081 4.188.432.95.713 2.013.838 3.162l-2.022.215-.006-.044c-.095-.929-.316-1.76-.658-2.472z"/>
+    </svg>
+  );
+}
+
+function LineIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+    </svg>
+  );
+}
 
 // ============ チャンネル定義 ============
 type Channel = 'instagram' | 'threads' | 'line';
 
-const channelItems: { value: Channel; label: string; icon: string }[] = [
-  { value: 'instagram', label: 'Instagram', icon: '📷' },
-  { value: 'threads', label: 'Threads', icon: '🧵' },
-  { value: 'line', label: 'LINE', icon: '💬' },
+const channelItems: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'instagram', label: 'Instagram', Icon: InstagramIcon },
+  { value: 'threads', label: 'Threads', Icon: ThreadsIcon },
+  { value: 'line', label: 'LINE', Icon: LineIcon },
+];
+
+// ============ 日付プリセット ============
+type DatePreset = 'yesterday' | 'this-week' | 'last-week' | 'this-month' | 'last-month' | '7d' | '30d';
+
+const datePresetOptions: { value: DatePreset; label: string }[] = [
+  { value: '7d', label: '過去7日' },
+  { value: '30d', label: '過去30日' },
+  { value: 'yesterday', label: '昨日' },
+  { value: 'this-week', label: '今週' },
+  { value: 'last-week', label: '先週' },
+  { value: 'this-month', label: '今月' },
+  { value: 'last-month', label: '先月' },
 ];
 
 // ============ Instagram ダミーデータ ============
@@ -137,22 +190,32 @@ const DUMMY_THREADS_POSTS = [
 ];
 
 // ============ LINE ダミーデータ ============
-const DUMMY_LINE_DATA = {
-  friends_count: 2450,
-  friends_growth: 89,
-  blocked_count: 12,
-  target_reach: 2438,
+const DUMMY_LINE_SUMMARY = {
+  totalFriends: 2450,
+  targetReach: 2438,
+  blockedCount: 12,
+  friendsGrowth7d: 89,
+  friendsGrowth30d: 342,
 };
 
 const DUMMY_LINE_DAILY = [
-  { date: '12/10', friends: 2320, growth: 12, blocked: 2, messages_sent: 1, open_rate: 68.5 },
-  { date: '12/11', friends: 2340, growth: 20, blocked: 1, messages_sent: 0, open_rate: 0 },
-  { date: '12/12', friends: 2360, growth: 20, blocked: 2, messages_sent: 1, open_rate: 72.3 },
-  { date: '12/13', friends: 2390, growth: 30, blocked: 3, messages_sent: 2, open_rate: 65.8 },
-  { date: '12/14', friends: 2410, growth: 20, blocked: 1, messages_sent: 1, open_rate: 70.2 },
-  { date: '12/15', friends: 2435, growth: 25, blocked: 2, messages_sent: 0, open_rate: 0 },
-  { date: '12/16', friends: 2450, growth: 15, blocked: 1, messages_sent: 1, open_rate: 74.1 },
+  { date: '2024-12-10', friends: 2320, growth: 12, blocked: 2, messages_sent: 1, open_count: 1580, click_count: 245 },
+  { date: '2024-12-11', friends: 2340, growth: 20, blocked: 1, messages_sent: 0, open_count: 0, click_count: 0 },
+  { date: '2024-12-12', friends: 2360, growth: 20, blocked: 2, messages_sent: 1, open_count: 1720, click_count: 312 },
+  { date: '2024-12-13', friends: 2390, growth: 30, blocked: 3, messages_sent: 2, open_count: 1650, click_count: 278 },
+  { date: '2024-12-14', friends: 2410, growth: 20, blocked: 1, messages_sent: 1, open_count: 1780, click_count: 356 },
+  { date: '2024-12-15', friends: 2435, growth: 25, blocked: 2, messages_sent: 0, open_count: 0, click_count: 0 },
+  { date: '2024-12-16', friends: 2450, growth: 15, blocked: 1, messages_sent: 1, open_count: 1820, click_count: 389 },
 ];
+
+const DUMMY_LINE_SOURCES = [
+  { name: 'Threads', count: 1250, percentage: 51.0 },
+  { name: 'Instagram', count: 680, percentage: 27.8 },
+  { name: '検索', count: 320, percentage: 13.1 },
+  { name: 'その他', count: 200, percentage: 8.2 },
+];
+
+const PIE_COLORS = ['#06C755', '#E1306C', '#3B82F6', '#9CA3AF'];
 
 // ============ メインコンポーネント ============
 export default function DemoPage() {
@@ -178,26 +241,32 @@ export default function DemoPage() {
       <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40">
         {/* ANALYCAロゴ */}
         <div className="p-4 border-b border-[color:var(--color-border)]">
-          <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
-          <p className="text-xs text-[color:var(--color-text-muted)] mt-1">Demo Account</p>
+          <div className="flex items-center gap-2">
+            <AnalycaIcon className="w-7 h-7 text-[color:var(--color-accent)]" />
+            <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+          </div>
+          <p className="text-xs text-[color:var(--color-text-muted)] mt-1 ml-9">Demo Account</p>
         </div>
 
         {/* チャンネル切替 */}
         <nav className="flex-1 p-3 space-y-1">
-          {channelItems.map((channel) => (
-            <button
-              key={channel.value}
-              onClick={() => setActiveChannel(channel.value)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
-                activeChannel === channel.value
-                  ? 'bg-[color:var(--color-accent)] text-white'
-                  : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
-              }`}
-            >
-              <span className="text-lg">{channel.icon}</span>
-              {channel.label}
-            </button>
-          ))}
+          {channelItems.map((channel) => {
+            const Icon = channel.Icon;
+            return (
+              <button
+                key={channel.value}
+                onClick={() => setActiveChannel(channel.value)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                  activeChannel === channel.value
+                    ? 'bg-[color:var(--color-accent)] text-white'
+                    : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {channel.label}
+              </button>
+            );
+          })}
         </nav>
 
         {/* フッター */}
@@ -212,32 +281,38 @@ export default function DemoPage() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-64 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)]">
             <div className="p-4 border-b border-[color:var(--color-border)] flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
-                <p className="text-xs text-[color:var(--color-text-muted)] mt-1">Demo Account</p>
+              <div className="flex items-center gap-2">
+                <AnalycaIcon className="w-6 h-6 text-[color:var(--color-accent)]" />
+                <div>
+                  <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+                  <p className="text-xs text-[color:var(--color-text-muted)]">Demo Account</p>
+                </div>
               </div>
               <button onClick={() => setSidebarOpen(false)} className="p-2 text-[color:var(--color-text-secondary)]">
                 ✕
               </button>
             </div>
             <nav className="p-3 space-y-1">
-              {channelItems.map((channel) => (
-                <button
-                  key={channel.value}
-                  onClick={() => {
-                    setActiveChannel(channel.value);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
-                    activeChannel === channel.value
-                      ? 'bg-[color:var(--color-accent)] text-white'
-                      : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
-                  }`}
-                >
-                  <span className="text-lg">{channel.icon}</span>
-                  {channel.label}
-                </button>
-              ))}
+              {channelItems.map((channel) => {
+                const Icon = channel.Icon;
+                return (
+                  <button
+                    key={channel.value}
+                    onClick={() => {
+                      setActiveChannel(channel.value);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                      activeChannel === channel.value
+                        ? 'bg-[color:var(--color-accent)] text-white'
+                        : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {channel.label}
+                  </button>
+                );
+              })}
             </nav>
           </aside>
         </div>
@@ -255,8 +330,8 @@ export default function DemoPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+          <AnalycaIcon className="w-6 h-6 text-[color:var(--color-accent)]" />
           <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
-          <span className="text-xs text-[color:var(--color-text-muted)]">Demo</span>
         </header>
 
         {/* チャンネルコンテンツ */}
@@ -270,20 +345,23 @@ export default function DemoPage() {
       {/* モバイルボトムナビ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)] safe-area-bottom z-40">
         <div className="flex justify-around py-2">
-          {channelItems.map((channel) => (
-            <button
-              key={channel.value}
-              onClick={() => setActiveChannel(channel.value)}
-              className={`flex flex-col items-center px-4 py-1 ${
-                activeChannel === channel.value
-                  ? 'text-[color:var(--color-accent)]'
-                  : 'text-[color:var(--color-text-muted)]'
-              }`}
-            >
-              <span className="text-xl">{channel.icon}</span>
-              <span className="text-xs mt-1">{channel.label}</span>
-            </button>
-          ))}
+          {channelItems.map((channel) => {
+            const Icon = channel.Icon;
+            return (
+              <button
+                key={channel.value}
+                onClick={() => setActiveChannel(channel.value)}
+                className={`flex flex-col items-center px-4 py-1 ${
+                  activeChannel === channel.value
+                    ? 'text-[color:var(--color-accent)]'
+                    : 'text-[color:var(--color-text-muted)]'
+                }`}
+              >
+                <Icon className="w-6 h-6" />
+                <span className="text-xs mt-1">{channel.label}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
     </div>
@@ -295,6 +373,7 @@ type IGTab = 'overview' | 'reels' | 'stories' | 'daily';
 
 function InstagramDemo() {
   const [activeTab, setActiveTab] = useState<IGTab>('overview');
+  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
   const [reelSortBy, setReelSortBy] = useState('views');
   const [storySortBy, setStorySortBy] = useState('views');
 
@@ -332,21 +411,32 @@ function InstagramDemo() {
 
   return (
     <div className="section-stack pb-20 lg:pb-6">
-      {/* タブ */}
-      <div className="flex flex-wrap items-center gap-2">
-        {tabItems.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium transition-colors ${
-              activeTab === tab.value
-                ? 'bg-[color:var(--color-text-primary)] text-white'
-                : 'border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* ヘッダー: タブ + 日付選択 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {tabItems.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium transition-colors ${
+                activeTab === tab.value
+                  ? 'bg-[color:var(--color-text-primary)] text-white'
+                  : 'border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <select
+          value={datePreset}
+          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+          className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+        >
+          {datePresetOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* 概要タブ */}
@@ -448,6 +538,33 @@ function InstagramDemo() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* ストーリーTOP5 */}
+          <div className="ui-card p-6">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">ストーリーTOP5</h3>
+              <button onClick={() => setActiveTab('stories')} className="h-9 px-3 text-sm font-medium rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]">
+                詳細
+              </button>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-1">
+              {sortedStories.slice(0, 5).map((story) => {
+                const viewRate = ((story.views / story.followers) * 100).toFixed(1);
+                return (
+                  <div key={story.id} className="flex min-w-[160px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
+                    <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
+                      <img src={story.thumbnail} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="p-3 space-y-1">
+                      <p className="text-xs text-[color:var(--color-text-muted)]">{story.date}</p>
+                      <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{story.views.toLocaleString()} 閲覧</p>
+                      <p className="text-xs text-[color:var(--color-text-secondary)]">{viewRate}% 閲覧率</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </>
@@ -583,6 +700,7 @@ function ThreadsDemo() {
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
+  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
 
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => {
@@ -638,11 +756,22 @@ function ThreadsDemo() {
 
   return (
     <div className="section-stack pb-20 lg:pb-6">
-      {/* タブ（ホームのみ） */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button className="h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium bg-[color:var(--color-text-primary)] text-white">
-          ホーム
-        </button>
+      {/* ヘッダー: タブ + 日付選択 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium bg-[color:var(--color-text-primary)] text-white">
+            ホーム
+          </button>
+        </div>
+        <select
+          value={datePreset}
+          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+          className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+        >
+          {datePresetOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* アカウントの概要 */}
@@ -851,104 +980,215 @@ function ThreadsDemo() {
   );
 }
 
-// ============ LINE デモ ============
+// ============ LINE デモ（AutoStudio風） ============
+type LineTab = 'main' | 'daily';
+
 function LineDemo() {
+  const [activeTab, setActiveTab] = useState<LineTab>('main');
+  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+
+  const tabItems: { value: LineTab; label: string }[] = [
+    { value: 'main', label: 'メイン' },
+    { value: 'daily', label: 'デイリー' },
+  ];
+
+  // 日別データの集計
+  const dailyStats = useMemo(() => {
+    const totalMessages = DUMMY_LINE_DAILY.reduce((sum, d) => sum + d.messages_sent, 0);
+    const totalOpen = DUMMY_LINE_DAILY.filter(d => d.open_count > 0).reduce((sum, d) => sum + d.open_count, 0);
+    const totalClick = DUMMY_LINE_DAILY.filter(d => d.click_count > 0).reduce((sum, d) => sum + d.click_count, 0);
+    const daysWithMessages = DUMMY_LINE_DAILY.filter(d => d.messages_sent > 0).length;
+    const avgOpenRate = daysWithMessages > 0 ? ((totalOpen / (DUMMY_LINE_SUMMARY.targetReach * daysWithMessages)) * 100).toFixed(1) : '0.0';
+    const avgCtr = totalOpen > 0 ? ((totalClick / totalOpen) * 100).toFixed(1) : '0.0';
+    return { totalMessages, totalOpen, totalClick, avgOpenRate, avgCtr };
+  }, []);
+
   return (
     <div className="section-stack pb-20 lg:pb-6">
-      {/* タブ（ホームのみ） */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button className="h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium bg-[color:var(--color-text-primary)] text-white">
-          ホーム
-        </button>
-      </div>
-
-      {/* アカウントの概要 */}
-      <div className="ui-card">
-        <header>
-          <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">アカウントの概要</h2>
-          <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">LINE公式アカウントの指標</p>
-        </header>
-        <dl className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">友だち数</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_DATA.friends_count.toLocaleString()}</dd>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">今週の増加</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-green-600">+{DUMMY_LINE_DATA.friends_growth}</dd>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">ブロック数</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_DATA.blocked_count}</dd>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">ターゲットリーチ</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_DATA.target_reach.toLocaleString()}</dd>
-          </div>
-        </dl>
-      </div>
-
-      {/* 日別メトリクス */}
-      <div className="ui-card">
-        <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">友だち数 & 配信パフォーマンス</h2>
-        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別の推移</p>
-        <div className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-                <th className="px-3 py-2">日付</th>
-                <th className="px-3 py-2 text-right">友だち数</th>
-                <th className="px-3 py-2 text-right">増加</th>
-                <th className="px-3 py-2 text-right">ブロック</th>
-                <th className="px-3 py-2 text-right">配信数</th>
-                <th className="px-3 py-2 text-right">開封率</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[color:var(--color-border)]">
-              {DUMMY_LINE_DAILY.map((m) => (
-                <tr key={m.date} className="hover:bg-[color:var(--color-surface-muted)]">
-                  <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{m.date}</td>
-                  <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{m.friends.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span className="text-green-600">+{m.growth}</span>
-                  </td>
-                  <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.blocked}</td>
-                  <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.messages_sent}</td>
-                  <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">
-                    {m.open_rate > 0 ? `${m.open_rate}%` : '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* ヘッダー: タブ + 日付選択 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {tabItems.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium transition-colors ${
+                activeTab === tab.value
+                  ? 'bg-[color:var(--color-text-primary)] text-white'
+                  : 'border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <div className="mt-6 h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={DUMMY_LINE_DAILY} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.toLocaleString()} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#475569' }} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-              <Tooltip formatter={(value: number, name: string) => {
-                if (name === '開封率') return [`${value}%`, name];
-                return [value.toLocaleString(), name];
-              }} />
-              <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="friends" name="友だち数" stroke="#06C755" strokeWidth={2} dot={false} />
-              <Bar yAxisId="left" dataKey="growth" name="増加数" fill="#06C755" opacity={0.5} />
-              <Line yAxisId="right" type="monotone" dataKey="open_rate" name="開封率" stroke="#3B82F6" strokeWidth={2} dot={{ r: 3 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        <select
+          value={datePreset}
+          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+          className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+        >
+          {datePresetOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
-      {/* 準備中メッセージ */}
-      <div className="ui-card p-8 text-center">
-        <p className="text-lg font-medium text-[color:var(--color-text-primary)]">LINE連携機能は準備中です</p>
-        <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">
-          今後のアップデートでLINE公式アカウントとの連携機能を追加予定です。
-        </p>
-      </div>
+      {/* メインタブ */}
+      {activeTab === 'main' && (
+        <>
+          {/* アカウントの概要 */}
+          <div className="ui-card">
+            <header>
+              <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">アカウントの概要</h2>
+              <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">LINE公式アカウントの指標</p>
+            </header>
+            <dl className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">友だち数</dt>
+                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.totalFriends.toLocaleString()}</dd>
+                <p className="mt-2 text-xs text-green-600">+{DUMMY_LINE_SUMMARY.friendsGrowth7d} (7日間)</p>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">ターゲットリーチ</dt>
+                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.targetReach.toLocaleString()}</dd>
+                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">配信可能な友だち</p>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">ブロック数</dt>
+                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.blockedCount}</dd>
+                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">ブロック率 {((DUMMY_LINE_SUMMARY.blockedCount / DUMMY_LINE_SUMMARY.totalFriends) * 100).toFixed(1)}%</p>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">平均開封率</dt>
+                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{dailyStats.avgOpenRate}%</dd>
+                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">CTR {dailyStats.avgCtr}%</p>
+              </div>
+            </dl>
+          </div>
+
+          {/* 流入元分析 */}
+          <div className="ui-card">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">流入元分析</h2>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">どこから友だち登録されたか</p>
+            <div className="mt-6 grid lg:grid-cols-2 gap-6">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={DUMMY_LINE_SOURCES}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      dataKey="count"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
+                    >
+                      {DUMMY_LINE_SOURCES.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [value.toLocaleString(), '登録数']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-3">
+                {DUMMY_LINE_SOURCES.map((source, idx) => (
+                  <div key={source.name} className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }} />
+                    <div className="flex-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium text-[color:var(--color-text-primary)]">{source.name}</span>
+                        <span className="text-[color:var(--color-text-secondary)]">{source.count.toLocaleString()} ({source.percentage}%)</span>
+                      </div>
+                      <div className="mt-1 h-2 bg-[color:var(--color-surface-muted)] rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${source.percentage}%`, backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 友だち数推移 */}
+          <div className="ui-card">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">友だち数推移</h2>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別の友だち数と増減</p>
+            <div className="mt-6 h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={DUMMY_LINE_DAILY} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.toLocaleString()} domain={['dataMin - 20', 'dataMax + 20']} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#475569' }} />
+                  <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="friends" name="友だち数" stroke="#06C755" strokeWidth={2} dot={{ r: 3 }} />
+                  <Bar yAxisId="right" dataKey="growth" name="増加数" fill="#06C755" opacity={0.5} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* デイリータブ */}
+      {activeTab === 'daily' && (
+        <>
+          <div className="ui-card p-6">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">配信パフォーマンス</h2>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={DUMMY_LINE_DAILY.filter(d => d.messages_sent > 0)} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.toLocaleString()} />
+                  <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
+                  <Legend />
+                  <Bar dataKey="open_count" name="開封数" fill="#06C755" />
+                  <Bar dataKey="click_count" name="クリック数" fill="#3B82F6" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="ui-card p-6">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">デイリーデータ</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[color:var(--color-border)] text-left">
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)]">日付</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right">友だち数</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right">増加</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right">ブロック</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right">配信数</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right">開封数</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right">クリック数</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--color-border)]">
+                  {DUMMY_LINE_DAILY.map((row) => (
+                    <tr key={row.date} className="hover:bg-[color:var(--color-surface-muted)]">
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)]">{row.date}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right">{row.friends.toLocaleString()}</td>
+                      <td className="px-3 py-3 text-right"><span className="text-green-600">+{row.growth}</span></td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-secondary)] text-right">{row.blocked}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-secondary)] text-right">{row.messages_sent}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right">{row.open_count > 0 ? row.open_count.toLocaleString() : '-'}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right">{row.click_count > 0 ? row.click_count.toLocaleString() : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

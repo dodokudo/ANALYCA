@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getAllUsersWithStats, getAdminOverallStats } from '@/lib/bigquery';
 
-// 簡易的な管理者キー認証（本番では適切な認証を実装）
-const ADMIN_KEY = process.env.ADMIN_SECRET_KEY || 'analyca-admin-2024';
+// パスワード認証
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'analyca2025';
 
 export async function GET(request: Request) {
   try {
-    // 認証チェック（クエリパラメータまたはヘッダー）
+    // パスワード認証
     const url = new URL(request.url);
-    const key = url.searchParams.get('key') || request.headers.get('x-admin-key');
+    const password = url.searchParams.get('password') || request.headers.get('x-admin-password');
 
-    if (key !== ADMIN_KEY) {
+    if (password !== ADMIN_PASSWORD) {
       return NextResponse.json({
         success: false,
         error: '認証が必要です'

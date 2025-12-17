@@ -37,7 +37,7 @@ function isActive(user: AdminUser): boolean {
 function AdminPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [adminKey, setAdminKey] = useState('');
+  const [password, setPassword] = useState('');
   const [data, setData] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,19 +45,19 @@ function AdminPageContent() {
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    const keyFromUrl = searchParams?.get('key');
-    if (keyFromUrl) {
-      setAdminKey(keyFromUrl);
-      fetchData(keyFromUrl);
+    const pwFromUrl = searchParams?.get('password');
+    if (pwFromUrl) {
+      setPassword(pwFromUrl);
+      fetchData(pwFromUrl);
     }
   }, [searchParams]);
 
-  const fetchData = async (key: string) => {
+  const fetchData = async (pw: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin?key=${encodeURIComponent(key)}`);
+      const response = await fetch(`/api/admin?password=${encodeURIComponent(pw)}`);
       const result = await response.json();
 
       if (!result.success) {
@@ -66,8 +66,8 @@ function AdminPageContent() {
       } else {
         setData(result.data);
         setIsAuthenticated(true);
-        if (!searchParams?.get('key')) {
-          router.replace(`/admin?key=${encodeURIComponent(key)}`, { scroll: false });
+        if (!searchParams?.get('password')) {
+          router.replace(`/admin?password=${encodeURIComponent(pw)}`, { scroll: false });
         }
       }
     } catch {
@@ -80,8 +80,8 @@ function AdminPageContent() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminKey.trim()) {
-      fetchData(adminKey.trim());
+    if (password.trim()) {
+      fetchData(password.trim());
     }
   };
 
@@ -102,15 +102,15 @@ function AdminPageContent() {
           <form onSubmit={handleSubmit}>
             <input
               type="password"
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-              placeholder="管理者キー"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="パスワード"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
             />
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
             <button
               type="submit"
-              disabled={!adminKey.trim()}
+              disabled={!password.trim()}
               className="w-full mt-4 px-4 py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
             >
               ログイン

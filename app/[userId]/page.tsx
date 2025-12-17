@@ -1,10 +1,50 @@
 'use client';
 
-import { useEffect, useState, useMemo, use } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, useMemo, use, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingScreen from '@/components/LoadingScreen';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// ============ アイコンコンポーネント ============
+function AnalycaLogo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const sizeClasses = {
+    sm: 'w-7 h-7',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
+  };
+  const iconSizes = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6',
+  };
+  return (
+    <div className={`${sizeClasses[size]} bg-gradient-to-r from-purple-500 to-emerald-400 rounded-lg flex items-center justify-center`}>
+      <svg className={`${iconSizes[size]} text-white`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    </div>
+  );
+}
+
+function InstagramIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+  );
+}
+
+function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.5 12.068V12c.013-3.501.87-6.338 2.495-8.435C5.853 1.483 8.604.287 12.127.264h.014c2.914.017 5.4.835 7.392 2.432 1.99 1.596 3.268 3.855 3.798 6.716l-2.153.485c-.428-2.292-1.407-4.065-2.91-5.274-1.503-1.21-3.437-1.829-5.75-1.843h-.011c-2.886.019-5.09.959-6.55 2.795-1.306 1.642-2.002 3.974-2.012 6.732v.058c.006 2.802.697 5.15 2 6.801 1.457 1.847 3.66 2.797 6.551 2.817 2.368-.018 4.216-.623 5.661-1.851.526-.447.967-.953 1.332-1.494l1.814 1.113c-.498.74-1.1 1.414-1.819 2.022-1.823 1.548-4.161 2.365-6.963 2.432zm4.18-7.789c-.609-1.99-2.208-3.166-4.556-3.385-.166-.015-.335-.023-.507-.023-1.5 0-2.728.5-3.548 1.444-.73.838-1.088 1.989-1.006 3.232.094 1.45.621 2.504 1.52 3.044.77.462 1.782.626 2.787.452 1.182-.205 2.116-.785 2.697-1.68.347-.535.573-1.165.676-1.87.055-.379.079-.768.079-1.154 0-.34-.015-.682-.044-1.016l2.028-.215c.042.478.063.968.063 1.46 0 .504-.033 1.018-.1 1.528-.15 1.017-.467 1.952-.942 2.77-.87 1.497-2.286 2.536-4.093 3.004-1.547.401-3.203.297-4.58-.286-1.57-.666-2.719-1.994-3.053-3.534l2.102-.373c.213.961.892 1.63 1.866 1.837.7.149 1.532.108 2.306-.114 1.136-.326 1.981-.946 2.443-1.793a3.56 3.56 0 0 0 .425-1.272c.01-.053.018-.107.025-.162l-.003-.014c-.42.39-.917.706-1.474.93-.742.298-1.565.451-2.418.451-.368 0-.742-.028-1.117-.085-1.61-.247-2.867-1.02-3.638-2.237-.67-1.058-1.018-2.426-1.007-3.961.012-1.773.541-3.38 1.488-4.52 1.096-1.322 2.751-2.05 4.657-2.05.265 0 .534.013.806.04 2.862.28 4.965 1.729 6.081 4.188.432.95.713 2.013.838 3.162l-2.022.215-.006-.044c-.095-.929-.316-1.76-.658-2.472z"/>
+    </svg>
+  );
+}
+
+// ============ チャンネル定義 ============
+type Channel = 'instagram' | 'threads';
 
 interface UserInfo {
   threads_username?: string | null;
@@ -42,12 +82,14 @@ interface DashboardResponse {
   error?: string;
 }
 
-export default function UserDashboardPage({ params }: { params: Promise<{ userId: string }> }) {
-  const { userId } = use(params);
+function UserDashboardContent({ userId }: { userId: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get('tab') as Channel | null;
+
   const [dashboardResponse, setDashboardResponse] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const searchParams = useSearchParams();
-  const tabParam = searchParams?.get('tab') || undefined;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -76,9 +118,23 @@ export default function UserDashboardPage({ params }: { params: Promise<{ userId
   const hasInstagram = dashboardResponse?.channels?.instagram ?? false;
   const hasThreads = dashboardResponse?.channels?.threads ?? false;
   const dashboardData = dashboardResponse?.data;
+  const user = dashboardResponse?.user;
+
+  // チャンネルアイテム（連携済みのみ表示）
+  const channelItems = useMemo(() => {
+    const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [];
+    if (hasInstagram) {
+      items.push({ value: 'instagram', label: 'Instagram', Icon: InstagramIcon });
+    }
+    if (hasThreads) {
+      items.push({ value: 'threads', label: 'Threads', Icon: ThreadsIcon });
+    }
+    return items;
+  }, [hasInstagram, hasThreads]);
 
   // タブはURLパラメータを優先（リフレッシュ時も保持される）
-  const effectiveTab = useMemo(() => {
+  // Threadsのみの場合はThreadsをデフォルトに
+  const activeChannel = useMemo(() => {
     // URLパラメータが明示的に指定されている場合は、それを優先
     if (tabParam === 'threads' && hasThreads) return 'threads';
     if (tabParam === 'instagram' && hasInstagram) return 'instagram';
@@ -87,15 +143,36 @@ export default function UserDashboardPage({ params }: { params: Promise<{ userId
     if (tabParam === 'threads' && !hasThreads && hasInstagram) return 'instagram';
     if (tabParam === 'instagram' && !hasInstagram && hasThreads) return 'threads';
 
-    // URLパラメータがない場合のデフォルト（Instagramを優先）
+    // URLパラメータがない場合のデフォルト
+    // Threadsのみの場合はThreadsを、それ以外はInstagramを優先
     if (!tabParam) {
+      if (hasThreads && !hasInstagram) return 'threads';
       if (hasInstagram) return 'instagram';
       if (hasThreads) return 'threads';
     }
 
     // どちらもない場合
-    return 'none';
+    return 'none' as unknown as Channel;
   }, [tabParam, hasInstagram, hasThreads]);
+
+  const setActiveChannel = (channel: Channel) => {
+    router.push(`/${userId}?tab=${channel}`, { scroll: false });
+  };
+
+  // ユーザー名とプロフィール画像を取得
+  const displayName = useMemo(() => {
+    if (activeChannel === 'instagram') {
+      return user?.instagram_username || user?.threads_username || 'User';
+    }
+    return user?.threads_username || user?.instagram_username || 'User';
+  }, [activeChannel, user]);
+
+  const profilePicture = useMemo(() => {
+    if (activeChannel === 'instagram') {
+      return user?.instagram_profile_picture_url || user?.threads_profile_picture_url;
+    }
+    return user?.threads_profile_picture_url || user?.instagram_profile_picture_url;
+  }, [activeChannel, user]);
 
   if (loading) {
     return <LoadingScreen message="データ読み込み中" />;
@@ -108,108 +185,232 @@ export default function UserDashboardPage({ params }: { params: Promise<{ userId
           <div className="bg-red-50 border border-red-200 rounded-[var(--radius-lg)] p-6">
             <h3 className="text-red-800 font-semibold">エラー</h3>
             <p className="text-red-600 mt-2">{dashboardResponse.error}</p>
+            <Link
+              href="/"
+              className="inline-block mt-4 text-purple-600 hover:text-purple-800"
+            >
+              ← ホームに戻る
+            </Link>
           </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[color:var(--color-background)]">
-      <div className="container mx-auto px-4 py-8">
-        {/* ヘッダー */}
-        <div className="mb-8">
-          <Link href="/" className="inline-block text-sm text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] mb-4">
-            ← ホームに戻る
+  // 連携がない場合
+  if (!hasInstagram && !hasThreads) {
+    return (
+      <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center p-8">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <AnalycaLogo size="lg" />
+          <h2 className="text-xl font-bold text-gray-800 mt-4">利用可能なデータがありません</h2>
+          <p className="text-gray-600 mt-2">
+            Instagram または Threads を連携してください。
+          </p>
+          <Link
+            href="/onboarding/light"
+            className="inline-block mt-4 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700"
+          >
+            セットアップへ
           </Link>
+        </div>
+      </div>
+    );
+  }
 
-          {/* プロフィールカード（左上） */}
-          {(dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username) && (
-            <div className="ui-card p-4 mb-6">
-              <div className="flex items-center space-x-4">
-                {(() => {
-                  // タブに応じてプロフィール画像を選択
-                  const profilePictureUrl = effectiveTab === 'instagram'
-                    ? (dashboardResponse?.user?.instagram_profile_picture_url || dashboardResponse?.user?.threads_profile_picture_url)
-                    : (dashboardResponse?.user?.threads_profile_picture_url || dashboardResponse?.user?.instagram_profile_picture_url);
-                  const username = effectiveTab === 'instagram'
-                    ? (dashboardResponse?.user?.instagram_username || dashboardResponse?.user?.threads_username)
-                    : (dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username);
+  return (
+    <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
+      {/* サイドバー（PC） */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40">
+        {/* ANALYCAロゴ */}
+        <div className="p-4 border-b border-[color:var(--color-border)]">
+          <div className="flex items-center gap-3">
+            <AnalycaLogo size="md" />
+            <div>
+              <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+              <p className="text-xs text-[color:var(--color-text-muted)]">@{displayName}</p>
+            </div>
+          </div>
+        </div>
 
-                  return profilePictureUrl ? (
-                    <img
-                      src={profilePictureUrl}
-                      alt={username || 'User'}
-                      className="w-14 h-14 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-[color:var(--color-accent)] flex items-center justify-center">
-                      <span className="text-xl font-bold text-white">
-                        {(username || 'U').charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  );
-                })()}
+        {/* ユーザープロフィール */}
+        <div className="p-4 border-b border-[color:var(--color-border)]">
+          <div className="flex items-center gap-3">
+            {profilePicture ? (
+              <img
+                src={profilePicture}
+                alt={displayName}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center">
+                <span className="text-white font-bold">
+                  {displayName.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-medium text-[color:var(--color-text-primary)]">{displayName}</p>
+              <p className="text-xs text-[color:var(--color-text-muted)]">
+                {hasInstagram && hasThreads ? 'Instagram & Threads' : hasInstagram ? 'Instagram' : 'Threads'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* チャンネル切替 */}
+        <nav className="flex-1 p-3 space-y-1">
+          {channelItems.map((channel) => {
+            const Icon = channel.Icon;
+            return (
+              <button
+                key={channel.value}
+                onClick={() => setActiveChannel(channel.value)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                  activeChannel === channel.value
+                    ? 'bg-[color:var(--color-accent)] text-white'
+                    : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {channel.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* フッター */}
+        <div className="p-4 border-t border-[color:var(--color-border)]">
+          <p className="text-xs text-[color:var(--color-text-muted)]">Powered by ANALYCA</p>
+        </div>
+      </aside>
+
+      {/* モバイルサイドバー */}
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-64 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)]">
+            <div className="p-4 border-b border-[color:var(--color-border)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AnalycaLogo size="sm" />
                 <div>
-                  <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">
-                    {effectiveTab === 'instagram'
-                      ? (dashboardResponse?.user?.instagram_username || dashboardResponse?.user?.threads_username)
-                      : (dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username)}
-                  </h1>
-                  <p className="text-sm text-[color:var(--color-text-secondary)]">
-                    @{effectiveTab === 'instagram'
-                      ? (dashboardResponse?.user?.instagram_username || dashboardResponse?.user?.threads_username)
-                      : (dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username)}
-                  </p>
+                  <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+                  <p className="text-xs text-[color:var(--color-text-muted)]">@{displayName}</p>
+                </div>
+              </div>
+              <button onClick={() => setSidebarOpen(false)} className="p-2 text-[color:var(--color-text-secondary)]">
+                ✕
+              </button>
+            </div>
+            {/* プロフィール */}
+            <div className="p-4 border-b border-[color:var(--color-border)]">
+              <div className="flex items-center gap-3">
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt={displayName}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-emerald-400 flex items-center justify-center">
+                    <span className="text-white font-bold">
+                      {displayName.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-[color:var(--color-text-primary)]">{displayName}</p>
                 </div>
               </div>
             </div>
-          )}
+            <nav className="p-3 space-y-1">
+              {channelItems.map((channel) => {
+                const Icon = channel.Icon;
+                return (
+                  <button
+                    key={channel.value}
+                    onClick={() => {
+                      setActiveChannel(channel.value);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                      activeChannel === channel.value
+                        ? 'bg-[color:var(--color-accent)] text-white'
+                        : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {channel.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
         </div>
+      )}
 
-        {/* タブナビゲーション */}
-        {(hasInstagram || hasThreads) ? (
-          <div className="flex border-b border-[color:var(--color-border)] mb-8">
-            {hasInstagram ? (
-              <Link
-                href={`/${userId}?tab=instagram`}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  effectiveTab === 'instagram'
-                    ? 'border-b-2 border-[color:var(--color-accent)] text-[color:var(--color-accent)]'
-                    : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
-                }`}
-              >
-                Instagram
-              </Link>
-            ) : null}
-            {hasThreads ? (
-              <Link
-                href={`/${userId}?tab=threads`}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  effectiveTab === 'threads'
-                    ? 'border-b-2 border-[color:var(--color-text-primary)] text-[color:var(--color-text-primary)]'
-                    : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
-                }`}
-              >
-                Threads
-              </Link>
-            ) : null}
+      {/* メインコンテンツ */}
+      <main className="flex-1 lg:ml-56">
+        {/* モバイルヘッダー */}
+        <header className="lg:hidden sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-[var(--radius-sm)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <AnalycaLogo size="sm" />
+          <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+        </header>
+
+        {/* チャンネルコンテンツ */}
+        <div className="p-4 lg:p-6 pb-24 lg:pb-6">
+          {activeChannel === 'instagram' && <InstagramTab data={dashboardData} />}
+          {activeChannel === 'threads' && <ThreadsTab data={dashboardData} />}
+        </div>
+      </main>
+
+      {/* モバイルボトムナビ */}
+      {channelItems.length > 1 && (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)] safe-area-bottom z-40">
+          <div className="flex justify-around py-2">
+            {channelItems.map((channel) => {
+              const Icon = channel.Icon;
+              return (
+                <button
+                  key={channel.value}
+                  onClick={() => setActiveChannel(channel.value)}
+                  className={`flex flex-col items-center px-4 py-1 ${
+                    activeChannel === channel.value
+                      ? 'text-[color:var(--color-accent)]'
+                      : 'text-[color:var(--color-text-muted)]'
+                  }`}
+                >
+                  <Icon className="w-6 h-6" />
+                  <span className="text-xs mt-1">{channel.label}</span>
+                </button>
+              );
+            })}
           </div>
-        ) : null}
-
-        {/* タブコンテンツ */}
-        {effectiveTab === 'instagram' ? (
-          <InstagramTab data={dashboardData} />
-        ) : effectiveTab === 'threads' ? (
-          <ThreadsTab data={dashboardData} />
-        ) : (
-          <NoChannelMessage />
-        )}
-      </div>
+        </nav>
+      )}
     </div>
   );
 }
 
+export default function UserDashboardPage({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = use(params);
+
+  return (
+    <Suspense fallback={<LoadingScreen message="データ読み込み中" />}>
+      <UserDashboardContent userId={userId} />
+    </Suspense>
+  );
+}
+
+// ============ Instagram タブ ============
 function InstagramTab({ data }: { data?: unknown }) {
   if (!data || !(data as {reels?: unknown}).reels || !(data as {stories?: unknown}).stories) {
     return (
@@ -285,6 +486,7 @@ function InstagramTab({ data }: { data?: unknown }) {
   );
 }
 
+// ============ Threads タブ ============
 interface ThreadsComment {
   id: string;
   comment_id: string;
@@ -294,7 +496,7 @@ interface ThreadsComment {
   permalink: string;
   has_replies: boolean;
   views: number;
-  depth: number; // コメント欄の順番（0=コメント欄1, 1=コメント欄2, ...）
+  depth: number;
 }
 
 interface ThreadsPostData {
@@ -338,10 +540,8 @@ function ThreadsTab({ data }: { data?: unknown }) {
   const totalReposts = (data as {threads: {totalReposts?: number}}).threads.totalReposts || 0;
   const totalQuotes = (data as {threads: {totalQuotes?: number}}).threads.totalQuotes || 0;
 
-  // コメントデータ（自分のコメント = 投稿の続き）
   const comments = (data as {threadsComments?: {data: ThreadsComment[]}}).threadsComments?.data || [];
 
-  // 投稿とコメントを結合するマップを作成（parent_post_id = threads_id）
   const commentsByPostId = new Map<string, ThreadsComment[]>();
   comments.forEach((comment) => {
     const postId = comment.parent_post_id;
@@ -351,16 +551,13 @@ function ThreadsTab({ data }: { data?: unknown }) {
     commentsByPostId.get(postId)!.push(comment);
   });
 
-  // 日別メトリクス
   const dailyMetrics = (data as {threadsDailyMetrics?: {data: Array<{date: string; followers_count: number; follower_delta: number; total_views: number; post_count: number}>}}).threadsDailyMetrics?.data || [];
   const latestMetrics = (data as {threadsDailyMetrics?: {latest: {followers_count: number; follower_delta: number} | null}}).threadsDailyMetrics?.latest;
   const followersCount = latestMetrics?.followers_count || 0;
 
-  // エンゲージメント率の計算 (いいね + 返信 + リポスト + 引用) / 閲覧数
   const totalEngagements: number = totalLikes + totalReplies + totalReposts + totalQuotes;
   const engagementRate = totalViews > 0 ? (totalEngagements / totalViews * 100).toFixed(2) : '0.00';
 
-  // ソート処理
   const sortedPosts = [...posts].sort((a, b) => {
     switch (sortBy) {
       case 'views':
@@ -373,37 +570,27 @@ function ThreadsTab({ data }: { data?: unknown }) {
     }
   });
 
-  // 投稿の全文を取得（本文 + コメントの続き）
   const getFullText = (post: ThreadsPostData): string => {
     const postComments = commentsByPostId.get(post.threads_id) || [];
     if (postComments.length === 0) {
       return post.text || '';
     }
-
-    // depthでソート（コメント欄1, 2, 3...の順番）
     const sortedComments = [...postComments].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0));
-
-    // コメントを「【コメント欄N】」形式で結合
     const commentParts = sortedComments.map((c, idx) => {
       const label = `【コメント欄${idx + 1}】`;
       return `${label}\n${c.text}`;
     }).filter(Boolean);
-
-    // 投稿本文 + コメント欄
     return [post.text, ...commentParts].filter(Boolean).join('\n\n');
   };
 
-  // 投稿にコメント（続き）があるかどうか
   const hasComments = (post: ThreadsPostData): boolean => {
     return (commentsByPostId.get(post.threads_id)?.length || 0) > 0;
   };
 
-  // 投稿のコメント数を取得
   const getCommentCount = (post: ThreadsPostData): number => {
     return commentsByPostId.get(post.threads_id)?.length || 0;
   };
 
-  // 遷移率を計算（メイン投稿 → コメント欄1 → コメント欄2...）
   interface TransitionResult {
     transitions: Array<{from: string; to: string; rate: number; views: number}>;
     overallRate: number | null;
@@ -415,56 +602,30 @@ function ThreadsTab({ data }: { data?: unknown }) {
     if (postComments.length === 0 || post.views === 0) {
       return { transitions: [], overallRate: null, lastCommentViews: null };
     }
-
-    // depthでソート
     const sortedComments = [...postComments].sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0));
-
     const transitions: Array<{from: string; to: string; rate: number; views: number}> = [];
-
-    // メイン投稿 → コメント欄1
     if (sortedComments.length > 0) {
       const firstComment = sortedComments[0];
       const rate = (firstComment.views / post.views) * 100;
-      transitions.push({
-        from: 'メイン',
-        to: 'コメント欄1',
-        rate,
-        views: firstComment.views,
-      });
+      transitions.push({ from: 'メイン', to: 'コメント欄1', rate, views: firstComment.views });
     }
-
-    // コメント欄1 → コメント欄2, コメント欄2 → コメント欄3...
     for (let i = 1; i < sortedComments.length; i++) {
       const prevComment = sortedComments[i - 1];
       const currComment = sortedComments[i];
       if (prevComment.views > 0) {
         const rate = (currComment.views / prevComment.views) * 100;
-        transitions.push({
-          from: `コメント欄${i}`,
-          to: `コメント欄${i + 1}`,
-          rate,
-          views: currComment.views,
-        });
+        transitions.push({ from: `コメント欄${i}`, to: `コメント欄${i + 1}`, rate, views: currComment.views });
       }
     }
-
-    // メイン→最終コメント欄の全体遷移率
     const lastComment = sortedComments[sortedComments.length - 1];
     const overallRate = post.views > 0 ? (lastComment.views / post.views) * 100 : null;
-
-    return {
-      transitions,
-      overallRate,
-      lastCommentViews: lastComment.views,
-    };
+    return { transitions, overallRate, lastCommentViews: lastComment.views };
   };
 
-  // 表示件数
   const INITIAL_DISPLAY_COUNT = 20;
   const displayedPosts = showAllPosts ? sortedPosts : sortedPosts.slice(0, INITIAL_DISPLAY_COUNT);
   const hasMorePosts = sortedPosts.length > INITIAL_DISPLAY_COUNT;
 
-  // 曜日・時間帯分析
   const dayOfWeekStats: Record<number, {views: number; count: number}> = {};
   const hourStats: Record<number, {views: number; count: number}> = {};
   const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -474,11 +635,9 @@ function ThreadsTab({ data }: { data?: unknown }) {
     const date = new Date(p.timestamp);
     const day = date.getDay();
     const hour = date.getHours();
-
     if (!dayOfWeekStats[day]) dayOfWeekStats[day] = {views: 0, count: 0};
     dayOfWeekStats[day].views += p.views || 0;
     dayOfWeekStats[day].count += 1;
-
     if (!hourStats[hour]) hourStats[hour] = {views: 0, count: 0};
     hourStats[hour].views += p.views || 0;
     hourStats[hour].count += 1;
@@ -496,7 +655,7 @@ function ThreadsTab({ data }: { data?: unknown }) {
 
   return (
     <div className="section-stack">
-      {/* アカウントの概要 - AutoStudio InsightsCard形式 */}
+      {/* アカウントの概要 */}
       <div className="ui-card">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -540,7 +699,6 @@ function ThreadsTab({ data }: { data?: unknown }) {
           <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">投稿のベストタイミングを分析</p>
 
           <div className="mt-6 grid md:grid-cols-2 gap-6">
-            {/* 曜日別 */}
             <div>
               <h3 className="text-sm font-medium text-[color:var(--color-text-primary)] mb-3">曜日別 平均閲覧数</h3>
               <div className="space-y-2">
@@ -566,7 +724,6 @@ function ThreadsTab({ data }: { data?: unknown }) {
               </div>
             </div>
 
-            {/* 時間帯別 */}
             <div>
               <h3 className="text-sm font-medium text-[color:var(--color-text-primary)] mb-3">時間帯別 平均閲覧数</h3>
               <div className="grid grid-cols-6 gap-1">
@@ -620,11 +777,9 @@ function ThreadsTab({ data }: { data?: unknown }) {
               const isExpanded = expandedPosts.has(p.id);
               const fullText = getFullText(p);
               const postHasComments = hasComments(p);
-              // 改行が2つ以上あるか、80文字以上、またはコメント（続き）がある場合は折りたたみ対象
               const lineCount = (p.text?.match(/\n/g) || []).length;
               const needsExpand = p.text && (p.text.length > 80 || lineCount >= 2 || postHasComments);
 
-              // 日付表示（無効な日付の場合は「-」を表示）
               const formatDate = (timestamp: string) => {
                 if (!timestamp) return '-';
                 const date = new Date(timestamp);
@@ -639,7 +794,6 @@ function ThreadsTab({ data }: { data?: unknown }) {
                 });
               };
 
-              // 表示するテキスト（展開時は全文、折りたたみ時は本文のみ）
               const displayText = isExpanded ? fullText : (p.text || '(テキストなし)');
               const commentCount = getCommentCount(p);
               const { transitions: transitionRates, overallRate } = getTransitionRates(p);
@@ -650,9 +804,7 @@ function ThreadsTab({ data }: { data?: unknown }) {
                 <div
                   key={p.id || idx}
                   className={`rounded-[var(--radius-md)] border bg-white p-3 shadow-[var(--shadow-soft)] cursor-pointer ${
-                    isTop10
-                      ? 'border-amber-300 bg-amber-50/30'
-                      : 'border-[color:var(--color-border)]'
+                    isTop10 ? 'border-amber-300 bg-amber-50/30' : 'border-[color:var(--color-border)]'
                   }`}
                   onClick={() => toggleExpand(p.id)}
                 >
@@ -681,33 +833,24 @@ function ThreadsTab({ data }: { data?: unknown }) {
                       <span>返信 {p.replies.toLocaleString()}</span>
                     </div>
                   </div>
-                  {/* 遷移率表示（コメントがある場合は常に表示） */}
                   {transitionRates.length > 0 && (
                     <div className="mt-2 rounded-md bg-gradient-to-r from-purple-50 to-indigo-50 p-2 border border-purple-100">
                       <div className="flex items-center gap-1 flex-wrap text-[10px]">
-                        {/* メイン投稿 */}
                         <div className="flex flex-col items-center">
                           <span className="text-gray-500">メイン</span>
                           <span className="font-bold text-gray-700">{p.views.toLocaleString()}</span>
                         </div>
                         {transitionRates.map((t, tIdx) => {
-                          // 1投稿目から2投稿目（tIdx === 0: メイン→コメント欄1）は10%以上で緑
-                          // 2投稿目以降は80%以上で緑
                           const isFirstTransition = tIdx === 0;
                           const colorClass = isFirstTransition
                             ? t.rate >= 10 ? 'text-green-600' : 'text-red-500'
                             : t.rate >= 80 ? 'text-green-600' : t.rate >= 50 ? 'text-yellow-600' : 'text-red-500';
-
                           return (
                             <div key={tIdx} className="flex items-center gap-1">
-                              {/* 矢印と遷移率 */}
                               <div className="flex flex-col items-center px-1">
                                 <span className="text-gray-400">→</span>
-                                <span className={`font-bold ${colorClass}`}>
-                                  {t.rate.toFixed(1)}%
-                                </span>
+                                <span className={`font-bold ${colorClass}`}>{t.rate.toFixed(1)}%</span>
                               </div>
-                              {/* 次のステップ */}
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-500">{t.to}</span>
                                 <span className="font-bold text-gray-700">{t.views.toLocaleString()}</span>
@@ -716,7 +859,6 @@ function ThreadsTab({ data }: { data?: unknown }) {
                           );
                         })}
                       </div>
-                      {/* メイン→最終コメント欄の全体遷移率 */}
                       {overallRate !== null && transitionRates.length > 1 && (
                         <div className="mt-1 pt-1 border-t border-purple-200 flex items-center gap-1 text-[10px]">
                           <span className="text-gray-500">全体遷移率:</span>
@@ -740,7 +882,6 @@ function ThreadsTab({ data }: { data?: unknown }) {
                       {isExpanded ? '▲ 折りたたむ' : (postHasComments ? `▼ 全文を表示（コメント欄${commentCount}つ）` : '▼ 全文を表示')}
                     </button>
                   )}
-                  {/* Threadsリンク */}
                   {p.permalink && (
                     <a
                       href={p.permalink}
@@ -756,7 +897,6 @@ function ThreadsTab({ data }: { data?: unknown }) {
               );
             })}
           </div>
-          {/* 続きを見るボタン */}
           {hasMorePosts && (
             <div className="mt-4 flex justify-center">
               <button
@@ -773,23 +913,7 @@ function ThreadsTab({ data }: { data?: unknown }) {
   );
 }
 
-function NoChannelMessage() {
-  return (
-    <div className="ui-card p-8 text-center">
-      <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-4">利用可能なデータがありません</h2>
-      <p className="text-[color:var(--color-text-secondary)]">
-        Instagram または Threads にログインすると、ここでダッシュボードを確認できます。
-      </p>
-      <Link
-        href="/login"
-        className="inline-block mt-4 bg-[color:var(--color-accent)] text-white px-6 py-3 rounded-[var(--radius-md)] hover:opacity-90 transition-opacity"
-      >
-        ログインページへ
-      </Link>
-    </div>
-  );
-}
-
+// ============ 日別メトリクスセクション ============
 interface DailyMetric {
   date: string;
   followers_count: number;
@@ -804,21 +928,16 @@ function DailyMetricsSection({ dailyMetrics }: { dailyMetrics: DailyMetric[] }) 
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [dateRange, setDateRange] = useState<DateRangeFilter>('7days');
 
-  // 期間フィルタリング（Hooksは早期リターンの前に呼ぶ）
   const filteredByRange = useMemo(() => {
     if (dailyMetrics.length === 0) return [];
-    if (dateRange === 'all') {
-      return dailyMetrics;
-    }
+    if (dateRange === 'all') return dailyMetrics;
     const days = dateRange === '3days' ? 3 : dateRange === '7days' ? 7 : 30;
-    // 日付順にソートして最新からN日分を取得
     const sorted = [...dailyMetrics].sort((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
     return sorted.slice(0, days);
   }, [dailyMetrics, dateRange]);
 
-  // ソート処理
   const sortedMetrics = useMemo(() => {
     return [...filteredByRange].sort((a, b) => {
       const dateA = new Date(a.date).getTime();
@@ -827,12 +946,11 @@ function DailyMetricsSection({ dailyMetrics }: { dailyMetrics: DailyMetric[] }) 
     });
   }, [filteredByRange, sortOrder]);
 
-  // グラフ用データ（古い順に並べる）
   const chartData = useMemo(() => {
     return [...filteredByRange]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map(m => ({
-        date: m.date.slice(5), // MM-DD形式
+        date: m.date.slice(5),
         フォロワー: m.followers_count,
         インプレッション: m.total_views,
         増減: m.follower_delta,
@@ -846,9 +964,7 @@ function DailyMetricsSection({ dailyMetrics }: { dailyMetrics: DailyMetric[] }) 
     { value: 'all', label: '全期間' },
   ];
 
-  if (dailyMetrics.length === 0) {
-    return null;
-  }
+  if (dailyMetrics.length === 0) return null;
 
   return (
     <div className="ui-card">
@@ -857,7 +973,6 @@ function DailyMetricsSection({ dailyMetrics }: { dailyMetrics: DailyMetric[] }) 
           <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">インプレッション & フォロワー推移</h2>
           <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別のパフォーマンスを確認できます</p>
         </div>
-        {/* 期間フィルター */}
         <div className="flex gap-1">
           {rangeOptions.map((option) => (
             <button
@@ -875,7 +990,6 @@ function DailyMetricsSection({ dailyMetrics }: { dailyMetrics: DailyMetric[] }) 
         </div>
       </div>
 
-      {/* テーブル表示 */}
       <div className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-gray-50">
@@ -913,7 +1027,6 @@ function DailyMetricsSection({ dailyMetrics }: { dailyMetrics: DailyMetric[] }) 
         </table>
       </div>
 
-      {/* グラフ表示 */}
       <div className="mt-6 h-72">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>

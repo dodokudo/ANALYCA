@@ -1087,7 +1087,7 @@ function LineDemo() {
     const totalOpen = DUMMY_LINE_DAILY.filter(d => d.open_count > 0).reduce((sum, d) => sum + d.open_count, 0);
     const totalClick = DUMMY_LINE_DAILY.filter(d => d.click_count > 0).reduce((sum, d) => sum + d.click_count, 0);
     const daysWithMessages = DUMMY_LINE_DAILY.filter(d => d.messages_sent > 0).length;
-    const avgOpenRate = daysWithMessages > 0 ? ((totalOpen / (DUMMY_LINE_SUMMARY.targetReach * daysWithMessages)) * 100).toFixed(1) : '0.0';
+    const avgOpenRate = daysWithMessages > 0 ? ((totalOpen / (DUMMY_LINE_SUMMARY.totalFriends * daysWithMessages)) * 100).toFixed(1) : '0.0';
     const avgCtr = totalOpen > 0 ? ((totalClick / totalOpen) * 100).toFixed(1) : '0.0';
     return { totalMessages, totalOpen, totalClick, avgOpenRate, avgCtr };
   }, []);

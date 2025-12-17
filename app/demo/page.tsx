@@ -531,10 +531,43 @@ function InstagramDemo() {
             </div>
           </div>
 
-          {/* グラフ */}
+          {/* パフォーマンス推移 */}
           <div className="ui-card p-6">
-            <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">パフォーマンス推移</h3>
-            <div className="h-72">
+            <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">パフォーマンス推移</h3>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)] mb-4">日別のパフォーマンス</p>
+            <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                    <th className="px-3 py-2">日付</th>
+                    <th className="px-3 py-2 text-right">フォロワー</th>
+                    <th className="px-3 py-2 text-right">増減</th>
+                    <th className="px-3 py-2 text-right">リーチ</th>
+                    <th className="px-3 py-2 text-right">プロフ表示</th>
+                    <th className="px-3 py-2 text-right">クリック</th>
+                    <th className="px-3 py-2 text-right">ストーリー</th>
+                    <th className="px-3 py-2 text-right">ST閲覧数</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--color-border)]">
+                  {DUMMY_IG_DAILY_DATA.slice().reverse().map((row) => (
+                    <tr key={row.date} className="hover:bg-[color:var(--color-surface-muted)]">
+                      <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{row.date}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{row.followers.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">
+                        <span className="text-green-600">+{row.growth}</span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{row.reach.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{row.profileViews.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{row.webClicks}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{row.storyCount}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{row.storyViews.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-6 h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={DUMMY_IG_DAILY_DATA} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -757,7 +790,8 @@ function ThreadsDemo() {
     const totalLikes = DUMMY_THREADS_POSTS.reduce((sum, p) => sum + p.likes, 0);
     const totalReplies = DUMMY_THREADS_POSTS.reduce((sum, p) => sum + p.replies, 0);
     const engagementRate = totalViews > 0 ? ((totalLikes + totalReplies) / totalViews * 100).toFixed(2) : '0.00';
-    return { totalViews, totalLikes, totalReplies, engagementRate };
+    const followerGrowth = DUMMY_THREADS_DAILY.reduce((sum, d) => sum + d.follower_delta, 0);
+    return { totalViews, totalLikes, totalReplies, engagementRate, followerGrowth };
   }, []);
 
   const getTransitionRates = (post: typeof DUMMY_THREADS_POSTS[0]) => {
@@ -807,36 +841,50 @@ function ThreadsDemo() {
         </select>
       </div>
 
-      {/* アカウントの概要 */}
-      <div className="ui-card">
-        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">アカウントの概要</h2>
-            <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">投稿のパフォーマンス指標</p>
+      {/* アカウント + KPI */}
+      <div className="grid lg:grid-cols-12 gap-4">
+        {/* 左側：アカウント情報 */}
+        <div className="lg:col-span-3">
+          <div className="ui-card p-6 h-full flex flex-col justify-center">
+            <div className="flex items-center mb-4">
+              <div className="w-14 h-14 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)] mr-4">
+                <img src={DUMMY_THREADS_USER.profile_picture_url} alt="Profile" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">{DUMMY_THREADS_USER.username}</h2>
+                <p className="text-xs text-[color:var(--color-text-muted)]">フォロワー数</p>
+              </div>
+            </div>
+            <div className="flex items-center">
+              <span className="text-2xl font-semibold text-[color:var(--color-text-primary)] mr-3">{DUMMY_THREADS_USER.followers_count.toLocaleString()}</span>
+              <span className="text-sm font-medium text-green-500">+{summary.followerGrowth}</span>
+            </div>
           </div>
-        </header>
-        <dl className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">フォロワー</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_THREADS_USER.followers_count.toLocaleString()}</dd>
+        </div>
+        {/* 右側：KPI */}
+        <div className="lg:col-span-9">
+          <div className="ui-card p-6">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">パフォーマンス指標</h2>
+            <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">投稿数</dt>
+                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{DUMMY_THREADS_POSTS.length}</dd>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">閲覧数</dt>
+                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">いいね</dt>
+                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
+              </div>
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">エンゲージメント率</dt>
+                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
+              </div>
+            </dl>
           </div>
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">投稿数</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_THREADS_POSTS.length}</dd>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">閲覧数</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">いいね</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
-          </div>
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-            <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">エンゲージメント率</dt>
-            <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
-          </div>
-        </dl>
+        </div>
       </div>
 
       {/* 日別メトリクス */}

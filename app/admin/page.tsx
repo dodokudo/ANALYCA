@@ -129,9 +129,15 @@ function AdminPageContent() {
     return <LoadingScreen message="データ取得中" />;
   }
 
-  const activeUsers = data.users.filter(isActive);
-  const lightUsers = data.users.filter(u => getPlan(u) === 'Light');
-  const standardUsers = data.users.filter(u => getPlan(u) === 'Standard');
+  // デモアカウントを除外した実ユーザー
+  const realUsers = data.users.filter(u =>
+    u.instagram_username !== 'demo_account' &&
+    u.threads_username !== 'demo_account' &&
+    !u.user_id.includes('demo')
+  );
+  const activeUsers = realUsers.filter(isActive);
+  const lightUsers = realUsers.filter(u => getPlan(u) === 'Light');
+  const standardUsers = realUsers.filter(u => getPlan(u) === 'Standard');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -141,11 +147,29 @@ function AdminPageContent() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* デモアカウント */}
+        <div className="bg-gradient-to-r from-purple-100 to-emerald-100 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm font-medium text-purple-700">デモアカウント</span>
+              <p className="text-gray-600 text-sm mt-1">体験用のサンプルダッシュボード</p>
+            </div>
+            <a
+              href={`${baseUrl}/demo`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-white text-purple-700 font-medium rounded-lg hover:bg-purple-50 transition-colors shadow-sm"
+            >
+              デモを見る
+            </a>
+          </div>
+        </div>
+
         {/* サマリーカード */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 shadow-sm">
             <p className="text-sm text-gray-500">総契約数</p>
-            <p className="text-3xl font-bold text-gray-800">{data.stats.total_users}</p>
+            <p className="text-3xl font-bold text-gray-800">{realUsers.length}</p>
           </div>
           <div className="bg-white rounded-xl p-5 shadow-sm">
             <p className="text-sm text-gray-500">アクティブ</p>
@@ -178,7 +202,7 @@ function AdminPageContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {data.users.map((user) => {
+                {realUsers.map((user) => {
                   const dashboardUrl = `${baseUrl}/${user.user_id}`;
                   const plan = getPlan(user);
                   const active = isActive(user);

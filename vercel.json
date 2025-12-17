@@ -6,19 +6,19 @@
     },
     {
       "path": "/api/sync/instagram/insights",
-      "schedule": "0 0 * * *"
+      "schedule": "0 15 * * *"
     },
     {
       "path": "/api/sync/instagram/reels",
-      "schedule": "0 0 * * *"
+      "schedule": "0 15 * * *"
     },
     {
       "path": "/api/sync/threads/posts",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 3,9,15,21 * * *"
     },
     {
       "path": "/api/sync/threads/insights",
-      "schedule": "0 0 * * *"
+      "schedule": "0 15 * * *"
     }
   ]
 }

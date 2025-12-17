@@ -18,15 +18,23 @@ import {
 } from 'recharts';
 
 // ============ アイコンコンポーネント ============
-function AnalycaIcon({ className = 'w-6 h-6' }: { className?: string }) {
+function AnalycaLogo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const sizeClasses = {
+    sm: 'w-7 h-7',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
+  };
+  const iconSizes = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6',
+  };
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M12 22V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M22 7L12 12L2 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M2 17L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M22 17L12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
+    <div className={`${sizeClasses[size]} bg-gradient-to-r from-purple-500 to-emerald-400 rounded-lg flex items-center justify-center`}>
+      <svg className={`${iconSizes[size]} text-white`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    </div>
   );
 }
 
@@ -192,20 +200,20 @@ const DUMMY_THREADS_POSTS = [
 // ============ LINE ダミーデータ ============
 const DUMMY_LINE_SUMMARY = {
   totalFriends: 2450,
-  targetReach: 2438,
-  blockedCount: 12,
+  surveyResponses: 1842,
+  surveyRate: 75.2,
   friendsGrowth7d: 89,
   friendsGrowth30d: 342,
 };
 
 const DUMMY_LINE_DAILY = [
-  { date: '2024-12-10', friends: 2320, growth: 12, blocked: 2, messages_sent: 1, open_count: 1580, click_count: 245 },
-  { date: '2024-12-11', friends: 2340, growth: 20, blocked: 1, messages_sent: 0, open_count: 0, click_count: 0 },
-  { date: '2024-12-12', friends: 2360, growth: 20, blocked: 2, messages_sent: 1, open_count: 1720, click_count: 312 },
-  { date: '2024-12-13', friends: 2390, growth: 30, blocked: 3, messages_sent: 2, open_count: 1650, click_count: 278 },
-  { date: '2024-12-14', friends: 2410, growth: 20, blocked: 1, messages_sent: 1, open_count: 1780, click_count: 356 },
-  { date: '2024-12-15', friends: 2435, growth: 25, blocked: 2, messages_sent: 0, open_count: 0, click_count: 0 },
-  { date: '2024-12-16', friends: 2450, growth: 15, blocked: 1, messages_sent: 1, open_count: 1820, click_count: 389 },
+  { date: '2024-12-10', friends: 2320, growth: 12, survey: 8, surveyRate: 66.7, blocked: 2, messages_sent: 1, open_count: 1580, click_count: 245 },
+  { date: '2024-12-11', friends: 2340, growth: 20, survey: 16, surveyRate: 80.0, blocked: 1, messages_sent: 0, open_count: 0, click_count: 0 },
+  { date: '2024-12-12', friends: 2360, growth: 20, survey: 14, surveyRate: 70.0, blocked: 2, messages_sent: 1, open_count: 1720, click_count: 312 },
+  { date: '2024-12-13', friends: 2390, growth: 30, survey: 25, surveyRate: 83.3, blocked: 3, messages_sent: 2, open_count: 1650, click_count: 278 },
+  { date: '2024-12-14', friends: 2410, growth: 20, survey: 15, surveyRate: 75.0, blocked: 1, messages_sent: 1, open_count: 1780, click_count: 356 },
+  { date: '2024-12-15', friends: 2435, growth: 25, survey: 19, surveyRate: 76.0, blocked: 2, messages_sent: 0, open_count: 0, click_count: 0 },
+  { date: '2024-12-16', friends: 2450, growth: 15, survey: 12, surveyRate: 80.0, blocked: 1, messages_sent: 1, open_count: 1820, click_count: 389 },
 ];
 
 const DUMMY_LINE_SOURCES = [
@@ -214,6 +222,29 @@ const DUMMY_LINE_SOURCES = [
   { name: '検索', count: 320, percentage: 13.1 },
   { name: 'その他', count: 200, percentage: 8.2 },
 ];
+
+// 属性分析データ
+const DUMMY_LINE_DEMOGRAPHICS = {
+  gender: [
+    { name: '女性', value: 68, color: '#EC4899' },
+    { name: '男性', value: 28, color: '#3B82F6' },
+    { name: '未回答', value: 4, color: '#9CA3AF' },
+  ],
+  age: [
+    { name: '〜19歳', value: 5, color: '#22D3EE' },
+    { name: '20-29歳', value: 32, color: '#06B6D4' },
+    { name: '30-39歳', value: 38, color: '#0891B2' },
+    { name: '40-49歳', value: 18, color: '#0E7490' },
+    { name: '50歳〜', value: 7, color: '#155E75' },
+  ],
+  prefecture: [
+    { name: '東京都', value: 28 },
+    { name: '神奈川県', value: 15 },
+    { name: '大阪府', value: 12 },
+    { name: '愛知県', value: 8 },
+    { name: 'その他', value: 37 },
+  ],
+};
 
 const PIE_COLORS = ['#06C755', '#E1306C', '#3B82F6', '#9CA3AF'];
 
@@ -229,23 +260,25 @@ export default function DemoPage() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[color:var(--color-background)] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--color-accent)]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[color:var(--color-background)] flex">
+    <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
       {/* サイドバー（PC） */}
       <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40">
         {/* ANALYCAロゴ */}
         <div className="p-4 border-b border-[color:var(--color-border)]">
-          <div className="flex items-center gap-2">
-            <AnalycaIcon className="w-7 h-7 text-[color:var(--color-accent)]" />
-            <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+          <div className="flex items-center gap-3">
+            <AnalycaLogo size="md" />
+            <div>
+              <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+              <p className="text-xs text-[color:var(--color-text-muted)]">Demo Account</p>
+            </div>
           </div>
-          <p className="text-xs text-[color:var(--color-text-muted)] mt-1 ml-9">Demo Account</p>
         </div>
 
         {/* チャンネル切替 */}
@@ -281,8 +314,8 @@ export default function DemoPage() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-64 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)]">
             <div className="p-4 border-b border-[color:var(--color-border)] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AnalycaIcon className="w-6 h-6 text-[color:var(--color-accent)]" />
+              <div className="flex items-center gap-3">
+                <AnalycaLogo size="sm" />
                 <div>
                   <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
                   <p className="text-xs text-[color:var(--color-text-muted)]">Demo Account</p>
@@ -330,7 +363,7 @@ export default function DemoPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <AnalycaIcon className="w-6 h-6 text-[color:var(--color-accent)]" />
+          <AnalycaLogo size="sm" />
           <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
         </header>
 
@@ -840,16 +873,24 @@ function ThreadsDemo() {
         </div>
         <div className="mt-6 h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={DUMMY_THREADS_DAILY} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <ComposedChart data={DUMMY_THREADS_DAILY} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
               <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.slice(5)} />
               <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.toLocaleString()} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#475569' }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 12, fill: '#475569' }}
+                domain={[
+                  (dataMin: number) => Math.floor(dataMin * 0.99),
+                  (dataMax: number) => Math.ceil(dataMax * 1.01)
+                ]}
+              />
               <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="followers_count" name="フォロワー" stroke="#8b5cf6" strokeWidth={2} dot={false} />
-              <Line yAxisId="right" type="monotone" dataKey="total_views" name="閲覧数" stroke="#6366f1" strokeWidth={2} dot={false} />
-            </LineChart>
+              <Bar yAxisId="left" dataKey="total_views" name="閲覧数" fill="#6366f1" opacity={0.7} />
+              <Line yAxisId="right" type="monotone" dataKey="followers_count" name="フォロワー" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -1036,101 +1077,156 @@ function LineDemo() {
       {/* メインタブ */}
       {activeTab === 'main' && (
         <>
-          {/* アカウントの概要 */}
+          {/* アカウントの概要（KPIカード） */}
           <div className="ui-card">
             <header>
               <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">アカウントの概要</h2>
               <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">LINE公式アカウントの指標</p>
             </header>
-            <dl className="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+            <dl className="mt-6 grid gap-4 sm:grid-cols-3">
               <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">友だち数</dt>
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">友だち登録数</dt>
                 <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.totalFriends.toLocaleString()}</dd>
                 <p className="mt-2 text-xs text-green-600">+{DUMMY_LINE_SUMMARY.friendsGrowth7d} (7日間)</p>
               </div>
               <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">ターゲットリーチ</dt>
-                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.targetReach.toLocaleString()}</dd>
-                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">配信可能な友だち</p>
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">アンケート回答数</dt>
+                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.surveyResponses.toLocaleString()}</dd>
+                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">累計回答者数</p>
               </div>
               <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">ブロック数</dt>
-                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.blockedCount}</dd>
-                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">ブロック率 {((DUMMY_LINE_SUMMARY.blockedCount / DUMMY_LINE_SUMMARY.totalFriends) * 100).toFixed(1)}%</p>
-              </div>
-              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-5">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">平均開封率</dt>
-                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{dailyStats.avgOpenRate}%</dd>
-                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">CTR {dailyStats.avgCtr}%</p>
+                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">アンケート回答率</dt>
+                <dd className="mt-4 text-[2rem] font-semibold leading-none text-[color:var(--color-text-primary)]">{DUMMY_LINE_SUMMARY.surveyRate}%</dd>
+                <p className="mt-2 text-xs text-[color:var(--color-text-muted)]">回答数 / 登録数</p>
               </div>
             </dl>
           </div>
 
-          {/* 流入元分析 */}
+          {/* デイリーデータ & 流入分析 */}
           <div className="ui-card">
-            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">流入元分析</h2>
-            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">どこから友だち登録されたか</p>
-            <div className="mt-6 grid lg:grid-cols-2 gap-6">
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={DUMMY_LINE_SOURCES}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      dataKey="count"
-                      nameKey="name"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
-                    >
-                      {DUMMY_LINE_SOURCES.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* 左側：デイリーデータ */}
+              <div>
+                <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">デイリーデータ</h2>
+                <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別のLINE指標</p>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[color:var(--color-border)]">
+                        <th className="text-left py-2 px-2 text-[color:var(--color-text-secondary)] font-medium">日付</th>
+                        <th className="text-right py-2 px-2 text-[color:var(--color-text-secondary)] font-medium">登録数</th>
+                        <th className="text-right py-2 px-2 text-[color:var(--color-text-secondary)] font-medium">回答数</th>
+                        <th className="text-right py-2 px-2 text-[color:var(--color-text-secondary)] font-medium">回答率</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {DUMMY_LINE_DAILY.slice().reverse().map((day) => (
+                        <tr key={day.date} className="border-b border-[color:var(--color-border)] last:border-0">
+                          <td className="py-2 px-2 text-[color:var(--color-text-primary)]">{day.date.slice(5)}</td>
+                          <td className="py-2 px-2 text-right text-[color:var(--color-text-primary)]">+{day.growth}</td>
+                          <td className="py-2 px-2 text-right text-[color:var(--color-text-primary)]">{day.survey}</td>
+                          <td className="py-2 px-2 text-right text-[color:var(--color-text-primary)]">{day.surveyRate}%</td>
+                        </tr>
                       ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => [value.toLocaleString(), '登録数']} />
-                  </PieChart>
-                </ResponsiveContainer>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="space-y-3">
-                {DUMMY_LINE_SOURCES.map((source, idx) => (
-                  <div key={source.name} className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }} />
-                    <div className="flex-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium text-[color:var(--color-text-primary)]">{source.name}</span>
-                        <span className="text-[color:var(--color-text-secondary)]">{source.count.toLocaleString()} ({source.percentage}%)</span>
+              {/* 右側：流入分析 */}
+              <div>
+                <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">流入分析</h2>
+                <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">友だち登録の流入元</p>
+                <div className="mt-4 h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={DUMMY_LINE_SOURCES}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={75}
+                        dataKey="count"
+                        nameKey="name"
+                      >
+                        {DUMMY_LINE_SOURCES.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => [value.toLocaleString(), '登録数']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 space-y-2">
+                  {DUMMY_LINE_SOURCES.map((source, idx) => (
+                    <div key={source.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded" style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }} />
+                        <span className="text-[color:var(--color-text-primary)]">{source.name}</span>
                       </div>
-                      <div className="mt-1 h-2 bg-[color:var(--color-surface-muted)] rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${source.percentage}%`, backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
-                        />
-                      </div>
+                      <span className="text-[color:var(--color-text-secondary)]">{source.percentage}%</span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* 友だち数推移 */}
+          {/* 属性分析 */}
           <div className="ui-card">
-            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">友だち数推移</h2>
-            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別の友だち数と増減</p>
-            <div className="mt-6 h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={DUMMY_LINE_DAILY} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.slice(5)} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.toLocaleString()} domain={['dataMin - 20', 'dataMax + 20']} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#475569' }} />
-                  <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
-                  <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="friends" name="友だち数" stroke="#06C755" strokeWidth={2} dot={{ r: 3 }} />
-                  <Bar yAxisId="right" dataKey="growth" name="増加数" fill="#06C755" opacity={0.5} />
-                </ComposedChart>
-              </ResponsiveContainer>
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">属性分析</h2>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">友だちの属性情報</p>
+            <div className="mt-6 grid md:grid-cols-3 gap-6">
+              {/* 性別 */}
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] p-4">
+                <h3 className="text-sm font-medium text-[color:var(--color-text-secondary)] mb-4">性別</h3>
+                <div className="space-y-3">
+                  {DUMMY_LINE_DEMOGRAPHICS.gender.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-[color:var(--color-text-primary)]">{item.name}</span>
+                        <span className="font-medium text-[color:var(--color-text-primary)]">{item.value}%</span>
+                      </div>
+                      <div className="h-2 bg-[color:var(--color-surface-muted)] rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${item.value}%`, backgroundColor: item.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* 年代 */}
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] p-4">
+                <h3 className="text-sm font-medium text-[color:var(--color-text-secondary)] mb-4">年代</h3>
+                <div className="space-y-3">
+                  {DUMMY_LINE_DEMOGRAPHICS.age.map((item) => (
+                    <div key={item.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-[color:var(--color-text-primary)]">{item.name}</span>
+                        <span className="font-medium text-[color:var(--color-text-primary)]">{item.value}%</span>
+                      </div>
+                      <div className="h-2 bg-[color:var(--color-surface-muted)] rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${item.value}%`, backgroundColor: item.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* 都道府県 */}
+              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] p-4">
+                <h3 className="text-sm font-medium text-[color:var(--color-text-secondary)] mb-4">都道府県</h3>
+                <div className="space-y-3">
+                  {DUMMY_LINE_DEMOGRAPHICS.prefecture.map((item, idx) => (
+                    <div key={item.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-[color:var(--color-text-primary)]">{item.name}</span>
+                        <span className="font-medium text-[color:var(--color-text-primary)]">{item.value}%</span>
+                      </div>
+                      <div className="h-2 bg-[color:var(--color-surface-muted)] rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-[#06C755]" style={{ width: `${item.value}%`, opacity: 1 - idx * 0.15 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </>

@@ -11,7 +11,7 @@ export async function GET(
     // ユーザーの全データを取得
     const userRecordPromise = getUserById(userId);
     const dashboardDataPromise = getUserDashboardData(userId);
-    const [userRecord, { reels, stories, insights, lineData, threadsPosts }] = await Promise.all([
+    const [userRecord, { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics }] = await Promise.all([
       userRecordPromise,
       dashboardDataPromise,
     ]);
@@ -72,11 +72,13 @@ export async function GET(
         totalViews: threadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
         totalLikes: threadsPosts.reduce((sum, post) => sum + (post.likes || 0), 0),
         totalReplies: threadsPosts.reduce((sum, post) => sum + (post.replies || 0), 0),
+        totalReposts: threadsPosts.reduce((sum, post) => sum + (post.reposts || 0), 0),
+        totalQuotes: threadsPosts.reduce((sum, post) => sum + (post.quotes || 0), 0),
         data: threadsPosts.map(post => ({
           id: post.id,
           threads_id: post.threads_id,
           text: post.text,
-          timestamp: post.timestamp,
+          timestamp: post.timestamp instanceof Date ? post.timestamp.toISOString() : post.timestamp,
           permalink: post.permalink,
           media_type: post.media_type,
           is_quote_post: post.is_quote_post,
@@ -87,18 +89,53 @@ export async function GET(
           quotes: post.quotes,
         }))
       },
+      threadsComments: {
+        total: threadsComments.length,
+        totalViews: threadsComments.reduce((sum, c) => sum + (c.views || 0), 0),
+        data: threadsComments.map(comment => ({
+          id: comment.id,
+          comment_id: comment.comment_id,
+          parent_post_id: comment.parent_post_id,
+          text: comment.text,
+          timestamp: comment.timestamp instanceof Date ? comment.timestamp.toISOString() : comment.timestamp,
+          permalink: comment.permalink,
+          has_replies: comment.has_replies,
+          views: comment.views,
+          depth: comment.depth ?? 0, // コメント欄の順番
+        }))
+      },
+      threadsDailyMetrics: {
+        latest: threadsDailyMetrics[0] || null,
+        data: threadsDailyMetrics.map(m => ({
+          date: m.date,
+          followers_count: m.followers_count,
+          follower_delta: m.follower_delta,
+          total_views: m.total_views,
+          total_likes: m.total_likes,
+          total_replies: m.total_replies,
+          post_count: m.post_count,
+        }))
+      },
       summary: {
         totalReelsViews: reels.reduce((sum, reel) => sum + (reel.views || 0), 0),
         totalStoriesViews: stories.reduce((sum, story) => sum + (story.views || 0), 0),
         currentFollowers: insights[0]?.followers_count || 0,
         lineFollowers: lineData[0]?.followers || 0,
         totalThreadsViews: threadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
+        threadsFollowersCount: threadsDailyMetrics[0]?.followers_count || 0,
       }
     };
 
     return NextResponse.json({
       success: true,
       data: dashboardData,
+      user: {
+        threads_username: userRecord?.threads_username || null,
+        threads_user_id: userRecord?.threads_user_id || null,
+        threads_profile_picture_url: userRecord?.threads_profile_picture_url || null,
+        instagram_username: userRecord?.instagram_username || null,
+        instagram_user_id: userRecord?.instagram_user_id || null,
+      },
       channels: {
         instagram: !!userRecord?.has_instagram,
         threads: !!userRecord?.has_threads,

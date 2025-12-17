@@ -117,6 +117,10 @@ interface DashboardData {
   };
   reels?: { total: number; data: unknown[] };
   stories?: { total: number; data: unknown[] };
+  insights?: {
+    latest: { followers_count: number; reach?: number; profile_views?: number; website_clicks?: number } | null;
+    data: unknown[];
+  };
 }
 
 // ============ メインコンポーネント ============
@@ -333,7 +337,12 @@ function UserDashboardContent({ userId }: { userId: string }) {
             />
           )}
           {activeChannel === 'instagram' && (
-            <InstagramContent data={data} />
+            <InstagramContent
+              user={user}
+              data={data}
+              username={username}
+              profilePicture={profilePicture}
+            />
           )}
         </div>
       </main>
@@ -721,10 +730,103 @@ function ThreadsContent({
   );
 }
 
-// ============ Instagram コンテンツ（プレースホルダー） ============
-function InstagramContent({ data }: { data: DashboardData | null }) {
-  const reels = data?.reels?.data || [];
-  const stories = data?.stories?.data || [];
+// ============ Instagram コンテンツ（デモと同じUI） ============
+interface InstagramReel {
+  id: string;
+  caption?: string;
+  media_type?: string;
+  permalink?: string;
+  timestamp: string;
+  views: number;
+  reach?: number;
+  like_count: number;
+  comments_count: number;
+  saved?: number;
+  shares?: number;
+  total_interactions?: number;
+  avg_watch_time_seconds?: number;
+  thumbnail_url?: string;
+}
+
+interface InstagramStory {
+  id: string;
+  timestamp: string;
+  views: number;
+  reach?: number;
+  replies?: number;
+  total_interactions?: number;
+  follows?: number;
+  profile_visits?: number;
+  navigation?: number;
+  thumbnail_url?: string;
+}
+
+interface InstagramInsight {
+  date: string;
+  followers_count: number;
+  posts_count?: number;
+  reach?: number;
+  engagement?: number;
+  profile_views?: number;
+  website_clicks?: number;
+}
+
+type IGTab = 'overview' | 'reels' | 'stories';
+
+function InstagramContent({
+  user,
+  data,
+  username,
+  profilePicture,
+}: {
+  user: UserInfo | null;
+  data: DashboardData | null;
+  username: string;
+  profilePicture: string | undefined;
+}) {
+  const [activeTab, setActiveTab] = useState<IGTab>('overview');
+  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+  const [reelSortBy, setReelSortBy] = useState('views');
+  const [storySortBy, setStorySortBy] = useState('views');
+
+  const reels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
+  const stories: InstagramStory[] = (data?.stories?.data || []) as InstagramStory[];
+  const insights: InstagramInsight[] = ((data?.insights as { data?: InstagramInsight[] })?.data || []) as InstagramInsight[];
+  const latestInsight = insights[0] || null;
+  const followersCount = latestInsight?.followers_count || 0;
+
+  const summary = useMemo(() => {
+    const totalReach = insights.reduce((sum, d) => sum + (d.reach || 0), 0);
+    const totalProfileViews = insights.reduce((sum, d) => sum + (d.profile_views || 0), 0);
+    const totalWebClicks = insights.reduce((sum, d) => sum + (d.website_clicks || 0), 0);
+    const totalReelsViews = reels.reduce((sum, r) => sum + (r.views || 0), 0);
+    const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
+    const totalStoriesViews = stories.reduce((sum, s) => sum + (s.views || 0), 0);
+    return { totalReach, totalProfileViews, totalWebClicks, totalReelsViews, totalReelsLikes, totalStoriesViews };
+  }, [insights, reels, stories]);
+
+  const sortedReels = useMemo(() => {
+    return [...reels].sort((a, b) => {
+      if (reelSortBy === 'date') return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      if (reelSortBy === 'views') return (b.views || 0) - (a.views || 0);
+      if (reelSortBy === 'likes') return (b.like_count || 0) - (a.like_count || 0);
+      return 0;
+    });
+  }, [reels, reelSortBy]);
+
+  const sortedStories = useMemo(() => {
+    return [...stories].sort((a, b) => {
+      if (storySortBy === 'date') return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      if (storySortBy === 'views') return (b.views || 0) - (a.views || 0);
+      return 0;
+    });
+  }, [stories, storySortBy]);
+
+  const tabItems: { value: IGTab; label: string }[] = [
+    { value: 'overview', label: '概要' },
+    { value: 'reels', label: 'リール' },
+    { value: 'stories', label: 'ストーリー' },
+  ];
 
   if (!reels.length && !stories.length) {
     return (
@@ -737,10 +839,256 @@ function InstagramContent({ data }: { data: DashboardData | null }) {
 
   return (
     <div className="section-stack pb-20 lg:pb-6">
-      <div className="ui-card p-6">
-        <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">Instagram</h2>
-        <p className="text-[color:var(--color-text-secondary)] mt-2">Coming soon...</p>
+      {/* ヘッダー: タブ + 日付選択 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {tabItems.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium transition-colors ${
+                activeTab === tab.value
+                  ? 'bg-[color:var(--color-text-primary)] text-white'
+                  : 'border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <select
+          value={datePreset}
+          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+          className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+        >
+          {datePresetOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
+
+      {/* 概要タブ */}
+      {activeTab === 'overview' && (
+        <>
+          {/* アカウント + KPI */}
+          <div className="grid lg:grid-cols-12 gap-4">
+            <div className="lg:col-span-3">
+              <div className="ui-card p-6 h-full flex flex-col justify-center">
+                <div className="flex items-center mb-4">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)] mr-4">
+                    {profilePicture ? (
+                      <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">
+                        {username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
+                    <p className="text-xs text-[color:var(--color-text-muted)]">フォロワー数</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-2xl font-semibold text-[color:var(--color-text-primary)] mr-3">{followersCount.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            <div className="lg:col-span-9">
+              <div className="ui-card p-6">
+                <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">パフォーマンス指標</h2>
+                <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                    <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">リール数</dt>
+                    <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{reels.length}</dd>
+                  </div>
+                  <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                    <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">リール再生数</dt>
+                    <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalReelsViews.toLocaleString()}</dd>
+                  </div>
+                  <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                    <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">いいね数</dt>
+                    <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalReelsLikes.toLocaleString()}</dd>
+                  </div>
+                  <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                    <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">ストーリー閲覧</dt>
+                    <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalStoriesViews.toLocaleString()}</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          {/* リールTOP5 */}
+          {sortedReels.length > 0 && (
+            <div className="ui-card p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">リールTOP5</h3>
+                <button onClick={() => setActiveTab('reels')} className="h-9 px-3 text-sm font-medium rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]">
+                  詳細
+                </button>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-1">
+                {sortedReels.slice(0, 5).map((reel) => (
+                  <div key={reel.id} className="flex min-w-[160px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
+                    <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
+                      {reel.thumbnail_url ? (
+                        <img src={reel.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-[color:var(--color-text-muted)]">
+                          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 space-y-1">
+                      <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(reel.timestamp).toLocaleDateString('ja-JP')}</p>
+                      <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{(reel.views || 0).toLocaleString()} 再生</p>
+                      <p className="text-xs text-[color:var(--color-text-secondary)]">{(reel.like_count || 0).toLocaleString()} いいね</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ストーリーTOP5 */}
+          {sortedStories.length > 0 && (
+            <div className="ui-card p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">ストーリーTOP5</h3>
+                <button onClick={() => setActiveTab('stories')} className="h-9 px-3 text-sm font-medium rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]">
+                  詳細
+                </button>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-1">
+                {sortedStories.slice(0, 5).map((story) => {
+                  const viewRate = followersCount > 0 ? ((story.views / followersCount) * 100).toFixed(1) : '0.0';
+                  return (
+                    <div key={story.id} className="flex min-w-[160px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
+                      <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
+                        {story.thumbnail_url ? (
+                          <img src={story.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-[color:var(--color-text-muted)]">
+                            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 space-y-1">
+                        <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(story.timestamp).toLocaleDateString('ja-JP')}</p>
+                        <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()} 閲覧</p>
+                        <p className="text-xs text-[color:var(--color-text-secondary)]">{viewRate}% 閲覧率</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* リールタブ */}
+      {activeTab === 'reels' && (
+        <div className="ui-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">リール一覧</h2>
+            <select value={reelSortBy} onChange={(e) => setReelSortBy(e.target.value)} className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]">
+              <option value="date">日付</option>
+              <option value="views">再生数</option>
+              <option value="likes">いいね</option>
+            </select>
+          </div>
+          <div className="space-y-4">
+            {sortedReels.map((reel) => (
+              <div key={reel.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
+                <div className="w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">
+                  <div className="aspect-[9/16]">
+                    {reel.thumbnail_url ? (
+                      <img src={reel.thumbnail_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-[color:var(--color-text-muted)]">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(reel.timestamp).toLocaleDateString('ja-JP')}</p>
+                  {reel.caption && <p className="text-sm text-[color:var(--color-text-primary)] line-clamp-2">{reel.caption}</p>}
+                  <dl className="grid grid-cols-2 gap-y-2 text-sm sm:grid-cols-4">
+                    <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.views || 0).toLocaleString()}</dd></div>
+                    <div><dt className="text-[color:var(--color-text-muted)]">いいね</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.like_count || 0).toLocaleString()}</dd></div>
+                    <div><dt className="text-[color:var(--color-text-muted)]">コメント</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.comments_count || 0).toLocaleString()}</dd></div>
+                    <div><dt className="text-[color:var(--color-text-muted)]">保存</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.saved || 0).toLocaleString()}</dd></div>
+                  </dl>
+                  {reel.permalink && (
+                    <a href={reel.permalink} target="_blank" rel="noopener noreferrer" className="text-xs text-[color:var(--color-accent)] hover:underline">
+                      Instagramで見る →
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+            {sortedReels.length === 0 && (
+              <p className="text-center text-[color:var(--color-text-muted)] py-8">リールがありません</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ストーリータブ */}
+      {activeTab === 'stories' && (
+        <div className="ui-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">ストーリー一覧</h2>
+            <select value={storySortBy} onChange={(e) => setStorySortBy(e.target.value)} className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]">
+              <option value="date">日付</option>
+              <option value="views">閲覧数</option>
+            </select>
+          </div>
+          <div className="space-y-4">
+            {sortedStories.map((story) => {
+              const viewRate = followersCount > 0 ? ((story.views / followersCount) * 100).toFixed(1) : '0.0';
+              return (
+                <div key={story.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
+                  <div className="w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">
+                    <div className="aspect-[9/16]">
+                      {story.thumbnail_url ? (
+                        <img src={story.thumbnail_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-[color:var(--color-text-muted)]">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(story.timestamp).toLocaleDateString('ja-JP')}</p>
+                    <dl className="grid grid-cols-2 gap-y-2 text-sm sm:grid-cols-4">
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧率</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}%</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">リーチ</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">返信</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.replies || 0)}</dd></div>
+                    </dl>
+                  </div>
+                </div>
+              );
+            })}
+            {sortedStories.length === 0 && (
+              <p className="text-center text-[color:var(--color-text-muted)] py-8">ストーリーがありません</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

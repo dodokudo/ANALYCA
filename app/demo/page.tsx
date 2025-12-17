@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import LoadingScreen from '@/components/LoadingScreen';
 import {
   ComposedChart,
   Bar,
@@ -249,8 +251,23 @@ const DUMMY_LINE_DEMOGRAPHICS = {
 const PIE_COLORS = ['#06C755', '#E1306C', '#3B82F6', '#9CA3AF'];
 
 // ============ メインコンポーネント ============
-export default function DemoPage() {
-  const [activeChannel, setActiveChannel] = useState<Channel>('instagram');
+function DemoPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get('tab') as Channel | null;
+
+  // URLパラメータからチャンネルを取得（デフォルトはinstagram）
+  const activeChannel = useMemo(() => {
+    if (tabParam === 'threads' || tabParam === 'line' || tabParam === 'instagram') {
+      return tabParam;
+    }
+    return 'instagram';
+  }, [tabParam]);
+
+  const setActiveChannel = (channel: Channel) => {
+    router.push(`/demo?tab=${channel}`, { scroll: false });
+  };
+
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -259,11 +276,7 @@ export default function DemoPage() {
   }, []);
 
   if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--color-accent)]"></div>
-      </div>
-    );
+    return <LoadingScreen message="データ読み込み中" />;
   }
 
   return (
@@ -1334,5 +1347,14 @@ function LineDemo() {
         </>
       )}
     </div>
+  );
+}
+
+// ============ エクスポート（Suspenseでラップ） ============
+export default function DemoPage() {
+  return (
+    <Suspense fallback={<LoadingScreen message="データ読み込み中" />}>
+      <DemoPageContent />
+    </Suspense>
   );
 }

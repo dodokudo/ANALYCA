@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
 import LoadingScreen from '@/components/LoadingScreen';
+import AnalycaLogo from '@/components/AnalycaLogo';
 
 // プラン定義
 const PLANS: Record<string, {
@@ -31,26 +32,6 @@ const PLANS: Record<string, {
     onboardingPath: '/onboarding/standard',
   },
 };
-
-function AnalycaLogo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const sizeClasses = {
-    sm: 'w-7 h-7',
-    md: 'w-8 h-8',
-    lg: 'w-10 h-10',
-  };
-  const iconSizes = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6',
-  };
-  return (
-    <div className={`${sizeClasses[size]} bg-gradient-to-r from-purple-500 to-emerald-400 rounded-lg flex items-center justify-center`}>
-      <svg className={`${iconSizes[size]} text-white`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    </div>
-  );
-}
 
 declare global {
   interface Window {
@@ -192,9 +173,8 @@ function CheckoutContent() {
 
       {/* ヘッダー */}
       <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <AnalycaLogo size="md" />
-          <h1 className="text-xl font-bold text-gray-800">ANALYCA</h1>
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <AnalycaLogo size="md" showText />
         </div>
       </header>
 

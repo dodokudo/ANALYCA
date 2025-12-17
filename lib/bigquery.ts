@@ -1094,3 +1094,109 @@ export async function getUserDashboardData(userId: string): Promise<{
 
   return { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics };
 }
+
+// 管理者用: 全ユーザー一覧取得（統計付き）
+export interface AdminUserSummary {
+  user_id: string;
+  instagram_username: string | null;
+  instagram_profile_picture_url: string | null;
+  threads_username: string | null;
+  threads_profile_picture_url: string | null;
+  has_instagram: boolean;
+  has_threads: boolean;
+  created_at: Date | null;
+  // Instagram統計
+  ig_followers: number;
+  ig_reels_count: number;
+  ig_total_views: number;
+  // Threads統計
+  threads_followers: number;
+  threads_posts_count: number;
+  threads_total_views: number;
+}
+
+export async function getAllUsersWithStats(): Promise<AdminUserSummary[]> {
+  const query = `
+    WITH user_ig_stats AS (
+      SELECT
+        user_id,
+        COUNT(*) as reels_count,
+        COALESCE(SUM(views), 0) as total_views
+      FROM \`${projectId}.analyca.instagram_reels\`
+      GROUP BY user_id
+    ),
+    user_ig_followers AS (
+      SELECT
+        user_id,
+        followers_count,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date DESC) as rn
+      FROM \`${projectId}.analyca.instagram_insights\`
+    ),
+    user_threads_stats AS (
+      SELECT
+        user_id,
+        COUNT(*) as posts_count,
+        COALESCE(SUM(views), 0) as total_views
+      FROM \`${projectId}.analyca.threads_posts\`
+      GROUP BY user_id
+    ),
+    user_threads_followers AS (
+      SELECT
+        user_id,
+        followers_count,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date DESC) as rn
+      FROM \`${projectId}.analyca.threads_daily_metrics\`
+    )
+    SELECT
+      u.user_id,
+      u.instagram_username,
+      u.instagram_profile_picture_url,
+      u.threads_username,
+      u.threads_profile_picture_url,
+      COALESCE(u.has_instagram, false) as has_instagram,
+      COALESCE(u.has_threads, false) as has_threads,
+      u.created_at,
+      COALESCE(igf.followers_count, 0) as ig_followers,
+      COALESCE(igs.reels_count, 0) as ig_reels_count,
+      COALESCE(igs.total_views, 0) as ig_total_views,
+      COALESCE(tf.followers_count, 0) as threads_followers,
+      COALESCE(ts.posts_count, 0) as threads_posts_count,
+      COALESCE(ts.total_views, 0) as threads_total_views
+    FROM \`${projectId}.analyca.users\` u
+    LEFT JOIN user_ig_stats igs ON u.user_id = igs.user_id
+    LEFT JOIN user_ig_followers igf ON u.user_id = igf.user_id AND igf.rn = 1
+    LEFT JOIN user_threads_stats ts ON u.user_id = ts.user_id
+    LEFT JOIN user_threads_followers tf ON u.user_id = tf.user_id AND tf.rn = 1
+    ORDER BY u.created_at DESC
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  return rows as AdminUserSummary[];
+}
+
+// 管理者用: 全体統計取得
+export interface AdminOverallStats {
+  total_users: number;
+  instagram_users: number;
+  threads_users: number;
+  total_ig_reels: number;
+  total_ig_views: number;
+  total_threads_posts: number;
+  total_threads_views: number;
+}
+
+export async function getAdminOverallStats(): Promise<AdminOverallStats> {
+  const query = `
+    SELECT
+      (SELECT COUNT(*) FROM \`${projectId}.analyca.users\`) as total_users,
+      (SELECT COUNT(*) FROM \`${projectId}.analyca.users\` WHERE has_instagram = true) as instagram_users,
+      (SELECT COUNT(*) FROM \`${projectId}.analyca.users\` WHERE has_threads = true) as threads_users,
+      (SELECT COUNT(*) FROM \`${projectId}.analyca.instagram_reels\`) as total_ig_reels,
+      (SELECT COALESCE(SUM(views), 0) FROM \`${projectId}.analyca.instagram_reels\`) as total_ig_views,
+      (SELECT COUNT(*) FROM \`${projectId}.analyca.threads_posts\`) as total_threads_posts,
+      (SELECT COALESCE(SUM(views), 0) FROM \`${projectId}.analyca.threads_posts\`) as total_threads_views
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  return rows[0] as AdminOverallStats;
+}

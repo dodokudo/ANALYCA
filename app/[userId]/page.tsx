@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, use } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import LoadingScreen from '@/components/LoadingScreen';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface UserInfo {
@@ -76,33 +77,28 @@ export default function UserDashboardPage({ params }: { params: Promise<{ userId
   const hasThreads = dashboardResponse?.channels?.threads ?? false;
   const dashboardData = dashboardResponse?.data;
 
-  const effectiveTab = (() => {
-    if (tabParam === 'threads') {
-      if (hasThreads) return 'threads';
+  // タブはURLパラメータを優先（リフレッシュ時も保持される）
+  const effectiveTab = useMemo(() => {
+    // URLパラメータが明示的に指定されている場合は、それを優先
+    if (tabParam === 'threads' && hasThreads) return 'threads';
+    if (tabParam === 'instagram' && hasInstagram) return 'instagram';
+
+    // URLパラメータがあるが、そのチャンネルがない場合はフォールバック
+    if (tabParam === 'threads' && !hasThreads && hasInstagram) return 'instagram';
+    if (tabParam === 'instagram' && !hasInstagram && hasThreads) return 'threads';
+
+    // URLパラメータがない場合のデフォルト（Instagramを優先）
+    if (!tabParam) {
       if (hasInstagram) return 'instagram';
-      return 'none';
+      if (hasThreads) return 'threads';
     }
 
-    if (tabParam === 'instagram' || !tabParam) {
-      if (hasInstagram) return 'instagram';
-      if (hasThreads) return 'threads';
-      return 'none';
-    }
-
-    if (hasInstagram) return 'instagram';
-    if (hasThreads) return 'threads';
+    // どちらもない場合
     return 'none';
-  })();
+  }, [tabParam, hasInstagram, hasThreads]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[color:var(--color-background)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[color:var(--color-accent)] mx-auto"></div>
-          <p className="mt-4 text-[color:var(--color-text-secondary)]">読み込み中...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="データ読み込み中" />;
   }
 
   if (dashboardResponse?.error) {

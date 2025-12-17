@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getAllUsersWithStats, getAdminOverallStats } from '@/lib/bigquery';
 
 // パスワード認証
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'analyca2025';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '7684';
 
 export async function GET(request: Request) {
   try {

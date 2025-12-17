@@ -11,6 +11,7 @@ interface UserInfo {
   threads_profile_picture_url?: string | null;
   instagram_username?: string | null;
   instagram_user_id?: string | null;
+  instagram_profile_picture_url?: string | null;
 }
 
 interface DashboardResponse {
@@ -130,25 +131,39 @@ export default function UserDashboardPage({ params }: { params: Promise<{ userId
           {(dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username) && (
             <div className="ui-card p-4 mb-6">
               <div className="flex items-center space-x-4">
-                {dashboardResponse?.user?.threads_profile_picture_url ? (
-                  <img
-                    src={dashboardResponse.user.threads_profile_picture_url}
-                    alt={dashboardResponse.user.threads_username || 'User'}
-                    className="w-14 h-14 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-full bg-[color:var(--color-accent)] flex items-center justify-center">
-                    <span className="text-xl font-bold text-white">
-                      {(dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username || 'U').charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  // タブに応じてプロフィール画像を選択
+                  const profilePictureUrl = effectiveTab === 'instagram'
+                    ? (dashboardResponse?.user?.instagram_profile_picture_url || dashboardResponse?.user?.threads_profile_picture_url)
+                    : (dashboardResponse?.user?.threads_profile_picture_url || dashboardResponse?.user?.instagram_profile_picture_url);
+                  const username = effectiveTab === 'instagram'
+                    ? (dashboardResponse?.user?.instagram_username || dashboardResponse?.user?.threads_username)
+                    : (dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username);
+
+                  return profilePictureUrl ? (
+                    <img
+                      src={profilePictureUrl}
+                      alt={username || 'User'}
+                      className="w-14 h-14 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-[color:var(--color-accent)] flex items-center justify-center">
+                      <span className="text-xl font-bold text-white">
+                        {(username || 'U').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  );
+                })()}
                 <div>
                   <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">
-                    {dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username}
+                    {effectiveTab === 'instagram'
+                      ? (dashboardResponse?.user?.instagram_username || dashboardResponse?.user?.threads_username)
+                      : (dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username)}
                   </h1>
                   <p className="text-sm text-[color:var(--color-text-secondary)]">
-                    @{dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username}
+                    @{effectiveTab === 'instagram'
+                      ? (dashboardResponse?.user?.instagram_username || dashboardResponse?.user?.threads_username)
+                      : (dashboardResponse?.user?.threads_username || dashboardResponse?.user?.instagram_username)}
                   </p>
                 </div>
               </div>

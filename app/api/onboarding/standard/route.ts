@@ -23,6 +23,7 @@ const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
 interface ThreadsAccountInfo {
   id: string;
   username: string;
+  threads_profile_picture_url?: string;
 }
 
 interface ThreadsPost {
@@ -44,7 +45,7 @@ interface ThreadsInsights {
 
 async function getThreadsAccountInfo(accessToken: string): Promise<ThreadsAccountInfo> {
   const response = await fetch(
-    `${THREADS_GRAPH_BASE}/me?fields=id,username&access_token=${accessToken}`
+    `${THREADS_GRAPH_BASE}/me?fields=id,username,threads_profile_picture_url&access_token=${accessToken}`
   );
 
   if (!response.ok) {
@@ -105,6 +106,7 @@ interface InstagramUser {
   media_count: number;
   followers_count: number;
   follows_count: number;
+  profile_picture_url?: string;
 }
 
 interface InstagramMedia {
@@ -167,9 +169,9 @@ async function getInstagramAccount(accessToken: string): Promise<InstagramUser> 
     const igData = await igResponse.json();
 
     if (igData.instagram_business_account) {
-      // 3. Instagramアカウント詳細を取得
+      // 3. Instagramアカウント詳細を取得（profile_picture_url含む）
       const accountResponse = await fetch(
-        `${FACEBOOK_GRAPH_BASE}/${igData.instagram_business_account.id}?fields=id,username,account_type,media_count,followers_count,follows_count&access_token=${accessToken}`
+        `${FACEBOOK_GRAPH_BASE}/${igData.instagram_business_account.id}?fields=id,username,account_type,media_count,followers_count,follows_count,profile_picture_url&access_token=${accessToken}`
       );
 
       if (!accountResponse.ok) {
@@ -315,6 +317,7 @@ export async function POST(request: NextRequest) {
       threads_username: threadsAccount.username,
       threads_access_token: threads.accessToken,
       threads_token_expires_at: threadsTokenExpiresAt,
+      threads_profile_picture_url: threadsAccount.threads_profile_picture_url,
     });
 
     // ============ Instagramユーザー保存 ============
@@ -323,6 +326,7 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       instagram_user_id: instagramAccount.id,
       instagram_username: instagramAccount.username,
+      instagram_profile_picture_url: instagramAccount.profile_picture_url,
       access_token: instagramLongToken,
       token_expires_at: instagramTokenExpiresAt,
     });

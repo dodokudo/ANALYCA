@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/sync/instagram/stories",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/sync/instagram/insights",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/sync/instagram/reels",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/sync/threads/posts",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/sync/threads/insights",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

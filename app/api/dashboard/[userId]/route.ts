@@ -135,6 +135,7 @@ export async function GET(
         threads_profile_picture_url: userRecord?.threads_profile_picture_url || null,
         instagram_username: userRecord?.instagram_username || null,
         instagram_user_id: userRecord?.instagram_user_id || null,
+        instagram_profile_picture_url: userRecord?.instagram_profile_picture_url || null,
       },
       channels: {
         instagram: !!userRecord?.has_instagram,

@@ -27,6 +27,7 @@ export interface User {
   user_id: string;
   instagram_user_id?: string | null;
   instagram_username?: string | null;
+  instagram_profile_picture_url?: string | null;
   access_token?: string | null;
   token_expires_at?: Date | null;
   drive_folder_id?: string | null;
@@ -162,6 +163,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
         @user_id as user_id,
         @instagram_user_id as instagram_user_id,
         @instagram_username as instagram_username,
+        @instagram_profile_picture_url as instagram_profile_picture_url,
         @access_token as access_token,
         @token_expires_at as token_expires_at,
         @drive_folder_id as drive_folder_id,
@@ -173,6 +175,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
       UPDATE SET
         instagram_user_id = IFNULL(S.instagram_user_id, T.instagram_user_id),
         instagram_username = IFNULL(S.instagram_username, T.instagram_username),
+        instagram_profile_picture_url = IFNULL(S.instagram_profile_picture_url, T.instagram_profile_picture_url),
         access_token = IFNULL(S.access_token, T.access_token),
         token_expires_at = IFNULL(S.token_expires_at, T.token_expires_at),
         drive_folder_id = IFNULL(S.drive_folder_id, T.drive_folder_id),
@@ -183,6 +186,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
         user_id,
         instagram_user_id,
         instagram_username,
+        instagram_profile_picture_url,
         access_token,
         token_expires_at,
         drive_folder_id,
@@ -194,6 +198,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
         S.user_id,
         S.instagram_user_id,
         S.instagram_username,
+        S.instagram_profile_picture_url,
         S.access_token,
         S.token_expires_at,
         S.drive_folder_id,
@@ -209,6 +214,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
       user_id: userId,
       instagram_user_id: userData.instagram_user_id,
       instagram_username: userData.instagram_username,
+      instagram_profile_picture_url: userData.instagram_profile_picture_url || null,
       access_token: userData.access_token,
       token_expires_at: userData.token_expires_at ? userData.token_expires_at.toISOString() : null,
       drive_folder_id: userData.drive_folder_id || null,
@@ -415,6 +421,7 @@ export async function getUserById(userId: string): Promise<User | null> {
     user_id: row.user_id,
     instagram_user_id: row.instagram_user_id ?? null,
     instagram_username: row.instagram_username ?? null,
+    instagram_profile_picture_url: row.instagram_profile_picture_url ?? null,
     access_token: row.access_token ?? null,
     token_expires_at: row.token_expires_at ? new Date(row.token_expires_at) : null,
     drive_folder_id: row.drive_folder_id ?? null,
@@ -510,12 +517,13 @@ export async function getUserLineData(userId: string, limit: number = 30): Promi
   return rows;
 }
 
-// Threads投稿データ保存（ストリーミングINSERT - 重複はスキップ）
-export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<void> {
-  if (posts.length === 0) return;
+// Threads投稿データ保存（upsert: 新規挿入 + 既存のインサイト更新）
+export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCount: number; updatedCount: number }> {
+  if (posts.length === 0) return { newCount: 0, updatedCount: 0 };
 
-  // 既存のthreads_idを取得して重複を除外
   const userId = posts[0].user_id;
+
+  // 既存のthreads_idを取得
   const existingQuery = `
     SELECT threads_id
     FROM \`mark-454114.analyca.threads_posts\`
@@ -527,23 +535,54 @@ export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<void> {
   });
   const existingIds = new Set(existingRows.map((r: { threads_id: string }) => r.threads_id));
 
-  // 新規投稿のみフィルタ
+  // 新規と既存を分離
   const newPosts = posts.filter(post => !existingIds.has(post.threads_id));
+  const existingPosts = posts.filter(post => existingIds.has(post.threads_id));
 
-  if (newPosts.length === 0) {
-    console.log('新規投稿なし（全て既存）');
-    return;
+  // 新規投稿を挿入
+  if (newPosts.length > 0) {
+    const table = dataset.table('threads_posts');
+    await table.insert(newPosts.map(post => ({
+      ...post,
+      timestamp: post.timestamp.toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })));
+    console.log(`${newPosts.length}件の新規投稿を保存`);
   }
 
-  const table = dataset.table('threads_posts');
-  await table.insert(newPosts.map(post => ({
-    ...post,
-    timestamp: post.timestamp.toISOString(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  })));
+  // 既存投稿のインサイトを更新
+  for (const post of existingPosts) {
+    const updateQuery = `
+      UPDATE \`mark-454114.analyca.threads_posts\`
+      SET
+        views = @views,
+        likes = @likes,
+        replies = @replies,
+        reposts = @reposts,
+        quotes = @quotes,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @user_id AND threads_id = @threads_id
+    `;
+    await bigquery.query({
+      query: updateQuery,
+      params: {
+        user_id: post.user_id,
+        threads_id: post.threads_id,
+        views: post.views,
+        likes: post.likes,
+        replies: post.replies,
+        reposts: post.reposts,
+        quotes: post.quotes,
+      },
+    });
+  }
 
-  console.log(`${newPosts.length}件の新規投稿を保存`);
+  if (existingPosts.length > 0) {
+    console.log(`${existingPosts.length}件の投稿インサイトを更新`);
+  }
+
+  return { newCount: newPosts.length, updatedCount: existingPosts.length };
 }
 
 // BigQueryのTimestamp型を安全にDateに変換するヘルパー
@@ -602,12 +641,13 @@ export async function getUserThreadsPosts(userId: string, limit: number = 50): P
   }));
 }
 
-// Threadsコメントデータ保存（重複はスキップ）
-export async function insertThreadsComments(comments: ThreadsComment[]): Promise<void> {
-  if (comments.length === 0) return;
+// Threadsコメントデータ保存（upsert: 新規挿入 + 既存のviews更新）
+export async function insertThreadsComments(comments: ThreadsComment[]): Promise<{ newCount: number; updatedCount: number }> {
+  if (comments.length === 0) return { newCount: 0, updatedCount: 0 };
 
-  // 既存のcomment_idを取得して重複を除外
   const userId = comments[0].user_id;
+
+  // 既存のcomment_idを取得
   const existingQuery = `
     SELECT comment_id
     FROM \`mark-454114.analyca.threads_comments\`
@@ -625,23 +665,46 @@ export async function insertThreadsComments(comments: ThreadsComment[]): Promise
     // テーブルがない場合は空セット
   }
 
-  // 新規コメントのみフィルタ
+  // 新規と既存を分離
   const newComments = comments.filter(c => !existingIds.has(c.comment_id));
+  const existingComments = comments.filter(c => existingIds.has(c.comment_id));
 
-  if (newComments.length === 0) {
-    console.log('新規コメントなし（全て既存）');
-    return;
+  // 新規コメントを挿入
+  if (newComments.length > 0) {
+    const table = dataset.table('threads_comments');
+    await table.insert(newComments.map(comment => ({
+      ...comment,
+      timestamp: comment.timestamp.toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })));
+    console.log(`${newComments.length}件の新規コメントを保存`);
   }
 
-  const table = dataset.table('threads_comments');
-  await table.insert(newComments.map(comment => ({
-    ...comment,
-    timestamp: comment.timestamp.toISOString(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  })));
+  // 既存コメントのviewsを更新
+  for (const comment of existingComments) {
+    const updateQuery = `
+      UPDATE \`mark-454114.analyca.threads_comments\`
+      SET
+        views = @views,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @user_id AND comment_id = @comment_id
+    `;
+    await bigquery.query({
+      query: updateQuery,
+      params: {
+        user_id: comment.user_id,
+        comment_id: comment.comment_id,
+        views: comment.views,
+      },
+    });
+  }
 
-  console.log(`${newComments.length}件の新規コメントを保存`);
+  if (existingComments.length > 0) {
+    console.log(`${existingComments.length}件のコメントviewsを更新`);
+  }
+
+  return { newCount: newComments.length, updatedCount: existingComments.length };
 }
 
 // ユーザーのThreadsコメントデータ取得
@@ -751,6 +814,262 @@ export async function getUserThreadsDailyMetrics(userId: string, limit: number =
     // テーブルがなければ空配列を返す
     return [];
   }
+}
+
+// アクティブなInstagramユーザー一覧を取得（トークン有効期限内）
+export async function getActiveInstagramUsers(): Promise<User[]> {
+  const query = `
+    SELECT *
+    FROM \`mark-454114.analyca.users\`
+    WHERE has_instagram = TRUE
+    AND access_token IS NOT NULL
+    AND token_expires_at > CURRENT_TIMESTAMP()
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  return rows.map((row: Record<string, unknown>) => ({
+    user_id: row.user_id as string,
+    instagram_user_id: row.instagram_user_id as string | null,
+    instagram_username: row.instagram_username as string | null,
+    instagram_profile_picture_url: row.instagram_profile_picture_url as string | null,
+    access_token: row.access_token as string | null,
+    token_expires_at: row.token_expires_at ? new Date(row.token_expires_at as string) : null,
+    drive_folder_id: row.drive_folder_id as string | null,
+    threads_user_id: row.threads_user_id as string | null,
+    threads_username: row.threads_username as string | null,
+    threads_access_token: row.threads_access_token as string | null,
+    threads_token_expires_at: row.threads_token_expires_at ? new Date(row.threads_token_expires_at as string) : null,
+    threads_profile_picture_url: row.threads_profile_picture_url as string | null,
+    has_instagram: row.has_instagram as boolean | null,
+    has_threads: row.has_threads as boolean | null,
+  }));
+}
+
+// アクティブなThreadsユーザー一覧を取得（トークン有効期限内）
+export async function getActiveThreadsUsers(): Promise<User[]> {
+  const query = `
+    SELECT *
+    FROM \`mark-454114.analyca.users\`
+    WHERE has_threads = TRUE
+    AND threads_access_token IS NOT NULL
+    AND threads_token_expires_at > CURRENT_TIMESTAMP()
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  return rows.map((row: Record<string, unknown>) => ({
+    user_id: row.user_id as string,
+    instagram_user_id: row.instagram_user_id as string | null,
+    instagram_username: row.instagram_username as string | null,
+    instagram_profile_picture_url: row.instagram_profile_picture_url as string | null,
+    access_token: row.access_token as string | null,
+    token_expires_at: row.token_expires_at ? new Date(row.token_expires_at as string) : null,
+    drive_folder_id: row.drive_folder_id as string | null,
+    threads_user_id: row.threads_user_id as string | null,
+    threads_username: row.threads_username as string | null,
+    threads_access_token: row.threads_access_token as string | null,
+    threads_token_expires_at: row.threads_token_expires_at ? new Date(row.threads_token_expires_at as string) : null,
+    threads_profile_picture_url: row.threads_profile_picture_url as string | null,
+    has_instagram: row.has_instagram as boolean | null,
+    has_threads: row.has_threads as boolean | null,
+  }));
+}
+
+// Instagram Storiesをupsert（新規挿入 + 既存のインサイト更新）
+export async function upsertInstagramStories(stories: InstagramStory[]): Promise<{ newCount: number; updatedCount: number }> {
+  if (stories.length === 0) return { newCount: 0, updatedCount: 0 };
+
+  const userId = stories[0].user_id;
+
+  // 既存のinstagram_idを取得
+  const existingQuery = `
+    SELECT instagram_id
+    FROM \`mark-454114.analyca.instagram_stories\`
+    WHERE user_id = @user_id
+  `;
+  const [existingRows] = await bigquery.query({
+    query: existingQuery,
+    params: { user_id: userId },
+  });
+  const existingIds = new Set(existingRows.map((r: { instagram_id: string }) => r.instagram_id));
+
+  // 新規と既存を分離
+  const newStories = stories.filter(story => !existingIds.has(story.instagram_id));
+  const existingStories = stories.filter(story => existingIds.has(story.instagram_id));
+
+  // 新規ストーリーを挿入
+  if (newStories.length > 0) {
+    const table = dataset.table('instagram_stories');
+    await table.insert(newStories.map(story => ({
+      ...story,
+      timestamp: story.timestamp.toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })));
+    console.log(`${newStories.length}件の新規ストーリーを保存`);
+  }
+
+  // 既存ストーリーのインサイトを更新
+  for (const story of existingStories) {
+    const updateQuery = `
+      UPDATE \`mark-454114.analyca.instagram_stories\`
+      SET
+        views = @views,
+        reach = @reach,
+        replies = @replies,
+        total_interactions = @total_interactions,
+        follows = @follows,
+        profile_visits = @profile_visits,
+        navigation = @navigation,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @user_id AND instagram_id = @instagram_id
+    `;
+    await bigquery.query({
+      query: updateQuery,
+      params: {
+        user_id: story.user_id,
+        instagram_id: story.instagram_id,
+        views: story.views,
+        reach: story.reach,
+        replies: story.replies,
+        total_interactions: story.total_interactions,
+        follows: story.follows,
+        profile_visits: story.profile_visits,
+        navigation: story.navigation,
+      },
+    });
+  }
+
+  if (existingStories.length > 0) {
+    console.log(`${existingStories.length}件のストーリーインサイトを更新`);
+  }
+
+  return { newCount: newStories.length, updatedCount: existingStories.length };
+}
+
+// Instagram Insightsをupsert（日付ベースで更新）
+export async function upsertInstagramInsights(insights: InstagramInsights): Promise<void> {
+  const query = `
+    MERGE \`mark-454114.analyca.instagram_insights\` T
+    USING (
+      SELECT
+        @id as id,
+        @user_id as user_id,
+        @date as date,
+        @followers_count as followers_count,
+        @posts_count as posts_count,
+        @reach as reach,
+        @engagement as engagement,
+        @profile_views as profile_views,
+        @website_clicks as website_clicks,
+        CURRENT_TIMESTAMP() as updated_at
+    ) S
+    ON T.user_id = S.user_id AND T.date = S.date
+    WHEN MATCHED THEN
+      UPDATE SET
+        followers_count = S.followers_count,
+        posts_count = S.posts_count,
+        reach = S.reach,
+        engagement = S.engagement,
+        profile_views = S.profile_views,
+        website_clicks = S.website_clicks,
+        updated_at = S.updated_at
+    WHEN NOT MATCHED THEN
+      INSERT (id, user_id, date, followers_count, posts_count, reach, engagement, profile_views, website_clicks, created_at)
+      VALUES (S.id, S.user_id, S.date, S.followers_count, S.posts_count, S.reach, S.engagement, S.profile_views, S.website_clicks, CURRENT_TIMESTAMP())
+  `;
+
+  const options = {
+    query,
+    params: {
+      id: insights.id,
+      user_id: insights.user_id,
+      date: insights.date,
+      followers_count: insights.followers_count,
+      posts_count: insights.posts_count,
+      reach: insights.reach,
+      engagement: insights.engagement,
+      profile_views: insights.profile_views,
+      website_clicks: insights.website_clicks,
+    },
+  };
+
+  await bigquery.query(options);
+}
+
+// Instagram Reelsをupsert（既存のリールは更新、新規は挿入）
+export async function upsertInstagramReels(reels: InstagramReel[]): Promise<{ newCount: number; updatedCount: number }> {
+  if (reels.length === 0) return { newCount: 0, updatedCount: 0 };
+
+  const userId = reels[0].user_id;
+
+  // 既存のinstagram_idを取得
+  const existingQuery = `
+    SELECT instagram_id
+    FROM \`mark-454114.analyca.instagram_reels\`
+    WHERE user_id = @user_id
+  `;
+  const [existingRows] = await bigquery.query({
+    query: existingQuery,
+    params: { user_id: userId },
+  });
+  const existingIds = new Set(existingRows.map((r: { instagram_id: string }) => r.instagram_id));
+
+  // 新規と既存を分離
+  const newReels = reels.filter(reel => !existingIds.has(reel.instagram_id));
+  const existingReels = reels.filter(reel => existingIds.has(reel.instagram_id));
+
+  // 新規リールを挿入
+  if (newReels.length > 0) {
+    const table = dataset.table('instagram_reels');
+    await table.insert(newReels.map(reel => ({
+      ...reel,
+      timestamp: reel.timestamp.toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })));
+    console.log(`${newReels.length}件の新規リールを保存`);
+  }
+
+  // 既存リールのインサイトを更新
+  for (const reel of existingReels) {
+    const updateQuery = `
+      UPDATE \`mark-454114.analyca.instagram_reels\`
+      SET
+        views = @views,
+        reach = @reach,
+        total_interactions = @total_interactions,
+        like_count = @like_count,
+        comments_count = @comments_count,
+        saved = @saved,
+        shares = @shares,
+        video_view_total_time_hours = @video_view_total_time_hours,
+        avg_watch_time_seconds = @avg_watch_time_seconds,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @user_id AND instagram_id = @instagram_id
+    `;
+    await bigquery.query({
+      query: updateQuery,
+      params: {
+        user_id: reel.user_id,
+        instagram_id: reel.instagram_id,
+        views: reel.views,
+        reach: reel.reach,
+        total_interactions: reel.total_interactions,
+        like_count: reel.like_count,
+        comments_count: reel.comments_count,
+        saved: reel.saved,
+        shares: reel.shares,
+        video_view_total_time_hours: reel.video_view_total_time_hours,
+        avg_watch_time_seconds: reel.avg_watch_time_seconds,
+      },
+    });
+  }
+
+  if (existingReels.length > 0) {
+    console.log(`${existingReels.length}件のリールインサイトを更新`);
+  }
+
+  return { newCount: newReels.length, updatedCount: existingReels.length };
 }
 
 // 統合ダッシュボードデータ取得

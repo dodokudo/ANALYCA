@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-export default function OnboardingLite2Page() {
+export default function OnboardingLight2Page() {
   // Instagram
   const [instagramAppId, setInstagramAppId] = useState('');
   const [instagramAppSecret, setInstagramAppSecret] = useState('');
@@ -25,7 +25,7 @@ export default function OnboardingLite2Page() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/onboarding/lite2', {
+      const response = await fetch('/api/onboarding/light2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,7 +58,7 @@ export default function OnboardingLite2Page() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 py-8 px-4">
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* ANALYCAロゴ */}
@@ -70,7 +70,7 @@ export default function OnboardingLite2Page() {
             </div>
             <h1 className="text-2xl font-bold text-gray-900">ANALYCA</h1>
             <div className="mt-2 inline-block bg-pink-100 text-pink-700 text-sm font-medium px-3 py-1 rounded-full">
-              Lite2プラン
+              Light2プラン
             </div>
             <p className="text-gray-600 mt-3">Instagramインサイトの分析ツール</p>
           </div>

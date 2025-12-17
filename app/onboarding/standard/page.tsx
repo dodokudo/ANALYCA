@@ -68,7 +68,7 @@ export default function OnboardingStandardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 py-8 px-4">
       <div className="max-w-md mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* ANALYCAロゴ */}

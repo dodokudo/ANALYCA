@@ -249,7 +249,7 @@ export async function upsertThreadsUser(userData: {
         @threads_user_id as threads_user_id,
         @threads_username as threads_username,
         @threads_access_token as threads_access_token,
-        TIMESTAMP(@threads_token_expires_at) as threads_token_expires_at,
+        SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', @threads_token_expires_at) as threads_token_expires_at,
         @threads_profile_picture_url as threads_profile_picture_url,
         TRUE as has_threads,
         CURRENT_TIMESTAMP() as updated_at

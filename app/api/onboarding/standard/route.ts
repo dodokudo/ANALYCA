@@ -330,8 +330,8 @@ export async function POST(request: NextRequest) {
       token_expires_at: instagramTokenExpiresAt,
     });
 
-    // ============ Threadsデータ取得・保存 ============
-    const threadsPosts = await getThreadsPosts(threads.accessToken, 100);
+    // ============ Threadsデータ取得・保存（オンボーディング時は10件に制限） ============
+    const threadsPosts = await getThreadsPosts(threads.accessToken, 10);
     const threadsPostsWithInsights = await Promise.all(
       threadsPosts.map(async (post) => {
         const insights = await getThreadsPostInsights(threads.accessToken, post.id);

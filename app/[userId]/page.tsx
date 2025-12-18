@@ -142,6 +142,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   // データ取得関数
   const fetchData = async (showLoadingState = true) => {
@@ -155,11 +157,35 @@ function UserDashboardContent({ userId }: { userId: string }) {
         setUser(result.user || null);
         setData(result.data || null);
         setChannels(result.channels || { instagram: false, threads: false });
+        setLastUpdated(new Date());
       }
     } catch {
       setError('データの取得に失敗しました');
     } finally {
       if (showLoadingState) setLoading(false);
+    }
+  };
+
+  // 手動同期関数
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    try {
+      // 連携しているチャンネルに応じて同期APIを呼び出し
+      const syncPromises: Promise<Response>[] = [];
+      if (channels.instagram) {
+        syncPromises.push(fetch('/api/sync/instagram/reels', { method: 'GET' }));
+        syncPromises.push(fetch('/api/sync/instagram/stories', { method: 'GET' }));
+      }
+      if (channels.threads) {
+        syncPromises.push(fetch('/api/sync/threads/posts', { method: 'GET' }));
+      }
+      await Promise.all(syncPromises);
+      // 同期完了後にデータ再取得
+      await fetchData(false);
+    } catch (err) {
+      console.error('Manual sync failed:', err);
+    } finally {
+      setIsManualSyncing(false);
     }
   };
 
@@ -386,6 +412,30 @@ function UserDashboardContent({ userId }: { userId: string }) {
         </header>
 
         <div className="p-4 lg:p-6">
+          {/* 同期ステータスバー */}
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>
+                {lastUpdated
+                  ? `最終更新: ${lastUpdated.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
+                  : '読み込み中...'}
+              </span>
+            </div>
+            <button
+              onClick={handleManualSync}
+              disabled={isManualSyncing}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className={`w-4 h-4 ${isManualSyncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {isManualSyncing ? '同期中...' : '再同期'}
+            </button>
+          </div>
+
           {activeChannel === 'threads' && (
             <ThreadsContent
               user={user}

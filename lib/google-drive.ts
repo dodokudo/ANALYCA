@@ -100,8 +100,8 @@ export async function uploadImageToDrive(
     });
 
     // 直接表示可能なURLを返す
-    // Google Driveの直接アクセスURL形式
-    return `https://drive.google.com/uc?id=${fileId}`;
+    // lh3.googleusercontent.com形式が画像埋め込みに最適
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
   } catch (error) {
     console.error('Failed to upload image to Drive:', error);
     return null;

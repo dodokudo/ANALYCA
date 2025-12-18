@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, getUserDashboardData } from '@/lib/bigquery';
 
+/**
+ * BigQueryのタイムスタンプを安全にシリアライズ
+ * BigQueryは {value: "..."} 形式でタイムスタンプを返すことがある
+ */
+function serializeTimestamp(timestamp: unknown): string | null {
+  if (!timestamp) return null;
+
+  // BigQueryの {value: "..."} 形式
+  if (typeof timestamp === 'object' && timestamp !== null && 'value' in timestamp) {
+    const value = (timestamp as { value: unknown }).value;
+    if (typeof value === 'string') return value;
+    if (value instanceof Date) return value.toISOString();
+    return String(value);
+  }
+
+  // Date型
+  if (timestamp instanceof Date) {
+    return timestamp.toISOString();
+  }
+
+  // 文字列
+  if (typeof timestamp === 'string') {
+    return timestamp;
+  }
+
+  // その他（数値など）
+  return String(timestamp);
+}
+
+/**
+ * オブジェクト内のすべてのタイムスタンプフィールドをシリアライズ
+ */
+function serializeRecord<T extends Record<string, unknown>>(record: T): T {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (key === 'timestamp' || key === 'date' || key.endsWith('_at')) {
+      result[key] = serializeTimestamp(value);
+    } else if (typeof value === 'object' && value !== null && 'value' in value) {
+      // 他のBigQuery形式のフィールドも変換
+      result[key] = (value as { value: unknown }).value;
+    } else {
+      result[key] = value;
+    }
+  }
+  return result as T;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -29,15 +76,15 @@ export async function GET(
           caption: reel.caption,
           media_type: reel.media_type,
           permalink: reel.permalink,
-          timestamp: reel.timestamp,
-          views: reel.views,
-          reach: reel.reach,
-          like_count: reel.like_count,
-          comments_count: reel.comments_count,
-          saved: reel.saved,
-          shares: reel.shares,
-          total_interactions: reel.total_interactions,
-          avg_watch_time_seconds: reel.avg_watch_time_seconds,
+          timestamp: serializeTimestamp(reel.timestamp),
+          views: reel.views ?? 0,
+          reach: reel.reach ?? 0,
+          like_count: reel.like_count ?? 0,
+          comments_count: reel.comments_count ?? 0,
+          saved: reel.saved ?? 0,
+          shares: reel.shares ?? 0,
+          total_interactions: reel.total_interactions ?? 0,
+          avg_watch_time_seconds: reel.avg_watch_time_seconds ?? 0,
           thumbnail_url: reel.thumbnail_url,
         }))
       },
@@ -48,24 +95,24 @@ export async function GET(
         totalReplies: stories.reduce((sum, story) => sum + (story.replies || 0), 0),
         data: stories.map(story => ({
           id: story.instagram_id,
-          timestamp: story.timestamp,
-          views: story.views,
-          reach: story.reach,
-          replies: story.replies,
-          total_interactions: story.total_interactions,
-          follows: story.follows,
-          profile_visits: story.profile_visits,
-          navigation: story.navigation,
+          timestamp: serializeTimestamp(story.timestamp),
+          views: story.views ?? 0,
+          reach: story.reach ?? 0,
+          replies: story.replies ?? 0,
+          total_interactions: story.total_interactions ?? 0,
+          follows: story.follows ?? 0,
+          profile_visits: story.profile_visits ?? 0,
+          navigation: story.navigation ?? 0,
           thumbnail_url: story.thumbnail_url,
         }))
       },
       insights: {
-        latest: insights[0] || null,
-        data: insights
+        latest: insights[0] ? serializeRecord(insights[0] as unknown as Record<string, unknown>) : null,
+        data: insights.map(i => serializeRecord(i as unknown as Record<string, unknown>))
       },
       lineData: {
-        latest: lineData[0] || null,
-        data: lineData
+        latest: lineData[0] ? serializeRecord(lineData[0] as unknown as Record<string, unknown>) : null,
+        data: lineData.map(l => serializeRecord(l as unknown as Record<string, unknown>))
       },
       threads: {
         total: threadsPosts.length,
@@ -78,15 +125,15 @@ export async function GET(
           id: post.id,
           threads_id: post.threads_id,
           text: post.text,
-          timestamp: post.timestamp instanceof Date ? post.timestamp.toISOString() : post.timestamp,
+          timestamp: serializeTimestamp(post.timestamp),
           permalink: post.permalink,
           media_type: post.media_type,
           is_quote_post: post.is_quote_post,
-          views: post.views,
-          likes: post.likes,
-          replies: post.replies,
-          reposts: post.reposts,
-          quotes: post.quotes,
+          views: post.views ?? 0,
+          likes: post.likes ?? 0,
+          replies: post.replies ?? 0,
+          reposts: post.reposts ?? 0,
+          quotes: post.quotes ?? 0,
         }))
       },
       threadsComments: {
@@ -97,23 +144,23 @@ export async function GET(
           comment_id: comment.comment_id,
           parent_post_id: comment.parent_post_id,
           text: comment.text,
-          timestamp: comment.timestamp instanceof Date ? comment.timestamp.toISOString() : comment.timestamp,
+          timestamp: serializeTimestamp(comment.timestamp),
           permalink: comment.permalink,
           has_replies: comment.has_replies,
-          views: comment.views,
-          depth: comment.depth ?? 0, // コメント欄の順番
+          views: comment.views ?? 0,
+          depth: comment.depth ?? 0,
         }))
       },
       threadsDailyMetrics: {
-        latest: threadsDailyMetrics[0] || null,
+        latest: threadsDailyMetrics[0] ? serializeRecord(threadsDailyMetrics[0] as unknown as Record<string, unknown>) : null,
         data: threadsDailyMetrics.map(m => ({
-          date: m.date,
-          followers_count: m.followers_count,
-          follower_delta: m.follower_delta,
-          total_views: m.total_views,
-          total_likes: m.total_likes,
-          total_replies: m.total_replies,
-          post_count: m.post_count,
+          date: serializeTimestamp(m.date),
+          followers_count: m.followers_count ?? 0,
+          follower_delta: m.follower_delta ?? 0,
+          total_views: m.total_views ?? 0,
+          total_likes: m.total_likes ?? 0,
+          total_replies: m.total_replies ?? 0,
+          post_count: m.post_count ?? 0,
         }))
       },
       summary: {

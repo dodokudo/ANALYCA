@@ -349,6 +349,9 @@ export async function insertInstagramReels(reels: InstagramReel[]): Promise<void
   const table = dataset.table('instagram_reels');
   await table.insert(reels.map(reel => ({
     ...reel,
+    // undefinedをnullに変換（BigQueryストリーミングインサート対策）
+    drive_image_url: reel.drive_image_url ?? null,
+    thumbnail_url: reel.thumbnail_url ?? null,
     timestamp: reel.timestamp.toISOString(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -362,6 +365,10 @@ export async function insertInstagramStories(stories: InstagramStory[]): Promise
   const table = dataset.table('instagram_stories');
   await table.insert(stories.map(story => ({
     ...story,
+    // undefinedをnullに変換（BigQueryストリーミングインサート対策）
+    drive_image_url: story.drive_image_url ?? null,
+    thumbnail_url: story.thumbnail_url ?? null,
+    caption: story.caption ?? null,
     timestamp: story.timestamp.toISOString(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -909,6 +916,10 @@ export async function upsertInstagramStories(stories: InstagramStory[]): Promise
     const table = dataset.table('instagram_stories');
     await table.insert(newStories.map(story => ({
       ...story,
+      // undefinedをnullに変換
+      drive_image_url: story.drive_image_url ?? null,
+      thumbnail_url: story.thumbnail_url ?? null,
+      caption: story.caption ?? null,
       timestamp: story.timestamp.toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -1031,6 +1042,9 @@ export async function upsertInstagramReels(reels: InstagramReel[]): Promise<{ ne
     const table = dataset.table('instagram_reels');
     await table.insert(newReels.map(reel => ({
       ...reel,
+      // undefinedをnullに変換
+      drive_image_url: reel.drive_image_url ?? null,
+      thumbnail_url: reel.thumbnail_url ?? null,
       timestamp: reel.timestamp.toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

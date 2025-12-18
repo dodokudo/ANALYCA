@@ -468,7 +468,7 @@ export async function getUserReels(userId: string, limit: number = 50): Promise<
   const [rows] = await bigquery.query(options);
   return rows.map(row => ({
     ...row,
-    timestamp: new Date(row.timestamp),
+    timestamp: parseBigQueryTimestamp(row.timestamp),
   }));
 }
 
@@ -490,7 +490,7 @@ export async function getUserStories(userId: string, limit: number = 50): Promis
   const [rows] = await bigquery.query(options);
   return rows.map(row => ({
     ...row,
-    timestamp: new Date(row.timestamp),
+    timestamp: parseBigQueryTimestamp(row.timestamp),
   }));
 }
 

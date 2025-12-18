@@ -8,44 +8,60 @@ import { getUserById, getUserDashboardData } from '@/lib/bigquery';
 function serializeTimestamp(timestamp: unknown): string | null {
   if (!timestamp) return null;
 
-  // BigQueryの {value: "..."} 形式
-  if (typeof timestamp === 'object' && timestamp !== null && 'value' in timestamp) {
-    const value = (timestamp as { value: unknown }).value;
-    if (typeof value === 'string') return value;
-    if (value instanceof Date) return value.toISOString();
-    return String(value);
-  }
+  try {
+    // BigQueryの {value: "..."} 形式
+    if (typeof timestamp === 'object' && timestamp !== null && 'value' in timestamp) {
+      const value = (timestamp as { value: unknown }).value;
+      if (typeof value === 'string') return value;
+      if (value instanceof Date) {
+        const isoStr = value.toISOString();
+        return isNaN(new Date(isoStr).getTime()) ? null : isoStr;
+      }
+      return String(value);
+    }
 
-  // Date型
-  if (timestamp instanceof Date) {
-    return timestamp.toISOString();
-  }
+    // Date型
+    if (timestamp instanceof Date) {
+      // 無効なDateチェック
+      if (isNaN(timestamp.getTime())) return null;
+      return timestamp.toISOString();
+    }
 
-  // 文字列
-  if (typeof timestamp === 'string') {
-    return timestamp;
-  }
+    // 文字列
+    if (typeof timestamp === 'string') {
+      return timestamp;
+    }
 
-  // その他（数値など）
-  return String(timestamp);
+    // その他（数値など）
+    return String(timestamp);
+  } catch {
+    // toISOString()などでエラーが発生した場合
+    return null;
+  }
 }
 
 /**
  * オブジェクト内のすべてのタイムスタンプフィールドをシリアライズ
  */
 function serializeRecord<T extends Record<string, unknown>>(record: T): T {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (key === 'timestamp' || key === 'date' || key.endsWith('_at')) {
-      result[key] = serializeTimestamp(value);
-    } else if (typeof value === 'object' && value !== null && 'value' in value) {
-      // 他のBigQuery形式のフィールドも変換
-      result[key] = (value as { value: unknown }).value;
-    } else {
-      result[key] = value;
+  if (!record) return record;
+
+  try {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(record)) {
+      if (key === 'timestamp' || key === 'date' || key.endsWith('_at')) {
+        result[key] = serializeTimestamp(value);
+      } else if (typeof value === 'object' && value !== null && 'value' in value) {
+        // 他のBigQuery形式のフィールドも変換
+        result[key] = (value as { value: unknown }).value;
+      } else {
+        result[key] = value ?? null;
+      }
     }
+    return result as T;
+  } catch {
+    return record;
   }
-  return result as T;
 }
 
 export async function GET(

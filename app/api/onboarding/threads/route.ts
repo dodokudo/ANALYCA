@@ -276,8 +276,8 @@ export async function POST(request: NextRequest) {
     const userInsights = await getThreadsUserInsights(accessToken, accountInfo.id);
     const followersCount = userInsights.followers_count || 0;
 
-    // 4. Threads投稿データを取得
-    const posts = await getThreadsPosts(accessToken, 100);
+    // 4. Threads投稿データを取得（オンボーディング時は10件に制限）
+    const posts = await getThreadsPosts(accessToken, 10);
 
     // 5. 各投稿のインサイトを取得
     const postsWithInsights = await Promise.all(
@@ -315,7 +315,7 @@ export async function POST(request: NextRequest) {
       depth: number; // コメント欄の順番（0=コメント欄1, 1=コメント欄2, ...）
     }> = [];
 
-    for (const post of posts.slice(0, 50)) { // API制限を考慮して50件まで
+    for (const post of posts) { // オンボーディング時は10件なのでそのまま処理
       // 再帰的にコメントツリーを取得
       const commentTree = await getMyCommentTree(accessToken, post.id, accountInfo.username);
 

@@ -926,15 +926,53 @@ function InstagramContent({
             </div>
           </div>
 
-          {/* パフォーマンス推移グラフ */}
+          {/* パフォーマンス推移（テーブル + グラフ） */}
           {insights.length > 0 && (
             <div className="ui-card p-6">
-              <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">パフォーマンス推移</h3>
+              <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">パフォーマンス推移</h3>
+              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)] mb-4">日別のパフォーマンス</p>
+              {/* デイリーテーブル */}
+              <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)] mb-6">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                      <th className="px-3 py-2">日付</th>
+                      <th className="px-3 py-2 text-right">フォロワー</th>
+                      <th className="px-3 py-2 text-right">増減</th>
+                      <th className="px-3 py-2 text-right">リーチ</th>
+                      <th className="px-3 py-2 text-right">プロフ表示</th>
+                      <th className="px-3 py-2 text-right">クリック</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[color:var(--color-border)]">
+                    {[...insights].reverse().map((row, idx, arr) => {
+                      // 増減を計算（前日との差分）
+                      const prevRow = arr[idx + 1];
+                      const growth = prevRow ? (row.followers_count || 0) - (prevRow.followers_count || 0) : 0;
+                      return (
+                        <tr key={row.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
+                          <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{row.date || '-'}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.followers_count || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right">
+                            <span className={growth > 0 ? 'text-green-600' : growth < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
+                              {growth > 0 ? `+${growth}` : growth}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.reach || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.profile_views || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.website_clicks || 0).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* グラフ */}
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v.slice(5)} />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
                     <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v.toLocaleString()} domain={['dataMin - 50', 'dataMax + 50']} />
                     <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} />
                     <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
@@ -1159,7 +1197,7 @@ function InstagramContent({
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v.slice(5)} />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
                     <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v.toLocaleString()} />
                     <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
                     <Legend />
@@ -1187,9 +1225,9 @@ function InstagramContent({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[color:var(--color-border)]">
-                  {insights.map((row) => (
-                    <tr key={row.date} className="hover:bg-[color:var(--color-surface-muted)]">
-                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] whitespace-nowrap">{row.date}</td>
+                  {insights.map((row, idx) => (
+                    <tr key={row.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] whitespace-nowrap">{row.date || '-'}</td>
                       <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.followers_count || 0).toLocaleString()}</td>
                       <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.reach || 0).toLocaleString()}</td>
                       <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.profile_views || 0).toLocaleString()}</td>

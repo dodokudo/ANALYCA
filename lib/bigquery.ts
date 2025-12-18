@@ -533,70 +533,135 @@ export async function getUserLineData(userId: string, limit: number = 30): Promi
 }
 
 // Threads投稿データ保存（MERGE文を使用 - ストリーミングバッファ制限を回避）
+// ストリーミングバッファエラー発生時はINSERT IGNOREスタイルで新規のみ挿入
 export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCount: number; updatedCount: number }> {
   if (posts.length === 0) return { newCount: 0, updatedCount: 0 };
 
   let newCount = 0;
   let updatedCount = 0;
+  let streamingBufferErrorCount = 0;
 
   // 各投稿をMERGE文で処理（ストリーミングインサートではなくDMLを使用）
   for (const post of posts) {
-    const mergeQuery = `
-      MERGE \`mark-454114.analyca.threads_posts\` T
-      USING (
-        SELECT
-          @id as id,
-          @user_id as user_id,
-          @threads_id as threads_id,
-          @text as text,
-          TIMESTAMP(@timestamp) as timestamp,
-          @permalink as permalink,
-          @media_type as media_type,
-          @is_quote_post as is_quote_post,
-          @views as views,
-          @likes as likes,
-          @replies as replies,
-          @reposts as reposts,
-          @quotes as quotes,
-          CURRENT_TIMESTAMP() as updated_at
-      ) S
-      ON T.user_id = S.user_id AND T.threads_id = S.threads_id
-      WHEN MATCHED THEN
-        UPDATE SET
-          views = S.views,
-          likes = S.likes,
-          replies = S.replies,
-          reposts = S.reposts,
-          quotes = S.quotes,
-          updated_at = S.updated_at
-      WHEN NOT MATCHED THEN
-        INSERT (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at)
-        VALUES (S.id, S.user_id, S.threads_id, S.text, S.timestamp, S.permalink, S.media_type, S.is_quote_post, S.views, S.likes, S.replies, S.reposts, S.quotes, CURRENT_TIMESTAMP(), S.updated_at)
-    `;
+    try {
+      const mergeQuery = `
+        MERGE \`mark-454114.analyca.threads_posts\` T
+        USING (
+          SELECT
+            @id as id,
+            @user_id as user_id,
+            @threads_id as threads_id,
+            @text as text,
+            TIMESTAMP(@timestamp) as timestamp,
+            @permalink as permalink,
+            @media_type as media_type,
+            @is_quote_post as is_quote_post,
+            @views as views,
+            @likes as likes,
+            @replies as replies,
+            @reposts as reposts,
+            @quotes as quotes,
+            CURRENT_TIMESTAMP() as updated_at
+        ) S
+        ON T.user_id = S.user_id AND T.threads_id = S.threads_id
+        WHEN MATCHED THEN
+          UPDATE SET
+            views = S.views,
+            likes = S.likes,
+            replies = S.replies,
+            reposts = S.reposts,
+            quotes = S.quotes,
+            updated_at = S.updated_at
+        WHEN NOT MATCHED THEN
+          INSERT (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at)
+          VALUES (S.id, S.user_id, S.threads_id, S.text, S.timestamp, S.permalink, S.media_type, S.is_quote_post, S.views, S.likes, S.replies, S.reposts, S.quotes, CURRENT_TIMESTAMP(), S.updated_at)
+      `;
 
-    await bigquery.query({
-      query: mergeQuery,
-      params: {
-        id: post.id,
-        user_id: post.user_id,
-        threads_id: post.threads_id,
-        text: post.text,
-        timestamp: post.timestamp.toISOString(),
-        permalink: post.permalink,
-        media_type: post.media_type,
-        is_quote_post: post.is_quote_post,
-        views: post.views,
-        likes: post.likes,
-        replies: post.replies,
-        reposts: post.reposts,
-        quotes: post.quotes,
-      },
-    });
+      await bigquery.query({
+        query: mergeQuery,
+        params: {
+          id: post.id,
+          user_id: post.user_id,
+          threads_id: post.threads_id,
+          text: post.text,
+          timestamp: post.timestamp.toISOString(),
+          permalink: post.permalink,
+          media_type: post.media_type,
+          is_quote_post: post.is_quote_post,
+          views: post.views,
+          likes: post.likes,
+          replies: post.replies,
+          reposts: post.reposts,
+          quotes: post.quotes,
+        },
+      });
 
-    newCount++;
+      newCount++;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // ストリーミングバッファエラーの場合、INSERT ONLY（新規レコードのみ）を試行
+      if (errorMessage.includes('streaming buffer')) {
+        streamingBufferErrorCount++;
+        console.warn(`Streaming buffer error for threads_id ${post.threads_id}, trying INSERT ONLY...`);
+
+        try {
+          // 既存レコードがあるかチェック
+          const checkQuery = `
+            SELECT 1 FROM \`mark-454114.analyca.threads_posts\`
+            WHERE user_id = @user_id AND threads_id = @threads_id
+            LIMIT 1
+          `;
+          const [checkRows] = await bigquery.query({
+            query: checkQuery,
+            params: { user_id: post.user_id, threads_id: post.threads_id },
+          });
+
+          if (checkRows.length === 0) {
+            // 新規レコードの場合のみINSERT
+            const insertQuery = `
+              INSERT INTO \`mark-454114.analyca.threads_posts\`
+              (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at)
+              VALUES
+              (@id, @user_id, @threads_id, @text, TIMESTAMP(@timestamp), @permalink, @media_type, @is_quote_post, @views, @likes, @replies, @reposts, @quotes, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+            `;
+            await bigquery.query({
+              query: insertQuery,
+              params: {
+                id: post.id,
+                user_id: post.user_id,
+                threads_id: post.threads_id,
+                text: post.text,
+                timestamp: post.timestamp.toISOString(),
+                permalink: post.permalink,
+                media_type: post.media_type,
+                is_quote_post: post.is_quote_post,
+                views: post.views,
+                likes: post.likes,
+                replies: post.replies,
+                reposts: post.reposts,
+                quotes: post.quotes,
+              },
+            });
+            newCount++;
+            console.log(`INSERT successful for threads_id ${post.threads_id}`);
+          } else {
+            // 既存レコードはスキップ（ストリーミングバッファが解消されるまで待つ必要あり）
+            console.log(`Skipping update for threads_id ${post.threads_id} (in streaming buffer)`);
+          }
+        } catch (insertError) {
+          console.warn(`INSERT also failed for threads_id ${post.threads_id}:`, insertError);
+        }
+      } else {
+        console.error(`Error processing threads_id ${post.threads_id}:`, error);
+      }
+    }
   }
 
-  console.log(`${posts.length}件のThreads投稿を処理（MERGE使用）`);
+  if (streamingBufferErrorCount > 0) {
+    console.log(`${streamingBufferErrorCount}件でストリーミングバッファエラー発生（フォールバック処理済み）`);
+  }
+  console.log(`${newCount}件のThreads投稿を処理（MERGE使用）`);
   return { newCount, updatedCount };
 }
 
@@ -657,10 +722,12 @@ export async function getUserThreadsPosts(userId: string, limit: number = 50): P
 }
 
 // Threadsコメントデータ保存（MERGE文を使用 - ストリーミングバッファ制限を回避）
+// ストリーミングバッファエラー発生時はINSERT ONLY（新規レコードのみ）
 export async function insertThreadsComments(comments: ThreadsComment[]): Promise<{ newCount: number; updatedCount: number }> {
   if (comments.length === 0) return { newCount: 0, updatedCount: 0 };
 
   let processedCount = 0;
+  let streamingBufferErrorCount = 0;
 
   // 各コメントをMERGE文で処理（ストリーミングインサートではなくDMLを使用）
   for (const comment of comments) {
@@ -708,11 +775,67 @@ export async function insertThreadsComments(comments: ThreadsComment[]): Promise
       });
 
       processedCount++;
-    } catch (e) {
-      console.warn(`コメント保存エラー (comment_id: ${comment.comment_id}):`, e);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // ストリーミングバッファエラーの場合、INSERT ONLY（新規レコードのみ）を試行
+      if (errorMessage.includes('streaming buffer')) {
+        streamingBufferErrorCount++;
+        console.warn(`Streaming buffer error for comment_id ${comment.comment_id}, trying INSERT ONLY...`);
+
+        try {
+          // 既存レコードがあるかチェック
+          const checkQuery = `
+            SELECT 1 FROM \`mark-454114.analyca.threads_comments\`
+            WHERE user_id = @user_id AND comment_id = @comment_id
+            LIMIT 1
+          `;
+          const [checkRows] = await bigquery.query({
+            query: checkQuery,
+            params: { user_id: comment.user_id, comment_id: comment.comment_id },
+          });
+
+          if (checkRows.length === 0) {
+            // 新規レコードの場合のみINSERT
+            const insertQuery = `
+              INSERT INTO \`mark-454114.analyca.threads_comments\`
+              (id, user_id, comment_id, parent_post_id, text, timestamp, permalink, has_replies, views, depth, created_at, updated_at)
+              VALUES
+              (@id, @user_id, @comment_id, @parent_post_id, @text, TIMESTAMP(@timestamp), @permalink, @has_replies, @views, @depth, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+            `;
+            await bigquery.query({
+              query: insertQuery,
+              params: {
+                id: comment.id,
+                user_id: comment.user_id,
+                comment_id: comment.comment_id,
+                parent_post_id: comment.parent_post_id,
+                text: comment.text,
+                timestamp: comment.timestamp.toISOString(),
+                permalink: comment.permalink,
+                has_replies: comment.has_replies,
+                views: comment.views,
+                depth: comment.depth,
+              },
+            });
+            processedCount++;
+            console.log(`INSERT successful for comment_id ${comment.comment_id}`);
+          } else {
+            // 既存レコードはスキップ
+            console.log(`Skipping update for comment_id ${comment.comment_id} (in streaming buffer)`);
+          }
+        } catch (insertError) {
+          console.warn(`INSERT also failed for comment_id ${comment.comment_id}:`, insertError);
+        }
+      } else {
+        console.warn(`コメント保存エラー (comment_id: ${comment.comment_id}):`, error);
+      }
     }
   }
 
+  if (streamingBufferErrorCount > 0) {
+    console.log(`${streamingBufferErrorCount}件でストリーミングバッファエラー発生（フォールバック処理済み）`);
+  }
   console.log(`${processedCount}件のThreadsコメントを処理（MERGE使用）`);
   return { newCount: processedCount, updatedCount: 0 };
 }

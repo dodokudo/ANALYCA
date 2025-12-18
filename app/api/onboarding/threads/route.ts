@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { upsertThreadsUser, getUserById, insertThreadsPosts, insertThreadsComments, upsertThreadsDailyMetrics } from '@/lib/bigquery';
+import { upsertThreadsUser, getUserById, insertThreadsPosts, upsertThreadsDailyMetrics } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長（Hobbyプラン: 最大60秒、Proプラン: 最大300秒）
@@ -276,77 +276,53 @@ export async function POST(request: NextRequest) {
     const userInsights = await getThreadsUserInsights(accessToken, accountInfo.id);
     const followersCount = userInsights.followers_count || 0;
 
-    // 4. Threads投稿データを取得（オンボーディング時は10件に制限）
-    const posts = await getThreadsPosts(accessToken, 10);
+    // 4. Threads投稿データを取得（オンボーディング時は5件に制限してタイムアウト防止）
+    const posts = await getThreadsPosts(accessToken, 5);
 
-    // 5. 各投稿のインサイトを取得
-    const postsWithInsights = await Promise.all(
-      posts.map(async (post) => {
-        const insights = await getPostInsights(accessToken, post.id);
-        return {
-          id: uuidv4(),
-          user_id: userId,
-          threads_id: post.id,
-          text: post.text || '',
-          timestamp: new Date(post.timestamp),
-          permalink: post.permalink,
-          media_type: post.media_type,
-          is_quote_post: post.is_quote_post || false,
-          views: insights.views || 0,
-          likes: insights.likes || 0,
-          replies: insights.replies || 0,
-          reposts: insights.reposts || 0,
-          quotes: insights.quotes || 0,
-        };
-      })
-    );
-
-    // 6. 各投稿のコメント（自分のリプライ）を再帰的に取得（コメント欄1, 2, 3...）
-    const allComments: Array<{
+    // 5. 各投稿のインサイトを順次取得（並列だとAPI制限に引っかかる可能性）
+    const postsWithInsights: Array<{
       id: string;
       user_id: string;
-      comment_id: string;
-      parent_post_id: string;
+      threads_id: string;
       text: string;
       timestamp: Date;
       permalink: string;
-      has_replies: boolean;
+      media_type: string;
+      is_quote_post: boolean;
       views: number;
-      depth: number; // コメント欄の順番（0=コメント欄1, 1=コメント欄2, ...）
+      likes: number;
+      replies: number;
+      reposts: number;
+      quotes: number;
     }> = [];
 
-    for (const post of posts) { // オンボーディング時は10件なのでそのまま処理
-      // 再帰的にコメントツリーを取得
-      const commentTree = await getMyCommentTree(accessToken, post.id, accountInfo.username);
-
-      for (const reply of commentTree) {
-        const views = await getCommentViews(accessToken, reply.id);
-        allComments.push({
-          id: uuidv4(),
-          user_id: userId,
-          comment_id: reply.id,
-          parent_post_id: post.id, // 元の投稿ID
-          text: reply.text || '',
-          timestamp: new Date(reply.timestamp),
-          permalink: reply.permalink,
-          has_replies: reply.has_replies,
-          views: views,
-          depth: reply.depth, // コメント欄の順番
-        });
-      }
+    for (const post of posts) {
+      const insights = await getPostInsights(accessToken, post.id);
+      postsWithInsights.push({
+        id: uuidv4(),
+        user_id: userId,
+        threads_id: post.id,
+        text: post.text || '',
+        timestamp: new Date(post.timestamp),
+        permalink: post.permalink,
+        media_type: post.media_type,
+        is_quote_post: post.is_quote_post || false,
+        views: insights.views || 0,
+        likes: insights.likes || 0,
+        replies: insights.replies || 0,
+        reposts: insights.reposts || 0,
+        quotes: insights.quotes || 0,
+      });
+      // API制限対策（短いディレイ）
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
+
+    // 6. コメント取得はオンボーディング時はスキップ（タイムアウト防止）
+    // コメントは後の同期処理(/api/sync/threads/posts)で取得される
 
     // 7. BigQueryに保存
     if (postsWithInsights.length > 0) {
       await insertThreadsPosts(postsWithInsights);
-    }
-
-    if (allComments.length > 0) {
-      try {
-        await insertThreadsComments(allComments);
-      } catch (e) {
-        console.warn('コメント保存に失敗（テーブルが存在しない可能性）:', e);
-      }
     }
 
     // 8. 日別メトリクスを保存
@@ -406,13 +382,12 @@ export async function POST(request: NextRequest) {
         totalPosts: postsWithInsights.length,
         totalViews: totalViews,
         totalLikes: totalLikes,
-        totalComments: allComments.length,
       },
       channels: {
         instagram: !!userRecord?.has_instagram,
         threads: !!userRecord?.has_threads,
       },
-      message: `Threadsセットアップが完了しました！\n\nユーザー: ${accountInfo.username}\nフォロワー: ${followersCount.toLocaleString()}人\n投稿数: ${postsWithInsights.length}件\nコメント: ${allComments.length}件`
+      message: `Threadsセットアップが完了しました！\n\nユーザー: ${accountInfo.username}\nフォロワー: ${followersCount.toLocaleString()}人\n投稿数: ${postsWithInsights.length}件`
     });
 
   } catch (error) {

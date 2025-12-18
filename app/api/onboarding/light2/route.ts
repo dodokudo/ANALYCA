@@ -107,7 +107,7 @@ async function getInstagramAccount(accessToken: string): Promise<InstagramUser> 
  */
 async function getInstagramReels(accessToken: string, accountId: string, userId: string): Promise<InstagramReel[]> {
   const response = await fetch(
-    `${FACEBOOK_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=50&access_token=${accessToken}`
+    `${FACEBOOK_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=10&access_token=${accessToken}`
   );
 
   if (!response.ok) return [];

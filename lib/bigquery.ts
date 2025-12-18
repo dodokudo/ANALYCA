@@ -219,6 +219,11 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
       token_expires_at: userData.token_expires_at ? userData.token_expires_at.toISOString() : null,
       drive_folder_id: userData.drive_folder_id || null,
     },
+    types: {
+      instagram_profile_picture_url: 'STRING',
+      token_expires_at: 'STRING',
+      drive_folder_id: 'STRING',
+    },
   };
 
   await bigquery.query(options);
@@ -293,6 +298,9 @@ export async function upsertThreadsUser(userData: {
       threads_access_token: userData.threads_access_token,
       threads_token_expires_at: userData.threads_token_expires_at.toISOString(),
       threads_profile_picture_url: userData.threads_profile_picture_url || null,
+    },
+    types: {
+      threads_profile_picture_url: 'STRING',
     },
   };
 

@@ -205,13 +205,22 @@ async function syncUserReels(
 }
 
 /**
- * GET: 全アクティブユーザーのリールを同期
- * POST: 特定ユーザーのリールを同期
+ * GET: リールを同期
+ * - userId指定あり: そのユーザーのみ同期
+ * - userId指定なし: 全アクティブユーザーを同期（cron用）
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const targetUserId = searchParams.get('userId');
+
     // アクティブなInstagramユーザーを取得
-    const users = await getActiveInstagramUsers();
+    let users = await getActiveInstagramUsers();
+
+    // userIdが指定されている場合、そのユーザーのみに絞る
+    if (targetUserId) {
+      users = users.filter(u => u.user_id === targetUserId);
+    }
 
     if (users.length === 0) {
       return NextResponse.json({

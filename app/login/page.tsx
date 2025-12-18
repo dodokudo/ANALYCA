@@ -64,8 +64,8 @@ export default function LoginPage() {
 
             // バックグラウンドで追加データの同期を開始（レスポンスを待たない）
             if (result.syncPending) {
-              fetch('/api/sync/instagram/reels', { method: 'GET' }).catch(() => {});
-              fetch('/api/sync/instagram/stories', { method: 'GET' }).catch(() => {});
+              fetch(`/api/sync/instagram/reels?userId=${result.userId}`, { method: 'GET' }).catch(() => {});
+              fetch(`/api/sync/instagram/stories?userId=${result.userId}`, { method: 'GET' }).catch(() => {});
             }
 
             // ダッシュボードにリダイレクト（同期中フラグ付き）
@@ -122,7 +122,7 @@ export default function LoginPage() {
 
             // バックグラウンドで追加データの同期を開始（レスポンスを待たない）
             if (result.syncPending) {
-              fetch('/api/sync/threads/posts', { method: 'GET' }).catch(() => {});
+              fetch(`/api/sync/threads/posts?userId=${result.userId}`, { method: 'GET' }).catch(() => {});
             }
 
             // ダッシュボードにリダイレクト（同期中フラグ付き）

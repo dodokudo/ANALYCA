@@ -40,6 +40,50 @@ interface InstagramMedia {
   comments_count?: number;
 }
 
+interface ReelInsights {
+  reach?: number;
+  plays?: number;
+  total_interactions?: number;
+  likes?: number;
+  comments?: number;
+  saved?: number;
+  shares?: number;
+}
+
+/**
+ * リールのインサイトを取得
+ */
+async function getReelInsights(accessToken: string, reelId: string): Promise<ReelInsights> {
+  try {
+    const response = await fetch(
+      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,plays,total_interactions,likes,comments,saved,shares&access_token=${accessToken}`
+    );
+
+    if (!response.ok) return {};
+
+    const data = await response.json();
+    const insights: ReelInsights = {};
+
+    if (data.data && Array.isArray(data.data)) {
+      for (const metric of data.data) {
+        const value = metric.values?.[0]?.value;
+        switch (metric.name) {
+          case 'reach': insights.reach = value || 0; break;
+          case 'plays': insights.plays = value || 0; break;
+          case 'total_interactions': insights.total_interactions = value || 0; break;
+          case 'likes': insights.likes = value || 0; break;
+          case 'comments': insights.comments = value || 0; break;
+          case 'saved': insights.saved = value || 0; break;
+          case 'shares': insights.shares = value || 0; break;
+        }
+      }
+    }
+    return insights;
+  } catch {
+    return {};
+  }
+}
+
 /**
  * 短期トークンを長期トークンに変換
  */
@@ -106,7 +150,7 @@ async function getInstagramAccount(accessToken: string): Promise<InstagramUser> 
 }
 
 /**
- * Instagramリールデータを取得
+ * Instagramリールデータを取得（インサイト含む）
  */
 async function getInstagramReels(accessToken: string, accountId: string, userId: string): Promise<InstagramReel[]> {
   const response = await fetch(
@@ -120,26 +164,38 @@ async function getInstagramReels(accessToken: string, accountId: string, userId:
     media.media_type === 'VIDEO' && media.media_product_type === 'REELS'
   );
 
-  return reels.map((reel: InstagramMedia) => ({
-    id: uuidv4(),
-    user_id: userId,
-    instagram_id: reel.id,
-    caption: reel.caption || '',
-    media_product_type: reel.media_product_type || 'REELS',
-    media_type: reel.media_type,
-    permalink: reel.permalink,
-    timestamp: new Date(reel.timestamp),
-    views: 0,
-    reach: 0,
-    total_interactions: 0,
-    like_count: reel.like_count || 0,
-    comments_count: reel.comments_count || 0,
-    saved: 0,
-    shares: 0,
-    video_view_total_time_hours: '0',
-    avg_watch_time_seconds: 0,
-    thumbnail_url: reel.thumbnail_url,
-  }));
+  const reelsWithInsights: InstagramReel[] = [];
+
+  for (const reel of reels) {
+    // 各リールのインサイトを取得
+    const insights = await getReelInsights(accessToken, reel.id);
+
+    reelsWithInsights.push({
+      id: uuidv4(),
+      user_id: userId,
+      instagram_id: reel.id,
+      caption: reel.caption || '',
+      media_product_type: reel.media_product_type || 'REELS',
+      media_type: reel.media_type,
+      permalink: reel.permalink,
+      timestamp: new Date(reel.timestamp),
+      views: insights.plays || 0,
+      reach: insights.reach || 0,
+      total_interactions: insights.total_interactions || 0,
+      like_count: insights.likes || reel.like_count || 0,
+      comments_count: insights.comments || reel.comments_count || 0,
+      saved: insights.saved || 0,
+      shares: insights.shares || 0,
+      video_view_total_time_hours: '0',
+      avg_watch_time_seconds: 0,
+      thumbnail_url: reel.thumbnail_url,
+    });
+
+    // API制限対策
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  return reelsWithInsights;
 }
 
 /**

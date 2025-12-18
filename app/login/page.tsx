@@ -112,8 +112,14 @@ export default function LoginPage() {
 
           if (result.success) {
             persistUserId(result.userId);
-            alert(`Threadsダッシュボードが作成されました！\n\nユーザー: ${result.accountInfo.threadsUsername || result.accountInfo.username}\n投稿数: ${result.accountInfo.totalThreadsPosts || 0}`);
-            window.location.href = `/analyca/${result.userId}?tab=threads`;
+
+            // バックグラウンドで追加データの同期を開始（レスポンスを待たない）
+            if (result.syncPending) {
+              fetch('/api/sync/threads/posts', { method: 'GET' }).catch(() => {});
+            }
+
+            // ダッシュボードにリダイレクト（同期中フラグ付き）
+            window.location.href = `/${result.userId}?tab=threads&syncing=true`;
           } else {
             alert(`エラー: ${result.error}`);
             setIsThreadsLoading(false);

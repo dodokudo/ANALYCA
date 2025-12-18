@@ -375,6 +375,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       userId,
+      syncPending: true, // クライアント側でバックグラウンド同期を呼び出す必要あり
       accountInfo: {
         username: accountInfo.username,
         threadsUserId: accountInfo.id,

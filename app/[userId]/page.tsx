@@ -133,6 +133,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get('tab') as Channel | null;
+  const isSyncing = searchParams?.get('syncing') === 'true';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,29 +141,56 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
 
-  // データ取得
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/dashboard/${userId}`);
-        const result = await response.json();
-        if (!result.success) {
-          setError(result.error || 'データの取得に失敗しました');
-        } else {
-          setUser(result.user || null);
-          setData(result.data || null);
-          setChannels(result.channels || { instagram: false, threads: false });
-        }
-      } catch {
-        setError('データの取得に失敗しました');
-      } finally {
-        setLoading(false);
+  // データ取得関数
+  const fetchData = async (showLoadingState = true) => {
+    try {
+      if (showLoadingState) setLoading(true);
+      const response = await fetch(`/api/dashboard/${userId}`);
+      const result = await response.json();
+      if (!result.success) {
+        setError(result.error || 'データの取得に失敗しました');
+      } else {
+        setUser(result.user || null);
+        setData(result.data || null);
+        setChannels(result.channels || { instagram: false, threads: false });
       }
-    };
+    } catch {
+      setError('データの取得に失敗しました');
+    } finally {
+      if (showLoadingState) setLoading(false);
+    }
+  };
+
+  // 初回データ取得
+  useEffect(() => {
     fetchData();
   }, [userId]);
+
+  // 同期中の場合、30秒後に再取得し、60秒後にバナーを非表示
+  useEffect(() => {
+    if (!showSyncBanner) return;
+
+    // 30秒後にデータ再取得
+    const refreshTimer = setTimeout(() => {
+      fetchData(false);
+    }, 30000);
+
+    // 60秒後にバナー非表示
+    const hideTimer = setTimeout(() => {
+      setShowSyncBanner(false);
+      // URLからsyncingパラメータを削除
+      const url = new URL(window.location.href);
+      url.searchParams.delete('syncing');
+      window.history.replaceState({}, '', url.toString());
+    }, 60000);
+
+    return () => {
+      clearTimeout(refreshTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [showSyncBanner]);
 
   // 連携チャンネルのみ表示
   const channelItems = useMemo(() => {
@@ -237,6 +265,31 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
+      {/* 同期中バナー */}
+      {showSyncBanner && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-blue-500 text-white px-4 py-3 flex items-center justify-center gap-3">
+          <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-sm font-medium">データを同期中です...しばらくお待ちください</span>
+          <button
+            onClick={() => {
+              setShowSyncBanner(false);
+              // URLからsyncingパラメータを削除
+              const url = new URL(window.location.href);
+              url.searchParams.delete('syncing');
+              window.history.replaceState({}, '', url.toString());
+            }}
+            className="ml-4 text-white/80 hover:text-white"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* サイドバー（PC） */}
       <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40">
         <div className="p-4 border-b border-[color:var(--color-border)]">

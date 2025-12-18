@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
         threads_token_expires_at: tokenExpiresAt,
       });
 
-      // Threadsデータを取得
-      const postsWithInsights = await threads.getPostsWithInsights(100);
+      // Threadsデータを取得（オンボーディング時は5件に制限してタイムアウト防止）
+      const postsWithInsights = await threads.getPostsWithInsights(5);
       const accountMetrics = await threads.getAccountMetrics();
 
       const threadsPostsWithInsights = postsWithInsights.map(post => ({
@@ -121,6 +121,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         userId,
+        syncPending: true, // クライアント側でバックグラウンド同期を呼び出す
         accountInfo: {
           username: account.username,
           threadsUsername: account.username,

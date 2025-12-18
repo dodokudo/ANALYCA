@@ -165,7 +165,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
         @instagram_username as instagram_username,
         @instagram_profile_picture_url as instagram_profile_picture_url,
         @access_token as access_token,
-        @token_expires_at as token_expires_at,
+        SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*SZ', @token_expires_at) as token_expires_at,
         @drive_folder_id as drive_folder_id,
         TRUE as has_instagram,
         CURRENT_TIMESTAMP() as updated_at

@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from 'uuid';
 export interface InstagramUser {
   id: string;
   username: string;
-  account_type: string;
   media_count: number;
   followers_count: number;
   follows_count: number;
@@ -127,7 +126,7 @@ export class InstagramAPI {
         console.log('[Instagram API] Found Instagram Business Account:', igData.instagram_business_account.id);
         // 3. Instagramアカウント詳細を取得
         const accountResponse = await fetch(
-          `https://graph.facebook.com/v23.0/${igData.instagram_business_account.id}?fields=id,username,account_type,media_count,followers_count,follows_count,profile_picture_url,name,biography,website&access_token=${this.accessToken}`
+          `https://graph.facebook.com/v23.0/${igData.instagram_business_account.id}?fields=id,username,media_count,followers_count,follows_count,profile_picture_url,name,biography,website&access_token=${this.accessToken}`
         );
 
         if (!accountResponse.ok) {

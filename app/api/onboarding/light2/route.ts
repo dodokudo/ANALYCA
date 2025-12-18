@@ -19,7 +19,6 @@ const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
 interface InstagramUser {
   id: string;
   username: string;
-  account_type: string;
   media_count: number;
   followers_count: number;
   follows_count: number;
@@ -88,7 +87,7 @@ async function getInstagramAccount(accessToken: string): Promise<InstagramUser> 
     if (igData.instagram_business_account) {
       // 3. Instagramアカウント詳細を取得（profile_picture_url含む）
       const accountResponse = await fetch(
-        `${FACEBOOK_GRAPH_BASE}/${igData.instagram_business_account.id}?fields=id,username,account_type,media_count,followers_count,follows_count,profile_picture_url&access_token=${accessToken}`
+        `${FACEBOOK_GRAPH_BASE}/${igData.instagram_business_account.id}?fields=id,username,media_count,followers_count,follows_count,profile_picture_url&access_token=${accessToken}`
       );
 
       if (!accountResponse.ok) {

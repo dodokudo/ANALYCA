@@ -7,6 +7,7 @@ export default function OnboardingLightPage() {
   const [threadsToken, setThreadsToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,8 +34,17 @@ export default function OnboardingLightPage() {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('analycaUserId', result.userId);
         }
-        // ダッシュボードへ遷移
-        window.location.href = `/${result.userId}?tab=threads`;
+        // 同期APIを実行して完了を待つ
+        try {
+          setSyncStatus('Threads投稿を同期中...（最大1分）');
+          await fetch(`/api/sync/threads/posts?userId=${result.userId}`, { method: 'GET' });
+
+          setSyncStatus('完了！ダッシュボードへ移動します...');
+        } catch (syncError) {
+          console.warn('Sync API error (continuing anyway):', syncError);
+        }
+        // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
+        window.location.replace(`/${result.userId}?tab=threads`);
       } else {
         setError(result.error || 'セットアップに失敗しました');
       }
@@ -104,6 +114,16 @@ export default function OnboardingLightPage() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
               {error}
+            </div>
+          )}
+
+          {/* 同期ステータス表示 */}
+          {syncStatus && (
+            <div className="bg-gray-50 border border-gray-200 px-4 py-3 rounded-xl">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-500 border-t-transparent"></div>
+                <span className="text-sm text-gray-700 font-medium">{syncStatus}</span>
+              </div>
             </div>
           )}
 

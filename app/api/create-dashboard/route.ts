@@ -14,6 +14,9 @@ import {
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
+// Vercel Functionの最大実行時間を延長
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -45,11 +48,16 @@ export async function POST(request: NextRequest) {
         drive_folder_id: driveFolder
       });
 
-      const { reels, stories, insights } = await instagram.getCompleteDataset(userId);
+      // オンボーディング時は5件に制限（タイムアウト防止、Driveアップロードは同期APIで実行）
+      const [reels, stories, insights] = await Promise.all([
+        instagram.getReelsData(userId, 5),
+        instagram.getStoriesData(userId).then(s => s.slice(0, 5)),
+        instagram.getInsightsData(userId)
+      ]);
 
       await Promise.all([
-        insertInstagramReels(reels),
-        insertInstagramStories(stories),
+        reels.length > 0 ? insertInstagramReels(reels) : Promise.resolve(),
+        stories.length > 0 ? insertInstagramStories(stories) : Promise.resolve(),
         insertInstagramInsights([insights])
       ]);
 
@@ -58,6 +66,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         userId,
+        syncPending: true, // クライアント側でバックグラウンド同期を呼び出す
         accountInfo: {
           username: account.username,
           followerCount: account.followers_count.toLocaleString(),

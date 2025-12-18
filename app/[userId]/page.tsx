@@ -561,8 +561,8 @@ function ThreadsContent({
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={dailyMetrics} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.slice(5)} />
-                <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.toLocaleString()} />
+                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
@@ -572,7 +572,7 @@ function ThreadsContent({
                     (dataMax: number) => Math.ceil(dataMax * 1.01)
                   ]}
                 />
-                <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
+                <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
                 <Legend />
                 <Bar yAxisId="left" dataKey="total_views" name="閲覧数" fill="#6366f1" opacity={0.7} />
                 <Line yAxisId="right" type="monotone" dataKey="followers_count" name="フォロワー" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
@@ -973,9 +973,9 @@ function InstagramContent({
                   <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v.toLocaleString()} domain={['dataMin - 50', 'dataMax + 50']} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={['dataMin - 50', 'dataMax + 50']} />
                     <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} />
-                    <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
+                    <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="followers_count" name="フォロワー数" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
                     <Bar yAxisId="right" dataKey="reach" name="リーチ" fill="#8B5CF6" />
@@ -1198,8 +1198,8 @@ function InstagramContent({
                   <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
-                    <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v.toLocaleString()} />
-                    <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
+                    <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} />
+                    <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
                     <Legend />
                     <Bar dataKey="reach" name="リーチ" fill="#10B981" />
                     <Bar dataKey="profile_views" name="プロフ表示" fill="#3B82F6" />

@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [isInstagramLoading, setIsInstagramLoading] = useState(false);
   const [isThreadsLoading, setIsThreadsLoading] = useState(false);
   const [storedUserId, setStoredUserId] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -62,22 +63,31 @@ export default function LoginPage() {
           if (result.success) {
             persistUserId(result.userId);
 
-            // バックグラウンドで追加データの同期を開始（レスポンスを待たない）
-            if (result.syncPending) {
-              fetch(`/api/sync/instagram/reels?userId=${result.userId}`, { method: 'GET' }).catch(() => {});
-              fetch(`/api/sync/instagram/stories?userId=${result.userId}`, { method: 'GET' }).catch(() => {});
+            // 同期APIを順番に実行して完了を待つ
+            try {
+              setSyncStatus('リール投稿を同期中...（最大1分）');
+              await fetch(`/api/sync/instagram/reels?userId=${result.userId}`, { method: 'GET' });
+
+              setSyncStatus('ストーリーを同期中...（最大1分）');
+              await fetch(`/api/sync/instagram/stories?userId=${result.userId}`, { method: 'GET' });
+
+              setSyncStatus('完了！ダッシュボードへ移動します...');
+            } catch (syncError) {
+              console.warn('Sync API error (continuing anyway):', syncError);
             }
 
-            // ダッシュボードにリダイレクト（同期中フラグ付き）
-            window.location.href = `/${result.userId}?tab=instagram&syncing=true`;
+            // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
+            window.location.replace(`/${result.userId}?tab=instagram`);
           } else {
             alert(`エラー: ${result.error}`);
             setIsInstagramLoading(false);
+            setSyncStatus(null);
           }
         }).catch((error) => {
           console.error('Instagram dashboard creation failed:', error);
           alert('ダッシュボード作成に失敗しました');
           setIsInstagramLoading(false);
+          setSyncStatus(null);
         });
       } else {
         alert('ログインに失敗しました');
@@ -120,21 +130,28 @@ export default function LoginPage() {
           if (result.success) {
             persistUserId(result.userId);
 
-            // バックグラウンドで追加データの同期を開始（レスポンスを待たない）
-            if (result.syncPending) {
-              fetch(`/api/sync/threads/posts?userId=${result.userId}`, { method: 'GET' }).catch(() => {});
+            // 同期APIを実行して完了を待つ
+            try {
+              setSyncStatus('Threads投稿を同期中...（最大1分）');
+              await fetch(`/api/sync/threads/posts?userId=${result.userId}`, { method: 'GET' });
+
+              setSyncStatus('完了！ダッシュボードへ移動します...');
+            } catch (syncError) {
+              console.warn('Sync API error (continuing anyway):', syncError);
             }
 
-            // ダッシュボードにリダイレクト（同期中フラグ付き）
-            window.location.href = `/${result.userId}?tab=threads&syncing=true`;
+            // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
+            window.location.replace(`/${result.userId}?tab=threads`);
           } else {
             alert(`エラー: ${result.error}`);
             setIsThreadsLoading(false);
+            setSyncStatus(null);
           }
         }).catch((error) => {
           console.error('Threads dashboard creation failed:', error);
           alert('ダッシュボード作成に失敗しました');
           setIsThreadsLoading(false);
+          setSyncStatus(null);
         });
       } else {
         alert('ログインに失敗しました');
@@ -198,6 +215,16 @@ export default function LoginPage() {
           それぞれのボタンでログインすると、<br />
           InstagramまたはThreadsのデータを取得します
         </p>
+
+        {/* 同期ステータス表示 */}
+        {syncStatus && (
+          <div className="mt-6 p-4 bg-purple-50 rounded-xl border border-purple-200">
+            <div className="flex items-center space-x-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-500 border-t-transparent"></div>
+              <span className="text-sm text-purple-700 font-medium">{syncStatus}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Facebook SDK - 動的に初期化 */}

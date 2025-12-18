@@ -16,6 +16,30 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+// ============ ユーティリティ関数 ============
+// 安全な日付フォーマット（nullやundefinedでもエラーにならない）
+function safeFormatDate(timestamp: string | Date | null | undefined): string {
+  if (!timestamp) return '-';
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('ja-JP');
+  } catch {
+    return '-';
+  }
+}
+
+// 安全なタイムスタンプ取得（ソート用）
+function safeGetTime(timestamp: string | Date | null | undefined): number {
+  if (!timestamp) return 0;
+  try {
+    const date = new Date(timestamp);
+    return isNaN(date.getTime()) ? 0 : date.getTime();
+  } catch {
+    return 0;
+  }
+}
+
 // ============ アイコンコンポーネント ============
 function InstagramIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
@@ -417,7 +441,7 @@ function ThreadsContent({
     return [...posts].sort((a, b) => {
       if (sortBy === 'views') return (b.views || 0) - (a.views || 0);
       if (sortBy === 'likes') return (b.likes || 0) - (a.likes || 0);
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
     });
   }, [posts, sortBy]);
 
@@ -541,17 +565,17 @@ function ThreadsContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[color:var(--color-border)]">
-                {dailyMetrics.slice().reverse().map((m) => (
-                  <tr key={m.date} className="hover:bg-[color:var(--color-surface-muted)]">
-                    <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{m.date}</td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{m.followers_count.toLocaleString()}</td>
+                {dailyMetrics.slice().reverse().map((m, idx) => (
+                  <tr key={m.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
+                    <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{m.date || '-'}</td>
+                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.followers_count || 0).toLocaleString()}</td>
                     <td className="px-3 py-2 text-right">
-                      <span className={m.follower_delta > 0 ? 'text-green-600' : m.follower_delta < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
-                        {m.follower_delta > 0 ? `+${m.follower_delta}` : m.follower_delta || '0'}
+                      <span className={(m.follower_delta || 0) > 0 ? 'text-green-600' : (m.follower_delta || 0) < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
+                        {(m.follower_delta || 0) > 0 ? `+${m.follower_delta}` : m.follower_delta || '0'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.post_count}</td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{m.total_views.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.post_count || 0}</td>
+                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.total_views || 0).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -628,7 +652,7 @@ function ThreadsContent({
                           {rank}
                         </span>
                       )}
-                      <span>{new Date(post.timestamp).toLocaleDateString('ja-JP')}</span>
+                      <span>{safeFormatDate(post.timestamp)}</span>
                       {postComments.length > 0 && (
                         <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
                           コメント欄{postComments.length}つ
@@ -636,8 +660,8 @@ function ThreadsContent({
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span>閲覧 {post.views.toLocaleString()}</span>
-                      <span>いいね {post.likes.toLocaleString()}</span>
+                      <span>閲覧 {(post.views || 0).toLocaleString()}</span>
+                      <span>いいね {(post.likes || 0).toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -646,22 +670,23 @@ function ThreadsContent({
                       <div className="flex items-center gap-1 flex-wrap text-[10px]">
                         <div className="flex flex-col items-center">
                           <span className="text-gray-500">メイン</span>
-                          <span className="font-bold text-gray-700">{post.views.toLocaleString()}</span>
+                          <span className="font-bold text-gray-700">{(post.views || 0).toLocaleString()}</span>
                         </div>
                         {transitions.map((t, tIdx) => {
                           const isFirst = tIdx === 0;
+                          const rate = t.rate || 0;
                           const colorClass = isFirst
-                            ? t.rate >= 10 ? 'text-green-600' : 'text-red-500'
-                            : t.rate >= 80 ? 'text-green-600' : t.rate >= 50 ? 'text-yellow-600' : 'text-red-500';
+                            ? rate >= 10 ? 'text-green-600' : 'text-red-500'
+                            : rate >= 80 ? 'text-green-600' : rate >= 50 ? 'text-yellow-600' : 'text-red-500';
                           return (
                             <div key={tIdx} className="flex items-center gap-1">
                               <div className="flex flex-col items-center px-1">
                                 <span className="text-gray-400">→</span>
-                                <span className={`font-bold ${colorClass}`}>{t.rate.toFixed(1)}%</span>
+                                <span className={`font-bold ${colorClass}`}>{rate.toFixed(1)}%</span>
                               </div>
                               <div className="flex flex-col items-center">
                                 <span className="text-gray-500">{t.to}</span>
-                                <span className="font-bold text-gray-700">{t.views.toLocaleString()}</span>
+                                <span className="font-bold text-gray-700">{(t.views || 0).toLocaleString()}</span>
                               </div>
                             </div>
                           );
@@ -791,7 +816,7 @@ function InstagramContent({
 
   const sortedReels = useMemo(() => {
     return [...reels].sort((a, b) => {
-      if (reelSortBy === 'date') return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      if (reelSortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
       if (reelSortBy === 'views') return (b.views || 0) - (a.views || 0);
       if (reelSortBy === 'likes') return (b.like_count || 0) - (a.like_count || 0);
       if (reelSortBy === 'saves') return (b.saved || 0) - (a.saved || 0);
@@ -801,7 +826,7 @@ function InstagramContent({
 
   const sortedStories = useMemo(() => {
     return [...stories].sort((a, b) => {
-      if (storySortBy === 'date') return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      if (storySortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
       if (storySortBy === 'views') return (b.views || 0) - (a.views || 0);
       if (storySortBy === 'viewRate') return ((b.views || 0) / followersCount) - ((a.views || 0) / followersCount);
       return 0;
@@ -1012,7 +1037,7 @@ function InstagramContent({
                       )}
                     </div>
                     <div className="flex flex-col gap-2 p-3">
-                      <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(reel.timestamp).toLocaleDateString('ja-JP')}</p>
+                      <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(reel.timestamp)}</p>
                       <dl className="space-y-1 text-sm text-[color:var(--color-text-secondary)]">
                         <div className="flex items-center justify-between">
                           <dt className="font-medium text-[color:var(--color-text-muted)]">再生数</dt>
@@ -1059,7 +1084,7 @@ function InstagramContent({
                         )}
                       </div>
                       <div className="flex flex-col gap-2 p-3">
-                        <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(story.timestamp).toLocaleDateString('ja-JP')}</p>
+                        <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
                         <dl className="space-y-1 text-sm text-[color:var(--color-text-secondary)]">
                           <div className="flex items-center justify-between">
                             <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧数</dt>
@@ -1112,7 +1137,7 @@ function InstagramContent({
                   </div>
                 </div>
                 <div className="flex-1 space-y-3">
-                  <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(reel.timestamp).toLocaleDateString('ja-JP')}</p>
+                  <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(reel.timestamp)}</p>
                   {reel.caption && <p className="text-sm text-[color:var(--color-text-primary)] line-clamp-2">{reel.caption}</p>}
                   <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
                     <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.views || 0).toLocaleString()}</dd></div>
@@ -1168,7 +1193,7 @@ function InstagramContent({
                     </div>
                   </div>
                   <div className="flex-1 space-y-3">
-                    <p className="text-xs text-[color:var(--color-text-muted)]">{new Date(story.timestamp).toLocaleDateString('ja-JP')}</p>
+                    <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
                     <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
                       <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()}</dd></div>
                       <div><dt className="text-[color:var(--color-text-muted)]">閲覧率</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}%</dd></div>

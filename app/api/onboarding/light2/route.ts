@@ -10,6 +10,7 @@ import {
   InstagramStory,
   InstagramInsights
 } from '@/lib/bigquery';
+import { uploadImageToDrive } from '@/lib/google-drive';
 import { v4 as uuidv4 } from 'uuid';
 
 const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
@@ -188,7 +189,7 @@ async function getStoryInsights(accessToken: string, storyId: string): Promise<{
 }
 
 /**
- * Instagramストーリーデータを取得
+ * Instagramストーリーデータを取得（画像をGoogle Driveに保存）
  */
 async function getInstagramStories(accessToken: string, accountId: string, userId: string): Promise<InstagramStory[]> {
   const response = await fetch(
@@ -204,11 +205,31 @@ async function getInstagramStories(accessToken: string, accountId: string, userI
     // 各ストーリーのインサイトを取得
     const insights = await getStoryInsights(accessToken, story.id);
 
+    // 画像URLを取得（動画の場合はthumbnail_url、それ以外はmedia_url）
+    const imageUrl = (story.media_type === 'VIDEO' && story.thumbnail_url)
+      ? story.thumbnail_url
+      : story.media_url;
+
+    // Google Driveに画像を保存
+    let driveImageUrl: string | null = null;
+    if (imageUrl) {
+      try {
+        const timestamp = new Date(story.timestamp);
+        const fileName = `story_${timestamp.toISOString().replace(/[:.]/g, '-')}_${story.id}`;
+        driveImageUrl = await uploadImageToDrive(imageUrl, fileName);
+        console.log(`Story image saved to Drive: ${driveImageUrl}`);
+      } catch (e) {
+        console.warn(`Failed to save story image to Drive: ${e}`);
+      }
+    }
+
     stories.push({
       id: uuidv4(),
       user_id: userId,
       instagram_id: story.id,
-      thumbnail_url: story.thumbnail_url || story.media_url || null,
+      // Drive URLがあればそれを優先、なければ元のURLを使用
+      thumbnail_url: driveImageUrl || story.thumbnail_url || story.media_url || null,
+      drive_image_url: driveImageUrl || undefined,
       timestamp: new Date(story.timestamp),
       views: insights.impressions,
       reach: insights.reach,
@@ -220,7 +241,7 @@ async function getInstagramStories(accessToken: string, accountId: string, userI
     });
 
     // API制限対策
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 300));
   }
 
   return stories;

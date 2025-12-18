@@ -44,6 +44,11 @@ export default function OnboardingLight2Page() {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('analycaUserId', result.userId);
         }
+        // バックグラウンド同期（失敗しても無視）
+        if (result.syncPending) {
+          fetch('/api/sync/instagram/reels', { method: 'GET' }).catch(() => {});
+          fetch('/api/sync/instagram/stories', { method: 'GET' }).catch(() => {});
+        }
         // ダッシュボードへ遷移（Instagramタブ）
         window.location.href = `/${result.userId}?tab=instagram`;
       } else {

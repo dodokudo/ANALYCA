@@ -54,6 +54,12 @@ export default function OnboardingStandardPage() {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('analycaUserId', result.userId);
         }
+        // バックグラウンド同期（失敗しても無視）
+        if (result.syncPending) {
+          fetch('/api/sync/threads/posts', { method: 'GET' }).catch(() => {});
+          fetch('/api/sync/instagram/reels', { method: 'GET' }).catch(() => {});
+          fetch('/api/sync/instagram/stories', { method: 'GET' }).catch(() => {});
+        }
         // ダッシュボードへ遷移
         window.location.href = `/${result.userId}`;
       } else {

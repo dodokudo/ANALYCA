@@ -243,7 +243,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
   }, [tabParam, channels]);
 
   const setActiveChannel = (channel: Channel) => {
-    router.push(`/${userId}?tab=${channel}`, { scroll: false });
+    // 履歴を汚さないようタブ変更は置き換え
+    router.replace(`/${userId}?tab=${channel}`, { scroll: false });
   };
 
   // ユーザー名

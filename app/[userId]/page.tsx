@@ -448,25 +448,30 @@ function ThreadsContent({
   // 遷移率計算
   const getTransitionRates = (post: ThreadsPost) => {
     const postComments = commentsByPostId.get(post.threads_id) || [];
-    if (!postComments.length || post.views === 0) return { transitions: [], overallRate: null };
+    const postViews = post.views || 0;
+    if (!postComments.length || postViews === 0) return { transitions: [], overallRate: null };
     const transitions: { from: string; to: string; rate: number; views: number }[] = [];
-    const sorted = [...postComments].sort((a, b) => a.depth - b.depth);
+    const sorted = [...postComments].sort((a, b) => (a.depth || 0) - (b.depth || 0));
 
     if (sorted.length > 0) {
-      transitions.push({ from: 'メイン', to: 'コメント欄1', rate: (sorted[0].views / post.views) * 100, views: sorted[0].views });
+      const firstViews = sorted[0]?.views || 0;
+      transitions.push({ from: 'メイン', to: 'コメント欄1', rate: postViews > 0 ? (firstViews / postViews) * 100 : 0, views: firstViews });
     }
     for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i - 1].views > 0) {
+      const prevViews = sorted[i - 1]?.views || 0;
+      const currViews = sorted[i]?.views || 0;
+      if (prevViews > 0) {
         transitions.push({
           from: `コメント欄${i}`,
           to: `コメント欄${i + 1}`,
-          rate: (sorted[i].views / sorted[i - 1].views) * 100,
-          views: sorted[i].views,
+          rate: (currViews / prevViews) * 100,
+          views: currViews,
         });
       }
     }
     const last = sorted[sorted.length - 1];
-    const overallRate = post.views > 0 ? (last.views / post.views) * 100 : null;
+    const lastViews = last?.views || 0;
+    const overallRate = postViews > 0 ? (lastViews / postViews) * 100 : null;
     return { transitions, overallRate };
   };
 
@@ -1069,7 +1074,7 @@ function InstagramContent({
               </div>
               <div className="flex gap-4 overflow-x-auto pb-1">
                 {sortedStories.slice(0, 5).map((story) => {
-                  const viewRate = followersCount > 0 ? ((story.views / followersCount) * 100).toFixed(1) : '0.0';
+                  const viewRate = followersCount > 0 ? (((story.views || 0) / followersCount) * 100).toFixed(1) : '0.0';
                   return (
                     <div key={story.id} className="flex min-w-[180px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
                       <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">

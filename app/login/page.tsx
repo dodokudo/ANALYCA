@@ -61,8 +61,15 @@ export default function LoginPage() {
 
           if (result.success) {
             persistUserId(result.userId);
-            alert(`Instagramダッシュボードが作成されました！\n\nユーザー: ${result.accountInfo.username}\nフォロワー数: ${result.accountInfo.followerCount}\n投稿数: ${result.accountInfo.mediaCount}`);
-            window.location.href = `/analyca/${result.userId}?tab=instagram`;
+
+            // バックグラウンドで追加データの同期を開始（レスポンスを待たない）
+            if (result.syncPending) {
+              fetch('/api/sync/instagram/reels', { method: 'GET' }).catch(() => {});
+              fetch('/api/sync/instagram/stories', { method: 'GET' }).catch(() => {});
+            }
+
+            // ダッシュボードにリダイレクト（同期中フラグ付き）
+            window.location.href = `/${result.userId}?tab=instagram&syncing=true`;
           } else {
             alert(`エラー: ${result.error}`);
             setIsInstagramLoading(false);

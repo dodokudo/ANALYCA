@@ -10,8 +10,10 @@ import {
   InstagramStory,
   InstagramInsights
 } from '@/lib/bigquery';
-import { uploadImageToDrive } from '@/lib/google-drive';
 import { v4 as uuidv4 } from 'uuid';
+
+// Vercel Functionの最大実行時間を延長
+export const maxDuration = 60;
 
 const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
 
@@ -108,7 +110,7 @@ async function getInstagramAccount(accessToken: string): Promise<InstagramUser> 
  */
 async function getInstagramReels(accessToken: string, accountId: string, userId: string): Promise<InstagramReel[]> {
   const response = await fetch(
-    `${FACEBOOK_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=10&access_token=${accessToken}`
+    `${FACEBOOK_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=5&access_token=${accessToken}`
   );
 
   if (!response.ok) return [];
@@ -189,7 +191,7 @@ async function getStoryInsights(accessToken: string, storyId: string): Promise<{
 }
 
 /**
- * Instagramストーリーデータを取得（画像をGoogle Driveに保存）
+ * Instagramストーリーデータを取得（オンボーディング時は5件まで、Driveアップロードはスキップ）
  */
 async function getInstagramStories(accessToken: string, accountId: string, userId: string): Promise<InstagramStory[]> {
   const response = await fetch(
@@ -201,35 +203,21 @@ async function getInstagramStories(accessToken: string, accountId: string, userI
   const data = await response.json();
   const stories: InstagramStory[] = [];
 
-  for (const story of (data.data || [])) {
+  // オンボーディング時は5件に制限（タイムアウト防止）
+  const storiesToProcess = (data.data || []).slice(0, 5);
+
+  for (const story of storiesToProcess) {
     // 各ストーリーのインサイトを取得
     const insights = await getStoryInsights(accessToken, story.id);
 
-    // 画像URLを取得（動画の場合はthumbnail_url、それ以外はmedia_url）
-    const imageUrl = (story.media_type === 'VIDEO' && story.thumbnail_url)
-      ? story.thumbnail_url
-      : story.media_url;
-
-    // Google Driveに画像を保存
-    let driveImageUrl: string | null = null;
-    if (imageUrl) {
-      try {
-        const timestamp = new Date(story.timestamp);
-        const fileName = `story_${timestamp.toISOString().replace(/[:.]/g, '-')}_${story.id}`;
-        driveImageUrl = await uploadImageToDrive(imageUrl, fileName);
-        console.log(`Story image saved to Drive: ${driveImageUrl}`);
-      } catch (e) {
-        console.warn(`Failed to save story image to Drive: ${e}`);
-      }
-    }
+    // Driveアップロードはオンボーディング時はスキップ（同期時に行う）
+    const thumbnailUrl = story.thumbnail_url || story.media_url || null;
 
     stories.push({
       id: uuidv4(),
       user_id: userId,
       instagram_id: story.id,
-      // Drive URLがあればそれを優先、なければ元のURLを使用
-      thumbnail_url: driveImageUrl || story.thumbnail_url || story.media_url || null,
-      drive_image_url: driveImageUrl || undefined,
+      thumbnail_url: thumbnailUrl,
       timestamp: new Date(story.timestamp),
       views: insights.impressions,
       reach: insights.reach,
@@ -240,8 +228,8 @@ async function getInstagramStories(accessToken: string, accountId: string, userI
       navigation: insights.navigation,
     });
 
-    // API制限対策
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // API制限対策（短縮）
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 
   return stories;
@@ -325,6 +313,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       userId,
+      syncPending: true, // クライアント側でバックグラウンド同期を呼び出す
       accountInfo: {
         instagram: {
           username: instagramAccount.username,

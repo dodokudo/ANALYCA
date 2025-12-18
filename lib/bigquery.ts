@@ -669,23 +669,36 @@ export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCou
 function parseBigQueryTimestamp(value: unknown): Date {
   if (!value) return new Date();
 
-  // BigQueryTimestamp型（{value: string}）の場合
-  if (typeof value === 'object' && value !== null && 'value' in value) {
-    return new Date((value as { value: string }).value);
-  }
+  try {
+    // BigQueryTimestamp型（{value: string}）の場合
+    if (typeof value === 'object' && value !== null && 'value' in value) {
+      const innerValue = (value as { value: unknown }).value;
+      if (!innerValue) return new Date();
+      const date = new Date(String(innerValue));
+      return isNaN(date.getTime()) ? new Date() : date;
+    }
 
-  // すでにDateの場合
-  if (value instanceof Date) {
-    return isNaN(value.getTime()) ? new Date() : value;
-  }
+    // すでにDateの場合
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? new Date() : value;
+    }
 
-  // 文字列の場合
-  if (typeof value === 'string') {
-    const date = new Date(value);
-    return isNaN(date.getTime()) ? new Date() : date;
-  }
+    // 文字列の場合
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? new Date() : date;
+    }
 
-  return new Date();
+    // 数値の場合（タイムスタンプ）
+    if (typeof value === 'number') {
+      const date = new Date(value);
+      return isNaN(date.getTime()) ? new Date() : date;
+    }
+
+    return new Date();
+  } catch {
+    return new Date();
+  }
 }
 
 // ユーザーのThreads投稿データ取得

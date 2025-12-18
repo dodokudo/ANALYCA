@@ -4,6 +4,7 @@ import {
   upsertInstagramStories,
   InstagramStory,
 } from '@/lib/bigquery';
+import { uploadImageToDrive } from '@/lib/google-drive';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
@@ -169,39 +170,52 @@ async function syncUserStories(
       return { success: true, storiesCount: 0, newCount: 0, updatedCount: 0 };
     }
 
-    // 各ストーリーのインサイトを取得
-    const storiesWithInsights: InstagramStory[] = await Promise.all(
-      stories.map(async (story) => {
-        const insights = await getStoryInsights(accessToken, story.id);
+    // 各ストーリーのインサイトを取得し、サムネイルをDriveにアップロード
+    const storiesWithInsights: InstagramStory[] = [];
 
-        // 遷移数を合計（forward + back + exit）
-        const navigation = (insights.navigation_forward || 0) +
-                          (insights.navigation_back || 0) +
-                          (insights.navigation_exit || 0);
+    for (const story of stories) {
+      const insights = await getStoryInsights(accessToken, story.id);
 
-        // total_interactionsを計算（replies + follows + profile_visits + shares）
-        const totalInteractions = (insights.replies || 0) +
-                                  (insights.follows || 0) +
-                                  (insights.profile_visits || 0) +
-                                  (insights.shares || 0);
+      // 遷移数を合計（forward + back + exit）
+      const navigation = (insights.navigation_forward || 0) +
+                        (insights.navigation_back || 0) +
+                        (insights.navigation_exit || 0);
 
-        return {
-          id: uuidv4(),
-          user_id: userId,
-          instagram_id: story.id,
-          thumbnail_url: story.thumbnail_url,
-          timestamp: new Date(story.timestamp),
-          caption: story.caption,
-          views: insights.impressions || 0,
-          reach: insights.reach || 0,
-          replies: insights.replies || 0,
-          total_interactions: totalInteractions,
-          follows: insights.follows || 0,
-          profile_visits: insights.profile_visits || 0,
-          navigation: navigation,
-        };
-      })
-    );
+      // total_interactionsを計算（replies + follows + profile_visits + shares）
+      const totalInteractions = (insights.replies || 0) +
+                                (insights.follows || 0) +
+                                (insights.profile_visits || 0) +
+                                (insights.shares || 0);
+
+      // サムネイルをGoogle Driveにアップロード（期限切れ対策）
+      let thumbnailUrl = story.thumbnail_url || null;
+      if (thumbnailUrl) {
+        const fileName = `story_${story.id}_${new Date(story.timestamp).toISOString().replace(/[:.]/g, '-')}`;
+        const driveUrl = await uploadImageToDrive(thumbnailUrl, fileName);
+        if (driveUrl) {
+          thumbnailUrl = driveUrl;
+        }
+      }
+
+      storiesWithInsights.push({
+        id: uuidv4(),
+        user_id: userId,
+        instagram_id: story.id,
+        thumbnail_url: thumbnailUrl,
+        timestamp: new Date(story.timestamp),
+        caption: story.caption,
+        views: insights.impressions || 0,
+        reach: insights.reach || 0,
+        replies: insights.replies || 0,
+        total_interactions: totalInteractions,
+        follows: insights.follows || 0,
+        profile_visits: insights.profile_visits || 0,
+        navigation: navigation,
+      });
+
+      // API制限対策
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
 
     // BigQueryに保存（upsert）
     const result = await upsertInstagramStories(storiesWithInsights);

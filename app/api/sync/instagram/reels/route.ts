@@ -4,6 +4,7 @@ import {
   upsertInstagramReels,
   InstagramReel,
 } from '@/lib/bigquery';
+import { uploadImageToDrive } from '@/lib/google-drive';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
@@ -149,6 +150,16 @@ async function syncUserReels(
         ? Math.round(insights.video_view_total_time / insights.plays)
         : 0;
 
+      // サムネイルをGoogle Driveにアップロード（期限切れ対策）
+      let thumbnailUrl = reel.thumbnail_url || null;
+      if (thumbnailUrl) {
+        const fileName = `reel_${reel.id}_${new Date(reel.timestamp).toISOString().replace(/[:.]/g, '-')}`;
+        const driveUrl = await uploadImageToDrive(thumbnailUrl, fileName);
+        if (driveUrl) {
+          thumbnailUrl = driveUrl;
+        }
+      }
+
       reelsWithInsights.push({
         id: uuidv4(),
         user_id: userId,
@@ -167,11 +178,11 @@ async function syncUserReels(
         shares: insights.shares || 0,
         video_view_total_time_hours: viewTimeHours,
         avg_watch_time_seconds: avgWatchTime,
-        thumbnail_url: reel.thumbnail_url,
+        thumbnail_url: thumbnailUrl,
       });
 
       // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
 
     // BigQueryに保存（upsert）

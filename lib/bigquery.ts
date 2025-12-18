@@ -532,58 +532,59 @@ export async function getUserLineData(userId: string, limit: number = 30): Promi
   return rows;
 }
 
-// Threads投稿データ保存（upsert: 新規挿入 + 既存のインサイト更新）
+// Threads投稿データ保存（MERGE文を使用 - ストリーミングバッファ制限を回避）
 export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCount: number; updatedCount: number }> {
   if (posts.length === 0) return { newCount: 0, updatedCount: 0 };
 
-  const userId = posts[0].user_id;
+  let newCount = 0;
+  let updatedCount = 0;
 
-  // 既存のthreads_idを取得
-  const existingQuery = `
-    SELECT threads_id
-    FROM \`mark-454114.analyca.threads_posts\`
-    WHERE user_id = @user_id
-  `;
-  const [existingRows] = await bigquery.query({
-    query: existingQuery,
-    params: { user_id: userId },
-  });
-  const existingIds = new Set(existingRows.map((r: { threads_id: string }) => r.threads_id));
-
-  // 新規と既存を分離
-  const newPosts = posts.filter(post => !existingIds.has(post.threads_id));
-  const existingPosts = posts.filter(post => existingIds.has(post.threads_id));
-
-  // 新規投稿を挿入
-  if (newPosts.length > 0) {
-    const table = dataset.table('threads_posts');
-    await table.insert(newPosts.map(post => ({
-      ...post,
-      timestamp: post.timestamp.toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })));
-    console.log(`${newPosts.length}件の新規投稿を保存`);
-  }
-
-  // 既存投稿のインサイトを更新
-  for (const post of existingPosts) {
-    const updateQuery = `
-      UPDATE \`mark-454114.analyca.threads_posts\`
-      SET
-        views = @views,
-        likes = @likes,
-        replies = @replies,
-        reposts = @reposts,
-        quotes = @quotes,
-        updated_at = CURRENT_TIMESTAMP()
-      WHERE user_id = @user_id AND threads_id = @threads_id
+  // 各投稿をMERGE文で処理（ストリーミングインサートではなくDMLを使用）
+  for (const post of posts) {
+    const mergeQuery = `
+      MERGE \`mark-454114.analyca.threads_posts\` T
+      USING (
+        SELECT
+          @id as id,
+          @user_id as user_id,
+          @threads_id as threads_id,
+          @text as text,
+          TIMESTAMP(@timestamp) as timestamp,
+          @permalink as permalink,
+          @media_type as media_type,
+          @is_quote_post as is_quote_post,
+          @views as views,
+          @likes as likes,
+          @replies as replies,
+          @reposts as reposts,
+          @quotes as quotes,
+          CURRENT_TIMESTAMP() as updated_at
+      ) S
+      ON T.user_id = S.user_id AND T.threads_id = S.threads_id
+      WHEN MATCHED THEN
+        UPDATE SET
+          views = S.views,
+          likes = S.likes,
+          replies = S.replies,
+          reposts = S.reposts,
+          quotes = S.quotes,
+          updated_at = S.updated_at
+      WHEN NOT MATCHED THEN
+        INSERT (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at)
+        VALUES (S.id, S.user_id, S.threads_id, S.text, S.timestamp, S.permalink, S.media_type, S.is_quote_post, S.views, S.likes, S.replies, S.reposts, S.quotes, CURRENT_TIMESTAMP(), S.updated_at)
     `;
+
     await bigquery.query({
-      query: updateQuery,
+      query: mergeQuery,
       params: {
+        id: post.id,
         user_id: post.user_id,
         threads_id: post.threads_id,
+        text: post.text,
+        timestamp: post.timestamp.toISOString(),
+        permalink: post.permalink,
+        media_type: post.media_type,
+        is_quote_post: post.is_quote_post,
         views: post.views,
         likes: post.likes,
         replies: post.replies,
@@ -591,13 +592,12 @@ export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCou
         quotes: post.quotes,
       },
     });
+
+    newCount++;
   }
 
-  if (existingPosts.length > 0) {
-    console.log(`${existingPosts.length}件の投稿インサイトを更新`);
-  }
-
-  return { newCount: newPosts.length, updatedCount: existingPosts.length };
+  console.log(`${posts.length}件のThreads投稿を処理（MERGE使用）`);
+  return { newCount, updatedCount };
 }
 
 // BigQueryのTimestamp型を安全にDateに変換するヘルパー
@@ -656,70 +656,65 @@ export async function getUserThreadsPosts(userId: string, limit: number = 50): P
   }));
 }
 
-// Threadsコメントデータ保存（upsert: 新規挿入 + 既存のviews更新）
+// Threadsコメントデータ保存（MERGE文を使用 - ストリーミングバッファ制限を回避）
 export async function insertThreadsComments(comments: ThreadsComment[]): Promise<{ newCount: number; updatedCount: number }> {
   if (comments.length === 0) return { newCount: 0, updatedCount: 0 };
 
-  const userId = comments[0].user_id;
+  let processedCount = 0;
 
-  // 既存のcomment_idを取得
-  const existingQuery = `
-    SELECT comment_id
-    FROM \`mark-454114.analyca.threads_comments\`
-    WHERE user_id = @user_id
-  `;
+  // 各コメントをMERGE文で処理（ストリーミングインサートではなくDMLを使用）
+  for (const comment of comments) {
+    try {
+      const mergeQuery = `
+        MERGE \`mark-454114.analyca.threads_comments\` T
+        USING (
+          SELECT
+            @id as id,
+            @user_id as user_id,
+            @comment_id as comment_id,
+            @parent_post_id as parent_post_id,
+            @text as text,
+            TIMESTAMP(@timestamp) as timestamp,
+            @permalink as permalink,
+            @has_replies as has_replies,
+            @views as views,
+            @depth as depth,
+            CURRENT_TIMESTAMP() as updated_at
+        ) S
+        ON T.user_id = S.user_id AND T.comment_id = S.comment_id
+        WHEN MATCHED THEN
+          UPDATE SET
+            views = S.views,
+            updated_at = S.updated_at
+        WHEN NOT MATCHED THEN
+          INSERT (id, user_id, comment_id, parent_post_id, text, timestamp, permalink, has_replies, views, depth, created_at, updated_at)
+          VALUES (S.id, S.user_id, S.comment_id, S.parent_post_id, S.text, S.timestamp, S.permalink, S.has_replies, S.views, S.depth, CURRENT_TIMESTAMP(), S.updated_at)
+      `;
 
-  let existingIds = new Set<string>();
-  try {
-    const [existingRows] = await bigquery.query({
-      query: existingQuery,
-      params: { user_id: userId },
-    });
-    existingIds = new Set(existingRows.map((r: { comment_id: string }) => r.comment_id));
-  } catch {
-    // テーブルがない場合は空セット
+      await bigquery.query({
+        query: mergeQuery,
+        params: {
+          id: comment.id,
+          user_id: comment.user_id,
+          comment_id: comment.comment_id,
+          parent_post_id: comment.parent_post_id,
+          text: comment.text,
+          timestamp: comment.timestamp.toISOString(),
+          permalink: comment.permalink,
+          has_replies: comment.has_replies,
+          views: comment.views,
+          depth: comment.depth,
+        },
+      });
+
+      processedCount++;
+    } catch (e) {
+      console.warn(`コメント保存エラー (comment_id: ${comment.comment_id}):`, e);
+    }
   }
 
-  // 新規と既存を分離
-  const newComments = comments.filter(c => !existingIds.has(c.comment_id));
-  const existingComments = comments.filter(c => existingIds.has(c.comment_id));
-
-  // 新規コメントを挿入
-  if (newComments.length > 0) {
-    const table = dataset.table('threads_comments');
-    await table.insert(newComments.map(comment => ({
-      ...comment,
-      timestamp: comment.timestamp.toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })));
-    console.log(`${newComments.length}件の新規コメントを保存`);
-  }
-
-  // 既存コメントのviewsを更新
-  for (const comment of existingComments) {
-    const updateQuery = `
-      UPDATE \`mark-454114.analyca.threads_comments\`
-      SET
-        views = @views,
-        updated_at = CURRENT_TIMESTAMP()
-      WHERE user_id = @user_id AND comment_id = @comment_id
-    `;
-    await bigquery.query({
-      query: updateQuery,
-      params: {
-        user_id: comment.user_id,
-        comment_id: comment.comment_id,
-        views: comment.views,
-      },
-    });
-  }
-
-  if (existingComments.length > 0) {
-    console.log(`${existingComments.length}件のコメントviewsを更新`);
-  }
-
-  return { newCount: newComments.length, updatedCount: existingComments.length };
+  console.log(`${processedCount}件のThreadsコメントを処理（MERGE使用）`);
+  return { newCount: processedCount, updatedCount: 0 };
 }
 
 // ユーザーのThreadsコメントデータ取得

@@ -223,31 +223,88 @@ async function getInstagramReels(accessToken: string, accountId: string, userId:
 }
 
 /**
+ * ストーリーのインサイトを取得
+ */
+async function getStoryInsights(accessToken: string, storyId: string): Promise<{
+  reach: number;
+  impressions: number;
+  replies: number;
+  follows: number;
+  profile_visits: number;
+  shares: number;
+  navigation: number;
+}> {
+  try {
+    const response = await fetch(
+      `${FACEBOOK_GRAPH_BASE}/${storyId}/insights?metric=reach,impressions,replies,follows,profile_visits,shares,navigation&access_token=${accessToken}`
+    );
+
+    if (!response.ok) {
+      return { reach: 0, impressions: 0, replies: 0, follows: 0, profile_visits: 0, shares: 0, navigation: 0 };
+    }
+
+    const data = await response.json();
+    const result = { reach: 0, impressions: 0, replies: 0, follows: 0, profile_visits: 0, shares: 0, navigation: 0 };
+
+    if (data.data && Array.isArray(data.data)) {
+      for (const metric of data.data) {
+        const value = metric.values?.[0]?.value;
+        switch (metric.name) {
+          case 'reach': result.reach = value || 0; break;
+          case 'impressions': result.impressions = value || 0; break;
+          case 'replies': result.replies = value || 0; break;
+          case 'follows': result.follows = value || 0; break;
+          case 'profile_visits': result.profile_visits = value || 0; break;
+          case 'shares': result.shares = value || 0; break;
+          case 'navigation':
+            if (typeof value === 'object' && value !== null) {
+              result.navigation = (value.forward || 0) + (value.back || 0) + (value.exited || 0);
+            }
+            break;
+        }
+      }
+    }
+    return result;
+  } catch {
+    return { reach: 0, impressions: 0, replies: 0, follows: 0, profile_visits: 0, shares: 0, navigation: 0 };
+  }
+}
+
+/**
  * Instagramストーリーデータを取得
  */
 async function getInstagramStories(accessToken: string, accountId: string, userId: string): Promise<InstagramStory[]> {
   const response = await fetch(
-    `${FACEBOOK_GRAPH_BASE}/${accountId}/stories?fields=id,media_type,thumbnail_url,timestamp&access_token=${accessToken}`
+    `${FACEBOOK_GRAPH_BASE}/${accountId}/stories?fields=id,media_type,media_url,thumbnail_url,timestamp&access_token=${accessToken}`
   );
 
   if (!response.ok) return [];
 
   const data = await response.json();
+  const stories: InstagramStory[] = [];
 
-  return (data.data || []).map((story: { id: string; thumbnail_url?: string; timestamp: string }) => ({
-    id: uuidv4(),
-    user_id: userId,
-    instagram_id: story.id,
-    thumbnail_url: story.thumbnail_url,
-    timestamp: new Date(story.timestamp),
-    views: 0,
-    reach: 0,
-    replies: 0,
-    total_interactions: 0,
-    follows: 0,
-    profile_visits: 0,
-    navigation: 0,
-  }));
+  for (const story of (data.data || [])) {
+    const insights = await getStoryInsights(accessToken, story.id);
+
+    stories.push({
+      id: uuidv4(),
+      user_id: userId,
+      instagram_id: story.id,
+      thumbnail_url: story.thumbnail_url || story.media_url || null,
+      timestamp: new Date(story.timestamp),
+      views: insights.impressions,
+      reach: insights.reach,
+      replies: insights.replies,
+      total_interactions: insights.replies + insights.follows + insights.profile_visits + insights.shares,
+      follows: insights.follows,
+      profile_visits: insights.profile_visits,
+      navigation: insights.navigation,
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  return stories;
 }
 
 /**

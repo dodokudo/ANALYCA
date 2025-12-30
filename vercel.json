@@ -19,6 +19,10 @@
     {
       "path": "/api/sync/threads/insights",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/sync/threads/comments",
+      "schedule": "30 3,9,15,21 * * *"
     }
   ]
 }

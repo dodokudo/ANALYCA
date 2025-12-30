@@ -8,7 +8,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
@@ -39,7 +39,7 @@ async function getThreadsAccountInfo(accessToken: string): Promise<{ id: string;
 }
 
 /**
- * 投稿に対する返信を取得（1レベルのみ）
+ * 投稿に対する返信を取得
  */
 async function getReplies(accessToken: string, postId: string): Promise<ThreadsReply[]> {
   try {
@@ -59,35 +59,63 @@ async function getReplies(accessToken: string, postId: string): Promise<ThreadsR
 }
 
 /**
- * コメントの閲覧数を取得
+ * 再帰的に全ての自分のコメントを取得
  */
-async function getCommentViews(accessToken: string, commentId: string): Promise<number> {
+async function getAllMyComments(
+  accessToken: string,
+  rootPostId: string,
+  myUsername: string,
+  startId: string,
+  depth: number = 0,
+  maxDepth: number = 10
+): Promise<Array<ThreadsReply & { depth: number; rootPostId: string }>> {
+  if (depth > maxDepth) return [];
+
+  const allComments: Array<ThreadsReply & { depth: number; rootPostId: string }> = [];
+
   try {
-    const response = await fetch(
-      `${GRAPH_BASE}/${commentId}/insights?metric=views&access_token=${accessToken}`
-    );
+    const replies = await getReplies(accessToken, startId);
 
-    if (!response.ok) {
-      return 0;
-    }
+    for (const reply of replies) {
+      // 自分のコメントのみ追加
+      if (reply.username === myUsername) {
+        allComments.push({
+          ...reply,
+          depth,
+          rootPostId,
+        });
 
-    const data = await response.json();
-    if (data.data && data.data[0]) {
-      return data.data[0].values?.[0]?.value || 0;
+        // このコメントに返信がある場合、再帰的に取得
+        if (reply.has_replies) {
+          const nestedComments = await getAllMyComments(
+            accessToken,
+            rootPostId,
+            myUsername,
+            reply.id,
+            depth + 1,
+            maxDepth
+          );
+          allComments.push(...nestedComments);
+        }
+      }
+
+      // API制限を考慮（軽めに）
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
-    return 0;
-  } catch {
-    return 0;
+  } catch (e) {
+    console.warn(`Error fetching replies for ${startId}:`, e);
   }
+
+  return allComments;
 }
 
 /**
- * 特定ユーザーの最新投稿のコメントを同期
+ * 特定ユーザーの全投稿のコメントを同期
  */
 async function syncUserComments(
   userId: string,
   accessToken: string,
-  postLimit: number = 5
+  postLimit: number = 100
 ): Promise<{
   success: boolean;
   commentsCount: number;
@@ -101,7 +129,7 @@ async function syncUserComments(
       return { success: false, commentsCount: 0, newComments: 0, error: 'Failed to get account info' };
     }
 
-    // BigQueryから最新の投稿を取得
+    // BigQueryから投稿を取得
     const posts = await getUserThreadsPosts(userId, postLimit);
 
     if (posts.length === 0) {
@@ -110,33 +138,33 @@ async function syncUserComments(
 
     const allComments: ThreadsComment[] = [];
 
-    // 各投稿の1レベル目のコメントのみ取得（再帰なし）
+    // 各投稿の全コメントを再帰的に取得
     for (const post of posts) {
-      const replies = await getReplies(accessToken, post.threads_id);
+      const myComments = await getAllMyComments(
+        accessToken,
+        post.threads_id,
+        accountInfo.username,
+        post.threads_id,
+        0
+      );
 
-      // 自分のコメントのみフィルタ
-      const myReplies = replies.filter(r => r.username === accountInfo.username);
-
-      for (let i = 0; i < myReplies.length; i++) {
-        const reply = myReplies[i];
-        const views = await getCommentViews(accessToken, reply.id);
-
+      for (const comment of myComments) {
         allComments.push({
           id: uuidv4(),
           user_id: userId,
-          comment_id: reply.id,
-          parent_post_id: post.threads_id,
-          text: reply.text || '',
-          timestamp: new Date(reply.timestamp),
-          permalink: reply.permalink,
-          has_replies: reply.has_replies,
-          views: views,
-          depth: i, // 順番をdepthとして保存
+          comment_id: comment.id,
+          parent_post_id: comment.rootPostId,
+          text: comment.text || '',
+          timestamp: new Date(comment.timestamp),
+          permalink: comment.permalink,
+          has_replies: comment.has_replies,
+          views: 0, // viewsは別途取得（重いのでスキップ）
+          depth: comment.depth,
         });
       }
 
-      // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // 投稿間のAPI制限を考慮
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     // BigQueryに保存
@@ -164,52 +192,77 @@ async function syncUserComments(
 /**
  * GET: コメントを同期
  * - userId指定あり: そのユーザーのみ同期
- * - limit: 同期する投稿数（デフォルト5）
+ * - userId指定なし: 全アクティブユーザーを同期（cron用）
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
-    const postLimit = parseInt(searchParams.get('limit') || '5', 10);
-
-    if (!targetUserId) {
-      return NextResponse.json({
-        success: false,
-        error: 'userId is required',
-      }, { status: 400 });
-    }
+    const postLimit = parseInt(searchParams.get('limit') || '100', 10);
 
     // アクティブなThreadsユーザーを取得
-    const users = await getActiveThreadsUsers();
-    const user = users.find(u => u.user_id === targetUserId);
+    let users = await getActiveThreadsUsers();
 
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        error: 'User not found or not active',
-      }, { status: 404 });
+    // userIdが指定されている場合、そのユーザーのみに絞る
+    if (targetUserId) {
+      users = users.filter(u => u.user_id === targetUserId);
     }
 
-    if (!user.threads_access_token) {
+    if (users.length === 0) {
       return NextResponse.json({
-        success: false,
-        error: 'Missing access token',
-      }, { status: 400 });
+        success: true,
+        message: 'No active Threads users found',
+        results: [],
+      });
     }
 
-    const result = await syncUserComments(
-      user.user_id,
-      user.threads_access_token,
-      postLimit
-    );
+    const results: Array<{
+      userId: string;
+      username: string | null;
+      success: boolean;
+      commentsCount: number;
+      newComments: number;
+      error?: string;
+    }> = [];
+
+    // 各ユーザーのコメントを同期
+    for (const user of users) {
+      if (!user.threads_access_token) {
+        results.push({
+          userId: user.user_id,
+          username: user.threads_username,
+          success: false,
+          commentsCount: 0,
+          newComments: 0,
+          error: 'Missing access token',
+        });
+        continue;
+      }
+
+      const result = await syncUserComments(
+        user.user_id,
+        user.threads_access_token,
+        postLimit
+      );
+
+      results.push({
+        userId: user.user_id,
+        username: user.threads_username,
+        ...result,
+      });
+
+      // ユーザー間のAPI制限を考慮
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const totalComments = results.reduce((sum, r) => sum + r.commentsCount, 0);
 
     return NextResponse.json({
-      success: result.success,
-      userId: user.user_id,
-      username: user.threads_username,
-      commentsCount: result.commentsCount,
-      newComments: result.newComments,
-      error: result.error,
+      success: true,
+      message: `Synced comments for ${successCount}/${users.length} users`,
+      totalComments,
+      results,
     });
   } catch (error) {
     console.error('Threads comments sync error:', error);
@@ -223,7 +276,7 @@ export async function GET(request: Request) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, accessToken, postLimit = 5 } = body;
+    const { userId, accessToken, postLimit = 100 } = body;
 
     if (!userId || !accessToken) {
       return NextResponse.json({

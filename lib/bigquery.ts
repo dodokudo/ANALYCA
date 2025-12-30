@@ -1104,7 +1104,7 @@ export async function upsertInstagramInsights(insights: InstagramInsights): Prom
       SELECT
         @id as id,
         @user_id as user_id,
-        @date as date,
+        PARSE_DATE('%Y-%m-%d', @date) as date,
         @followers_count as followers_count,
         @posts_count as posts_count,
         @reach as reach,

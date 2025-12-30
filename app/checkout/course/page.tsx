@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 
 // 講座情報
@@ -11,22 +10,8 @@ const COURSE = {
   description: 'AIを活用したThreads運用の完全マスターコース',
 };
 
-declare global {
-  interface Window {
-    UnivapayCheckout: {
-      create: (config: Record<string, unknown>) => {
-        open: () => void;
-        close: () => void;
-      };
-    };
-  }
-}
-
 function CourseCheckoutContent() {
-  const router = useRouter();
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [univaPayConfig, setUnivaPayConfig] = useState<{ appId: string } | null>(null);
 
   // UnivaPay設定を取得
@@ -40,55 +25,10 @@ function CourseCheckoutContent() {
       })
       .catch(err => {
         console.error('Failed to load payment config:', err);
-        setError('決済設定の読み込みに失敗しました');
       });
   }, []);
 
-  const handlePayment = () => {
-    if (!scriptLoaded || !univaPayConfig) {
-      setError('決済システムの準備ができていません');
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
-
-    try {
-      const checkout = window.UnivapayCheckout.create({
-        appId: univaPayConfig.appId,
-        checkout: 'payment',
-        amount: COURSE.price,
-        currency: 'JPY',
-        // 分割払い設定（UnivaPayのカード分割払い機能）
-        allowCardInstallments: true,
-        cardInstallmentOptions: [1, 3, 6, 12, 24],
-        // メタデータ
-        metadata: {
-          courseName: COURSE.name,
-        },
-        // コールバック
-        onSuccess: async (result: { id: string; type: string }) => {
-          console.log('Payment success:', result);
-          // 決済成功 → 完了ページへリダイレクト
-          router.push('/checkout/course/complete');
-        },
-        onError: (err: { message?: string }) => {
-          console.error('Payment error:', err);
-          setError(err.message || '決済に失敗しました');
-          setProcessing(false);
-        },
-        onCancel: () => {
-          setProcessing(false);
-        },
-      });
-
-      checkout.open();
-    } catch (err) {
-      console.error('Checkout error:', err);
-      setError('決済システムの初期化に失敗しました');
-      setProcessing(false);
-    }
-  };
+  const isReady = scriptLoaded && univaPayConfig;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -126,26 +66,28 @@ function CourseCheckoutContent() {
               </div>
             </div>
 
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            )}
-
-            <button
-              onClick={handlePayment}
-              disabled={!scriptLoaded || !univaPayConfig || processing}
-              className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold text-lg rounded-xl hover:from-purple-700 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            >
-              {processing ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  処理中...
+            {/* UnivaPay HTMLタグ方式 - 分割払い対応 */}
+            <div className="flex justify-center">
+              {isReady ? (
+                <span
+                  data-app-id={univaPayConfig.appId}
+                  data-checkout="payment"
+                  data-amount={COURSE.price}
+                  data-currency="jpy"
+                  data-allow-card-installments="true"
+                  data-card-installment-options="1,3,6,12,24"
+                  data-success-redirect-url="https://analyca.vercel.app/checkout/course/complete"
+                  data-metadata={JSON.stringify({ courseName: COURSE.name })}
+                  className="univapay-payment-checkout w-full py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold text-lg rounded-xl hover:from-purple-700 hover:to-pink-600 transition-all cursor-pointer shadow-lg text-center block"
+                >
+                  お支払いへ進む
                 </span>
               ) : (
-                'お支払いへ進む'
+                <div className="w-full py-4 bg-gray-300 text-gray-500 font-bold text-lg rounded-xl text-center">
+                  読み込み中...
+                </div>
               )}
-            </button>
+            </div>
 
             <p className="text-xs text-gray-400 text-center mt-4">
               お支払いはUnivaPayによって安全に処理されます

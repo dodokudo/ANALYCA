@@ -234,8 +234,8 @@ async function syncUserPosts(
       return { success: false, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0, error: 'Failed to get account info' };
     }
 
-    // 投稿一覧を取得（同期時は20件に制限してタイムアウト防止）
-    const posts = await getThreadsPosts(accessToken, 20);
+    // 投稿一覧を取得（同期時は15件に制限してタイムアウト防止）
+    const posts = await getThreadsPosts(accessToken, 15);
 
     if (posts.length === 0) {
       return { success: true, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0 };
@@ -267,28 +267,8 @@ async function syncUserPosts(
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // 各投稿のコメント（自分のリプライ）を再帰的に取得（最新10件まで）
+    // コメント取得は重いのでスキップ（タイムアウト対策）
     const allComments: ThreadsComment[] = [];
-
-    for (const post of posts.slice(0, 10)) {
-      const commentTree = await getMyCommentTree(accessToken, post.id, accountInfo.username);
-
-      for (const reply of commentTree) {
-        const views = await getCommentViews(accessToken, reply.id);
-        allComments.push({
-          id: uuidv4(),
-          user_id: userId,
-          comment_id: reply.id,
-          parent_post_id: post.id,
-          text: reply.text || '',
-          timestamp: new Date(reply.timestamp),
-          permalink: reply.permalink,
-          has_replies: reply.has_replies,
-          views: views,
-          depth: reply.depth,
-        });
-      }
-    }
 
     // BigQueryに保存（upsert）
     let postsResult = { newCount: 0, updatedCount: 0 };

@@ -234,8 +234,8 @@ async function syncUserPosts(
       return { success: false, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0, error: 'Failed to get account info' };
     }
 
-    // 投稿一覧を取得（同期時は15件に制限してタイムアウト防止）
-    const posts = await getThreadsPosts(accessToken, 15);
+    // 投稿一覧を取得（同期時は10件に制限してタイムアウト防止）
+    const posts = await getThreadsPosts(accessToken, 10);
 
     if (posts.length === 0) {
       return { success: true, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0 };
@@ -267,10 +267,10 @@ async function syncUserPosts(
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // 最新5件の投稿のコメントのみ取得（タイムアウト対策）
+    // 最新3件の投稿のコメントのみ取得（タイムアウト対策）
     const allComments: ThreadsComment[] = [];
 
-    for (const post of posts.slice(0, 5)) {
+    for (const post of posts.slice(0, 3)) {
       const commentTree = await getMyCommentTree(accessToken, post.id, accountInfo.username);
 
       for (const reply of commentTree) {

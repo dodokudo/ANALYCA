@@ -1110,8 +1110,7 @@ export async function upsertInstagramInsights(insights: InstagramInsights): Prom
         @reach as reach,
         @engagement as engagement,
         @profile_views as profile_views,
-        @website_clicks as website_clicks,
-        CURRENT_TIMESTAMP() as updated_at
+        @website_clicks as website_clicks
     ) S
     ON T.user_id = S.user_id AND T.date = S.date
     WHEN MATCHED THEN
@@ -1121,8 +1120,7 @@ export async function upsertInstagramInsights(insights: InstagramInsights): Prom
         reach = S.reach,
         engagement = S.engagement,
         profile_views = S.profile_views,
-        website_clicks = S.website_clicks,
-        updated_at = S.updated_at
+        website_clicks = S.website_clicks
     WHEN NOT MATCHED THEN
       INSERT (id, user_id, date, followers_count, posts_count, reach, engagement, profile_views, website_clicks, created_at)
       VALUES (S.id, S.user_id, S.date, S.followers_count, S.posts_count, S.reach, S.engagement, S.profile_views, S.website_clicks, CURRENT_TIMESTAMP())

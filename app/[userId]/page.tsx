@@ -692,7 +692,7 @@ function ThreadsContent({
           </div>
           <div className="mt-6 h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={dailyMetrics} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <ComposedChart data={[...dailyMetrics].reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
                 <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
                 <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} />

@@ -267,8 +267,28 @@ async function syncUserPosts(
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // コメント取得は重いのでスキップ（タイムアウト対策）
+    // 最新5件の投稿のコメントのみ取得（タイムアウト対策）
     const allComments: ThreadsComment[] = [];
+
+    for (const post of posts.slice(0, 5)) {
+      const commentTree = await getMyCommentTree(accessToken, post.id, accountInfo.username);
+
+      for (const reply of commentTree) {
+        const views = await getCommentViews(accessToken, reply.id);
+        allComments.push({
+          id: uuidv4(),
+          user_id: userId,
+          comment_id: reply.id,
+          parent_post_id: post.id,
+          text: reply.text || '',
+          timestamp: new Date(reply.timestamp),
+          permalink: reply.permalink,
+          has_replies: reply.has_replies,
+          views: views,
+          depth: reply.depth,
+        });
+      }
+    }
 
     // BigQueryに保存（upsert）
     let postsResult = { newCount: 0, updatedCount: 0 };

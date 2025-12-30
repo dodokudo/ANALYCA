@@ -234,8 +234,8 @@ async function syncUserPosts(
       return { success: false, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0, error: 'Failed to get account info' };
     }
 
-    // 投稿一覧を取得（同期時は25件に制限）
-    const posts = await getThreadsPosts(accessToken, 25);
+    // 投稿一覧を取得（同期時は15件に制限）
+    const posts = await getThreadsPosts(accessToken, 15);
 
     if (posts.length === 0) {
       return { success: true, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0 };
@@ -264,7 +264,7 @@ async function syncUserPosts(
       });
 
       // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     // コメント取得は重すぎるので定期同期ではスキップ（オンボーディング時のみ取得）

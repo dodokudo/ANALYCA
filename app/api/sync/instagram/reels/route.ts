@@ -38,7 +38,7 @@ interface ReelInsights {
 /**
  * リール一覧を取得
  */
-async function getReels(accessToken: string, accountId: string, limit = 50): Promise<InstagramMedia[]> {
+async function getReels(accessToken: string, accountId: string, limit = 15): Promise<InstagramMedia[]> {
   try {
     const response = await fetch(
       `${FACEBOOK_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=${limit}&access_token=${accessToken}`
@@ -150,15 +150,8 @@ async function syncUserReels(
         ? Math.round(insights.video_view_total_time / insights.plays)
         : 0;
 
-      // サムネイルをGoogle Driveにアップロード（期限切れ対策）
-      let thumbnailUrl = reel.thumbnail_url || null;
-      if (thumbnailUrl) {
-        const fileName = `reel_${reel.id}_${new Date(reel.timestamp).toISOString().replace(/[:.]/g, '-')}`;
-        const driveUrl = await uploadImageToDrive(thumbnailUrl, fileName);
-        if (driveUrl) {
-          thumbnailUrl = driveUrl;
-        }
-      }
+      // サムネイルはそのまま使用（Driveアップロードはタイムアウト対策でスキップ）
+      const thumbnailUrl = reel.thumbnail_url || null;
 
       reelsWithInsights.push({
         id: uuidv4(),

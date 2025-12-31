@@ -86,7 +86,7 @@ async function syncUserInsights(
     try {
       const posts = await getUserThreadsPosts(userId, 100);
 
-      // 全投稿の統計を集計
+      // 全投稿の統計を集計（累計値）
       totalViews = posts.reduce((sum, post) => sum + post.views, 0);
       totalLikes = posts.reduce((sum, post) => sum + post.likes, 0);
       totalReplies = posts.reduce((sum, post) => sum + post.replies, 0);
@@ -100,7 +100,7 @@ async function syncUserInsights(
       // 投稿データがない場合は0
     }
 
-    // 日別メトリクスを保存
+    // 日別メトリクスを保存（累計値を保存、表示時に差分計算）
     await upsertThreadsDailyMetrics({
       id: uuidv4(),
       user_id: userId,

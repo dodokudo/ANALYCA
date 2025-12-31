@@ -4,7 +4,7 @@ import {
   upsertInstagramReels,
   InstagramReel,
 } from '@/lib/bigquery';
-import { uploadImageToDrive } from '@/lib/google-drive';
+import { uploadImageToGCS } from '@/lib/gcs';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
@@ -150,8 +150,16 @@ async function syncUserReels(
         ? Math.round(insights.video_view_total_time / insights.plays)
         : 0;
 
-      // サムネイルはそのまま使用（Driveアップロードはタイムアウト対策でスキップ）
-      const thumbnailUrl = reel.thumbnail_url || null;
+      // サムネイルをGCSにアップロード
+      const originalThumbnailUrl = reel.thumbnail_url || null;
+      let thumbnailUrl = originalThumbnailUrl;
+      if (originalThumbnailUrl) {
+        const fileName = `reel_${reel.id}_${new Date(reel.timestamp).toISOString().replace(/[:.]/g, '-')}`;
+        const gcsUrl = await uploadImageToGCS(originalThumbnailUrl, fileName, 'instagram/reels');
+        if (gcsUrl) {
+          thumbnailUrl = gcsUrl;
+        }
+      }
 
       reelsWithInsights.push({
         id: uuidv4(),

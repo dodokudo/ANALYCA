@@ -328,7 +328,7 @@ async function getStoryInsights(accessToken: string, storyId: string): Promise<{
 }
 
 /**
- * Instagramストーリーデータを取得（画像をGoogle Driveに保存）
+ * Instagramストーリーデータを取得（同期時にGCSへアップロード）
  */
 async function getInstagramStories(accessToken: string, accountId: string, userId: string): Promise<InstagramStory[]> {
   const response = await fetch(

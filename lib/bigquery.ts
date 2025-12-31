@@ -538,7 +538,7 @@ export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCou
   if (posts.length === 0) return { newCount: 0, updatedCount: 0 };
 
   let newCount = 0;
-  let updatedCount = 0;
+  const updatedCount = 0;
   let streamingBufferErrorCount = 0;
 
   // 各投稿をMERGE文で処理（ストリーミングインサートではなくDMLを使用）

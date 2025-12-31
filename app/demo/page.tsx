@@ -55,16 +55,15 @@ const channelItems: { value: Channel; label: string; Icon: React.ComponentType<{
 ];
 
 // ============ 日付プリセット ============
-type DatePreset = 'yesterday' | 'this-week' | 'last-week' | 'this-month' | 'last-month' | '7d' | '30d';
+type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
 
 const datePresetOptions: { value: DatePreset; label: string }[] = [
+  { value: '3d', label: '過去3日' },
   { value: '7d', label: '過去7日' },
-  { value: '30d', label: '過去30日' },
-  { value: 'yesterday', label: '昨日' },
-  { value: 'this-week', label: '今週' },
-  { value: 'last-week', label: '先週' },
-  { value: 'this-month', label: '今月' },
-  { value: 'last-month', label: '先月' },
+  { value: 'thisWeek', label: '今週' },
+  { value: 'lastWeek', label: '先週' },
+  { value: 'thisMonth', label: '今月' },
+  { value: 'lastMonth', label: '先月' },
 ];
 
 // ============ Instagram ダミーデータ ============

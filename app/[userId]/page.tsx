@@ -155,6 +155,8 @@ interface DailyMetric {
   followers_count: number;
   follower_delta: number;
   total_views: number;
+  total_likes: number;
+  total_replies: number;
   post_count: number;
 }
 
@@ -590,13 +592,11 @@ function ThreadsContent({
     return allDailyMetrics.filter(d => isDateInRange(d.date, dateRange));
   }, [allDailyMetrics, dateRange]);
 
-  // フィルタ後の合計を計算
-  const totalPosts = posts.length;
-  const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
-  const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
-  const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
-  const totalReposts = posts.reduce((sum, p) => sum + (p.reposts || 0), 0);
-  const totalQuotes = posts.reduce((sum, p) => sum + (p.quotes || 0), 0);
+  // フィルタ後の合計を計算（日別メトリクスから期間内の合計を取得）
+  const totalPosts = dailyMetrics.reduce((sum, d) => sum + (d.post_count || 0), 0);
+  const totalViews = dailyMetrics.reduce((sum, d) => sum + (d.total_views || 0), 0);
+  const totalLikes = dailyMetrics.reduce((sum, d) => sum + (d.total_likes || 0), 0);
+  const totalReplies = dailyMetrics.reduce((sum, d) => sum + (d.total_replies || 0), 0);
 
   // コメント紐付け
   const commentsByPostId = useMemo(() => {
@@ -610,10 +610,10 @@ function ThreadsContent({
 
   // サマリー計算
   const summary = useMemo(() => {
-    const engagementRate = totalViews > 0 ? ((totalLikes + totalReplies + totalReposts + totalQuotes) / totalViews * 100).toFixed(2) : '0.00';
+    const engagementRate = totalViews > 0 ? ((totalLikes + totalReplies) / totalViews * 100).toFixed(2) : '0.00';
     const followerGrowth = dailyMetrics.reduce((sum, d) => sum + d.follower_delta, 0);
     return { totalViews, totalLikes, totalReplies, engagementRate, followerGrowth };
-  }, [totalViews, totalLikes, totalReplies, totalReposts, totalQuotes, dailyMetrics]);
+  }, [totalViews, totalLikes, totalReplies, dailyMetrics]);
 
   // ソート
   const sortedPosts = useMemo(() => {

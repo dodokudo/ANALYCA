@@ -81,12 +81,12 @@ function getDateRange(preset: DatePreset): { start: Date; end: Date } {
   switch (preset) {
     case '3d': {
       const start = new Date(today);
-      start.setDate(start.getDate() - 2);
+      start.setDate(start.getDate() - 3);
       return { start, end };
     }
     case '7d': {
       const start = new Date(today);
-      start.setDate(start.getDate() - 6);
+      start.setDate(start.getDate() - 7);
       return { start, end };
     }
     case 'thisWeek': {

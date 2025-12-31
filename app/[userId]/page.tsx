@@ -1191,14 +1191,29 @@ function InstagramContent({
                   </tbody>
                 </table>
               </div>
+              {/* 最大・最小値表示 */}
+              <div className="flex gap-6 mb-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">フォロワー:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.followers_count || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.followers_count).map(i => i.followers_count || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">リーチ:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.reach).map(i => i.reach || 0)).toLocaleString()}</span>
+                </div>
+              </div>
               {/* グラフ */}
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={['dataMin - 50', 'dataMax + 50']} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={[0, 'auto']} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} domain={[0, 'auto']} />
                     <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="followers_count" name="フォロワー数" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
@@ -1417,12 +1432,27 @@ function InstagramContent({
           {insights.length > 0 && (
             <div className="ui-card p-6">
               <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">デイリー推移</h2>
+              {/* 最大・最小値表示 */}
+              <div className="flex flex-wrap gap-4 mb-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">リーチ:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.reach).map(i => i.reach || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">プロフ表示:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.profile_views || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.profile_views).map(i => i.profile_views || 0)).toLocaleString()}</span>
+                </div>
+              </div>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
-                    <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} />
+                    <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={[0, 'auto']} />
                     <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
                     <Legend />
                     <Bar dataKey="reach" name="リーチ" fill="#10B981" />

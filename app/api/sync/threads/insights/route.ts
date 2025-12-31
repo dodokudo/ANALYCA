@@ -124,13 +124,22 @@ async function syncUserInsights(
 }
 
 /**
- * GET: 全アクティブユーザーのThreadsインサイトを同期
- * POST: 特定ユーザーのThreadsインサイトを同期
+ * GET: Threadsインサイトを同期
+ * - userId指定あり: そのユーザーのみ同期
+ * - userId指定なし: 全アクティブユーザーを同期（cron用）
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const targetUserId = searchParams.get('userId');
+
     // アクティブなThreadsユーザーを取得
-    const users = await getActiveThreadsUsers();
+    let users = await getActiveThreadsUsers();
+
+    // userIdが指定されている場合、そのユーザーのみに絞る
+    if (targetUserId) {
+      users = users.filter(u => u.user_id === targetUserId);
+    }
 
     if (users.length === 0) {
       return NextResponse.json({

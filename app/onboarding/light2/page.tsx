@@ -53,6 +53,9 @@ export default function OnboardingLight2Page() {
           setSyncStatus('ストーリーを同期中...（最大1分）');
           await fetch(`/api/sync/instagram/stories?userId=${result.userId}`, { method: 'GET' });
 
+          setSyncStatus('Instagramインサイトを同期中...');
+          await fetch(`/api/sync/instagram/insights?userId=${result.userId}`, { method: 'GET' });
+
           setSyncStatus('完了！ダッシュボードへ移動します...');
         } catch (syncError) {
           console.warn('Sync API error (continuing anyway):', syncError);

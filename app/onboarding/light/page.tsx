@@ -39,6 +39,9 @@ export default function OnboardingLightPage() {
           setSyncStatus('Threads投稿を同期中...（最大1分）');
           await fetch(`/api/sync/threads/posts?userId=${result.userId}`, { method: 'GET' });
 
+          setSyncStatus('日別メトリクスを同期中...');
+          await fetch(`/api/sync/threads/insights?userId=${result.userId}`, { method: 'GET' });
+
           setSyncStatus('完了！ダッシュボードへ移動します...');
         } catch (syncError) {
           console.warn('Sync API error (continuing anyway):', syncError);

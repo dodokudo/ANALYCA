@@ -60,11 +60,17 @@ export default function OnboardingStandardPage() {
           setSyncStatus('Threads投稿を同期中...（最大1分）');
           await fetch(`/api/sync/threads/posts?userId=${result.userId}`, { method: 'GET' });
 
+          setSyncStatus('Threads日別メトリクスを同期中...');
+          await fetch(`/api/sync/threads/insights?userId=${result.userId}`, { method: 'GET' });
+
           setSyncStatus('リール投稿を同期中...（最大1分）');
           await fetch(`/api/sync/instagram/reels?userId=${result.userId}`, { method: 'GET' });
 
           setSyncStatus('ストーリーを同期中...（最大1分）');
           await fetch(`/api/sync/instagram/stories?userId=${result.userId}`, { method: 'GET' });
+
+          setSyncStatus('Instagramインサイトを同期中...');
+          await fetch(`/api/sync/instagram/insights?userId=${result.userId}`, { method: 'GET' });
 
           setSyncStatus('完了！ダッシュボードへ移動します...');
         } catch (syncError) {

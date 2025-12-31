@@ -1351,3 +1351,33 @@ export async function getAdminOverallStats(): Promise<AdminOverallStats> {
   const [rows] = await bigquery.query({ query });
   return rows[0] as AdminOverallStats;
 }
+
+// プロフィール画像URLを更新
+export async function updateUserProfilePictures(
+  userId: string,
+  instagramProfilePictureUrl: string | null,
+  threadsProfilePictureUrl: string | null
+): Promise<void> {
+  const updates: string[] = [];
+  const params: Record<string, string | null> = { user_id: userId };
+
+  if (instagramProfilePictureUrl) {
+    updates.push('instagram_profile_picture_url = @instagram_profile_picture_url');
+    params.instagram_profile_picture_url = instagramProfilePictureUrl;
+  }
+
+  if (threadsProfilePictureUrl) {
+    updates.push('threads_profile_picture_url = @threads_profile_picture_url');
+    params.threads_profile_picture_url = threadsProfilePictureUrl;
+  }
+
+  if (updates.length === 0) return;
+
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @user_id
+  `;
+
+  await bigquery.query({ query, params });
+}

@@ -23,6 +23,10 @@
     {
       "path": "/api/sync/threads/comments",
       "schedule": "30 3,9,15,21 * * *"
+    },
+    {
+      "path": "/api/sync/profile-pictures",
+      "schedule": "0 0 * * *"
     }
   ]
 }

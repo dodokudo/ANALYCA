@@ -4,7 +4,7 @@ import {
   upsertInstagramStories,
   InstagramStory,
 } from '@/lib/bigquery';
-import { uploadImageToDrive } from '@/lib/google-drive';
+import { uploadImageToGCS } from '@/lib/gcs';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
@@ -189,13 +189,14 @@ async function syncUserStories(
                                 (insights.shares || 0);
 
       // サムネイル取得（thumbnail_urlがなければmedia_urlを使用）
-      let thumbnailUrl = story.thumbnail_url || story.media_url || null;
-      if (thumbnailUrl) {
-        // Google Driveにアップロード試行（失敗時は元URLを使用）
+      const originalThumbnailUrl = story.thumbnail_url || story.media_url || null;
+      let thumbnailUrl = originalThumbnailUrl;
+      if (originalThumbnailUrl) {
+        // GCSにアップロード試行（失敗時は元URLを使用）
         const fileName = `story_${story.id}_${new Date(story.timestamp).toISOString().replace(/[:.]/g, '-')}`;
-        const driveUrl = await uploadImageToDrive(thumbnailUrl, fileName);
-        if (driveUrl) {
-          thumbnailUrl = driveUrl;
+        const gcsUrl = await uploadImageToGCS(originalThumbnailUrl, fileName, 'instagram/stories');
+        if (gcsUrl) {
+          thumbnailUrl = gcsUrl;
         }
       }
 

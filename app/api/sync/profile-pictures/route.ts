@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getActiveInstagramUsers, getActiveThreadsUsers, updateUserProfilePictures } from '@/lib/bigquery';
+import { uploadImageToGCS } from '@/lib/gcs';
 
 export const maxDuration = 120;
 
@@ -7,7 +8,7 @@ const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
 const THREADS_GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
 /**
- * Instagramプロフィール画像URLを取得
+ * Instagramプロフィール画像URLを取得してGCSにアップロード
  */
 async function getInstagramProfilePicture(accessToken: string, userId: string): Promise<string | null> {
   try {
@@ -19,7 +20,18 @@ async function getInstagramProfilePicture(accessToken: string, userId: string): 
       return null;
     }
     const data = await response.json();
-    return data.profile_picture_url || null;
+    const cdnUrl = data.profile_picture_url || null;
+
+    if (cdnUrl) {
+      // GCSにアップロード
+      const fileName = `instagram_profile_${userId}_${Date.now()}`;
+      const gcsUrl = await uploadImageToGCS(cdnUrl, fileName, 'profile-pictures/instagram');
+      if (gcsUrl) {
+        return gcsUrl;
+      }
+    }
+
+    return cdnUrl;
   } catch (e) {
     console.error('Instagram profile picture error:', e);
     return null;
@@ -27,9 +39,9 @@ async function getInstagramProfilePicture(accessToken: string, userId: string): 
 }
 
 /**
- * Threadsプロフィール画像URLを取得
+ * Threadsプロフィール画像URLを取得してGCSにアップロード
  */
-async function getThreadsProfilePicture(accessToken: string): Promise<string | null> {
+async function getThreadsProfilePicture(accessToken: string, userId: string): Promise<string | null> {
   try {
     const response = await fetch(
       `${THREADS_GRAPH_BASE}/me?fields=threads_profile_picture_url&access_token=${accessToken}`
@@ -39,7 +51,18 @@ async function getThreadsProfilePicture(accessToken: string): Promise<string | n
       return null;
     }
     const data = await response.json();
-    return data.threads_profile_picture_url || null;
+    const cdnUrl = data.threads_profile_picture_url || null;
+
+    if (cdnUrl) {
+      // GCSにアップロード
+      const fileName = `threads_profile_${userId}_${Date.now()}`;
+      const gcsUrl = await uploadImageToGCS(cdnUrl, fileName, 'profile-pictures/threads');
+      if (gcsUrl) {
+        return gcsUrl;
+      }
+    }
+
+    return cdnUrl;
   } catch (e) {
     console.error('Threads profile picture error:', e);
     return null;
@@ -47,7 +70,7 @@ async function getThreadsProfilePicture(accessToken: string): Promise<string | n
 }
 
 /**
- * GET: 全ユーザーのプロフィール画像を同期（CDN URLを直接保存）
+ * GET: 全ユーザーのプロフィール画像を同期（GCSにアップロードして永続URL保存）
  */
 export async function GET() {
   try {
@@ -84,7 +107,7 @@ export async function GET() {
 
         // Threads プロフィール画像
         if (threadsUser?.threads_access_token) {
-          threadsPicUrl = await getThreadsProfilePicture(threadsUser.threads_access_token);
+          threadsPicUrl = await getThreadsProfilePicture(threadsUser.threads_access_token, userId);
         }
 
         // DB更新

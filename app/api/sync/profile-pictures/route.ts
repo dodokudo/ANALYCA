@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getActiveInstagramUsers, getActiveThreadsUsers, updateUserProfilePictures } from '@/lib/bigquery';
-import { uploadImageToDrive } from '@/lib/google-drive';
 
 export const maxDuration = 120;
 
@@ -15,10 +14,14 @@ async function getInstagramProfilePicture(accessToken: string, userId: string): 
     const response = await fetch(
       `${FACEBOOK_GRAPH_BASE}/${userId}?fields=profile_picture_url&access_token=${accessToken}`
     );
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error(`Instagram profile picture fetch failed: ${response.status}`);
+      return null;
+    }
     const data = await response.json();
     return data.profile_picture_url || null;
-  } catch {
+  } catch (e) {
+    console.error('Instagram profile picture error:', e);
     return null;
   }
 }
@@ -31,16 +34,20 @@ async function getThreadsProfilePicture(accessToken: string): Promise<string | n
     const response = await fetch(
       `${THREADS_GRAPH_BASE}/me?fields=threads_profile_picture_url&access_token=${accessToken}`
     );
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error(`Threads profile picture fetch failed: ${response.status}`);
+      return null;
+    }
     const data = await response.json();
     return data.threads_profile_picture_url || null;
-  } catch {
+  } catch (e) {
+    console.error('Threads profile picture error:', e);
     return null;
   }
 }
 
 /**
- * GET: 全ユーザーのプロフィール画像を同期
+ * GET: 全ユーザーのプロフィール画像を同期（CDN URLを直接保存）
  */
 export async function GET() {
   try {
@@ -53,6 +60,7 @@ export async function GET() {
       userId: string;
       instagram: boolean;
       threads: boolean;
+      error?: string;
     }> = [];
 
     // ユーザーIDの重複を除去して統合
@@ -64,42 +72,45 @@ export async function GET() {
       const igUser = igUsers.find(u => u.user_id === userId);
       const threadsUser = threadsUsers.find(u => u.user_id === userId);
 
-      let igDriveUrl: string | null = null;
-      let threadsDriveUrl: string | null = null;
+      let igPicUrl: string | null = null;
+      let threadsPicUrl: string | null = null;
+      let error: string | undefined;
 
-      // Instagram プロフィール画像
-      if (igUser?.access_token && igUser?.instagram_user_id) {
-        const igPicUrl = await getInstagramProfilePicture(igUser.access_token, igUser.instagram_user_id);
-        if (igPicUrl) {
-          igDriveUrl = await uploadImageToDrive(igPicUrl, `ig_profile_${userId}`);
+      try {
+        // Instagram プロフィール画像
+        if (igUser?.access_token && igUser?.instagram_user_id) {
+          igPicUrl = await getInstagramProfilePicture(igUser.access_token, igUser.instagram_user_id);
         }
-      }
 
-      // Threads プロフィール画像
-      if (threadsUser?.threads_access_token) {
-        const threadsPicUrl = await getThreadsProfilePicture(threadsUser.threads_access_token);
-        if (threadsPicUrl) {
-          threadsDriveUrl = await uploadImageToDrive(threadsPicUrl, `threads_profile_${userId}`);
+        // Threads プロフィール画像
+        if (threadsUser?.threads_access_token) {
+          threadsPicUrl = await getThreadsProfilePicture(threadsUser.threads_access_token);
         }
-      }
 
-      // DB更新
-      if (igDriveUrl || threadsDriveUrl) {
-        await updateUserProfilePictures(userId, igDriveUrl, threadsDriveUrl);
+        // DB更新
+        if (igPicUrl || threadsPicUrl) {
+          await updateUserProfilePictures(userId, igPicUrl, threadsPicUrl);
+        }
+      } catch (e) {
+        error = e instanceof Error ? e.message : 'Unknown error';
       }
 
       results.push({
         userId,
-        instagram: !!igDriveUrl,
-        threads: !!threadsDriveUrl,
+        instagram: !!igPicUrl,
+        threads: !!threadsPicUrl,
+        error,
       });
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
+
+    const igSuccess = results.filter(r => r.instagram).length;
+    const threadsSuccess = results.filter(r => r.threads).length;
 
     return NextResponse.json({
       success: true,
-      message: `Updated profile pictures for ${results.length} users`,
+      message: `Updated profile pictures: Instagram ${igSuccess}, Threads ${threadsSuccess}`,
       results,
     });
   } catch (error) {

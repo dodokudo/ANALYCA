@@ -60,11 +60,11 @@ function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
 // ============ 型定義 ============
 type Channel = 'instagram' | 'threads';
 
-type DatePreset = '7d' | '30d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
+type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
 
 const datePresetOptions: { value: DatePreset; label: string }[] = [
+  { value: '3d', label: '過去3日' },
   { value: '7d', label: '過去7日' },
-  { value: '30d', label: '過去30日' },
   { value: 'thisWeek', label: '今週' },
   { value: 'lastWeek', label: '先週' },
   { value: 'thisMonth', label: '今月' },
@@ -79,14 +79,14 @@ function getDateRange(preset: DatePreset): { start: Date; end: Date } {
   end.setHours(23, 59, 59, 999);
 
   switch (preset) {
+    case '3d': {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 2);
+      return { start, end };
+    }
     case '7d': {
       const start = new Date(today);
       start.setDate(start.getDate() - 6);
-      return { start, end };
-    }
-    case '30d': {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 29);
       return { start, end };
     }
     case 'thisWeek': {

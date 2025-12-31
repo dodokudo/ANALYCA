@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Instagram Analytics Dashboard",
-  description: "Professional Instagram Analytics Dashboard by GEM QUEEN💎",
+  title: "ANALYCA - SNS分析ダッシュボード",
+  description: "Threads・Instagramなどの数値分析が一目でできる！",
 };
 
 export default function RootLayout({

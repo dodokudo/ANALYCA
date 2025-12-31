@@ -77,7 +77,7 @@ export default function OnboardingStandardPage() {
           console.warn('Sync API error (continuing anyway):', syncError);
         }
         // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
-        window.location.replace(`/${result.userId}`);
+        window.location.replace(`/${result.userId}?tab=threads`);
       } else {
         setError(result.error || 'セットアップに失敗しました');
       }

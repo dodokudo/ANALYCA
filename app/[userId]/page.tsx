@@ -60,12 +60,74 @@ function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
 // ============ 型定義 ============
 type Channel = 'instagram' | 'threads';
 
-type DatePreset = '7d' | '30d';
+type DatePreset = '7d' | '30d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
 
 const datePresetOptions: { value: DatePreset; label: string }[] = [
   { value: '7d', label: '過去7日' },
   { value: '30d', label: '過去30日' },
+  { value: 'thisWeek', label: '今週' },
+  { value: 'lastWeek', label: '先週' },
+  { value: 'thisMonth', label: '今月' },
+  { value: 'lastMonth', label: '先月' },
 ];
+
+// 日付範囲を計算するヘルパー関数
+function getDateRange(preset: DatePreset): { start: Date; end: Date } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(today);
+  end.setHours(23, 59, 59, 999);
+
+  switch (preset) {
+    case '7d': {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      return { start, end };
+    }
+    case '30d': {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 29);
+      return { start, end };
+    }
+    case 'thisWeek': {
+      // 今週（日曜日始まり）
+      const dayOfWeek = today.getDay();
+      const start = new Date(today);
+      start.setDate(start.getDate() - dayOfWeek);
+      return { start, end };
+    }
+    case 'lastWeek': {
+      // 先週（日曜日〜土曜日）
+      const dayOfWeek = today.getDay();
+      const start = new Date(today);
+      start.setDate(start.getDate() - dayOfWeek - 7);
+      const endOfLastWeek = new Date(start);
+      endOfLastWeek.setDate(endOfLastWeek.getDate() + 6);
+      endOfLastWeek.setHours(23, 59, 59, 999);
+      return { start, end: endOfLastWeek };
+    }
+    case 'thisMonth': {
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { start, end };
+    }
+    case 'lastMonth': {
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+      endOfLastMonth.setHours(23, 59, 59, 999);
+      return { start, end: endOfLastMonth };
+    }
+    default:
+      return { start: new Date(0), end };
+  }
+}
+
+// 日付が範囲内かチェック
+function isDateInRange(dateStr: string | Date | null | undefined, range: { start: Date; end: Date }): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+  return date >= range.start && date <= range.end;
+}
 
 interface ThreadsPost {
   id: string;
@@ -511,17 +573,30 @@ function ThreadsContent({
   };
 
   // データ取得
-  const posts = data?.threads?.data || [];
+  const allPosts = data?.threads?.data || [];
   const comments = data?.threadsComments?.data || [];
-  const dailyMetrics = data?.threadsDailyMetrics?.data || [];
+  const allDailyMetrics = data?.threadsDailyMetrics?.data || [];
   const latestMetrics = data?.threadsDailyMetrics?.latest;
   const followersCount = latestMetrics?.followers_count || 0;
-  const totalPosts = data?.threads?.total || posts.length;
-  const totalViews = data?.threads?.totalViews || 0;
-  const totalLikes = data?.threads?.totalLikes || 0;
-  const totalReplies = data?.threads?.totalReplies || 0;
-  const totalReposts = data?.threads?.totalReposts || 0;
-  const totalQuotes = data?.threads?.totalQuotes || 0;
+
+  // 日付範囲でフィルタリング
+  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset]);
+
+  const posts = useMemo(() => {
+    return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
+  }, [allPosts, dateRange]);
+
+  const dailyMetrics = useMemo(() => {
+    return allDailyMetrics.filter(d => isDateInRange(d.date, dateRange));
+  }, [allDailyMetrics, dateRange]);
+
+  // フィルタ後の合計を計算
+  const totalPosts = posts.length;
+  const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
+  const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
+  const totalReposts = posts.reduce((sum, p) => sum + (p.reposts || 0), 0);
+  const totalQuotes = posts.reduce((sum, p) => sum + (p.quotes || 0), 0);
 
   // コメント紐付け
   const commentsByPostId = useMemo(() => {
@@ -903,11 +978,26 @@ function InstagramContent({
   const [reelSortBy, setReelSortBy] = useState('views');
   const [storySortBy, setStorySortBy] = useState('views');
 
-  const reels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
-  const stories: InstagramStory[] = (data?.stories?.data || []) as InstagramStory[];
-  const insights: InstagramInsight[] = ((data?.insights as { data?: InstagramInsight[] })?.data || []) as InstagramInsight[];
-  const latestInsight = insights[0] || null;
+  const allReels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
+  const allStories: InstagramStory[] = (data?.stories?.data || []) as InstagramStory[];
+  const allInsights: InstagramInsight[] = ((data?.insights as { data?: InstagramInsight[] })?.data || []) as InstagramInsight[];
+  const latestInsight = allInsights[0] || null;
   const followersCount = latestInsight?.followers_count || 0;
+
+  // 日付範囲でフィルタリング
+  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset]);
+
+  const reels = useMemo(() => {
+    return allReels.filter(r => isDateInRange(r.timestamp, dateRange));
+  }, [allReels, dateRange]);
+
+  const stories = useMemo(() => {
+    return allStories.filter(s => isDateInRange(s.timestamp, dateRange));
+  }, [allStories, dateRange]);
+
+  const insights = useMemo(() => {
+    return allInsights.filter(i => isDateInRange(i.date, dateRange));
+  }, [allInsights, dateRange]);
 
   const summary = useMemo(() => {
     const totalReach = insights.reduce((sum, d) => sum + (d.reach || 0), 0);

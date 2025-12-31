@@ -68,11 +68,12 @@ async function getStories(accessToken: string, accountId: string): Promise<Array
   media_type: string;
   timestamp: string;
   thumbnail_url?: string;
+  media_url?: string;
   caption?: string;
 }>> {
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${accountId}/stories?fields=id,media_type,timestamp,thumbnail_url,caption&access_token=${accessToken}`
+      `${FACEBOOK_GRAPH_BASE}/${accountId}/stories?fields=id,media_type,timestamp,thumbnail_url,media_url,caption&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -187,9 +188,10 @@ async function syncUserStories(
                                 (insights.profile_visits || 0) +
                                 (insights.shares || 0);
 
-      // サムネイルをGoogle Driveにアップロード（期限切れ対策）
-      let thumbnailUrl = story.thumbnail_url || null;
+      // サムネイル取得（thumbnail_urlがなければmedia_urlを使用）
+      let thumbnailUrl = story.thumbnail_url || story.media_url || null;
       if (thumbnailUrl) {
+        // Google Driveにアップロード試行（失敗時は元URLを使用）
         const fileName = `story_${story.id}_${new Date(story.timestamp).toISOString().replace(/[:.]/g, '-')}`;
         const driveUrl = await uploadImageToDrive(thumbnailUrl, fileName);
         if (driveUrl) {

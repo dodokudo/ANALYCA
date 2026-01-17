@@ -72,34 +72,39 @@ const datePresetOptions: { value: DatePreset; label: string }[] = [
 ];
 
 // 日付範囲を計算するヘルパー関数
-function getDateRange(preset: DatePreset): { start: Date; end: Date } {
+function getDateRange(preset: DatePreset, options: { includeToday?: boolean } = {}): { start: Date; end: Date } {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end = new Date(today);
+  const includeToday = options.includeToday !== false;
+  const baseDate = new Date(today);
+  if (!includeToday) {
+    baseDate.setDate(baseDate.getDate() - 1);
+  }
+  const end = new Date(baseDate);
   end.setHours(23, 59, 59, 999);
 
   switch (preset) {
     case '3d': {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 3);
+      const start = new Date(baseDate);
+      start.setDate(start.getDate() - 2);
       return { start, end };
     }
     case '7d': {
-      const start = new Date(today);
-      start.setDate(start.getDate() - 7);
+      const start = new Date(baseDate);
+      start.setDate(start.getDate() - 6);
       return { start, end };
     }
     case 'thisWeek': {
       // 今週（日曜日始まり）
-      const dayOfWeek = today.getDay();
-      const start = new Date(today);
+      const dayOfWeek = baseDate.getDay();
+      const start = new Date(baseDate);
       start.setDate(start.getDate() - dayOfWeek);
       return { start, end };
     }
     case 'lastWeek': {
       // 先週（日曜日〜土曜日）
-      const dayOfWeek = today.getDay();
-      const start = new Date(today);
+      const dayOfWeek = baseDate.getDay();
+      const start = new Date(baseDate);
       start.setDate(start.getDate() - dayOfWeek - 7);
       const endOfLastWeek = new Date(start);
       endOfLastWeek.setDate(endOfLastWeek.getDate() + 6);
@@ -107,12 +112,12 @@ function getDateRange(preset: DatePreset): { start: Date; end: Date } {
       return { start, end: endOfLastWeek };
     }
     case 'thisMonth': {
-      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
       return { start, end };
     }
     case 'lastMonth': {
-      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+      const start = new Date(baseDate.getFullYear(), baseDate.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(baseDate.getFullYear(), baseDate.getMonth(), 0);
       endOfLastMonth.setHours(23, 59, 59, 999);
       return { start, end: endOfLastMonth };
     }
@@ -595,7 +600,7 @@ function ThreadsContent({
   const followersCount = latestMetrics?.followers_count || 0;
 
   // 日付範囲でフィルタリング
-  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset]);
+  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: false }), [datePreset]);
 
   const posts = useMemo(() => {
     return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
@@ -1038,7 +1043,7 @@ function InstagramContent({
   const followersCount = latestInsight?.followers_count || 0;
 
   // 日付範囲でフィルタリング
-  const dateRange = useMemo(() => getDateRange(datePreset), [datePreset]);
+  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: false }), [datePreset]);
 
   const reels = useMemo(() => {
     return allReels.filter(r => isDateInRange(r.timestamp, dateRange));

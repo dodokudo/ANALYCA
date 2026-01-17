@@ -216,7 +216,8 @@ async function getThreadsAccountInfo(accessToken: string): Promise<{ id: string;
 async function syncUserPosts(
   userId: string,
   accessToken: string,
-  threadsUserId: string
+  threadsUserId: string,
+  postLimit: number = 50
 ): Promise<{
   success: boolean;
   postsCount: number;
@@ -234,8 +235,8 @@ async function syncUserPosts(
       return { success: false, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0, error: 'Failed to get account info' };
     }
 
-    // 投稿一覧を取得（同期時は50件に制限）
-    const posts = await getThreadsPosts(accessToken, 50);
+    // 投稿一覧を取得（同期時は上限あり）
+    const posts = await getThreadsPosts(accessToken, postLimit);
 
     if (posts.length === 0) {
       return { success: true, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0 };
@@ -319,6 +320,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
+    const limitParam = searchParams.get('limit');
+    const rawLimit = limitParam ? parseInt(limitParam, 10) : NaN;
+    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 50;
 
     // アクティブなThreadsユーザーを取得
     let users = await getActiveThreadsUsers();
@@ -370,7 +374,8 @@ export async function GET(request: Request) {
       const result = await syncUserPosts(
         user.user_id,
         user.threads_access_token,
-        user.threads_user_id
+        user.threads_user_id,
+        postLimit
       );
 
       results.push({

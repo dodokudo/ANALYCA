@@ -880,7 +880,7 @@ export async function getUserThreadsComments(userId: string, limit: number = 100
     SELECT *
     FROM \`mark-454114.analyca.threads_comments\`
     WHERE user_id = @user_id
-    ORDER BY parent_post_id, COALESCE(depth, 0), timestamp
+    ORDER BY timestamp DESC
     LIMIT @limit
   `;
 
@@ -905,6 +905,42 @@ export async function getUserThreadsComments(userId: string, limit: number = 100
     }));
   } catch {
     // テーブルがなければ空配列を返す
+    return [];
+  }
+}
+
+// 指定した投稿IDのコメントを全件取得
+export async function getThreadsCommentsForPosts(userId: string, postIds: string[]): Promise<ThreadsComment[]> {
+  if (postIds.length === 0) return [];
+
+  const query = `
+    SELECT *
+    FROM \`mark-454114.analyca.threads_comments\`
+    WHERE user_id = @user_id
+      AND parent_post_id IN UNNEST(@post_ids)
+    ORDER BY parent_post_id, COALESCE(depth, 0), timestamp
+  `;
+
+  const options = {
+    query,
+    params: { user_id: userId, post_ids: postIds },
+  };
+
+  try {
+    const [rows] = await bigquery.query(options);
+    return rows.map((row: Record<string, unknown>) => ({
+      id: row.id as string,
+      user_id: row.user_id as string,
+      comment_id: row.comment_id as string,
+      parent_post_id: row.parent_post_id as string,
+      text: row.text as string,
+      timestamp: parseBigQueryTimestamp(row.timestamp),
+      permalink: row.permalink as string,
+      has_replies: row.has_replies as boolean,
+      views: (row.views as number) ?? 0,
+      depth: (row.depth as number) ?? 0,
+    }));
+  } catch {
     return [];
   }
 }
@@ -1292,16 +1328,20 @@ export async function getUserDashboardData(userId: string): Promise<{
   threadsDailyMetrics: ThreadsDailyMetrics[];
   threadsDailyPostStats: ThreadsDailyPostStats[];
 }> {
-  const [reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats] = await Promise.all([
+  const [reels, stories, insights, lineData, threadsPosts, threadsDailyMetrics, threadsDailyPostStats] = await Promise.all([
     getUserReels(userId, 50),
     getUserStories(userId, 50),
     getUserInsights(userId, 30),
     getUserLineData(userId, 30),
     getUserThreadsPosts(userId, 100),
-    getUserThreadsComments(userId, 100),
     getUserThreadsDailyMetrics(userId, 30),
     getUserThreadsDailyPostStats(userId, 90),
   ]);
+
+  const threadsComments = await getThreadsCommentsForPosts(
+    userId,
+    threadsPosts.map((post) => post.threads_id)
+  );
 
   return { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats };
 }

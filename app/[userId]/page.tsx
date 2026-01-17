@@ -160,6 +160,14 @@ interface DailyMetric {
   post_count: number;
 }
 
+interface DailyPostStat {
+  date: string;
+  post_count: number;
+  total_views: number;
+  total_likes: number;
+  total_replies: number;
+}
+
 interface UserInfo {
   threads_username?: string | null;
   threads_profile_picture_url?: string | null;
@@ -183,6 +191,10 @@ interface DashboardData {
   threadsDailyMetrics?: {
     data: DailyMetric[];
     latest: { followers_count: number; follower_delta: number } | null;
+  };
+  threadsDailyPostStats?: {
+    data: DailyPostStat[];
+    latest: DailyPostStat | null;
   };
   reels?: { total: number; data: unknown[] };
   stories?: { total: number; data: unknown[] };
@@ -578,6 +590,7 @@ function ThreadsContent({
   const allPosts = data?.threads?.data || [];
   const comments = data?.threadsComments?.data || [];
   const allDailyMetrics = data?.threadsDailyMetrics?.data || [];
+  const allDailyPostStats = data?.threadsDailyPostStats?.data || [];
   const latestMetrics = data?.threadsDailyMetrics?.latest;
   const followersCount = latestMetrics?.followers_count || 0;
 
@@ -588,15 +601,19 @@ function ThreadsContent({
     return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
   }, [allPosts, dateRange]);
 
-  const dailyMetrics = useMemo(() => {
+  const dailyFollowerMetrics = useMemo(() => {
     return allDailyMetrics.filter(d => isDateInRange(d.date, dateRange));
   }, [allDailyMetrics, dateRange]);
 
+  const dailyPostStats = useMemo(() => {
+    return allDailyPostStats.filter(d => isDateInRange(d.date, dateRange));
+  }, [allDailyPostStats, dateRange]);
+
   // フィルタ後の合計を計算（日別メトリクスから期間内の合計を取得）
-  const totalPosts = dailyMetrics.reduce((sum, d) => sum + (d.post_count || 0), 0);
-  const totalViews = dailyMetrics.reduce((sum, d) => sum + (d.total_views || 0), 0);
-  const totalLikes = dailyMetrics.reduce((sum, d) => sum + (d.total_likes || 0), 0);
-  const totalReplies = dailyMetrics.reduce((sum, d) => sum + (d.total_replies || 0), 0);
+  const totalPosts = dailyPostStats.reduce((sum, d) => sum + (d.post_count || 0), 0);
+  const totalViews = dailyPostStats.reduce((sum, d) => sum + (d.total_views || 0), 0);
+  const totalLikes = dailyPostStats.reduce((sum, d) => sum + (d.total_likes || 0), 0);
+  const totalReplies = dailyPostStats.reduce((sum, d) => sum + (d.total_replies || 0), 0);
 
   // コメント紐付け
   const commentsByPostId = useMemo(() => {
@@ -611,9 +628,45 @@ function ThreadsContent({
   // サマリー計算
   const summary = useMemo(() => {
     const engagementRate = totalViews > 0 ? ((totalLikes + totalReplies) / totalViews * 100).toFixed(2) : '0.00';
-    const followerGrowth = dailyMetrics.reduce((sum, d) => sum + d.follower_delta, 0);
+    const followerGrowth = dailyFollowerMetrics.reduce((sum, d) => sum + d.follower_delta, 0);
     return { totalViews, totalLikes, totalReplies, engagementRate, followerGrowth };
-  }, [totalViews, totalLikes, totalReplies, dailyMetrics]);
+  }, [totalViews, totalLikes, totalReplies, dailyFollowerMetrics]);
+
+  const dailyMetrics = useMemo(() => {
+    const merged = new Map<string, DailyMetric>();
+    for (const metric of dailyFollowerMetrics) {
+      merged.set(metric.date, {
+        date: metric.date,
+        followers_count: metric.followers_count || 0,
+        follower_delta: metric.follower_delta || 0,
+        total_views: 0,
+        total_likes: 0,
+        total_replies: 0,
+        post_count: 0,
+      });
+    }
+    for (const stat of dailyPostStats) {
+      const existing = merged.get(stat.date) || {
+        date: stat.date,
+        followers_count: 0,
+        follower_delta: 0,
+        total_views: 0,
+        total_likes: 0,
+        total_replies: 0,
+        post_count: 0,
+      };
+      merged.set(stat.date, {
+        ...existing,
+        total_views: stat.total_views || 0,
+        total_likes: stat.total_likes || 0,
+        total_replies: stat.total_replies || 0,
+        post_count: stat.post_count || 0,
+      });
+    }
+    return Array.from(merged.values())
+      .filter((metric) => metric.date)
+      .sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
+  }, [dailyFollowerMetrics, dailyPostStats]);
 
   // ソート
   const sortedPosts = useMemo(() => {

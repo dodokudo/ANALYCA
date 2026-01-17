@@ -152,6 +152,14 @@ export interface ThreadsDailyMetrics {
   post_count: number;
 }
 
+export interface ThreadsDailyPostStats {
+  date: string;
+  post_count: number;
+  total_views: number;
+  total_likes: number;
+  total_replies: number;
+}
+
 // ユーザー作成・更新
 export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: string }): Promise<string> {
   const userId = userData.user_id || uuidv4();
@@ -701,6 +709,19 @@ function parseBigQueryTimestamp(value: unknown): Date {
   }
 }
 
+function normalizeBigQueryDate(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === 'object' && value !== null && 'value' in value) {
+    const inner = (value as { value: unknown }).value;
+    if (inner instanceof Date) return inner.toISOString().slice(0, 10);
+    if (typeof inner === 'string') return inner.slice(0, 10);
+    return String(inner ?? '').slice(0, 10);
+  }
+  return String(value).slice(0, 10);
+}
+
 // ユーザーのThreads投稿データ取得
 export async function getUserThreadsPosts(userId: string, limit: number = 50): Promise<ThreadsPost[]> {
   const query = `
@@ -958,6 +979,43 @@ export async function getUserThreadsDailyMetrics(userId: string, limit: number =
     return rows as ThreadsDailyMetrics[];
   } catch {
     // テーブルがなければ空配列を返す
+    return [];
+  }
+}
+
+// ユーザーのThreads日別投稿統計を取得
+export async function getUserThreadsDailyPostStats(userId: string, limit: number = 90): Promise<ThreadsDailyPostStats[]> {
+  const query = `
+    SELECT
+      DATE(timestamp) as date,
+      COUNT(*) as post_count,
+      SUM(COALESCE(views, 0)) as total_views,
+      SUM(COALESCE(likes, 0)) as total_likes,
+      SUM(COALESCE(replies, 0)) as total_replies
+    FROM \`mark-454114.analyca.threads_posts\`
+    WHERE user_id = @user_id
+    GROUP BY DATE(timestamp)
+    ORDER BY date DESC
+    LIMIT @limit
+  `;
+
+  const options = {
+    query,
+    params: { user_id: userId, limit },
+  };
+
+  try {
+    const [rows] = await bigquery.query(options);
+    return rows
+      .map((row: Record<string, unknown>) => ({
+        date: normalizeBigQueryDate(row.date),
+        post_count: Number(row.post_count ?? 0) || 0,
+        total_views: Number(row.total_views ?? 0) || 0,
+        total_likes: Number(row.total_likes ?? 0) || 0,
+        total_replies: Number(row.total_replies ?? 0) || 0,
+      }))
+      .filter((row) => row.date);
+  } catch {
     return [];
   }
 }
@@ -1232,18 +1290,20 @@ export async function getUserDashboardData(userId: string): Promise<{
   threadsPosts: ThreadsPost[];
   threadsComments: ThreadsComment[];
   threadsDailyMetrics: ThreadsDailyMetrics[];
+  threadsDailyPostStats: ThreadsDailyPostStats[];
 }> {
-  const [reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics] = await Promise.all([
+  const [reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats] = await Promise.all([
     getUserReels(userId, 50),
     getUserStories(userId, 50),
     getUserInsights(userId, 30),
     getUserLineData(userId, 30),
     getUserThreadsPosts(userId, 100),
     getUserThreadsComments(userId, 100),
-    getUserThreadsDailyMetrics(userId, 30)
+    getUserThreadsDailyMetrics(userId, 30),
+    getUserThreadsDailyPostStats(userId, 90),
   ]);
 
-  return { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics };
+  return { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats };
 }
 
 // 管理者用: 全ユーザー一覧取得（統計付き）

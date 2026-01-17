@@ -74,7 +74,7 @@ export async function GET(
     // ユーザーの全データを取得
     const userRecordPromise = getUserById(userId);
     const dashboardDataPromise = getUserDashboardData(userId);
-    const [userRecord, { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics }] = await Promise.all([
+    const [userRecord, { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats }] = await Promise.all([
       userRecordPromise,
       dashboardDataPromise,
     ]);
@@ -177,6 +177,16 @@ export async function GET(
           total_likes: m.total_likes ?? 0,
           total_replies: m.total_replies ?? 0,
           post_count: m.post_count ?? 0,
+        }))
+      },
+      threadsDailyPostStats: {
+        latest: threadsDailyPostStats[0] ? serializeRecord(threadsDailyPostStats[0] as unknown as Record<string, unknown>) : null,
+        data: threadsDailyPostStats.map(stat => ({
+          date: serializeTimestamp(stat.date),
+          post_count: stat.post_count ?? 0,
+          total_views: stat.total_views ?? 0,
+          total_likes: stat.total_likes ?? 0,
+          total_replies: stat.total_replies ?? 0,
         }))
       },
       summary: {

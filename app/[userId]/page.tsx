@@ -302,11 +302,11 @@ function UserDashboardContent({ userId }: { userId: string }) {
   // 連携チャンネルのみ表示
   const channelItems = useMemo(() => {
     const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [];
-    if (channels.instagram) {
-      items.push({ value: 'instagram', label: 'Instagram', Icon: InstagramIcon });
-    }
     if (channels.threads) {
       items.push({ value: 'threads', label: 'Threads', Icon: ThreadsIcon });
+    }
+    if (channels.instagram) {
+      items.push({ value: 'instagram', label: 'Instagram', Icon: InstagramIcon });
     }
     return items;
   }, [channels]);

@@ -603,8 +603,8 @@ function ThreadsContent({
   const latestMetrics = data?.threadsDailyMetrics?.latest;
   const followersCount = latestMetrics?.followers_count || 0;
 
-  // 日付範囲でフィルタリング
-  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: false }), [datePreset]);
+  // 日付範囲でフィルタリング（今日のデータも含める）
+  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: true }), [datePreset]);
 
   const posts = useMemo(() => {
     return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
@@ -1046,11 +1046,13 @@ function InstagramContent({
   const latestInsight = allInsights[0] || null;
   const followersCount = latestInsight?.followers_count || 0;
 
-  // 日付範囲でフィルタリング
-  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: false }), [datePreset]);
+  // 日付範囲でフィルタリング（今日のデータも含める）
+  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: true }), [datePreset]);
 
   const reels = useMemo(() => {
-    return allReels.filter(r => isDateInRange(r.timestamp, dateRange));
+    const filtered = allReels.filter(r => isDateInRange(r.timestamp, dateRange));
+    // 日付範囲内にリールがない場合は全リールを表示
+    return filtered.length > 0 ? filtered : allReels;
   }, [allReels, dateRange]);
 
   const stories = useMemo(() => {
@@ -1101,7 +1103,8 @@ function InstagramContent({
     { value: 'daily', label: 'デイリー' },
   ];
 
-  if (!reels.length && !stories.length && !insights.length) {
+  // フィルタ前のデータで判定（新規登録直後でもデータがあれば表示する）
+  if (!allReels.length && !allStories.length && !allInsights.length) {
     return (
       <div className="ui-card p-6 text-center">
         <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-4">Instagramデータがありません</h2>

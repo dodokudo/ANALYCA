@@ -698,21 +698,34 @@ function ThreadsContent({
     });
   }, [posts, sortBy]);
 
-  // 遷移率計算
+  // 遷移率計算（depth毎に最もviewsが多いコメントでファネルを構成）
   const getTransitionRates = (post: ThreadsPost) => {
     const postComments = commentsByPostId.get(post.threads_id) || [];
     const postViews = post.views || 0;
     if (!postComments.length || postViews === 0) return { transitions: [], overallRate: null };
-    const transitions: { from: string; to: string; rate: number; views: number }[] = [];
-    const sorted = [...postComments].sort((a, b) => (a.depth || 0) - (b.depth || 0));
 
-    if (sorted.length > 0) {
-      const firstViews = sorted[0]?.views || 0;
-      transitions.push({ from: 'メイン', to: 'コメント欄1', rate: postViews > 0 ? (firstViews / postViews) * 100 : 0, views: firstViews });
+    // depth毎に最もviewsが多いコメントを選出
+    const byDepth = new Map<number, ThreadsComment>();
+    for (const c of postComments) {
+      const d = c.depth || 0;
+      const existing = byDepth.get(d);
+      if (!existing || (c.views || 0) > (existing.views || 0)) {
+        byDepth.set(d, c);
+      }
     }
-    for (let i = 1; i < sorted.length; i++) {
-      const prevViews = sorted[i - 1]?.views || 0;
-      const currViews = sorted[i]?.views || 0;
+    const depthKeys = [...byDepth.keys()].sort((a, b) => a - b);
+    if (depthKeys.length === 0) return { transitions: [], overallRate: null };
+
+    const transitions: { from: string; to: string; rate: number; views: number }[] = [];
+    const firstComment = byDepth.get(depthKeys[0])!;
+    const firstViews = firstComment.views || 0;
+    transitions.push({ from: 'メイン', to: 'コメント欄1', rate: postViews > 0 ? (firstViews / postViews) * 100 : 0, views: firstViews });
+
+    for (let i = 1; i < depthKeys.length; i++) {
+      const prevComment = byDepth.get(depthKeys[i - 1])!;
+      const currComment = byDepth.get(depthKeys[i])!;
+      const prevViews = prevComment.views || 0;
+      const currViews = currComment.views || 0;
       if (prevViews > 0) {
         transitions.push({
           from: `コメント欄${i}`,
@@ -722,8 +735,8 @@ function ThreadsContent({
         });
       }
     }
-    const last = sorted[sorted.length - 1];
-    const lastViews = last?.views || 0;
+    const lastComment = byDepth.get(depthKeys[depthKeys.length - 1])!;
+    const lastViews = lastComment.views || 0;
     const overallRate = postViews > 0 ? (lastViews / postViews) * 100 : null;
     return { transitions, overallRate };
   };

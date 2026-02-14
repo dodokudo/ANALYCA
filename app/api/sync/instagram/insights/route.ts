@@ -20,7 +20,6 @@ interface InstagramUser {
 
 interface AccountInsights {
   reach?: number;
-  impressions?: number;
   profile_views?: number;
   website_clicks?: number;
   accounts_engaged?: number;
@@ -56,7 +55,7 @@ async function getAccountInsights(accessToken: string, accountId: string): Promi
   try {
     // 過去1日のインサイトを取得
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${accountId}/insights?metric=reach,impressions,profile_views,website_clicks,accounts_engaged&period=day&access_token=${accessToken}`
+      `${FACEBOOK_GRAPH_BASE}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&period=day&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -74,9 +73,6 @@ async function getAccountInsights(accessToken: string, accountId: string): Promi
         switch (metric.name) {
           case 'reach':
             insights.reach = value || 0;
-            break;
-          case 'impressions':
-            insights.impressions = value || 0;
             break;
           case 'profile_views':
             insights.profile_views = value || 0;

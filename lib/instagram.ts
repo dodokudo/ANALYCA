@@ -205,7 +205,7 @@ export class InstagramAPI {
     const account = await this.getInstagramAccount();
 
     const response = await fetch(
-      `https://graph.facebook.com/v23.0/${account.id}/insights?metric=impressions,reach,profile_views,website_clicks&period=day&since=${since}&until=${until}&access_token=${this.accessToken}`
+      `https://graph.facebook.com/v23.0/${account.id}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&period=day&since=${since}&until=${until}&access_token=${this.accessToken}`
     );
 
     if (!response.ok) {
@@ -220,9 +220,6 @@ export class InstagramAPI {
       if (metric.values && metric.values.length > 0) {
         const value = metric.values[metric.values.length - 1].value; // 最新の値を取得
         switch (metric.name) {
-          case 'impressions':
-            insights.impressions = value;
-            break;
           case 'reach':
             insights.reach = value;
             break;
@@ -231,6 +228,9 @@ export class InstagramAPI {
             break;
           case 'website_clicks':
             insights.website_clicks = value;
+            break;
+          case 'accounts_engaged':
+            insights.impressions = value; // impressionsフィールドにaccounts_engagedを格納
             break;
         }
       }

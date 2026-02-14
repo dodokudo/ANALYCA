@@ -672,10 +672,22 @@ function ThreadsContent({
         post_count: stat.post_count || 0,
       });
     }
-    return Array.from(merged.values())
+    // フォロワー数が0の日を、最も近い既知のフォロワー数で埋める
+    const sorted = Array.from(merged.values())
       .filter((metric) => metric.date)
-      .sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
-  }, [dailyFollowerMetrics, dailyPostStats]);
+      .sort((a, b) => safeGetTime(a.date) - safeGetTime(b.date));
+    // 最新のフォロワー数（latestMetricsから取得）をフォールバックとして使用
+    const fallbackFollowers = followersCount || 0;
+    let lastKnownFollowers = fallbackFollowers;
+    for (const metric of sorted) {
+      if (metric.followers_count > 0) {
+        lastKnownFollowers = metric.followers_count;
+      } else {
+        metric.followers_count = lastKnownFollowers;
+      }
+    }
+    return sorted.reverse();
+  }, [dailyFollowerMetrics, dailyPostStats, followersCount]);
 
   // ソート
   const sortedPosts = useMemo(() => {

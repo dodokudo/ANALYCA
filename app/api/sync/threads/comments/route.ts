@@ -96,9 +96,8 @@ async function getAllMyComments(
     const replies = await getReplies(accessToken, startId);
 
     for (const reply of replies) {
-      // 自分のコメントのみ追加
       if (reply.username === myUsername) {
-        // viewsを取得
+        // 自分のコメント: viewsを取得して追加
         const views = await getCommentViews(accessToken, reply.id);
 
         allComments.push({
@@ -120,6 +119,17 @@ async function getAllMyComments(
           );
           allComments.push(...nestedComments);
         }
+      } else if (reply.has_replies) {
+        // 他人のコメントにも自分のネスト返信がある可能性があるので再帰
+        const nestedComments = await getAllMyComments(
+          accessToken,
+          rootPostId,
+          myUsername,
+          reply.id,
+          depth + 1,
+          maxDepth
+        );
+        allComments.push(...nestedComments);
       }
 
       // API制限を考慮

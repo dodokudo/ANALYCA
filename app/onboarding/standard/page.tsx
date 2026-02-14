@@ -72,6 +72,12 @@ export default function OnboardingStandardPage() {
           setSyncStatus('Instagramインサイトを同期中...');
           await fetch(`/api/sync/instagram/insights?userId=${result.userId}`, { method: 'GET' });
 
+          setSyncStatus('Threadsコメントを同期中...');
+          await fetch(`/api/sync/threads/comments?userId=${result.userId}`, { method: 'GET' });
+
+          setSyncStatus('プロフィール画像を保存中...');
+          await fetch(`/api/sync/profile-pictures?userId=${result.userId}`, { method: 'GET' });
+
           setSyncStatus('完了！ダッシュボードへ移動します...');
         } catch (syncError) {
           console.warn('Sync API error (continuing anyway):', syncError);

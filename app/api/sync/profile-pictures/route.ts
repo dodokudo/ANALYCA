@@ -72,12 +72,21 @@ async function getThreadsProfilePicture(accessToken: string, userId: string): Pr
 /**
  * GET: 全ユーザーのプロフィール画像を同期（GCSにアップロードして永続URL保存）
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const [igUsers, threadsUsers] = await Promise.all([
+    const { searchParams } = new URL(request.url);
+    const targetUserId = searchParams.get('userId');
+
+    let [igUsers, threadsUsers] = await Promise.all([
       getActiveInstagramUsers(),
       getActiveThreadsUsers(),
     ]);
+
+    // userIdが指定されている場合、そのユーザーのみに絞る
+    if (targetUserId) {
+      igUsers = igUsers.filter(u => u.user_id === targetUserId);
+      threadsUsers = threadsUsers.filter(u => u.user_id === targetUserId);
+    }
 
     const results: Array<{
       userId: string;

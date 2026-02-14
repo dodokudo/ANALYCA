@@ -42,7 +42,7 @@ interface InstagramMedia {
 
 interface ReelInsights {
   reach?: number;
-  plays?: number;
+  views?: number;
   total_interactions?: number;
   likes?: number;
   comments?: number;
@@ -56,7 +56,7 @@ interface ReelInsights {
 async function getReelInsights(accessToken: string, reelId: string): Promise<ReelInsights> {
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,plays,total_interactions,likes,comments,saved,shares&access_token=${accessToken}`
+      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares&access_token=${accessToken}`
     );
 
     if (!response.ok) return {};
@@ -69,7 +69,7 @@ async function getReelInsights(accessToken: string, reelId: string): Promise<Ree
         const value = metric.values?.[0]?.value;
         switch (metric.name) {
           case 'reach': insights.reach = value || 0; break;
-          case 'plays': insights.plays = value || 0; break;
+          case 'views': insights.views = value || 0; break;
           case 'total_interactions': insights.total_interactions = value || 0; break;
           case 'likes': insights.likes = value || 0; break;
           case 'comments': insights.comments = value || 0; break;
@@ -179,7 +179,7 @@ async function getInstagramReels(accessToken: string, accountId: string, userId:
       media_type: reel.media_type,
       permalink: reel.permalink,
       timestamp: new Date(reel.timestamp),
-      views: insights.plays || 0,
+      views: insights.views || 0,
       reach: insights.reach || 0,
       total_interactions: insights.total_interactions || 0,
       like_count: insights.likes || reel.like_count || 0,

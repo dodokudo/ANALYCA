@@ -42,6 +42,12 @@ export default function OnboardingLightPage() {
           setSyncStatus('日別メトリクスを同期中...');
           await fetch(`/api/sync/threads/insights?userId=${result.userId}`, { method: 'GET' });
 
+          setSyncStatus('コメントを同期中...');
+          await fetch(`/api/sync/threads/comments?userId=${result.userId}`, { method: 'GET' });
+
+          setSyncStatus('プロフィール画像を保存中...');
+          await fetch(`/api/sync/profile-pictures?userId=${result.userId}`, { method: 'GET' });
+
           setSyncStatus('完了！ダッシュボードへ移動します...');
         } catch (syncError) {
           console.warn('Sync API error (continuing anyway):', syncError);

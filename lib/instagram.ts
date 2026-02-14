@@ -60,7 +60,7 @@ export interface ReelInsights {
   comments: number;
   saves: number;
   shares: number;
-  plays: number;
+  views: number;
   total_interactions: number;
   video_view_total_time: number;
   avg_time_watched: number;
@@ -272,7 +272,7 @@ export class InstagramAPI {
             media_type: reel.media_type,
             permalink: reel.permalink,
             timestamp: new Date(reel.timestamp),
-            views: insights.plays || 0,
+            views: insights.views || 0,
             reach: insights.reach || 0,
             total_interactions: insights.total_interactions || 0,
             like_count: insights.likes || reel.like_count || 0,
@@ -396,7 +396,7 @@ export class InstagramAPI {
   // リールインサイト取得
   async getReelInsights(mediaId: string): Promise<ReelInsights> {
     const response = await fetch(
-      `https://graph.facebook.com/v23.0/${mediaId}/insights?metric=reach,impressions,likes,comments,saves,shares,plays,total_interactions,video_view_total_time,avg_time_watched&access_token=${this.accessToken}`
+      `https://graph.facebook.com/v23.0/${mediaId}/insights?metric=reach,impressions,likes,comments,saves,shares,views,total_interactions,ig_reels_video_view_total_time,ig_reels_avg_watch_time&access_token=${this.accessToken}`
     );
 
     if (!response.ok) {
@@ -411,7 +411,7 @@ export class InstagramAPI {
       comments: 0,
       saves: 0,
       shares: 0,
-      plays: 0,
+      views: 0,
       total_interactions: 0,
       video_view_total_time: 0,
       avg_time_watched: 0
@@ -439,16 +439,16 @@ export class InstagramAPI {
           case 'shares':
             insights.shares = value;
             break;
-          case 'plays':
-            insights.plays = value;
+          case 'views':
+            insights.views = value;
             break;
           case 'total_interactions':
             insights.total_interactions = value;
             break;
-          case 'video_view_total_time':
+          case 'ig_reels_video_view_total_time':
             insights.video_view_total_time = value;
             break;
-          case 'avg_time_watched':
+          case 'ig_reels_avg_watch_time':
             insights.avg_time_watched = value;
             break;
         }

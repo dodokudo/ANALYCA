@@ -256,10 +256,14 @@ function UserDashboardContent({ userId }: { userId: string }) {
       if (channels.instagram) {
         syncPromises.push(fetch(`/api/sync/instagram/reels?userId=${userId}`, { method: 'GET' }));
         syncPromises.push(fetch(`/api/sync/instagram/stories?userId=${userId}`, { method: 'GET' }));
+        syncPromises.push(fetch(`/api/sync/instagram/insights?userId=${userId}`, { method: 'GET' }));
       }
       if (channels.threads) {
         syncPromises.push(fetch(`/api/sync/threads/posts?userId=${userId}`, { method: 'GET' }));
+        syncPromises.push(fetch(`/api/sync/threads/insights?userId=${userId}`, { method: 'GET' }));
+        syncPromises.push(fetch(`/api/sync/threads/comments?userId=${userId}`, { method: 'GET' }));
       }
+      syncPromises.push(fetch(`/api/sync/profile-pictures?userId=${userId}`, { method: 'GET' }));
       await Promise.all(syncPromises);
       // 同期完了後にデータ再取得
       await fetchData(false);

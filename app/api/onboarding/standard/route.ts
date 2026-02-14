@@ -6,6 +6,7 @@ import {
   findUserIdByInstagramId,
   getUserById,
   insertThreadsPosts,
+  upsertThreadsDailyMetrics,
   insertInstagramReels,
   insertInstagramStories,
   insertInstagramInsights,
@@ -44,6 +45,26 @@ interface ThreadsInsights {
   replies?: number;
   reposts?: number;
   quotes?: number;
+}
+
+async function getThreadsFollowersCount(accessToken: string, threadsUserId: string): Promise<number> {
+  try {
+    const response = await fetch(
+      `${THREADS_GRAPH_BASE}/${threadsUserId}/threads_insights?metric=followers_count&access_token=${accessToken}`
+    );
+    if (!response.ok) return 0;
+    const data = await response.json();
+    if (data.data && Array.isArray(data.data)) {
+      for (const metric of data.data) {
+        if (metric.name === 'followers_count') {
+          return metric.total_value?.value || 0;
+        }
+      }
+    }
+    return 0;
+  } catch {
+    return 0;
+  }
 }
 
 async function getThreadsAccountInfo(accessToken: string): Promise<ThreadsAccountInfo> {
@@ -125,7 +146,7 @@ interface InstagramMedia {
 
 interface ReelInsights {
   reach?: number;
-  plays?: number;
+  views?: number;
   total_interactions?: number;
   likes?: number;
   comments?: number;
@@ -139,7 +160,7 @@ interface ReelInsights {
 async function getReelInsights(accessToken: string, reelId: string): Promise<ReelInsights> {
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,plays,total_interactions,likes,comments,saved,shares&access_token=${accessToken}`
+      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares&access_token=${accessToken}`
     );
 
     if (!response.ok) return {};
@@ -152,7 +173,7 @@ async function getReelInsights(accessToken: string, reelId: string): Promise<Ree
         const value = metric.values?.[0]?.value;
         switch (metric.name) {
           case 'reach': insights.reach = value || 0; break;
-          case 'plays': insights.plays = value || 0; break;
+          case 'views': insights.views = value || 0; break;
           case 'total_interactions': insights.total_interactions = value || 0; break;
           case 'likes': insights.likes = value || 0; break;
           case 'comments': insights.comments = value || 0; break;
@@ -261,7 +282,7 @@ async function getInstagramReels(accessToken: string, accountId: string, userId:
       media_type: reel.media_type,
       permalink: reel.permalink,
       timestamp: new Date(reel.timestamp),
-      views: insights.plays || 0,
+      views: insights.views || 0,
       reach: insights.reach || 0,
       total_interactions: insights.total_interactions || 0,
       like_count: insights.likes || reel.like_count || 0,
@@ -476,6 +497,33 @@ export async function POST(request: NextRequest) {
 
     if (threadsPostsWithInsights.length > 0) {
       await insertThreadsPosts(threadsPostsWithInsights);
+    }
+
+    // ============ Threads日別メトリクス保存 ============
+    try {
+      const followersCount = await getThreadsFollowersCount(threads.accessToken, threadsAccount.id);
+      const today = new Date().toISOString().split('T')[0];
+      const totalViews = threadsPostsWithInsights.reduce((sum, post) => sum + post.views, 0);
+      const totalLikes = threadsPostsWithInsights.reduce((sum, post) => sum + post.likes, 0);
+      const totalReplies = threadsPostsWithInsights.reduce((sum, post) => sum + post.replies, 0);
+      const todayPostCount = threadsPostsWithInsights.filter(post => {
+        const postDate = post.timestamp.toISOString().split('T')[0];
+        return postDate === today;
+      }).length;
+
+      await upsertThreadsDailyMetrics({
+        id: uuidv4(),
+        user_id: userId,
+        date: today,
+        followers_count: followersCount,
+        follower_delta: 0,
+        total_views: totalViews,
+        total_likes: totalLikes,
+        total_replies: totalReplies,
+        post_count: todayPostCount,
+      });
+    } catch (e) {
+      console.warn('日別メトリクス保存に失敗:', e);
     }
 
     // ============ Instagramデータ取得・保存 ============

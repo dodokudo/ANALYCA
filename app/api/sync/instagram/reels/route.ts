@@ -26,7 +26,7 @@ interface InstagramMedia {
 
 interface ReelInsights {
   reach?: number;
-  plays?: number;
+  views?: number;
   total_interactions?: number;
   likes?: number;
   comments?: number;
@@ -69,7 +69,7 @@ async function getReelInsights(accessToken: string, reelId: string): Promise<Ree
   try {
     // リール専用のインサイトメトリクス
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,plays,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time&access_token=${accessToken}`
+      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -86,8 +86,8 @@ async function getReelInsights(accessToken: string, reelId: string): Promise<Ree
           case 'reach':
             insights.reach = value || 0;
             break;
-          case 'plays':
-            insights.plays = value || 0;
+          case 'views':
+            insights.views = value || 0;
             break;
           case 'total_interactions':
             insights.total_interactions = value || 0;
@@ -146,8 +146,8 @@ async function syncUserReels(
         : '0';
 
       // 平均視聴時間を計算（総視聴時間 / 再生回数）
-      const avgWatchTime = insights.plays && insights.video_view_total_time
-        ? Math.round(insights.video_view_total_time / insights.plays)
+      const avgWatchTime = insights.views && insights.video_view_total_time
+        ? Math.round(insights.video_view_total_time / insights.views)
         : 0;
 
       // サムネイルをGCSにアップロード
@@ -170,7 +170,7 @@ async function syncUserReels(
         media_type: reel.media_type,
         permalink: reel.permalink,
         timestamp: new Date(reel.timestamp),
-        views: insights.plays || 0,
+        views: insights.views || 0,
         reach: insights.reach || 0,
         total_interactions: insights.total_interactions || 0,
         like_count: insights.likes || reel.like_count || 0,

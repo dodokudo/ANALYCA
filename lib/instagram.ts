@@ -195,7 +195,7 @@ export class InstagramAPI {
     return insights;
   }
 
-  // アカウントインサイト取得
+  // アカウントインサイト取得（Graph API v23.0対応: metric_type=total_value必須）
   async getAccountInsights(since: string, until: string): Promise<{
     impressions: number;
     reach: number;
@@ -205,34 +205,34 @@ export class InstagramAPI {
     const account = await this.getInstagramAccount();
 
     const response = await fetch(
-      `https://graph.facebook.com/v23.0/${account.id}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&period=day&since=${since}&until=${until}&access_token=${this.accessToken}`
+      `https://graph.facebook.com/v23.0/${account.id}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&metric_type=total_value&period=day&since=${since}&until=${until}&access_token=${this.accessToken}`
     );
 
     if (!response.ok) {
-      console.warn('Failed to fetch account insights');
+      const errBody = await response.text();
+      console.warn('Failed to fetch account insights:', errBody);
       return { impressions: 0, reach: 0, profile_views: 0, website_clicks: 0 };
     }
 
     const data = await response.json();
     const insights = { impressions: 0, reach: 0, profile_views: 0, website_clicks: 0 };
 
-    data.data.forEach((metric: { name: string; values: { value: number }[] }) => {
-      if (metric.values && metric.values.length > 0) {
-        const value = metric.values[metric.values.length - 1].value; // 最新の値を取得
-        switch (metric.name) {
-          case 'reach':
-            insights.reach = value;
-            break;
-          case 'profile_views':
-            insights.profile_views = value;
-            break;
-          case 'website_clicks':
-            insights.website_clicks = value;
-            break;
-          case 'accounts_engaged':
-            insights.impressions = value; // impressionsフィールドにaccounts_engagedを格納
-            break;
-        }
+    data.data.forEach((metric: { name: string; total_value?: { value: number }; values?: { value: number }[] }) => {
+      // total_value形式（v23.0）またはvalues配列形式のどちらにも対応
+      const value = metric.total_value?.value ?? (metric.values && metric.values.length > 0 ? metric.values[metric.values.length - 1].value : 0);
+      switch (metric.name) {
+        case 'reach':
+          insights.reach = value;
+          break;
+        case 'profile_views':
+          insights.profile_views = value;
+          break;
+        case 'website_clicks':
+          insights.website_clicks = value;
+          break;
+        case 'accounts_engaged':
+          insights.impressions = value; // impressionsフィールドにaccounts_engagedを格納
+          break;
       }
     });
 

@@ -48,18 +48,20 @@ async function getInstagramBusinessAccount(accessToken: string, instagramUserId:
 
 /**
  * アカウントインサイトを取得（過去1日）
+ * Graph API v23.0ではmetric_type=total_valueが必須
  */
 async function getAccountInsights(accessToken: string, accountId: string): Promise<AccountInsights> {
   const insights: AccountInsights = {};
 
   try {
-    // 過去1日のインサイトを取得
+    // metric_type=total_value で全メトリクスを一括取得
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&period=day&access_token=${accessToken}`
+      `${FACEBOOK_GRAPH_BASE}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&metric_type=total_value&period=day&access_token=${accessToken}`
     );
 
     if (!response.ok) {
-      // インサイトが取得できない場合は空で返す
+      const errBody = await response.text();
+      console.warn(`Account insights API error (${response.status}):`, errBody);
       return insights;
     }
 
@@ -67,8 +69,8 @@ async function getAccountInsights(accessToken: string, accountId: string): Promi
 
     if (data.data && Array.isArray(data.data)) {
       for (const metric of data.data) {
-        // 最新の値を取得
-        const value = metric.values?.[metric.values.length - 1]?.value;
+        // total_value形式のレスポンスを解析
+        const value = metric.total_value?.value ?? metric.values?.[metric.values.length - 1]?.value ?? 0;
 
         switch (metric.name) {
           case 'reach':

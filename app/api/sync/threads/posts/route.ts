@@ -127,50 +127,6 @@ async function getReplies(accessToken: string, postId: string): Promise<ThreadsR
 }
 
 /**
- * 投稿に紐づく自分のコメントツリーを再帰的に取得
- */
-async function getMyCommentTree(
-  accessToken: string,
-  rootPostId: string,
-  myUsername: string
-): Promise<Array<ThreadsReply & { depth: number }>> {
-  const myComments: Array<ThreadsReply & { depth: number }> = [];
-  const queue: Array<{ id: string; depth: number }> = [{ id: rootPostId, depth: 0 }];
-  const processedIds = new Set<string>();
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    if (processedIds.has(current.id)) continue;
-    processedIds.add(current.id);
-
-    try {
-      const replies = await getReplies(accessToken, current.id);
-
-      for (const reply of replies) {
-        if (reply.username === myUsername) {
-          myComments.push({
-            ...reply,
-            reply_to_root_post_id: rootPostId,
-            depth: current.depth,
-          });
-
-          if (reply.has_replies) {
-            queue.push({ id: reply.id, depth: current.depth + 1 });
-          }
-        }
-      }
-
-      // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 300));
-    } catch (e) {
-      console.warn(`コメント取得エラー (ID: ${current.id}):`, e);
-    }
-  }
-
-  return myComments;
-}
-
-/**
  * コメントの閲覧数を取得
  */
 async function getCommentViews(accessToken: string, commentId: string): Promise<number> {

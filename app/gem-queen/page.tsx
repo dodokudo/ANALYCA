@@ -1350,6 +1350,96 @@ export default function Dashboard() {
                           {showDailyTable ? '表を閉じる' : '日別データを表示'}
                         </button>
                       </div>
+                      {showDailyTable && (
+                        <div className="mb-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                          <table className="w-full table-fixed text-sm">
+                            <colgroup>
+                              <col className="w-[140px]" />
+                              <col className="w-[110px]" />
+                              <col className="w-[70px]" />
+                              <col className="w-[70px]" />
+                              <col className="w-[90px]" />
+                              <col className="w-[80px]" />
+                              <col className="w-[80px]" />
+                              <col className="w-[100px]" />
+                              <col className="w-[110px]" />
+                              <col className="w-[80px]" />
+                            </colgroup>
+                            <thead className="sticky top-0 bg-gray-50 dark:bg-slate-700">
+                              <tr className="border-b border-gray-200 dark:border-gray-600 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                                <th className="px-3 py-2">日付</th>
+                                <th className="px-3 py-2 text-right">フォロワー数</th>
+                                <th className="px-3 py-2 text-right">増加</th>
+                                <th className="px-3 py-2 text-right">投稿</th>
+                                <th className="px-3 py-2 text-right">リーチ</th>
+                                <th className="px-3 py-2 text-right">クリック</th>
+                                <th className="px-3 py-2 text-right">LINE</th>
+                                <th className="px-3 py-2 text-right">ストーリー投稿</th>
+                                <th className="px-3 py-2 text-right">ストーリー閲覧</th>
+                                <th className="px-3 py-2 text-right">閲覧率</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                              {[...chartData].reverse().map((row) => {
+                                const dateStr = String(row[0] || '').trim();
+                                const date = parseDate(dateStr);
+                                const displayDate = date
+                                  ? date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' })
+                                  : dateStr;
+
+                                const followers = String(row[1] || '0').replace(/,/g, '');
+                                const delta = parseInt(String(row[2] || '0').replace(/,/g, '')) || 0;
+                                const posts = String(row[5] || '0').replace(/,/g, '');
+                                const reach = String(row[6] || '0').replace(/,/g, '');
+                                const clicks = String(row[11] || '0').replace(/,/g, '');
+                                const lineRegs = parseInt(String(row[14] || '0').replace(/,/g, '')) || 0;
+                                const storyPosts = String(row[19] || '0').replace(/,/g, '');
+                                const storyViews = String(row[20] || '0').replace(/,/g, '');
+                                const storyRate = String(row[21] || '-');
+
+                                return (
+                                  <tr key={dateStr} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                    <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-200">
+                                      {displayDate}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                      {parseInt(followers).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums">
+                                      <span className={delta > 0 ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'}>
+                                        {delta > 0 ? `+${delta.toLocaleString()}` : '0'}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                                      {parseInt(posts).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                      {parseInt(reach).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                      {parseInt(clicks).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums">
+                                      <span className={lineRegs > 0 ? 'text-amber-600' : 'text-gray-500 dark:text-gray-400'}>
+                                        {lineRegs > 0 ? `+${lineRegs.toLocaleString()}` : '0'}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                                      {parseInt(storyPosts).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                      {parseInt(storyViews).toLocaleString()}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                                      {storyRate}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                       <div className="h-72 lg:h-80 md:h-64 sm:h-60 lg:px-0 sm:px-1 px-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <ComposedChart
@@ -1486,96 +1576,6 @@ export default function Dashboard() {
                           </ComposedChart>
                         </ResponsiveContainer>
                       </div>
-                      {showDailyTable && (
-                        <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                          <table className="w-full table-fixed text-sm">
-                            <colgroup>
-                              <col className="w-[140px]" />
-                              <col className="w-[110px]" />
-                              <col className="w-[70px]" />
-                              <col className="w-[70px]" />
-                              <col className="w-[90px]" />
-                              <col className="w-[80px]" />
-                              <col className="w-[80px]" />
-                              <col className="w-[100px]" />
-                              <col className="w-[110px]" />
-                              <col className="w-[80px]" />
-                            </colgroup>
-                            <thead className="sticky top-0 bg-gray-50 dark:bg-slate-700">
-                              <tr className="border-b border-gray-200 dark:border-gray-600 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                                <th className="px-3 py-2">日付</th>
-                                <th className="px-3 py-2 text-right">フォロワー数</th>
-                                <th className="px-3 py-2 text-right">増加</th>
-                                <th className="px-3 py-2 text-right">投稿</th>
-                                <th className="px-3 py-2 text-right">リーチ</th>
-                                <th className="px-3 py-2 text-right">クリック</th>
-                                <th className="px-3 py-2 text-right">LINE</th>
-                                <th className="px-3 py-2 text-right">ストーリー投稿</th>
-                                <th className="px-3 py-2 text-right">ストーリー閲覧</th>
-                                <th className="px-3 py-2 text-right">閲覧率</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                              {[...chartData].reverse().map((row) => {
-                                const dateStr = String(row[0] || '').trim();
-                                const date = parseDate(dateStr);
-                                const displayDate = date
-                                  ? date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' })
-                                  : dateStr;
-
-                                const followers = String(row[1] || '0').replace(/,/g, '');
-                                const delta = parseInt(String(row[2] || '0').replace(/,/g, '')) || 0;
-                                const posts = String(row[5] || '0').replace(/,/g, '');
-                                const reach = String(row[6] || '0').replace(/,/g, '');
-                                const clicks = String(row[11] || '0').replace(/,/g, '');
-                                const lineRegs = parseInt(String(row[14] || '0').replace(/,/g, '')) || 0;
-                                const storyPosts = String(row[19] || '0').replace(/,/g, '');
-                                const storyViews = String(row[20] || '0').replace(/,/g, '');
-                                const storyRate = String(row[21] || '-');
-
-                                return (
-                                  <tr key={dateStr} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                                    <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-200">
-                                      {displayDate}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
-                                      {parseInt(followers).toLocaleString()}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums">
-                                      <span className={delta > 0 ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'}>
-                                        {delta > 0 ? `+${delta.toLocaleString()}` : '0'}
-                                      </span>
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                                      {parseInt(posts).toLocaleString()}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
-                                      {parseInt(reach).toLocaleString()}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
-                                      {parseInt(clicks).toLocaleString()}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums">
-                                      <span className={lineRegs > 0 ? 'text-amber-600' : 'text-gray-500 dark:text-gray-400'}>
-                                        {lineRegs > 0 ? `+${lineRegs.toLocaleString()}` : '0'}
-                                      </span>
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                                      {parseInt(storyPosts).toLocaleString()}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
-                                      {parseInt(storyViews).toLocaleString()}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                                      {storyRate}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
                     </div>
                   ) || null;
                 })()}

@@ -4,7 +4,7 @@ import { uploadImageToGCS } from '@/lib/gcs';
 
 export const maxDuration = 120;
 
-const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
+const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 const THREADS_GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
 /**
@@ -13,7 +13,7 @@ const THREADS_GRAPH_BASE = 'https://graph.threads.net/v1.0';
 async function getInstagramProfilePicture(accessToken: string, userId: string): Promise<string | null> {
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${userId}?fields=profile_picture_url&access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/${userId}?fields=profile_picture_url&access_token=${accessToken}`
     );
     if (!response.ok) {
       console.error(`Instagram profile picture fetch failed: ${response.status}`);

@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
 
-const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
+const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 
 interface InstagramMedia {
   id: string;
@@ -41,7 +41,7 @@ interface ReelInsights {
 async function getReels(accessToken: string, accountId: string, limit = 15): Promise<InstagramMedia[]> {
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=${limit}&access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=${limit}&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -69,7 +69,7 @@ async function getReelInsights(accessToken: string, reelId: string): Promise<Ree
   try {
     // リール専用のインサイトメトリクス
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time&access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time&access_token=${accessToken}`
     );
 
     if (!response.ok) {

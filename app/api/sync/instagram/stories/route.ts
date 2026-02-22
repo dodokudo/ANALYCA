@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
 
-const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
+const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 
 interface StoryInsights {
   reach?: number;
@@ -30,7 +30,7 @@ interface StoryInsights {
 async function getInstagramBusinessAccountId(accessToken: string): Promise<string | null> {
   try {
     const pagesResponse = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/me/accounts?access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/me/accounts?access_token=${accessToken}`
     );
 
     if (!pagesResponse.ok) return null;
@@ -41,7 +41,7 @@ async function getInstagramBusinessAccountId(accessToken: string): Promise<strin
 
     for (const page of pagesData.data) {
       const igResponse = await fetch(
-        `${FACEBOOK_GRAPH_BASE}/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
+        `${INSTAGRAM_GRAPH_BASE}/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
       );
 
       if (!igResponse.ok) continue;
@@ -73,7 +73,7 @@ async function getStories(accessToken: string, accountId: string): Promise<Array
 }>> {
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${accountId}/stories?fields=id,media_type,timestamp,thumbnail_url,media_url,caption&access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/${accountId}/stories?fields=id,media_type,timestamp,thumbnail_url,media_url,caption&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -97,7 +97,7 @@ async function getStoryInsights(accessToken: string, storyId: string): Promise<S
 
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${storyId}/insights?metric=reach,impressions,replies,follows,profile_visits,shares,navigation&access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/${storyId}/insights?metric=reach,impressions,replies,follows,profile_visits,shares,navigation&access_token=${accessToken}`
     );
 
     if (!response.ok) {

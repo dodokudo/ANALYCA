@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
 
-const FACEBOOK_GRAPH_BASE = 'https://graph.facebook.com/v23.0';
+const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 
 interface InstagramUser {
   id: string;
@@ -31,7 +31,7 @@ interface AccountInsights {
 async function getInstagramBusinessAccount(accessToken: string, instagramUserId: string): Promise<InstagramUser | null> {
   try {
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${instagramUserId}?fields=id,username,followers_count,media_count&access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/${instagramUserId}?fields=id,username,followers_count,media_count&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -56,7 +56,7 @@ async function getAccountInsights(accessToken: string, accountId: string): Promi
   try {
     // metric_type=total_value で全メトリクスを一括取得
     const response = await fetch(
-      `${FACEBOOK_GRAPH_BASE}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&metric_type=total_value&period=day&access_token=${accessToken}`
+      `${INSTAGRAM_GRAPH_BASE}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&metric_type=total_value&period=day&access_token=${accessToken}`
     );
 
     if (!response.ok) {

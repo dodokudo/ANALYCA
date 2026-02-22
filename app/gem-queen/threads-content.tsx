@@ -171,16 +171,17 @@ export default function GemQueenThreadsContent({
   loading,
   username,
   profilePicture,
+  datePreset,
 }: {
   data: ThreadsDashboardData | null;
   loading: boolean;
   username: string;
   profilePicture?: string;
+  datePreset: DatePreset;
 }) {
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
-  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
 
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => {
@@ -343,19 +344,6 @@ export default function GemQueenThreadsContent({
 
   return (
     <div className="space-y-6">
-      {/* 日付選択 */}
-      <div className="flex items-center justify-end">
-        <select
-          value={datePreset}
-          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-          className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-700 focus:ring-2 focus:ring-purple-200 focus:border-purple-400"
-        >
-          {datePresetOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      </div>
-
       {/* アカウント + KPI */}
       <div className="grid lg:grid-cols-12 gap-4">
         {/* 左側：アカウント情報 */}

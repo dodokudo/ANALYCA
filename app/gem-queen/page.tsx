@@ -319,6 +319,7 @@ export default function Dashboard() {
   const [threadsData, setThreadsData] = useState<any>(null);
   const [threadsUser, setThreadsUser] = useState<any>(null);
   const [threadsLoading, setThreadsLoading] = useState(false);
+  const [threadsDatePreset, setThreadsDatePreset] = useState<'3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth'>('7d');
   const [customStartDate, setCustomStartDate] = useState(() => formatDateForInput(dateRange.start));
   const [customEndDate, setCustomEndDate] = useState(() => formatDateForInput(dateRange.end));
   const [showCustomDateModal, setShowCustomDateModal] = useState(false);
@@ -973,8 +974,9 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {/* 右: 期間セレクト (Instagramのみ) */}
+          {/* 右: 期間セレクト */}
           <div className="flex items-center">
+            {activeChannel === 'instagram' && (
             <select
               value={dateRange.preset === 'yesterday' ? 'yesterday' :
                      dateRange.preset === 'this-week' ? 'this-week' :
@@ -1001,6 +1003,21 @@ export default function Dashboard() {
               <option value="last-month">先月</option>
               <option value="custom">カスタム期間</option>
             </select>
+            )}
+            {activeChannel === 'threads' && (
+            <select
+              value={threadsDatePreset}
+              onChange={(e) => setThreadsDatePreset(e.target.value as typeof threadsDatePreset)}
+              className="rounded-lg border border-gray-500 bg-white text-gray-900 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 min-w-[100px]"
+            >
+              <option value="3d">過去3日</option>
+              <option value="7d">過去7日</option>
+              <option value="thisWeek">今週</option>
+              <option value="lastWeek">先週</option>
+              <option value="thisMonth">今月</option>
+              <option value="lastMonth">先月</option>
+            </select>
+            )}
           </div>
         </div>
       </div>
@@ -1066,12 +1083,24 @@ export default function Dashboard() {
             </button>
           </div>
           )}
-          {activeChannel === 'threads' && (
-            <div className="text-sm font-medium text-gray-500">Threads 分析</div>
-          )}
+          {activeChannel === 'threads' && <div />}
 
           {/* 右: 期間セレクト */}
           <div className="flex items-center space-x-3 flex-shrink-0">
+            {activeChannel === 'threads' && (
+            <select
+              value={threadsDatePreset}
+              onChange={(e) => setThreadsDatePreset(e.target.value as typeof threadsDatePreset)}
+              className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200 min-w-[120px]"
+            >
+              <option value="3d">過去3日</option>
+              <option value="7d">過去7日</option>
+              <option value="thisWeek">今週</option>
+              <option value="lastWeek">先週</option>
+              <option value="thisMonth">今月</option>
+              <option value="lastMonth">先月</option>
+            </select>
+            )}
             {activeChannel === 'instagram' && (
             <select
               value={dateRange.preset === 'yesterday' ? 'yesterday' :
@@ -1110,6 +1139,7 @@ export default function Dashboard() {
             loading={threadsLoading}
             username={threadsUser?.threads_username || 'yoko_gemqueen'}
             profilePicture={threadsUser?.threads_profile_picture_url}
+            datePreset={threadsDatePreset}
           />
         )}
 

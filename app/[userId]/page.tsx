@@ -224,6 +224,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isInitialSetup = searchParams?.get('auth')?.includes('complete') || false;
   const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
@@ -432,7 +433,11 @@ function UserDashboardContent({ userId }: { userId: string }) {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-sm font-medium">データを同期中です...しばらくお待ちください</span>
+          <span className="text-sm font-medium">
+            {isInitialSetup
+              ? '初期設定実施中です...30秒ほどお待ちください'
+              : 'データを同期中です...しばらくお待ちください'}
+          </span>
           <button
             onClick={() => {
               setShowSyncBanner(false);

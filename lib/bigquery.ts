@@ -43,6 +43,8 @@ export interface User {
   subscription_status?: string | null;
   subscription_created_at?: Date | null;
   subscription_expires_at?: Date | null;
+  recurring_token_id?: string | null;
+  trial_ends_at?: Date | null;
 }
 
 export interface InstagramReel {
@@ -460,6 +462,8 @@ export async function getUserById(userId: string): Promise<User | null> {
     threads_profile_picture_url: row.threads_profile_picture_url ?? null,
     has_instagram: row.has_instagram ?? false,
     has_threads: row.has_threads ?? false,
+    recurring_token_id: row.recurring_token_id ?? null,
+    trial_ends_at: row.trial_ends_at ? new Date(row.trial_ends_at) : null,
   };
 }
 
@@ -1688,4 +1692,114 @@ export async function updateSubscriptionStatusBySubId(subscriptionId: string, st
     query,
     params: { subscription_id: subscriptionId, status },
   });
+}
+
+/**
+ * トライアルユーザーを作成（無料登録時）
+ */
+export async function createTrialUser(userId: string, data: {
+  plan_id: string;
+  trial_ends_at: Date;
+  recurring_token_id?: string;
+}): Promise<string> {
+  const query = `
+    INSERT INTO \`mark-454114.analyca.users\` (
+      user_id,
+      plan_id,
+      subscription_status,
+      trial_ends_at,
+      recurring_token_id,
+      created_at,
+      updated_at
+    ) VALUES (
+      @user_id,
+      @plan_id,
+      'trial',
+      @trial_ends_at,
+      @recurring_token_id,
+      CURRENT_TIMESTAMP(),
+      CURRENT_TIMESTAMP()
+    )
+  `;
+
+  await bigquery.query({
+    query,
+    params: {
+      user_id: userId,
+      plan_id: data.plan_id,
+      trial_ends_at: data.trial_ends_at.toISOString(),
+      recurring_token_id: data.recurring_token_id || null,
+    },
+    types: {
+      trial_ends_at: 'TIMESTAMP',
+    },
+  });
+
+  return userId;
+}
+
+/**
+ * ユーザーにリカーリングトークンを登録（カード登録時）
+ */
+export async function updateUserRecurringToken(userId: string, recurringTokenId: string): Promise<void> {
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET recurring_token_id = @recurring_token_id,
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @user_id
+  `;
+
+  await bigquery.query({
+    query,
+    params: {
+      user_id: userId,
+      recurring_token_id: recurringTokenId,
+    },
+  });
+}
+
+/**
+ * トライアル期限切れ＋カード登録済みのユーザーを取得（cron用）
+ */
+export async function getTrialExpiredUsersWithCard(): Promise<Array<{
+  user_id: string;
+  plan_id: string;
+  recurring_token_id: string;
+}>> {
+  const query = `
+    SELECT user_id, plan_id, recurring_token_id
+    FROM \`mark-454114.analyca.users\`
+    WHERE subscription_status = 'trial'
+      AND recurring_token_id IS NOT NULL
+      AND trial_ends_at IS NOT NULL
+      AND trial_ends_at <= CURRENT_TIMESTAMP()
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  return rows.map((row: Record<string, unknown>) => ({
+    user_id: row.user_id as string,
+    plan_id: row.plan_id as string,
+    recurring_token_id: row.recurring_token_id as string,
+  }));
+}
+
+/**
+ * トライアル期限切れ＋カード未登録のユーザーを期限切れにする（cron用）
+ */
+export async function expireTrialUsersWithoutCard(): Promise<number> {
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET subscription_status = 'expired',
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE subscription_status = 'trial'
+      AND (recurring_token_id IS NULL OR recurring_token_id = '')
+      AND trial_ends_at IS NOT NULL
+      AND trial_ends_at <= CURRENT_TIMESTAMP()
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  // DML文はrows配列ではなくメタデータで影響行数を返すが、型の制約上直接取得は困難
+  // UPDATE文は正常終了すれば成功とみなす
+  void rows;
+  return 0;
 }

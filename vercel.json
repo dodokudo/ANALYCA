@@ -35,6 +35,10 @@
     {
       "path": "/api/schedule/threads/run",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/trial-conversion",
+      "schedule": "0 0 * * *"
     }
   ]
 }

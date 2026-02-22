@@ -107,6 +107,11 @@ async function fetchUnivaPay<T>(
     throw new Error(`UnivaPay API error: ${response.status} ${errorText}`);
   }
 
+  // DELETE returns 204 No Content
+  if (method === 'DELETE' || response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 
@@ -245,4 +250,49 @@ export function getUnivaPayConfig() {
     // フロントエンドで使うのはJWTのみ（Secretは渡さない）
     appId: UNIVAPAY_JWT,
   };
+}
+
+/**
+ * リカーリングトークンを削除（トライアルキャンセル時）
+ */
+export async function deleteRecurringToken(tokenId: string): Promise<void> {
+  const storeId = UNIVAPAY_STORE_ID;
+  if (!storeId) {
+    throw new Error('UNIVAPAY_STORE_ID is not configured');
+  }
+
+  await fetchUnivaPay(
+    `/stores/${storeId}/tokens/${tokenId}`,
+    { method: 'DELETE' },
+  );
+}
+
+/**
+ * リカーリングトークンからサブスクリプションを作成（トライアル→有料変換時）
+ */
+export async function createSubscriptionFromToken(params: {
+  recurringTokenId: string;
+  amount: number;
+  currency?: string;
+  period?: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly';
+  metadata?: Record<string, string>;
+}): Promise<UnivaPaySubscription> {
+  const storeId = UNIVAPAY_STORE_ID;
+  if (!storeId) {
+    throw new Error('UNIVAPAY_STORE_ID is not configured');
+  }
+
+  return fetchUnivaPay<UnivaPaySubscription>(
+    `/stores/${storeId}/subscriptions`,
+    {
+      method: 'POST',
+      body: {
+        transaction_token_id: params.recurringTokenId,
+        amount: params.amount,
+        currency: params.currency ?? 'JPY',
+        period: params.period ?? 'monthly',
+        metadata: params.metadata,
+      },
+    },
+  );
 }

@@ -19,6 +19,8 @@ CREATE TABLE `mark-454114.analyca.users` (
   subscription_status STRING DEFAULT 'none',
   subscription_created_at TIMESTAMP,
   subscription_expires_at TIMESTAMP,
+  recurring_token_id STRING,
+  trial_ends_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );
@@ -131,3 +133,7 @@ CREATE INDEX idx_stories_user_timestamp ON `mark-454114.analyca.instagram_storie
 CREATE INDEX idx_insights_user_date ON `mark-454114.analyca.instagram_insights`(user_id, date DESC);
 CREATE INDEX idx_line_user_date ON `mark-454114.analyca.line_daily`(user_id, date DESC);
 CREATE INDEX idx_threads_user_timestamp ON `mark-454114.analyca.threads_posts`(user_id, timestamp DESC);
+
+-- ALTER TABLE: トライアル/無料登録対応カラム追加
+ALTER TABLE `mark-454114.analyca.users` ADD COLUMN IF NOT EXISTS recurring_token_id STRING;
+ALTER TABLE `mark-454114.analyca.users` ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP;

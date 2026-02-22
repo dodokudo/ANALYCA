@@ -462,6 +462,11 @@ export async function getUserById(userId: string): Promise<User | null> {
     threads_profile_picture_url: row.threads_profile_picture_url ?? null,
     has_instagram: row.has_instagram ?? false,
     has_threads: row.has_threads ?? false,
+    subscription_id: row.subscription_id ?? null,
+    plan_id: row.plan_id ?? null,
+    subscription_status: row.subscription_status ?? null,
+    subscription_created_at: row.subscription_created_at ? new Date(row.subscription_created_at) : null,
+    subscription_expires_at: row.subscription_expires_at ? new Date(row.subscription_expires_at) : null,
     recurring_token_id: row.recurring_token_id ?? null,
     trial_ends_at: row.trial_ends_at ? new Date(row.trial_ends_at) : null,
   };

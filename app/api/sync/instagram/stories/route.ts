@@ -5,12 +5,11 @@ import {
   InstagramStory,
 } from '@/lib/bigquery';
 import { uploadImageToGCS } from '@/lib/gcs';
+import { detectGraphBase } from '@/lib/instagram-graph';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
-
-const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 
 interface StoryInsights {
   reach?: number;
@@ -27,10 +26,10 @@ interface StoryInsights {
 /**
  * Instagramビジネスアカウント情報を取得
  */
-async function getInstagramBusinessAccountId(accessToken: string): Promise<string | null> {
+async function getInstagramBusinessAccountId(graphBase: string, accessToken: string): Promise<string | null> {
   try {
     const pagesResponse = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/me/accounts?access_token=${accessToken}`
+      `${graphBase}/me/accounts?access_token=${accessToken}`
     );
 
     if (!pagesResponse.ok) return null;
@@ -41,7 +40,7 @@ async function getInstagramBusinessAccountId(accessToken: string): Promise<strin
 
     for (const page of pagesData.data) {
       const igResponse = await fetch(
-        `${INSTAGRAM_GRAPH_BASE}/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
+        `${graphBase}/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
       );
 
       if (!igResponse.ok) continue;
@@ -63,7 +62,7 @@ async function getInstagramBusinessAccountId(accessToken: string): Promise<strin
 /**
  * ストーリー一覧を取得
  */
-async function getStories(accessToken: string, accountId: string): Promise<Array<{
+async function getStories(graphBase: string, accessToken: string, accountId: string): Promise<Array<{
   id: string;
   media_type: string;
   timestamp: string;
@@ -73,7 +72,7 @@ async function getStories(accessToken: string, accountId: string): Promise<Array
 }>> {
   try {
     const response = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/${accountId}/stories?fields=id,media_type,timestamp,thumbnail_url,media_url,caption&access_token=${accessToken}`
+      `${graphBase}/${accountId}/stories?fields=id,media_type,timestamp,thumbnail_url,media_url,caption&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -92,12 +91,12 @@ async function getStories(accessToken: string, accountId: string): Promise<Array
 /**
  * ストーリーのインサイトを取得
  */
-async function getStoryInsights(accessToken: string, storyId: string): Promise<StoryInsights> {
+async function getStoryInsights(graphBase: string, accessToken: string, storyId: string): Promise<StoryInsights> {
   const insights: StoryInsights = {};
 
   try {
     const response = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/${storyId}/insights?metric=reach,impressions,replies,follows,profile_visits,shares,navigation&access_token=${accessToken}`
+      `${graphBase}/${storyId}/insights?metric=reach,impressions,replies,follows,profile_visits,shares,navigation&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -157,15 +156,18 @@ async function syncUserStories(
   instagramUserId: string
 ): Promise<{ success: boolean; storiesCount: number; newCount: number; updatedCount: number; error?: string }> {
   try {
+    // トークンタイプに応じたGraph API Base URLを検出
+    const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
+
     // Instagram Business Account IDを取得（instagramUserIdと同じはず）
-    const accountId = instagramUserId || await getInstagramBusinessAccountId(accessToken);
+    const accountId = instagramUserId || await getInstagramBusinessAccountId(graphBase, accessToken);
 
     if (!accountId) {
       return { success: false, storiesCount: 0, newCount: 0, updatedCount: 0, error: 'Instagram account not found' };
     }
 
     // ストーリー一覧を取得
-    const stories = await getStories(accessToken, accountId);
+    const stories = await getStories(graphBase, accessToken, accountId);
 
     if (stories.length === 0) {
       return { success: true, storiesCount: 0, newCount: 0, updatedCount: 0 };
@@ -175,7 +177,7 @@ async function syncUserStories(
     const storiesWithInsights: InstagramStory[] = [];
 
     for (const story of stories) {
-      const insights = await getStoryInsights(accessToken, story.id);
+      const insights = await getStoryInsights(graphBase, accessToken, story.id);
 
       // 遷移数を合計（forward + back + exit）
       const navigation = (insights.navigation_forward || 0) +

@@ -4,12 +4,11 @@ import {
   upsertInstagramInsights,
   InstagramInsights,
 } from '@/lib/bigquery';
+import { detectGraphBase } from '@/lib/instagram-graph';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
-
-const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 
 interface InstagramUser {
   id: string;
@@ -28,10 +27,10 @@ interface AccountInsights {
 /**
  * Instagramビジネスアカウント情報を取得
  */
-async function getInstagramBusinessAccount(accessToken: string, instagramUserId: string): Promise<InstagramUser | null> {
+async function getInstagramBusinessAccount(graphBase: string, accessToken: string, instagramUserId: string): Promise<InstagramUser | null> {
   try {
     const response = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/${instagramUserId}?fields=id,username,followers_count,media_count&access_token=${accessToken}`
+      `${graphBase}/${instagramUserId}?fields=id,username,followers_count,media_count&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -50,13 +49,13 @@ async function getInstagramBusinessAccount(accessToken: string, instagramUserId:
  * アカウントインサイトを取得（過去1日）
  * Graph API v23.0ではmetric_type=total_valueが必須
  */
-async function getAccountInsights(accessToken: string, accountId: string): Promise<AccountInsights> {
+async function getAccountInsights(graphBase: string, accessToken: string, accountId: string): Promise<AccountInsights> {
   const insights: AccountInsights = {};
 
   try {
     // metric_type=total_value で全メトリクスを一括取得
     const response = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&metric_type=total_value&period=day&access_token=${accessToken}`
+      `${graphBase}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&metric_type=total_value&period=day&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -105,15 +104,18 @@ async function syncUserInsights(
   instagramUserId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // トークンタイプに応じたGraph API Base URLを検出
+    const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
+
     // Instagramアカウント情報を取得
-    const account = await getInstagramBusinessAccount(accessToken, instagramUserId);
+    const account = await getInstagramBusinessAccount(graphBase, accessToken, instagramUserId);
 
     if (!account) {
       return { success: false, error: 'Instagram account not found' };
     }
 
     // アカウントインサイトを取得
-    const accountInsights = await getAccountInsights(accessToken, instagramUserId);
+    const accountInsights = await getAccountInsights(graphBase, accessToken, instagramUserId);
 
     // 今日の日付
     const today = new Date().toISOString().split('T')[0];

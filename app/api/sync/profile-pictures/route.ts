@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getActiveInstagramUsers, getActiveThreadsUsers, updateUserProfilePictures } from '@/lib/bigquery';
 import { uploadImageToGCS } from '@/lib/gcs';
+import { detectGraphBase } from '@/lib/instagram-graph';
 
 export const maxDuration = 120;
 
-const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 const THREADS_GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
 /**
@@ -12,8 +12,9 @@ const THREADS_GRAPH_BASE = 'https://graph.threads.net/v1.0';
  */
 async function getInstagramProfilePicture(accessToken: string, userId: string): Promise<string | null> {
   try {
+    const graphBase = await detectGraphBase(accessToken, `/${userId}?fields=id`);
     const response = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/${userId}?fields=profile_picture_url&access_token=${accessToken}`
+      `${graphBase}/${userId}?fields=profile_picture_url&access_token=${accessToken}`
     );
     if (!response.ok) {
       console.error(`Instagram profile picture fetch failed: ${response.status}`);

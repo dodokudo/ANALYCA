@@ -5,12 +5,11 @@ import {
   InstagramReel,
 } from '@/lib/bigquery';
 import { uploadImageToGCS } from '@/lib/gcs';
+import { detectGraphBase } from '@/lib/instagram-graph';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
-
-const INSTAGRAM_GRAPH_BASE = 'https://graph.instagram.com/v23.0';
 
 interface InstagramMedia {
   id: string;
@@ -38,10 +37,10 @@ interface ReelInsights {
 /**
  * リール一覧を取得
  */
-async function getReels(accessToken: string, accountId: string, limit = 15): Promise<InstagramMedia[]> {
+async function getReels(graphBase: string, accessToken: string, accountId: string, limit = 15): Promise<InstagramMedia[]> {
   try {
     const response = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=${limit}&access_token=${accessToken}`
+      `${graphBase}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=${limit}&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -63,13 +62,13 @@ async function getReels(accessToken: string, accountId: string, limit = 15): Pro
 /**
  * リールのインサイトを取得
  */
-async function getReelInsights(accessToken: string, reelId: string): Promise<ReelInsights> {
+async function getReelInsights(graphBase: string, accessToken: string, reelId: string): Promise<ReelInsights> {
   const insights: ReelInsights = {};
 
   try {
     // リール専用のインサイトメトリクス
     const response = await fetch(
-      `${INSTAGRAM_GRAPH_BASE}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time&access_token=${accessToken}`
+      `${graphBase}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time&access_token=${accessToken}`
     );
 
     if (!response.ok) {
@@ -127,8 +126,11 @@ async function syncUserReels(
   instagramUserId: string
 ): Promise<{ success: boolean; newCount: number; updatedCount: number; error?: string }> {
   try {
+    // トークンタイプに応じたGraph API Base URLを検出
+    const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
+
     // リール一覧を取得
-    const reels = await getReels(accessToken, instagramUserId);
+    const reels = await getReels(graphBase, accessToken, instagramUserId);
 
     if (reels.length === 0) {
       return { success: true, newCount: 0, updatedCount: 0 };
@@ -138,7 +140,7 @@ async function syncUserReels(
     const reelsWithInsights: InstagramReel[] = [];
 
     for (const reel of reels) {
-      const insights = await getReelInsights(accessToken, reel.id);
+      const insights = await getReelInsights(graphBase, accessToken, reel.id);
 
       // 視聴時間を時間に変換（秒→時間）
       const viewTimeHours = insights.video_view_total_time

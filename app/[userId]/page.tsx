@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, use, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { ScheduleTab } from './components/schedule-tab';
+import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import {
   ComposedChart,
@@ -906,6 +907,9 @@ function ThreadsContent({
           </div>
         </div>
       )}
+
+      {/* インサイト分析 */}
+      <ThreadsInsights posts={posts} />
 
       {/* トップコンテンツ */}
       {displayedPosts.length > 0 && (

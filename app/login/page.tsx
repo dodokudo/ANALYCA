@@ -1,31 +1,37 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isInstagramLoading, setIsInstagramLoading] = useState(false);
   const [isThreadsLoading, setIsThreadsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // OAuth エラーメッセージ表示
+    // ログイン済みユーザーはダッシュボードへリダイレクト
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
-    if (error) {
-      setAuthError(decodeURIComponent(error));
-      // URLからerrorパラメータを削除
-      window.history.replaceState({}, '', '/login');
+
+    if (!error) {
+      const userId = window.localStorage.getItem('analycaUserId');
+      if (userId) {
+        setIsRedirecting(true);
+        router.push(`/${userId}`);
+        return;
+      }
     }
 
-    // OAuth完了後のlocalStorage保存
-    const auth = params.get('auth');
-    const pathUserId = window.location.pathname.split('/')[1];
-    if (auth && pathUserId) {
-      window.localStorage.setItem('analycaUserId', pathUserId);
+    // OAuth エラーメッセージ表示
+    if (error) {
+      setAuthError(decodeURIComponent(error));
+      window.history.replaceState({}, '', '/login');
     }
-  }, []);
+  }, [router]);
 
   const handleInstagramLogin = () => {
     setIsInstagramLoading(true);
@@ -50,6 +56,17 @@ export default function LoginPage() {
 
     window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
   };
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">ダッシュボードへ移動中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">

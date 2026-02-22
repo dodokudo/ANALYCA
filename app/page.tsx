@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AnalycaLogo from '@/components/AnalycaLogo';
 
@@ -171,6 +172,28 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 
 // ============ メインコンポーネント ============
 export default function HomePage() {
+  const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  useEffect(() => {
+    const userId = window.localStorage.getItem('analycaUserId');
+    if (userId) {
+      setIsRedirecting(true);
+      router.push(`/${userId}`);
+    }
+  }, [router]);
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">ダッシュボードへ移動中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* ============ ヘッダー ============ */}

@@ -31,6 +31,10 @@
     {
       "path": "/api/sync/profile-pictures",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/schedule/threads/run",
+      "schedule": "* * * * *"
     }
   ]
 }

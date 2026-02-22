@@ -277,4 +277,62 @@ export class ThreadsAPI {
 
     return postsWithInsights;
   }
+
+  /**
+   * Create and publish a post (3-step: createContainer → wait → publish)
+   */
+  async createPost(text: string, replyToId?: string): Promise<string> {
+    const account = await this.getAccountInfo();
+    const userId = account.id;
+
+    // Step 1: Create container
+    const body: Record<string, unknown> = {
+      text,
+      media_type: 'TEXT',
+    };
+    if (replyToId) {
+      body.reply_to_id = replyToId;
+    }
+
+    const createRes = await fetch(`${GRAPH_BASE}/${userId}/threads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, access_token: this.accessToken }),
+    });
+
+    if (!createRes.ok) {
+      const error = await createRes.text();
+      throw new Error(`Failed to create container: ${error}`);
+    }
+
+    const { id: containerId } = await createRes.json();
+
+    // Step 2: Wait for container to be ready
+    for (let i = 0; i < 10; i++) {
+      const statusRes = await fetch(
+        `${GRAPH_BASE}/${containerId}?fields=status,error_message&access_token=${this.accessToken}`
+      );
+      const statusData = await statusRes.json();
+      if (statusData.status === 'ERROR') {
+        throw new Error(statusData.error_message ?? 'Container creation failed');
+      }
+      if (statusData.status === 'FINISHED') break;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    // Step 3: Publish
+    const publishRes = await fetch(`${GRAPH_BASE}/${userId}/threads_publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ creation_id: containerId, access_token: this.accessToken }),
+    });
+
+    if (!publishRes.ok) {
+      const error = await publishRes.text();
+      throw new Error(`Failed to publish thread: ${error}`);
+    }
+
+    const publishData = await publishRes.json();
+    return publishData.id as string;
+  }
 }

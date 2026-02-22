@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, use, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
+import { ScheduleTab } from './components/schedule-tab';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import {
   ComposedChart,
@@ -531,6 +532,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
           {activeChannel === 'threads' && (
             <ThreadsContent
+              userId={userId}
               user={user}
               data={data}
               username={username}
@@ -578,16 +580,19 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
 // ============ Threads コンテンツ（デモと同じUI） ============
 function ThreadsContent({
+  userId,
   user,
   data,
   username,
   profilePicture,
 }: {
+  userId: string;
   user: UserInfo | null;
   data: DashboardData | null;
   username: string;
   profilePicture: string | undefined;
 }) {
+  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>('analysis');
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
@@ -757,21 +762,39 @@ function ThreadsContent({
       {/* ヘッダー: タブ + 日付選択 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <button className="h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium bg-[color:var(--color-text-primary)] text-white">
-            ホーム
-          </button>
-        </div>
-        <select
-          value={datePreset}
-          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-          className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
-        >
-          {datePresetOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          {([
+            { key: 'analysis', label: '分析' },
+            { key: 'schedule', label: '予約投稿' },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setThreadsTab(key)}
+              className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium ${
+                threadsTab === key
+                  ? 'bg-[color:var(--color-text-primary)] text-white'
+                  : 'bg-[color:var(--color-surface-muted)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-border)]'
+              }`}
+            >
+              {label}
+            </button>
           ))}
-        </select>
+        </div>
+        {threadsTab === 'analysis' && (
+          <select
+            value={datePreset}
+            onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+            className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+          >
+            {datePresetOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
+      {threadsTab === 'schedule' && <ScheduleTab userId={userId} />}
+
+      {threadsTab === 'analysis' && <>
       {/* アカウント + KPI */}
       <div className="grid lg:grid-cols-12 gap-4">
         {/* 左側：アカウント情報 */}
@@ -1010,6 +1033,7 @@ function ThreadsContent({
           )}
         </div>
       )}
+      </>}
     </div>
   );
 }

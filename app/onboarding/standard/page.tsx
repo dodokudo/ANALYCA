@@ -1,9 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function OnboardingStandardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" /></div>}>
+      <OnboardingStandardContent />
+    </Suspense>
+  );
+}
+
+function OnboardingStandardContent() {
+  const searchParams = useSearchParams();
+  const userId = searchParams?.get('userId') || '';
   // Threads
   const [threadsToken, setThreadsToken] = useState('');
 
@@ -37,6 +48,7 @@ export default function OnboardingStandardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(userId && { userId }),
           threads: {
             accessToken: threadsToken.trim(),
           },

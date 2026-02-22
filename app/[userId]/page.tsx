@@ -6,6 +6,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { ScheduleTab } from './components/schedule-tab';
 import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
+import SubscriptionSettings from './components/subscription-settings';
 import {
   ComposedChart,
   Bar,
@@ -60,7 +61,7 @@ function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
 }
 
 // ============ 型定義 ============
-type Channel = 'instagram' | 'threads';
+type Channel = 'instagram' | 'threads' | 'settings';
 
 type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
 
@@ -365,7 +366,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
   }, [channels]);
 
   // アクティブチャンネル（Threadsのみの場合はThreadsがデフォルト）
-  const activeChannel = useMemo(() => {
+  const activeChannel = useMemo((): Channel => {
+    if (tabParam === 'settings') return 'settings';
     if (tabParam === 'threads' && channels.threads) return 'threads';
     if (tabParam === 'instagram' && channels.instagram) return 'instagram';
     if (!tabParam) {
@@ -487,8 +489,22 @@ function UserDashboardContent({ userId }: { userId: string }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-[color:var(--color-border)]">
-          <p className="text-xs text-[color:var(--color-text-muted)]">Powered by ANALYCA</p>
+        <div className="p-3 border-t border-[color:var(--color-border)]">
+          <button
+            onClick={() => setActiveChannel('settings')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+              activeChannel === 'settings'
+                ? 'bg-[color:var(--color-accent)] text-white'
+                : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            設定
+          </button>
+          <p className="text-xs text-[color:var(--color-text-muted)] mt-3 px-3">Powered by ANALYCA</p>
         </div>
       </aside>
 
@@ -591,6 +607,12 @@ function UserDashboardContent({ userId }: { userId: string }) {
               username={username}
               profilePicture={profilePicture}
             />
+          )}
+          {activeChannel === 'settings' && (
+            <div className="max-w-2xl mx-auto py-6 px-4">
+              <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-6">設定</h2>
+              <SubscriptionSettings userId={userId} />
+            </div>
           )}
         </div>
       </main>

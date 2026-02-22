@@ -5,33 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
 import LoadingScreen from '@/components/LoadingScreen';
 import AnalycaLogo from '@/components/AnalycaLogo';
-
-// プラン定義
-const PLANS: Record<string, {
-  name: string;
-  subtitle: string;
-  price: number;
-  onboardingPath: string;
-}> = {
-  'light-threads': {
-    name: 'Light',
-    subtitle: 'Threads分析',
-    price: 4980,
-    onboardingPath: '/onboarding/light',
-  },
-  'light-instagram': {
-    name: 'Light',
-    subtitle: 'Instagram分析',
-    price: 4980,
-    onboardingPath: '/onboarding/light2',
-  },
-  'standard': {
-    name: 'Standard',
-    subtitle: 'Instagram + Threads',
-    price: 9800,
-    onboardingPath: '/onboarding/standard',
-  },
-};
+import { PLANS } from '@/lib/univapay/plans';
 
 declare global {
   interface Window {
@@ -134,7 +108,7 @@ function CheckoutContent() {
             });
             const data = await response.json();
             if (data.success) {
-              router.push(plan.onboardingPath);
+              router.push(data.onboardingPath);
             } else {
               setError(data.error || '課金処理に失敗しました');
               setProcessing(false);

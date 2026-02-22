@@ -415,7 +415,7 @@ function createInstagramInsights(userId: string, account: InstagramUser): Instag
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { threads, instagram } = body;
+    const { threads, instagram, userId: requestUserId } = body;
 
     if (!threads?.accessToken) {
       return NextResponse.json({
@@ -447,8 +447,8 @@ export async function POST(request: NextRequest) {
     const existingInstagramUserId = await findUserIdByInstagramId(instagramAccount.id);
 
     // ============ ユーザーID決定 ============
-    // 既存ユーザーがあればそれを使う、なければ新規作成
-    const userId = existingThreadsUserId || existingInstagramUserId || uuidv4();
+    // 決済から渡されたuserId > 既存ユーザー > 新規作成
+    const userId = requestUserId || existingThreadsUserId || existingInstagramUserId || uuidv4();
 
     // ============ Threadsユーザー保存 ============
     const threadsTokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);

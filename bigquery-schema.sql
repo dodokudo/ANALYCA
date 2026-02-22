@@ -14,6 +14,11 @@ CREATE TABLE `mark-454114.analyca.users` (
   threads_token_expires_at TIMESTAMP,
   has_instagram BOOL DEFAULT FALSE,
   has_threads BOOL DEFAULT FALSE,
+  subscription_id STRING,
+  plan_id STRING,
+  subscription_status STRING DEFAULT 'none',
+  subscription_created_at TIMESTAMP,
+  subscription_expires_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
 );

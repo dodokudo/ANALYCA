@@ -222,6 +222,21 @@ export async function listCharges(
 }
 
 /**
+ * サブスクリプションをキャンセル
+ */
+export async function cancelSubscription(subscriptionId: string): Promise<void> {
+  const storeId = UNIVAPAY_STORE_ID;
+  if (!storeId) {
+    throw new Error('UNIVAPAY_STORE_ID is not configured');
+  }
+
+  await fetchUnivaPay(
+    `/stores/${storeId}/subscriptions/${subscriptionId}`,
+    { method: 'PATCH', body: { status: 'canceled' } },
+  );
+}
+
+/**
  * UnivaPay設定を取得（フロントエンド用）
  */
 export function getUnivaPayConfig() {

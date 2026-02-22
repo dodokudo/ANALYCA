@@ -1,9 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function OnboardingLightPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" /></div>}>
+      <OnboardingLightContent />
+    </Suspense>
+  );
+}
+
+function OnboardingLightContent() {
+  const searchParams = useSearchParams();
+  const userId = searchParams?.get('userId') || '';
   const [threadsToken, setThreadsToken] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +35,7 @@ export default function OnboardingLightPage() {
       const response = await fetch('/api/onboarding/threads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken: threadsToken.trim() }),
+        body: JSON.stringify({ accessToken: threadsToken.trim(), ...(userId && { userId }) }),
       });
 
       const result = await response.json();

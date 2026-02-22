@@ -1,28 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/univapay/client';
-
-// プラン定義
-const PLANS: Record<string, {
-  name: string;
-  price: number;
-  onboardingPath: string;
-}> = {
-  'light-threads': {
-    name: 'Light (Threads)',
-    price: 4980,
-    onboardingPath: '/onboarding/light',
-  },
-  'light-instagram': {
-    name: 'Light (Instagram)',
-    price: 4980,
-    onboardingPath: '/onboarding/light2',
-  },
-  'standard': {
-    name: 'Standard',
-    price: 9800,
-    onboardingPath: '/onboarding/standard',
-  },
-};
+import { PLANS } from '@/lib/univapay/plans';
+import { createPendingUser } from '@/lib/bigquery';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,12 +39,24 @@ export async function POST(request: NextRequest) {
 
     console.log('Subscription created:', subscription.id, subscription.status);
 
+    // BigQueryに仮ユーザーを作成（サブスクリプション情報を紐付け）
+    const userId = uuidv4();
+    await createPendingUser(userId, {
+      subscription_id: subscription.id,
+      plan_id: planId,
+      subscription_status: 'active',
+      subscription_created_at: new Date(),
+    });
+
+    console.log('Pending user created:', userId);
+
     // サブスクリプション作成成功
     return NextResponse.json({
       success: true,
       subscriptionId: subscription.id,
       status: subscription.status,
-      onboardingPath: plan.onboardingPath,
+      userId,
+      onboardingPath: `${plan.onboardingPath}?userId=${userId}`,
     });
 
   } catch (error) {

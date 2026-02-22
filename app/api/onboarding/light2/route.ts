@@ -314,7 +314,7 @@ function createInstagramInsights(userId: string, account: InstagramUser): Instag
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { instagram } = body;
+    const { instagram, userId: requestUserId } = body;
 
     if (!instagram?.appId || !instagram?.appSecret || !instagram?.shortToken) {
       return NextResponse.json({
@@ -335,8 +335,8 @@ export async function POST(request: NextRequest) {
     const existingInstagramUserId = await findUserIdByInstagramId(instagramAccount.id);
 
     // ============ ユーザーID決定 ============
-    // 既存ユーザーがあればそれを使う、なければ新規作成
-    const userId = existingInstagramUserId || uuidv4();
+    // requestUserId（決済後の仮ユーザー）を最優先、次に既存ユーザー、なければ新規作成
+    const userId = requestUserId || existingInstagramUserId || uuidv4();
 
     // ============ Instagramユーザー保存 ============
     const instagramTokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);

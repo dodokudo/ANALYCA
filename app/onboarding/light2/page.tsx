@@ -1,9 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function OnboardingLight2Page() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" /></div>}>
+      <OnboardingLight2Content />
+    </Suspense>
+  );
+}
+
+function OnboardingLight2Content() {
+  const searchParams = useSearchParams();
+  const userId = searchParams?.get('userId') || '';
   // Instagram
   const [instagramAppId, setInstagramAppId] = useState('');
   const [instagramAppSecret, setInstagramAppSecret] = useState('');
@@ -30,6 +41,7 @@ export default function OnboardingLight2Page() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(userId && { userId }),
           instagram: {
             appId: instagramAppId.trim(),
             appSecret: instagramAppSecret.trim(),

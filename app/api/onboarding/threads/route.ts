@@ -199,7 +199,7 @@ async function getCommentViews(accessToken: string, commentId: string): Promise<
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { accessToken } = body;
+    const { accessToken, userId: requestUserId } = body;
 
     if (!accessToken) {
       return NextResponse.json({
@@ -215,9 +215,10 @@ export async function POST(request: NextRequest) {
     // トークンの有効期限は入力されたものなので長期とみなす
     const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // 60日後
 
-    // user_idをThreadsアカウントIDと同じにする（新規も既存も同じIDになる）
+    // requestUserIdがあればそのIDを使用（決済後の仮ユーザーにMERGE）
+    // なければThreadsアカウントIDを使用（従来通り）
     const userId = await upsertThreadsUser({
-      user_id: accountInfo.id, // user_id = threads_user_id
+      user_id: requestUserId || accountInfo.id,
       threads_user_id: accountInfo.id,
       threads_username: accountInfo.username,
       threads_access_token: accessToken,

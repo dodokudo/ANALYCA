@@ -38,6 +38,11 @@ export interface User {
   threads_profile_picture_url?: string | null;
   has_instagram?: boolean | null;
   has_threads?: boolean | null;
+  subscription_id?: string | null;
+  plan_id?: string | null;
+  subscription_status?: string | null;
+  subscription_created_at?: Date | null;
+  subscription_expires_at?: Date | null;
 }
 
 export interface InstagramReel {
@@ -1510,4 +1515,177 @@ export async function updateUserProfilePictures(
   `;
 
   await bigquery.query({ query, params });
+}
+
+// ===== Subscription Management =====
+
+/**
+ * 仮ユーザーを作成（決済完了直後、オンボーディング前）
+ * subscription_id と plan_id を持つユーザーレコードを先に作る
+ */
+export async function createPendingUser(userId: string, subscriptionData: {
+  subscription_id: string;
+  plan_id: string;
+  subscription_status: string;
+  subscription_created_at: Date;
+}): Promise<string> {
+  const query = `
+    INSERT INTO \`mark-454114.analyca.users\` (
+      user_id,
+      subscription_id,
+      plan_id,
+      subscription_status,
+      subscription_created_at,
+      created_at,
+      updated_at
+    ) VALUES (
+      @user_id,
+      @subscription_id,
+      @plan_id,
+      @subscription_status,
+      @subscription_created_at,
+      CURRENT_TIMESTAMP(),
+      CURRENT_TIMESTAMP()
+    )
+  `;
+
+  await bigquery.query({
+    query,
+    params: {
+      user_id: userId,
+      subscription_id: subscriptionData.subscription_id,
+      plan_id: subscriptionData.plan_id,
+      subscription_status: subscriptionData.subscription_status,
+      subscription_created_at: subscriptionData.subscription_created_at.toISOString(),
+    },
+    types: {
+      subscription_created_at: 'TIMESTAMP',
+    },
+  });
+
+  return userId;
+}
+
+/**
+ * ユーザーのサブスクリプション情報を更新
+ */
+export async function updateUserSubscription(userId: string, data: {
+  subscription_id?: string;
+  plan_id?: string;
+  subscription_status?: string;
+  subscription_created_at?: Date;
+  subscription_expires_at?: Date;
+}): Promise<void> {
+  const updates: string[] = [];
+  const params: Record<string, unknown> = { user_id: userId };
+
+  if (data.subscription_id !== undefined) {
+    updates.push('subscription_id = @subscription_id');
+    params.subscription_id = data.subscription_id;
+  }
+  if (data.plan_id !== undefined) {
+    updates.push('plan_id = @plan_id');
+    params.plan_id = data.plan_id;
+  }
+  if (data.subscription_status !== undefined) {
+    updates.push('subscription_status = @subscription_status');
+    params.subscription_status = data.subscription_status;
+  }
+  if (data.subscription_created_at !== undefined) {
+    updates.push('subscription_created_at = @subscription_created_at');
+    params.subscription_created_at = data.subscription_created_at.toISOString();
+  }
+  if (data.subscription_expires_at !== undefined) {
+    updates.push('subscription_expires_at = @subscription_expires_at');
+    params.subscription_expires_at = data.subscription_expires_at.toISOString();
+  }
+
+  if (updates.length === 0) return;
+
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @user_id
+  `;
+
+  await bigquery.query({ query, params });
+}
+
+/**
+ * subscription_id からユーザーを検索（Webhook用）
+ */
+export async function findUserBySubscriptionId(subscriptionId: string): Promise<User | null> {
+  const query = `
+    SELECT user_id, subscription_id, plan_id, subscription_status,
+           instagram_username, threads_username
+    FROM \`mark-454114.analyca.users\`
+    WHERE subscription_id = @subscription_id
+    LIMIT 1
+  `;
+
+  const [rows] = await bigquery.query({
+    query,
+    params: { subscription_id: subscriptionId },
+  });
+
+  return rows.length > 0 ? rows[0] : null;
+}
+
+/**
+ * ユーザーのサブスクリプション状態を取得
+ */
+export async function getUserSubscriptionStatus(userId: string): Promise<{
+  subscription_id: string | null;
+  plan_id: string | null;
+  subscription_status: string;
+  subscription_created_at: string | null;
+  subscription_expires_at: string | null;
+}> {
+  const query = `
+    SELECT subscription_id, plan_id, subscription_status,
+           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_created_at) as subscription_created_at,
+           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_expires_at) as subscription_expires_at
+    FROM \`mark-454114.analyca.users\`
+    WHERE user_id = @user_id
+    LIMIT 1
+  `;
+
+  const [rows] = await bigquery.query({
+    query,
+    params: { user_id: userId },
+  });
+
+  if (rows.length === 0) {
+    return {
+      subscription_id: null,
+      plan_id: null,
+      subscription_status: 'none',
+      subscription_created_at: null,
+      subscription_expires_at: null,
+    };
+  }
+
+  return {
+    subscription_id: rows[0].subscription_id || null,
+    plan_id: rows[0].plan_id || null,
+    subscription_status: rows[0].subscription_status || 'none',
+    subscription_created_at: rows[0].subscription_created_at || null,
+    subscription_expires_at: rows[0].subscription_expires_at || null,
+  };
+}
+
+/**
+ * subscription_idでサブスクステータスを更新（Webhook用）
+ */
+export async function updateSubscriptionStatusBySubId(subscriptionId: string, status: string): Promise<void> {
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET subscription_status = @status, updated_at = CURRENT_TIMESTAMP()
+    WHERE subscription_id = @subscription_id
+  `;
+
+  await bigquery.query({
+    query,
+    params: { subscription_id: subscriptionId, status },
+  });
 }

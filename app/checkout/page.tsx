@@ -26,11 +26,11 @@ function CheckoutContent() {
   const plan = PLANS[planId];
 
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [formReady, setFormReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [univaPayConfig, setUnivaPayConfig] = useState<{ appId: string } | null>(null);
   const checkoutRef = useRef<{ open: () => void; close: () => void } | null>(null);
+  const openedRef = useRef(false);
 
   // UnivaPay設定を取得
   useEffect(() => {
@@ -47,9 +47,10 @@ function CheckoutContent() {
       });
   }, []);
 
-  // カードフォームをページ読み込み時に自動表示
-  const initCheckout = useCallback(() => {
-    if (!scriptLoaded || !univaPayConfig || !plan || checkoutRef.current) return;
+  // 準備ができたら自動でチェックアウトモーダルを開く
+  const openCheckout = useCallback(() => {
+    if (!scriptLoaded || !univaPayConfig || !plan || openedRef.current) return;
+    openedRef.current = true;
 
     try {
       const checkout = window.UnivapayCheckout.create({
@@ -58,19 +59,13 @@ function CheckoutContent() {
         amount: plan.price,
         currency: 'JPY',
         cvvAuthorize: true,
-        inline: true,
-        inlineTarget: '#univapay-inline-form',
-        // スタイル — iframeの中に適用されるCSS
-        inlineItemStyle: 'padding: 14px 0; border-bottom: none; margin-bottom: 4px;',
-        inlineItemLabelStyle: 'color: #4b5563; font-size: 13px; font-weight: 600; letter-spacing: 0.025em; margin-bottom: 6px;',
-        inlineFieldStyle: 'border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; font-size: 15px; background: #fafafa; transition: border-color 0.2s; outline: none;',
-        inlineFieldFocusStyle: 'border-color: #8b5cf6; background: #fff; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);',
         subscriptionPeriod: 'monthly',
         metadata: {
           planId: planId,
           planName: plan.name,
         },
         onSuccess: async (result: { id: string; type: string }) => {
+          setProcessing(true);
           try {
             const response = await fetch('/api/payment/subscribe', {
               method: 'POST',
@@ -97,24 +92,26 @@ function CheckoutContent() {
           console.error('Payment error:', err);
           setError(err.message || '決済に失敗しました');
           setProcessing(false);
+          openedRef.current = false;
         },
         onCancel: () => {
           setProcessing(false);
+          openedRef.current = false;
         },
       });
 
       checkout.open();
       checkoutRef.current = checkout;
-      setFormReady(true);
     } catch (err) {
-      console.error('Checkout init error:', err);
+      console.error('Checkout error:', err);
       setError('決済システムの初期化に失敗しました');
+      openedRef.current = false;
     }
   }, [scriptLoaded, univaPayConfig, plan, planId, router]);
 
   useEffect(() => {
-    initCheckout();
-  }, [initCheckout]);
+    openCheckout();
+  }, [openCheckout]);
 
   // プランが見つからない場合
   if (!plan) {
@@ -134,22 +131,6 @@ function CheckoutContent() {
     );
   }
 
-  const handlePayment = () => {
-    if (!formReady) {
-      setError('決済システムの準備ができていません');
-      return;
-    }
-    setProcessing(true);
-    setError(null);
-    try {
-      window.UnivapayCheckout.submit();
-    } catch (err) {
-      console.error('Submit error:', err);
-      setError('決済の送信に失敗しました');
-      setProcessing(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
       {/* UnivaPay Script */}
@@ -165,13 +146,13 @@ function CheckoutContent() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8 md:py-12">
-        {/* 注文概要（コンパクト） */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
-          <div className="flex items-center justify-between">
+      <main className="max-w-lg mx-auto px-4 py-12 md:py-20">
+        {/* 注文概要カード */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="font-bold text-gray-800">{plan.name}プラン</h2>
-              <p className="text-sm text-gray-500">{plan.subtitle}・月額</p>
+              <h2 className="font-bold text-gray-800 text-lg">{plan.name}プラン</h2>
+              <p className="text-sm text-gray-500">{plan.subtitle}</p>
             </div>
             <div className="text-right">
               <span className="text-2xl font-bold text-gray-800">
@@ -180,55 +161,47 @@ function CheckoutContent() {
               <p className="text-xs text-gray-400">税込 / 月</p>
             </div>
           </div>
+          <div className="border-t border-gray-100 pt-4 text-xs text-gray-400">
+            月額・自動更新 ・ 次回請求日: 1ヶ月後
+          </div>
         </div>
 
-        {/* 決済フォーム */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-          <h2 className="text-lg font-bold text-gray-800 mb-1">お支払い情報</h2>
-          <p className="text-sm text-gray-400 mb-6">カード情報を入力してください</p>
-
-          {/* UnivaPayインラインフォーム */}
-          <div
-            id="univapay-inline-form"
-            className="mb-6 min-h-[280px] [&>iframe]:!border-none [&>iframe]:!w-full"
-          >
-            {!formReady && (
-              <div className="flex flex-col items-center justify-center h-[280px] text-gray-400 gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-200 border-t-purple-500"></div>
-                <p className="text-sm">決済フォームを読み込み中...</p>
+        {/* ステータス表示 */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+          {processing ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-purple-200 border-t-purple-500"></div>
+              <p className="text-gray-600 font-medium">サブスクリプションを作成中...</p>
+              <p className="text-sm text-gray-400">しばらくお待ちください</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
               </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl">
-              <p className="text-red-600 text-sm">{error}</p>
+              <div>
+                <p className="text-red-600 font-medium mb-1">エラーが発生しました</p>
+                <p className="text-sm text-gray-500">{error}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setError(null);
+                  openCheckout();
+                }}
+                className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-medium"
+              >
+                もう一度試す
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-purple-200 border-t-purple-500"></div>
+              <p className="text-gray-600 font-medium">お支払い情報の入力画面を準備中...</p>
+              <p className="text-sm text-gray-400">まもなく表示されます</p>
             </div>
           )}
-
-          <button
-            onClick={handlePayment}
-            disabled={!formReady || processing}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
-          >
-            {processing ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
-                処理中...
-              </span>
-            ) : (
-              `¥${plan.price.toLocaleString()} を支払う`
-            )}
-          </button>
-
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <svg className="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-            </svg>
-            <p className="text-xs text-gray-400">
-              SSL暗号化通信で安全に処理されます
-            </p>
-          </div>
         </div>
 
         {/* 戻るリンク */}
@@ -239,6 +212,16 @@ function CheckoutContent() {
           >
             ← プラン選択に戻る
           </button>
+        </div>
+
+        {/* セキュリティバッジ */}
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <svg className="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          </svg>
+          <p className="text-xs text-gray-400">
+            SSL暗号化通信で安全に処理されます
+          </p>
         </div>
       </main>
     </div>

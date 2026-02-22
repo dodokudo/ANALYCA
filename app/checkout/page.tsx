@@ -141,19 +141,10 @@ function CheckoutContent() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-800">カード情報</h2>
               <div className="flex items-center gap-1.5">
-                <svg className="h-7 w-auto" viewBox="0 0 48 32" fill="none">
-                  <rect width="48" height="32" rx="4" fill="#1A1F71"/>
-                  <path d="M19.5 21h-2.7l1.7-10.5h2.7L19.5 21zm11.1-10.2c-.5-.2-1.4-.4-2.4-.4-2.7 0-4.5 1.4-4.5 3.4 0 1.5 1.4 2.3 2.4 2.8 1 .5 1.4.8 1.4 1.3 0 .7-.8 1-1.6 1-.9 0-1.8-.2-2.5-.5l-.4-.2-.4 2.3c.7.3 1.9.5 3.2.5 2.8 0 4.7-1.4 4.7-3.5 0-1.2-.7-2.1-2.3-2.8-.9-.5-1.5-.8-1.5-1.3 0-.4.5-.9 1.5-.9.9 0 1.5.2 2 .4l.2.1.4-2.2zM35 10.5h-2.1c-.6 0-1.1.2-1.4.8L27.8 21h2.8l.6-1.5h3.4l.3 1.5H37L35 10.5zm-3 7.5l1.1-2.9.3-.9.2.9.6 2.9h-2.2zM16.3 10.5L13.6 18l-.3-1.4c-.5-1.6-2-3.4-3.8-4.2l2.4 8.6h2.9l4.3-10.5h-2.8z" fill="white"/>
-                  <path d="M11.7 10.5H7.5l-.1.2c3.4.8 5.6 2.9 6.5 5.3l-.9-4.7c-.2-.6-.7-.8-1.3-.8z" fill="#F9A533"/>
-                </svg>
-                <svg className="h-7 w-auto" viewBox="0 0 48 32" fill="none">
-                  <rect width="48" height="32" rx="4" fill="#252525"/>
-                  <circle cx="19" cy="16" r="8" fill="#EB001B"/>
-                  <circle cx="29" cy="16" r="8" fill="#F79E1B"/>
-                  <path d="M24 9.8A8 8 0 0 1 27 16a8 8 0 0 1-3 6.2A8 8 0 0 1 21 16a8 8 0 0 1 3-6.2z" fill="#FF5F00"/>
-                </svg>
-                <div className="h-7 px-1.5 bg-gradient-to-b from-blue-600 to-blue-800 rounded text-white text-[9px] font-bold flex items-center">JCB</div>
-                <div className="h-7 px-1.5 bg-blue-500 rounded text-white text-[8px] font-bold flex items-center">AMEX</div>
+                <img src="/cards/visa.svg" alt="Visa" className="h-7 w-auto" />
+                <img src="/cards/mastercard.svg" alt="Mastercard" className="h-7 w-auto" />
+                <img src="/cards/jcb.svg" alt="JCB" className="h-7 w-auto" />
+                <img src="/cards/amex.svg" alt="AMEX" className="h-7 w-auto" />
               </div>
             </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -14,6 +14,7 @@ declare global {
         open: () => void;
         close: () => void;
       };
+      submit: () => void;
     };
   }
 }
@@ -25,9 +26,11 @@ function CheckoutContent() {
   const plan = PLANS[planId];
 
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [formReady, setFormReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [univaPayConfig, setUnivaPayConfig] = useState<{ appId: string } | null>(null);
+  const checkoutRef = useRef<{ open: () => void; close: () => void } | null>(null);
 
   // UnivaPay設定を取得
   useEffect(() => {
@@ -44,32 +47,9 @@ function CheckoutContent() {
       });
   }, []);
 
-  // プランが見つからない場合
-  if (!plan) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-emerald-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">プランが見つかりません</h2>
-          <p className="text-gray-600 mb-6">有効なプランを選択してください。</p>
-          <button
-            onClick={() => router.push('/pricing')}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            プラン選択に戻る
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const handlePayment = () => {
-    if (!scriptLoaded || !univaPayConfig) {
-      setError('決済システムの準備ができていません');
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
+  // カードフォームをページ読み込み時に自動表示
+  const initCheckout = useCallback(() => {
+    if (!scriptLoaded || !univaPayConfig || !plan || checkoutRef.current) return;
 
     try {
       const checkout = window.UnivapayCheckout.create({
@@ -78,25 +58,19 @@ function CheckoutContent() {
         amount: plan.price,
         currency: 'JPY',
         cvvAuthorize: true,
-        // インラインフォーム表示設定
         inline: true,
         inlineTarget: '#univapay-inline-form',
-        // スタイル設定
-        inlineItemStyle: 'padding: 12px 0; border-bottom: 1px solid #e5e7eb;',
-        inlineItemLabelStyle: 'color: #374151; font-size: 14px; font-weight: 500;',
-        inlineFieldStyle: 'border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; font-size: 16px;',
-        // サブスクリプション設定
+        // スタイル — iframeの中に適用されるCSS
+        inlineItemStyle: 'padding: 14px 0; border-bottom: none; margin-bottom: 4px;',
+        inlineItemLabelStyle: 'color: #4b5563; font-size: 13px; font-weight: 600; letter-spacing: 0.025em; margin-bottom: 6px;',
+        inlineFieldStyle: 'border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; font-size: 15px; background: #fafafa; transition: border-color 0.2s; outline: none;',
+        inlineFieldFocusStyle: 'border-color: #8b5cf6; background: #fff; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);',
         subscriptionPeriod: 'monthly',
-        // メタデータ
         metadata: {
           planId: planId,
           planName: plan.name,
         },
-        // コールバック
         onSuccess: async (result: { id: string; type: string }) => {
-          console.log('Payment success:', result);
-          // 課金成功後、オンボーディングへリダイレクト
-          // transaction_token_idをAPIに送信してサブスク作成
           try {
             const response = await fetch('/api/payment/subscribe', {
               method: 'POST',
@@ -130,15 +104,54 @@ function CheckoutContent() {
       });
 
       checkout.open();
+      checkoutRef.current = checkout;
+      setFormReady(true);
     } catch (err) {
-      console.error('Checkout error:', err);
+      console.error('Checkout init error:', err);
       setError('決済システムの初期化に失敗しました');
+    }
+  }, [scriptLoaded, univaPayConfig, plan, planId, router]);
+
+  useEffect(() => {
+    initCheckout();
+  }, [initCheckout]);
+
+  // プランが見つからない場合
+  if (!plan) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-emerald-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">プランが見つかりません</h2>
+          <p className="text-gray-600 mb-6">有効なプランを選択してください。</p>
+          <button
+            onClick={() => router.push('/pricing')}
+            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            プラン選択に戻る
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const handlePayment = () => {
+    if (!formReady) {
+      setError('決済システムの準備ができていません');
+      return;
+    }
+    setProcessing(true);
+    setError(null);
+    try {
+      window.UnivapayCheckout.submit();
+    } catch (err) {
+      console.error('Submit error:', err);
+      setError('決済の送信に失敗しました');
       setProcessing(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
       {/* UnivaPay Script */}
       <Script
         src="https://widget.univapay.com/client/checkout.js"
@@ -146,89 +159,83 @@ function CheckoutContent() {
       />
 
       {/* ヘッダー */}
-      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+      <header className="border-b border-gray-100 bg-white/90 backdrop-blur-sm">
+        <div className="max-w-3xl mx-auto px-4 py-4">
           <AnalycaLogo size="md" showText />
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* 左側: 注文内容 */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-6">ご注文内容</h2>
-
-            <div className="border border-gray-200 rounded-xl p-4 mb-6">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-semibold text-gray-800">{plan.name}プラン</h3>
-                  <p className="text-sm text-gray-500">{plan.subtitle}</p>
-                </div>
-                <span className="text-lg font-bold text-gray-800">
-                  ¥{plan.price.toLocaleString()}
-                </span>
-              </div>
-              <p className="text-xs text-gray-400">月額・自動更新</p>
+      <main className="max-w-3xl mx-auto px-4 py-8 md:py-12">
+        {/* 注文概要（コンパクト） */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-gray-800">{plan.name}プラン</h2>
+              <p className="text-sm text-gray-500">{plan.subtitle}・月額</p>
             </div>
-
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">合計（税込）</span>
-                <span className="text-2xl font-bold text-gray-800">
-                  ¥{plan.price.toLocaleString()}
-                </span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                次回請求日: 1ヶ月後
-              </p>
+            <div className="text-right">
+              <span className="text-2xl font-bold text-gray-800">
+                ¥{plan.price.toLocaleString()}
+              </span>
+              <p className="text-xs text-gray-400">税込 / 月</p>
             </div>
           </div>
+        </div>
 
-          {/* 右側: 決済フォーム */}
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-lg font-bold text-gray-800 mb-6">お支払い情報</h2>
+        {/* 決済フォーム */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+          <h2 className="text-lg font-bold text-gray-800 mb-1">お支払い情報</h2>
+          <p className="text-sm text-gray-400 mb-6">カード情報を入力してください</p>
 
-            {/* UnivaPayインラインフォーム */}
-            <div id="univapay-inline-form" className="mb-6 min-h-[200px]">
-              {!scriptLoaded && (
-                <div className="flex items-center justify-center h-48 text-gray-400">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-                </div>
-              )}
-            </div>
-
-            {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm">{error}</p>
+          {/* UnivaPayインラインフォーム */}
+          <div
+            id="univapay-inline-form"
+            className="mb-6 min-h-[280px] [&>iframe]:!border-none [&>iframe]:!w-full"
+          >
+            {!formReady && (
+              <div className="flex flex-col items-center justify-center h-[280px] text-gray-400 gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-200 border-t-purple-500"></div>
+                <p className="text-sm">決済フォームを読み込み中...</p>
               </div>
             )}
+          </div>
 
-            <button
-              onClick={handlePayment}
-              disabled={!scriptLoaded || !univaPayConfig || processing}
-              className="w-full py-4 bg-gradient-to-r from-purple-500 to-emerald-400 text-white font-bold rounded-xl hover:from-purple-600 hover:to-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {processing ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  処理中...
-                </span>
-              ) : (
-                `¥${plan.price.toLocaleString()} を支払う`
-              )}
-            </button>
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
 
-            <p className="text-xs text-gray-400 text-center mt-4">
-              お支払いはUnivaPayによって安全に処理されます
+          <button
+            onClick={handlePayment}
+            disabled={!formReady || processing}
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30"
+          >
+            {processing ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+                処理中...
+              </span>
+            ) : (
+              `¥${plan.price.toLocaleString()} を支払う`
+            )}
+          </button>
+
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <svg className="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+            </svg>
+            <p className="text-xs text-gray-400">
+              SSL暗号化通信で安全に処理されます
             </p>
           </div>
         </div>
 
         {/* 戻るリンク */}
-        <div className="text-center mt-8">
+        <div className="text-center mt-6">
           <button
             onClick={() => router.push('/pricing')}
-            className="text-gray-500 hover:text-gray-700 text-sm"
+            className="text-gray-400 hover:text-gray-600 text-sm transition-colors"
           >
             ← プラン選択に戻る
           </button>

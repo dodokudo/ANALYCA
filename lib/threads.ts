@@ -48,6 +48,35 @@ export class ThreadsAPI {
   }
 
   /**
+   * Exchange authorization code for short-lived token (OAuth Step 3)
+   */
+  static async exchangeCodeForShortToken(
+    code: string,
+    redirectUri: string
+  ): Promise<{ access_token: string; user_id: string }> {
+    const params = new URLSearchParams({
+      client_id: process.env.NEXT_PUBLIC_THREADS_APP_ID || '',
+      client_secret: process.env.THREADS_APP_SECRET || '',
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+      code,
+    });
+
+    const response = await fetch('https://graph.threads.net/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to exchange Threads authorization code: ${error}`);
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Exchange short-lived token for long-lived token (60 days)
    */
   static async exchangeForLongTermToken(shortToken: string): Promise<string> {

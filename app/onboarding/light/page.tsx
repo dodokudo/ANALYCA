@@ -91,6 +91,35 @@ export default function OnboardingLightPage() {
               <h2 className="text-lg font-semibold text-gray-900">Threads</h2>
             </div>
 
+            {/* OAuth連携ボタン */}
+            <button
+              type="button"
+              onClick={() => {
+                const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+                const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
+                const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
+                window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+              }}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50"
+            >
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-.542-1.94-1.5-3.42-2.849-4.4-1.468-1.066-3.37-1.62-5.652-1.639-2.853.02-4.96.908-6.26 2.639C4.743 6.467 4.018 8.818 4 11.982v.014c.018 3.163.743 5.511 2.157 7.222 1.3 1.575 3.405 2.394 6.257 2.438 1.852.018 3.45-.245 4.755-.752 1.434-.555 2.625-1.44 3.54-2.632.873-1.134 1.504-2.56 1.876-4.241l2.04.568c-.452 2.042-1.24 3.805-2.342 5.236-1.147 1.492-2.632 2.653-4.416 3.451-1.622.725-3.497 1.114-5.575 1.15zM12 9.75c-1.243 0-2.25 1.007-2.25 2.25s1.007 2.25 2.25 2.25 2.25-1.007 2.25-2.25-1.007-2.25-2.25-2.25zm6-3c-1.243 0-2.25 1.007-2.25 2.25s1.007 2.25 2.25 2.25 2.25-1.007 2.25-2.25-1.007-2.25-2.25-2.25z"/>
+              </svg>
+              <span>Threadsアカウントで連携</span>
+            </button>
+
+            {/* 区切り線 */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-3 bg-white text-gray-400">または手動でトークンを入力</span>
+              </div>
+            </div>
+
             <div>
               <label htmlFor="threadsToken" className="block text-sm font-medium text-gray-700 mb-2">
                 アクセストークン

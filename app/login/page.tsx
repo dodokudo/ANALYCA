@@ -16,12 +16,22 @@ export default function LoginPage() {
   const [isThreadsLoading, setIsThreadsLoading] = useState(false);
   const [storedUserId, setStoredUserId] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedUserId = window.localStorage.getItem('analycaUserId');
     if (savedUserId) {
       setStoredUserId(savedUserId);
+    }
+
+    // OAuth エラーメッセージ表示
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    if (error) {
+      setAuthError(decodeURIComponent(error));
+      // URLからerrorパラメータを削除
+      window.history.replaceState({}, '', '/login');
     }
   }, []);
 
@@ -101,65 +111,13 @@ export default function LoginPage() {
   const handleThreadsLogin = () => {
     setIsThreadsLoading(true);
 
-    // Threads用のApp IDで再初期化
-    if (window.FB) {
-      const threadsAppId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
-      // @ts-expect-error - FB.init can be called multiple times
-      window.FB.init({
-        appId: threadsAppId,
-        cookie: true,
-        xfbml: true,
-        version: 'v23.0'
-      });
-    }
+    // Threads OAuth 2.0 Authorization Code Flow
+    const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+    const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
+    const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
 
-    // Threads Login
-    window.FB.login((response: unknown) => {
-      if (response && typeof response === 'object' && 'authResponse' in response) {
-        const authResponse = response.authResponse as { accessToken: string };
-        const accessToken = authResponse.accessToken;
-
-        // サーバーに送信してダッシュボード作成
-        fetch('/api/create-dashboard', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken, type: 'threads', userId: storedUserId ?? undefined })
-        }).then(async (response) => {
-          const result = await response.json();
-
-          if (result.success) {
-            persistUserId(result.userId);
-
-            // 同期APIを実行して完了を待つ
-            try {
-              setSyncStatus('Threads投稿を同期中...（最大1分）');
-              await fetch(`/api/sync/threads/posts?userId=${result.userId}`, { method: 'GET' });
-
-              setSyncStatus('完了！ダッシュボードへ移動します...');
-            } catch (syncError) {
-              console.warn('Sync API error (continuing anyway):', syncError);
-            }
-
-            // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
-            window.location.replace(`/${result.userId}?tab=threads`);
-          } else {
-            alert(`エラー: ${result.error}`);
-            setIsThreadsLoading(false);
-            setSyncStatus(null);
-          }
-        }).catch((error) => {
-          console.error('Threads dashboard creation failed:', error);
-          alert('ダッシュボード作成に失敗しました');
-          setIsThreadsLoading(false);
-          setSyncStatus(null);
-        });
-      } else {
-        alert('ログインに失敗しました');
-        setIsThreadsLoading(false);
-      }
-    }, {
-      scope: 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies'
-    });
+    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
   };
 
   return (
@@ -175,6 +133,13 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900">ANALYCA</h1>
           <p className="text-gray-600 mt-2">Instagram & Threadsデータを自動分析</p>
         </div>
+
+        {/* OAuthエラー表示 */}
+        {authError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            認証エラー: {authError}
+          </div>
+        )}
 
         {/* ログインボタン */}
         <div className="space-y-4">

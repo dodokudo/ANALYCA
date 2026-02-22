@@ -274,6 +274,13 @@ function UserDashboardContent({ userId }: { userId: string }) {
     }
   };
 
+  // userIdをlocalStorageに保存（OAuth後のリダイレクト時にも対応）
+  useEffect(() => {
+    if (userId && typeof window !== 'undefined') {
+      window.localStorage.setItem('analycaUserId', userId);
+    }
+  }, [userId]);
+
   // 初回データ取得
   useEffect(() => {
     fetchData();

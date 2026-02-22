@@ -1114,6 +1114,36 @@ export async function getActiveThreadsUsers(): Promise<User[]> {
   }));
 }
 
+// トークン更新が必要なThreadsユーザー一覧を取得（有効期限が7日以内）
+export async function getThreadsUsersNeedingTokenRefresh(): Promise<User[]> {
+  const query = `
+    SELECT *
+    FROM \`mark-454114.analyca.users\`
+    WHERE has_threads = TRUE
+    AND threads_access_token IS NOT NULL
+    AND threads_token_expires_at > CURRENT_TIMESTAMP()
+    AND threads_token_expires_at < TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  return rows.map((row: Record<string, unknown>) => ({
+    user_id: row.user_id as string,
+    instagram_user_id: row.instagram_user_id as string | null,
+    instagram_username: row.instagram_username as string | null,
+    instagram_profile_picture_url: row.instagram_profile_picture_url as string | null,
+    access_token: row.access_token as string | null,
+    token_expires_at: row.token_expires_at ? new Date(row.token_expires_at as string) : null,
+    drive_folder_id: row.drive_folder_id as string | null,
+    threads_user_id: row.threads_user_id as string | null,
+    threads_username: row.threads_username as string | null,
+    threads_access_token: row.threads_access_token as string | null,
+    threads_token_expires_at: row.threads_token_expires_at ? new Date(row.threads_token_expires_at as string) : null,
+    threads_profile_picture_url: row.threads_profile_picture_url as string | null,
+    has_instagram: row.has_instagram as boolean | null,
+    has_threads: row.has_threads as boolean | null,
+  }));
+}
+
 // Instagram Storiesをupsert（新規挿入 + 既存のインサイト更新）
 export async function upsertInstagramStories(stories: InstagramStory[]): Promise<{ newCount: number; updatedCount: number }> {
   if (stories.length === 0) return { newCount: 0, updatedCount: 0 };

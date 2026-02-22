@@ -97,9 +97,9 @@ export async function GET(request: NextRequest) {
       drive_folder_id: process.env.GOOGLE_DRIVE_FOLDER_ID || '1lH92NxycLKE4adG3hlURhIAr6qW1LBeb',
     });
 
-    // Step 6: Redirect to dashboard (sync APIs will run when dashboard loads)
+    // Step 6: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     return NextResponse.redirect(
-      new URL(`/${userId}?tab=instagram&auth=instagram_complete`, request.url)
+      new URL(`/${userId}?tab=instagram&auth=instagram_complete&syncing=true`, request.url)
     );
   } catch (err) {
     console.error('Instagram OAuth callback error:', err);

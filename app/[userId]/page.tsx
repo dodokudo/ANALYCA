@@ -288,6 +288,45 @@ function UserDashboardContent({ userId }: { userId: string }) {
     fetchData();
   }, [userId]);
 
+  // OAuth完了時にフルsyncを自動実行
+  useEffect(() => {
+    const authParam = searchParams?.get('auth');
+    if (!authParam || !authParam.includes('complete')) return;
+
+    const runFullSync = async () => {
+      try {
+        const syncPromises: Promise<Response>[] = [];
+
+        if (authParam === 'threads_complete') {
+          syncPromises.push(fetch(`/api/sync/threads/posts?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/threads/insights?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/threads/comments?userId=${userId}`, { method: 'GET' }));
+        }
+        if (authParam === 'instagram_complete') {
+          syncPromises.push(fetch(`/api/sync/instagram/reels?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/instagram/stories?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/instagram/insights?userId=${userId}`, { method: 'GET' }));
+        }
+        syncPromises.push(fetch(`/api/sync/profile-pictures?userId=${userId}`, { method: 'GET' }));
+
+        await Promise.all(syncPromises);
+        // sync完了後にデータ再取得
+        await fetchData(false);
+      } catch (err) {
+        console.error('Auto sync after login failed:', err);
+      } finally {
+        setShowSyncBanner(false);
+        // URLからauth/syncingパラメータを削除
+        const url = new URL(window.location.href);
+        url.searchParams.delete('auth');
+        url.searchParams.delete('syncing');
+        window.history.replaceState({}, '', url.toString());
+      }
+    };
+
+    runFullSync();
+  }, [userId, searchParams]);
+
   // 同期中の場合、30秒後に再取得し、60秒後にバナーを非表示
   useEffect(() => {
     if (!showSyncBanner) return;

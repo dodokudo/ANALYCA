@@ -344,8 +344,7 @@ export default function GemQueenThreadsContent({
   return (
     <div className="space-y-6">
       {/* 日付選択 */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-900">Threads 分析</h2>
+      <div className="flex items-center justify-end">
         <select
           value={datePreset}
           onChange={(e) => setDatePreset(e.target.value as DatePreset)}

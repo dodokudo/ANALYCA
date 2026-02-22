@@ -209,6 +209,9 @@ export async function GET(
         instagram_username: userRecord?.instagram_username || null,
         instagram_user_id: userRecord?.instagram_user_id || null,
         instagram_profile_picture_url: userRecord?.instagram_profile_picture_url || null,
+        subscription_status: userRecord?.subscription_status || null,
+        subscription_expires_at: userRecord?.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null,
+        plan_id: userRecord?.plan_id || null,
       },
       channels: {
         instagram: !!userRecord?.has_instagram,

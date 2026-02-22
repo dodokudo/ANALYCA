@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Script from 'next/script';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -10,11 +10,7 @@ import { PLANS } from '@/lib/univapay/plans';
 declare global {
   interface Window {
     UnivapayCheckout: {
-      create: (config: Record<string, unknown>) => {
-        open: () => void;
-        close: () => void;
-      };
-      submit: () => void;
+      submit: (iframe: Element) => Promise<{ id: string; [key: string]: unknown }>;
     };
   }
 }
@@ -26,12 +22,10 @@ function CheckoutContent() {
   const plan = PLANS[planId];
 
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [formReady, setFormReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [univaPayConfig, setUnivaPayConfig] = useState<{ appId: string } | null>(null);
-  const checkoutRef = useRef<{ open: () => void; close: () => void } | null>(null);
-  const observerRef = useRef<MutationObserver | null>(null);
+  const [appId, setAppId] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // UnivaPay設定を取得
   useEffect(() => {
@@ -39,7 +33,7 @@ function CheckoutContent() {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          setUnivaPayConfig(data.config);
+          setAppId(data.config.appId);
         }
       })
       .catch(err => {
@@ -47,107 +41,6 @@ function CheckoutContent() {
         setError('決済設定の読み込みに失敗しました');
       });
   }, []);
-
-  // iframeをbodyからコンテナ内に移動するObserver
-  useEffect(() => {
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of Array.from(mutation.addedNodes)) {
-          if (
-            node instanceof HTMLIFrameElement &&
-            node.style.position === 'fixed' &&
-            node.style.zIndex === '2147483647'
-          ) {
-            const container = document.getElementById('univapay-card-form');
-            if (container) {
-              node.style.position = 'relative';
-              node.style.inset = 'unset';
-              node.style.width = '100%';
-              node.style.height = '520px';
-              node.style.zIndex = '1';
-              node.style.maxHeight = 'none';
-              node.style.display = 'block';
-              node.style.overflow = 'hidden';
-              node.style.background = 'transparent';
-              container.appendChild(node);
-              setFormReady(true);
-              observer.disconnect();
-            }
-            break;
-          }
-        }
-      }
-    });
-
-    observer.observe(document.body, { childList: true });
-    observerRef.current = observer;
-
-    return () => observer.disconnect();
-  }, []);
-
-  // チェックアウト初期化（inlineモードでカードフォームを生成）
-  const initCheckout = useCallback(() => {
-    if (!scriptLoaded || !univaPayConfig || !plan || checkoutRef.current) return;
-
-    try {
-      const checkout = window.UnivapayCheckout.create({
-        appId: univaPayConfig.appId,
-        checkout: 'token',
-        amount: plan.price,
-        currency: 'JPY',
-        cvvAuthorize: true,
-        inline: true,
-        inlineTarget: '#univapay-card-form',
-        subscriptionPeriod: 'monthly',
-        metadata: {
-          planId: planId,
-          planName: plan.name,
-        },
-        onSuccess: async (result: { id: string; type: string }) => {
-          setProcessing(true);
-          try {
-            const response = await fetch('/api/payment/subscribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                transactionTokenId: result.id,
-                planId: planId,
-              }),
-            });
-            const data = await response.json();
-            if (data.success) {
-              router.push(data.onboardingPath);
-            } else {
-              setError(data.error || '課金処理に失敗しました');
-              setProcessing(false);
-            }
-          } catch (err) {
-            console.error('Subscription error:', err);
-            setError('課金処理に失敗しました');
-            setProcessing(false);
-          }
-        },
-        onError: (err: { message?: string }) => {
-          console.error('Payment error:', err);
-          setError(err.message || '決済に失敗しました');
-          setProcessing(false);
-        },
-        onCancel: () => {
-          setProcessing(false);
-        },
-      });
-
-      checkout.open();
-      checkoutRef.current = checkout;
-    } catch (err) {
-      console.error('Checkout init error:', err);
-      setError('決済システムの初期化に失敗しました');
-    }
-  }, [scriptLoaded, univaPayConfig, plan, planId, router]);
-
-  useEffect(() => {
-    initCheckout();
-  }, [initCheckout]);
 
   // プランが見つからない場合
   if (!plan) {
@@ -167,24 +60,51 @@ function CheckoutContent() {
     );
   }
 
-  const handlePayment = () => {
-    if (!formReady) return;
-    setProcessing(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
+
+    const iframe = document.querySelector('#univapay-checkout iframe');
+    if (!iframe || !window.UnivapayCheckout) {
+      setError('決済フォームの準備ができていません。ページを再読み込みしてください。');
+      return;
+    }
+
+    setProcessing(true);
+
     try {
-      window.UnivapayCheckout.submit();
+      const data = await window.UnivapayCheckout.submit(iframe);
+      // トークン取得成功 → サブスク作成
+      const response = await fetch('/api/payment/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionTokenId: data.id,
+          planId: planId,
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        router.push(result.onboardingPath);
+      } else {
+        setError(result.error || '課金処理に失敗しました');
+        setProcessing(false);
+      }
     } catch (err) {
-      console.error('Submit error:', err);
-      setError('決済の送信に失敗しました');
+      console.error('Payment error:', err);
+      setError('決済に失敗しました。入力内容を確認してもう一度お試しください。');
       setProcessing(false);
     }
   };
+
+  const formReady = scriptLoaded && !!appId;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30">
       {/* UnivaPay Script */}
       <Script
         src="https://widget.univapay.com/client/checkout.js"
+        strategy="afterInteractive"
         onLoad={() => setScriptLoaded(true)}
       />
 
@@ -216,70 +136,82 @@ function CheckoutContent() {
         </div>
 
         {/* カード入力フォーム */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-800">カード情報</h2>
-            <div className="flex items-center gap-1.5">
-              {/* Visa */}
-              <svg className="h-7 w-auto" viewBox="0 0 48 32" fill="none">
-                <rect width="48" height="32" rx="4" fill="#1A1F71"/>
-                <path d="M19.5 21h-2.7l1.7-10.5h2.7L19.5 21zm11.1-10.2c-.5-.2-1.4-.4-2.4-.4-2.7 0-4.5 1.4-4.5 3.4 0 1.5 1.4 2.3 2.4 2.8 1 .5 1.4.8 1.4 1.3 0 .7-.8 1-1.6 1-.9 0-1.8-.2-2.5-.5l-.4-.2-.4 2.3c.7.3 1.9.5 3.2.5 2.8 0 4.7-1.4 4.7-3.5 0-1.2-.7-2.1-2.3-2.8-.9-.5-1.5-.8-1.5-1.3 0-.4.5-.9 1.5-.9.9 0 1.5.2 2 .4l.2.1.4-2.2zM35 10.5h-2.1c-.6 0-1.1.2-1.4.8L27.8 21h2.8l.6-1.5h3.4l.3 1.5H37L35 10.5zm-3 7.5l1.1-2.9.3-.9.2.9.6 2.9h-2.2zM16.3 10.5L13.6 18l-.3-1.4c-.5-1.6-2-3.4-3.8-4.2l2.4 8.6h2.9l4.3-10.5h-2.8z" fill="white"/>
-                <path d="M11.7 10.5H7.5l-.1.2c3.4.8 5.6 2.9 6.5 5.3l-.9-4.7c-.2-.6-.7-.8-1.3-.8z" fill="#F9A533"/>
-              </svg>
-              {/* Mastercard */}
-              <svg className="h-7 w-auto" viewBox="0 0 48 32" fill="none">
-                <rect width="48" height="32" rx="4" fill="#252525"/>
-                <circle cx="19" cy="16" r="8" fill="#EB001B"/>
-                <circle cx="29" cy="16" r="8" fill="#F79E1B"/>
-                <path d="M24 9.8A8 8 0 0 1 27 16a8 8 0 0 1-3 6.2A8 8 0 0 1 21 16a8 8 0 0 1 3-6.2z" fill="#FF5F00"/>
-              </svg>
-              {/* JCB */}
-              <div className="h-7 px-1.5 bg-gradient-to-b from-blue-600 to-blue-800 rounded text-white text-[9px] font-bold flex items-center">JCB</div>
-              {/* AMEX */}
-              <div className="h-7 px-1.5 bg-blue-500 rounded text-white text-[8px] font-bold flex items-center">AMEX</div>
+        <form ref={formRef} onSubmit={handleSubmit}>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">カード情報</h2>
+              <div className="flex items-center gap-1.5">
+                <svg className="h-7 w-auto" viewBox="0 0 48 32" fill="none">
+                  <rect width="48" height="32" rx="4" fill="#1A1F71"/>
+                  <path d="M19.5 21h-2.7l1.7-10.5h2.7L19.5 21zm11.1-10.2c-.5-.2-1.4-.4-2.4-.4-2.7 0-4.5 1.4-4.5 3.4 0 1.5 1.4 2.3 2.4 2.8 1 .5 1.4.8 1.4 1.3 0 .7-.8 1-1.6 1-.9 0-1.8-.2-2.5-.5l-.4-.2-.4 2.3c.7.3 1.9.5 3.2.5 2.8 0 4.7-1.4 4.7-3.5 0-1.2-.7-2.1-2.3-2.8-.9-.5-1.5-.8-1.5-1.3 0-.4.5-.9 1.5-.9.9 0 1.5.2 2 .4l.2.1.4-2.2zM35 10.5h-2.1c-.6 0-1.1.2-1.4.8L27.8 21h2.8l.6-1.5h3.4l.3 1.5H37L35 10.5zm-3 7.5l1.1-2.9.3-.9.2.9.6 2.9h-2.2zM16.3 10.5L13.6 18l-.3-1.4c-.5-1.6-2-3.4-3.8-4.2l2.4 8.6h2.9l4.3-10.5h-2.8z" fill="white"/>
+                  <path d="M11.7 10.5H7.5l-.1.2c3.4.8 5.6 2.9 6.5 5.3l-.9-4.7c-.2-.6-.7-.8-1.3-.8z" fill="#F9A533"/>
+                </svg>
+                <svg className="h-7 w-auto" viewBox="0 0 48 32" fill="none">
+                  <rect width="48" height="32" rx="4" fill="#252525"/>
+                  <circle cx="19" cy="16" r="8" fill="#EB001B"/>
+                  <circle cx="29" cy="16" r="8" fill="#F79E1B"/>
+                  <path d="M24 9.8A8 8 0 0 1 27 16a8 8 0 0 1-3 6.2A8 8 0 0 1 21 16a8 8 0 0 1 3-6.2z" fill="#FF5F00"/>
+                </svg>
+                <div className="h-7 px-1.5 bg-gradient-to-b from-blue-600 to-blue-800 rounded text-white text-[9px] font-bold flex items-center">JCB</div>
+                <div className="h-7 px-1.5 bg-blue-500 rounded text-white text-[8px] font-bold flex items-center">AMEX</div>
+              </div>
             </div>
-          </div>
 
-          {/* UnivaPayカードフォーム埋め込み領域 */}
-          <div id="univapay-card-form" className="min-h-[400px] relative">
-            {!formReady && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-200 border-t-purple-500"></div>
-                <p className="text-sm">カード入力フォームを読み込み中...</p>
+            {/* UnivaPayインラインフォーム（data属性方式） */}
+            <div id="univapay-checkout" className="min-h-[350px] relative">
+              {appId ? (
+                <span
+                  data-app-id={appId}
+                  data-checkout="token"
+                  data-amount={plan.price}
+                  data-currency="jpy"
+                  data-inline="true"
+                  data-cvv-authorize="true"
+                  data-inline-item-style="padding: 10px 0; border-bottom: none;"
+                  data-inline-item-label-style="color: #4b5563; font-size: 13px; font-weight: 600; margin-bottom: 6px;"
+                  data-inline-text-field-style="border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; font-size: 15px; background: #fafafa; width: 100%; box-sizing: border-box;"
+                  data-inline-field-focus-style="border-color: #8b5cf6; background: #fff; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);"
+                  data-inline-field-invalid-style="border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);"
+                />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-200 border-t-purple-500"></div>
+                  <p className="text-sm">読み込み中...</p>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl">
+                <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
-          </div>
 
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-xl">
-              <p className="text-red-600 text-sm">{error}</p>
+            <button
+              type="submit"
+              disabled={!formReady || processing}
+              className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
+            >
+              {processing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+                  処理中...
+                </span>
+              ) : (
+                `¥${plan.price.toLocaleString()} を支払う`
+              )}
+            </button>
+
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <svg className="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              </svg>
+              <p className="text-xs text-gray-400">
+                SSL暗号化通信で安全に処理されます
+              </p>
             </div>
-          )}
-
-          <button
-            onClick={handlePayment}
-            disabled={!formReady || processing}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
-          >
-            {processing ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
-                処理中...
-              </span>
-            ) : (
-              `¥${plan.price.toLocaleString()} を支払う`
-            )}
-          </button>
-
-          <div className="flex items-center justify-center gap-2 mt-4">
-            <svg className="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-            </svg>
-            <p className="text-xs text-gray-400">
-              SSL暗号化通信で安全に処理されます
-            </p>
           </div>
-        </div>
+        </form>
 
         {/* 戻るリンク */}
         <div className="text-center mt-6">

@@ -4,6 +4,7 @@ import { StatPill } from '@/components/StatPill';
 import ProfileHeader from '@/components/ProfileHeader';
 import LoadingScreen from '@/components/LoadingScreen';
 import { useDateRange, DatePreset } from '@/lib/dateRangeStore';
+import GemQueenThreadsContent from './threads-content';
 
 import { useState, useEffect } from 'react';
 import {
@@ -314,6 +315,9 @@ export default function Dashboard() {
   const userId = 'demo-user'; // Demo用のユーザーID
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeChannel, setActiveChannel] = useState<'instagram' | 'threads'>('instagram');
+  const [threadsData, setThreadsData] = useState<any>(null);
+  const [threadsLoading, setThreadsLoading] = useState(false);
   const [customStartDate, setCustomStartDate] = useState(() => formatDateForInput(dateRange.start));
   const [customEndDate, setCustomEndDate] = useState(() => formatDateForInput(dateRange.end));
   const [showCustomDateModal, setShowCustomDateModal] = useState(false);
@@ -321,11 +325,10 @@ export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [reelSortBy, setReelSortBy] = useState('date'); // date, views, likes, saves, follows, comments
-  const [reelSortOrder, setReelSortOrder] = useState('desc'); // desc, asc
-  const [storySortBy, setStorySortBy] = useState('date'); // date, views, viewRate, reactions
-  const [storySortOrder, setStorySortOrder] = useState('desc'); // desc, asc
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [reelSortBy, setReelSortBy] = useState('date');
+  const [reelSortOrder, setReelSortOrder] = useState('desc');
+  const [storySortBy, setStorySortBy] = useState('date');
+  const [storySortOrder, setStorySortOrder] = useState('desc');
 
   const parseDate = (dateStr: string) => {
     if (!dateStr || typeof dateStr !== 'string') {
@@ -678,24 +681,30 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    console.log('=== useEffect実行 ===');
     setMounted(true);
-    console.log('=== fetchData呼び出し直前 ===');
     fetchData();
-    console.log('=== fetchData呼び出し直後 ===');
-
-    // ダークモード初期化
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-
-    setIsDarkMode(shouldBeDark);
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
   }, []);
+
+  // Threadsチャネル切替時にデータを遅延取得
+  useEffect(() => {
+    if (activeChannel !== 'threads') return;
+    if (threadsData) return; // キャッシュ済み
+    const fetchThreadsData = async () => {
+      setThreadsLoading(true);
+      try {
+        const response = await fetch('/api/dashboard/33833959932919231');
+        const result = await response.json();
+        if (result.success) {
+          setThreadsData(result.data || null);
+        }
+      } catch (err) {
+        console.error('Threads data fetch error:', err);
+      } finally {
+        setThreadsLoading(false);
+      }
+    };
+    fetchThreadsData();
+  }, [activeChannel, threadsData]);
 
   useEffect(() => {
     setCustomStartDate(formatDateForInput(dateRange.start));
@@ -871,9 +880,9 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center bg-white dark:bg-slate-800 p-8 rounded-2xl border border-gray-200/70 dark:border-white/10 max-w-2xl shadow-sm">
-          <div className="text-red-600 dark:text-red-400 text-xl mb-4 font-medium">{error}</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-2xl border border-gray-200/70 max-w-2xl shadow-sm">
+          <div className="text-red-600 text-xl mb-4 font-medium">{error}</div>
           <button
             onClick={fetchData}
             className="bg-gradient-to-r from-purple-600 to-blue-500 hover:opacity-90 text-white px-6 py-3 rounded-md font-medium transition-all duration-200 shadow-sm"
@@ -886,12 +895,42 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gray-50 relative overflow-hidden">
       {/* SaaS風アクセント - デスクトップのみ */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 to-blue-500 hidden lg:block"></div>
 
       {/* プロフィールヘッダー */}
       <ProfileHeader userId={userId} />
+
+      {/* デスクトップ左サイドバー: チャネル切替 */}
+      <div className="hidden lg:flex fixed left-0 top-0 h-full w-14 flex-col items-center pt-20 gap-3 bg-white border-r border-gray-200 z-40">
+        <button
+          onClick={() => setActiveChannel('instagram')}
+          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+            activeChannel === 'instagram'
+              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+          }`}
+          title="Instagram"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+          </svg>
+        </button>
+        <button
+          onClick={() => setActiveChannel('threads')}
+          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+            activeChannel === 'threads'
+              ? 'bg-black text-white shadow-md'
+              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+          }`}
+          title="Threads"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/>
+          </svg>
+        </button>
+      </div>
 
       {/* Mobile Fixed Header - YouTube Studio風 */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white shadow-sm h-[60px]">
@@ -904,11 +943,35 @@ export default function Dashboard() {
               </svg>
             </div>
             <h1 className="text-lg font-bold text-gray-900">
-              GEM QUEEN💎
+              GEM QUEEN
             </h1>
           </div>
 
-          {/* 右: 期間セレクト */}
+          {/* 中央: チャネル切替 */}
+          <div className="flex bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => setActiveChannel('instagram')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                activeChannel === 'instagram'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              Instagram
+            </button>
+            <button
+              onClick={() => setActiveChannel('threads')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                activeChannel === 'threads'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              Threads
+            </button>
+          </div>
+
+          {/* 右: 期間セレクト (Instagramのみ) */}
           <div className="flex items-center">
             <select
               value={dateRange.preset === 'yesterday' ? 'yesterday' :
@@ -941,9 +1004,9 @@ export default function Dashboard() {
       </div>
 
       {/* Desktop Container */}
-      <div className="max-w-7xl mx-auto lg:px-6 lg:py-8 relative z-10 lg:pt-8 pt-16 pb-20 lg:pb-8">
+      <div className="max-w-7xl mx-auto lg:px-6 lg:py-8 relative z-10 lg:pt-8 pt-16 pb-20 lg:pb-8 lg:ml-14">
         {/* TopBar: 左サービス名、中央タブ、右期間セレクト - デスクトップのみ */}
-        <div className="hidden lg:flex items-center justify-between mb-8 bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5">
+        <div className="hidden lg:flex items-center justify-between mb-8 bg-white border border-gray-200/70 rounded-2xl shadow-sm p-5">
           {/* 左: サービス名 */}
           <div className="flex items-center flex-shrink-0">
             <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-emerald-400 rounded-lg flex items-center justify-center mr-3">
@@ -951,58 +1014,63 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-200">
-              GEM QUEEN💎
+            <h1 className="text-xl font-bold text-gray-900">
+              GEM QUEEN
             </h1>
           </div>
 
-          {/* 中央: タブ (デスクトップのみ) */}
-          <div className="hidden lg:flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          {/* 中央: タブ (Instagramチャネル時のみ) */}
+          {activeChannel === 'instagram' && (
+          <div className="hidden lg:flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'dashboard'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
-              📊 ホーム
+              ホーム
             </button>
             <button
               onClick={() => setActiveTab('reels')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'reels'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
-              🎬 リール
+              リール
             </button>
             <button
               onClick={() => setActiveTab('stories')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'stories'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
-              📱 ストーリー
+              ストーリー
             </button>
             <button
               onClick={() => setActiveTab('daily')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
                 activeTab === 'daily'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
-              📈 デイリー
+              デイリー
             </button>
           </div>
+          )}
+          {activeChannel === 'threads' && (
+            <div className="text-sm font-medium text-gray-500">Threads 分析</div>
+          )}
 
-          {/* 右: 期間セレクト + ダークモード切替 */}
+          {/* 右: 期間セレクト */}
           <div className="flex items-center space-x-3 flex-shrink-0">
-            {/* 統一されたプルダウンフィルター */}
+            {activeChannel === 'instagram' && (
             <select
               value={dateRange.preset === 'yesterday' ? 'yesterday' :
                      dateRange.preset === 'this-week' ? 'this-week' :
@@ -1020,7 +1088,7 @@ export default function Dashboard() {
                   updatePreset(value);
                 }
               }}
-              className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200 min-w-[120px]"
+              className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200 min-w-[120px]"
             >
               <option value="yesterday">昨日</option>
               <option value="this-week">今週</option>
@@ -1029,41 +1097,22 @@ export default function Dashboard() {
               <option value="last-month">先月</option>
               <option value="custom">カスタム期間</option>
             </select>
-
-            {/* ダークモード切替トグル */}
-            <button
-              onClick={() => {
-                const newIsDark = !isDarkMode;
-                setIsDarkMode(newIsDark);
-                if (newIsDark) {
-                  document.documentElement.classList.add('dark');
-                  localStorage.setItem('theme', 'dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                  localStorage.setItem('theme', 'light');
-                }
-              }}
-              className="relative inline-flex h-8 w-14 items-center rounded-full bg-orange-100 dark:bg-indigo-900 transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 hover:scale-105"
-              title={isDarkMode ? "ライトモードに切替" : "ダークモードに切替"}
-            >
-              {/* 背景アイコン */}
-              <span className="absolute left-1 text-orange-500 text-sm">🌞</span>
-              <span className="absolute right-1 text-indigo-400 text-sm">🌙</span>
-
-              {/* スライダー */}
-              <span
-                className={`inline-flex h-6 w-6 items-center justify-center transform rounded-full bg-white dark:bg-gray-200 shadow-lg transition-all duration-300 ease-in-out ${
-                  isDarkMode ? 'translate-x-7' : 'translate-x-1'
-                }`}
-              >
-                <span className="text-sm">
-                  {isDarkMode ? '🌙' : '🌞'}
-                </span>
-              </span>
-              <span className="sr-only">ダークモード切替</span>
-            </button>
+            )}
           </div>
         </div>
+
+        {/* Threads チャネル */}
+        {activeChannel === 'threads' && (
+          <GemQueenThreadsContent
+            data={threadsData}
+            loading={threadsLoading}
+            username="yoko_gemqueen"
+            profilePicture={threadsData?.user?.threads_profile_picture_url}
+          />
+        )}
+
+        {/* Instagram チャネル */}
+        {activeChannel === 'instagram' && <>
 
         {/* Main Dashboard */}
         {activeTab === 'dashboard' && (
@@ -1187,7 +1236,7 @@ export default function Dashboard() {
               <div className="grid lg:grid-cols-12 gap-4 mb-6">
                 {/* 左: アカウント情報 (3列) */}
                 <div className="lg:col-span-3">
-                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5 h-[200px] flex flex-col justify-center">
+                  <div className="bg-white border border-gray-200/70 rounded-2xl shadow-sm p-5 h-[200px] flex flex-col justify-center">
                     <div className="flex items-center mb-4">
                       {/* プロフィール画像 */}
                       <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center mr-4 flex-shrink-0">
@@ -1206,12 +1255,12 @@ export default function Dashboard() {
                       </div>
                       {/* アカウント情報 */}
                       <div className="flex-1">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200 mb-1">YOKO</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">現在のフォロワー数</p>
+                        <h2 className="text-xl font-bold text-gray-900 mb-1">YOKO</h2>
+                        <p className="text-sm text-gray-500">現在のフォロワー数</p>
                       </div>
                     </div>
                     <div className="flex items-center">
-                      <span className="text-3xl font-bold text-gray-900 dark:text-gray-200 mr-3">{summary.currentFollowers.toLocaleString()}</span>
+                      <span className="text-3xl font-bold text-gray-900 mr-3">{summary.currentFollowers.toLocaleString()}</span>
                       <span className="text-sm font-medium text-purple-500">
                         +{summary.followerGrowth.toLocaleString()} ({((summary.followerGrowth / summary.currentFollowers) * 100).toFixed(1)}%)
                       </span>
@@ -1221,10 +1270,10 @@ export default function Dashboard() {
 
                 {/* 右: ファネル分析パネル (9列) */}
                 <div className="lg:col-span-9">
-                  <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-5 h-[200px] flex flex-col">
+                  <div className="bg-white border border-gray-200/70 rounded-2xl shadow-sm p-5 h-[200px] flex flex-col">
                     <div className="flex items-center mb-6">
                       <span className="text-2xl mr-2">📊</span>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-200">ファネル分析</h2>
+                      <h2 className="text-xl font-bold text-gray-900">ファネル分析</h2>
                     </div>
 
                     {/* 横並びファネルフロー */}
@@ -1233,9 +1282,9 @@ export default function Dashboard() {
                       <div className="flex flex-col items-center">
                         <div className="flex items-center mb-2">
                           <span className="text-xl mr-1">👁️</span>
-                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm">リーチ</span>
+                          <span className="text-gray-900 font-medium text-sm">リーチ</span>
                         </div>
-                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.latestReach.toLocaleString()}</span>
+                        <span className="text-xl font-bold text-gray-900">{summary.latestReach.toLocaleString()}</span>
                       </div>
 
                       {/* 矢印1 + CVR1 */}
@@ -1248,9 +1297,9 @@ export default function Dashboard() {
                       <div className="flex flex-col items-center">
                         <div className="flex items-center mb-2">
                           <span className="text-xl mr-1">👤</span>
-                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm whitespace-nowrap">プロフ表示</span>
+                          <span className="text-gray-900 font-medium text-sm whitespace-nowrap">プロフ表示</span>
                         </div>
-                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.latestProfileViews.toLocaleString()}</span>
+                        <span className="text-xl font-bold text-gray-900">{summary.latestProfileViews.toLocaleString()}</span>
                       </div>
 
                       {/* 矢印2 + CVR2 */}
@@ -1263,9 +1312,9 @@ export default function Dashboard() {
                       <div className="flex flex-col items-center">
                         <div className="flex items-center mb-2">
                           <span className="text-xl mr-1">🔗</span>
-                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm whitespace-nowrap">リンククリック</span>
+                          <span className="text-gray-900 font-medium text-sm whitespace-nowrap">リンククリック</span>
                         </div>
-                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.latestWebsiteClicks.toLocaleString()}</span>
+                        <span className="text-xl font-bold text-gray-900">{summary.latestWebsiteClicks.toLocaleString()}</span>
                       </div>
 
                       {/* 矢印3 + CVR3 */}
@@ -1278,9 +1327,9 @@ export default function Dashboard() {
                       <div className="flex flex-col items-center">
                         <div className="flex items-center mb-2">
                           <span className="text-xl mr-1">➕</span>
-                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm whitespace-nowrap">フォロワー増加</span>
+                          <span className="text-gray-900 font-medium text-sm whitespace-nowrap">フォロワー増加</span>
                         </div>
-                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.followerGrowth.toLocaleString()}</span>
+                        <span className="text-xl font-bold text-gray-900">{summary.followerGrowth.toLocaleString()}</span>
                       </div>
 
                       {/* 矢印4 + CVR4 */}
@@ -1293,9 +1342,9 @@ export default function Dashboard() {
                       <div className="flex flex-col items-center">
                         <div className="flex items-center mb-2">
                           <span className="text-xl mr-1">📱</span>
-                          <span className="text-gray-900 dark:text-gray-200 font-medium text-sm">LINE登録</span>
+                          <span className="text-gray-900 font-medium text-sm">LINE登録</span>
                         </div>
-                        <span className="text-xl font-bold text-gray-900 dark:text-gray-200">{summary.lineRegistrations.toLocaleString()}</span>
+                        <span className="text-xl font-bold text-gray-900">{summary.lineRegistrations.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -1340,18 +1389,18 @@ export default function Dashboard() {
                   });
 
                   return rechartsData.length > 0 && (
-                    <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-3 lg:p-5 md:p-4 sm:p-3">
+                    <div className="bg-white border border-gray-100 lg:border-gray-200/70 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-3 lg:p-5 md:p-4 sm:p-3">
                       <div className="mb-3 lg:px-3 sm:px-2 px-1 flex items-center justify-between">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200">パフォーマンス推移</h3>
+                        <h3 className="text-xl font-bold text-gray-900">パフォーマンス推移</h3>
                         <button
                           onClick={() => setShowDailyTable(!showDailyTable)}
-                          className="rounded-lg border border-gray-200 dark:border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 transition-colors hover:bg-gray-50 dark:hover:bg-slate-700"
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50"
                         >
                           {showDailyTable ? '表を閉じる' : '日別データを表示'}
                         </button>
                       </div>
                       {showDailyTable && (
-                        <div className="mb-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                        <div className="mb-4 overflow-x-auto rounded-lg border border-gray-200">
                           <table className="w-full table-fixed text-sm">
                             <colgroup>
                               <col className="w-[140px]" />
@@ -1365,8 +1414,8 @@ export default function Dashboard() {
                               <col className="w-[110px]" />
                               <col className="w-[80px]" />
                             </colgroup>
-                            <thead className="sticky top-0 bg-gray-50 dark:bg-slate-700">
-                              <tr className="border-b border-gray-200 dark:border-gray-600 text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            <thead className="sticky top-0 bg-gray-50">
+                              <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
                                 <th className="px-3 py-2">日付</th>
                                 <th className="px-3 py-2 text-right">フォロワー数</th>
                                 <th className="px-3 py-2 text-right">増加</th>
@@ -1379,7 +1428,7 @@ export default function Dashboard() {
                                 <th className="px-3 py-2 text-right">閲覧率</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+                            <tbody className="divide-y divide-gray-200">
                               {[...chartData].reverse().map((row) => {
                                 const dateStr = String(row[0] || '').trim();
                                 const date = parseDate(dateStr);
@@ -1398,39 +1447,39 @@ export default function Dashboard() {
                                 const storyRate = String(row[21] || '-');
 
                                 return (
-                                  <tr key={dateStr} className="hover:bg-gray-50 dark:hover:bg-slate-700/50">
-                                    <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-200">
+                                  <tr key={dateStr} className="hover:bg-gray-50">
+                                    <td className="px-3 py-2 font-medium text-gray-900">
                                       {displayDate}
                                     </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900">
                                       {parseInt(followers).toLocaleString()}
                                     </td>
                                     <td className="px-3 py-2 text-right tabular-nums">
-                                      <span className={delta > 0 ? 'text-green-600' : 'text-gray-500 dark:text-gray-400'}>
+                                      <span className={delta > 0 ? 'text-green-600' : 'text-gray-500'}>
                                         {delta > 0 ? `+${delta.toLocaleString()}` : '0'}
                                       </span>
                                     </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">
                                       {parseInt(posts).toLocaleString()}
                                     </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900">
                                       {parseInt(reach).toLocaleString()}
                                     </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900">
                                       {parseInt(clicks).toLocaleString()}
                                     </td>
                                     <td className="px-3 py-2 text-right tabular-nums">
-                                      <span className={lineRegs > 0 ? 'text-amber-600' : 'text-gray-500 dark:text-gray-400'}>
+                                      <span className={lineRegs > 0 ? 'text-amber-600' : 'text-gray-500'}>
                                         {lineRegs > 0 ? `+${lineRegs.toLocaleString()}` : '0'}
                                       </span>
                                     </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">
                                       {parseInt(storyPosts).toLocaleString()}
                                     </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900 dark:text-gray-200">
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-900">
                                       {parseInt(storyViews).toLocaleString()}
                                     </td>
-                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                                    <td className="px-3 py-2 text-right tabular-nums text-gray-500">
                                       {storyRate}
                                     </td>
                                   </tr>
@@ -1475,7 +1524,7 @@ export default function Dashboard() {
                                 fontSize: 14,
                                 fill: 'var(--chart-axis)'
                               }}
-                              className="dark:fill-purple-400"
+                              className=""
                               tickFormatter={(value) => value.toLocaleString()}
                               domain={isMobile ? ['dataMin - 100', 'dataMax + 100'] : ['dataMin', 'dataMax']}
                               width={isMobile ? 38 : 60}
@@ -1493,7 +1542,7 @@ export default function Dashboard() {
                                 fontSize: 14,
                                 fill: 'var(--chart-axis)'
                               }}
-                              className="dark:fill-blue-400"
+                              className=""
                               tickFormatter={(value) => value.toLocaleString()}
                               width={isMobile ? 32 : 60}
                               domain={[0, 'dataMax + 5']}
@@ -1583,7 +1632,7 @@ export default function Dashboard() {
 
           {/* Top 3/5 Reels */}
           <div className="lg:px-0 sm:px-3 px-1">
-            <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
+            <div className="bg-white border border-gray-100 lg:border-gray-200/70 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
               <div className="lg:hidden flex justify-between items-center mb-4 px-2">
                 <h3 className="text-lg font-bold text-gray-900 tracking-tight">
@@ -1601,7 +1650,7 @@ export default function Dashboard() {
               </div>
               {/* PC版ヘッダー */}
               <div className="hidden lg:flex justify-between items-center mb-4 px-3">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight">
                   💎 Top{window.innerWidth < 1024 ? '3' : '5'} リール
                 </h3>
                 <button
@@ -1636,7 +1685,7 @@ export default function Dashboard() {
                     const postedDate = sheetData[0] || `リール ${index + 1}`;
 
                     return (
-                      <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
+                      <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white border border-gray-100 lg:border-gray-200/70 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
                           <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-white border border-gray-200 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
                             {rawData[15] ? (
                               <img
@@ -1673,19 +1722,19 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <p className="text-gray-900 dark:text-gray-200 text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{postedDate}</p>
+                          <p className="text-gray-900 text-xs mb-3 font-medium line-clamp-2 lg:block hidden">{postedDate}</p>
 
                           {/* 再生数（大きく表示） - PC版のみ */}
                           <div className="mb-3 text-center hidden lg:block">
-                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
-                            <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(sheetData[10] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            <p className="text-gray-500 text-xs mb-1">再生数</p>
+                            <p className="text-xl lg:text-2xl font-bold text-gray-900">{parseInt(String(sheetData[10] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
                           {/* 4アイコン横一列表示 - PC版のみ */}
                           <div className="grid grid-cols-4 gap-4 hidden lg:grid">
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-red-500">❤️</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900">
                                 {(() => {
                                   const val = parseInt(String(sheetData[13] || '').replace(/,/g, '')) || 0;
                                   return val > 0 ? val.toLocaleString() : '';
@@ -1694,7 +1743,7 @@ export default function Dashboard() {
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-blue-500">💬</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900">
                                 {(() => {
                                   const val = parseInt(String(sheetData[14] || '').replace(/,/g, '')) || 0;
                                   return val > 0 ? val.toLocaleString() : '';
@@ -1703,7 +1752,7 @@ export default function Dashboard() {
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-amber-500">💾</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900">
                                 {(() => {
                                   const val = parseInt(String(sheetData[16] || '').replace(/,/g, '')) || 0;
                                   return val > 0 ? val.toLocaleString() : '';
@@ -1712,7 +1761,7 @@ export default function Dashboard() {
                             </div>
                             <div className="flex flex-col items-center min-w-0">
                               <div className="h-5 w-5 text-purple-500">👤</div>
-                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900 dark:text-gray-200">
+                              <span className="mt-1 text-sm font-semibold leading-none text-gray-900">
                                 {(() => {
                                   const val = parseInt(String(sheetData[18] || '').replace(/,/g, '')) || 0;
                                   return val > 0 ? val.toLocaleString() : '';
@@ -1724,7 +1773,7 @@ export default function Dashboard() {
                       );
                     });
                   } else {
-                    return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
+                    return <p className="text-gray-500 text-center col-span-full">データがありません</p>;
                   }
                 })()}
               </div>
@@ -1733,7 +1782,7 @@ export default function Dashboard() {
 
             {/* Top 5 Stories */}
           <div className="lg:px-0 sm:px-3 px-1">
-            <div className="bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
+            <div className="bg-white border border-gray-100 lg:border-gray-200/70 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm p-4 lg:p-6">
               {/* モバイル版ヘッダー */}
               <div className="lg:hidden flex justify-between items-center mb-4 px-2">
                 <h3 className="text-lg font-bold text-gray-900 tracking-tight">
@@ -1751,7 +1800,7 @@ export default function Dashboard() {
               </div>
               {/* PC版ヘッダー */}
               <div className="hidden lg:flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight">
                   📖 Top{window.innerWidth < 1024 ? '3' : '5'} ストーリー
                 </h3>
                 <button
@@ -1776,7 +1825,7 @@ export default function Dashboard() {
                     }).slice(0, topCount);
 
                     return sortedStories.map((story, index) => (
-                      <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white lg:dark:bg-slate-800 border border-gray-100 lg:border-gray-200/70 lg:dark:border-white/10 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
+                      <div key={index} className="w-full lg:w-full lg:min-w-0 bg-white border border-gray-100 lg:border-gray-200/70 rounded-lg lg:rounded-2xl shadow-md lg:shadow-sm lg:p-4 lg:hover:shadow-xl lg:hover:scale-105 lg:transition-all lg:duration-300 cursor-pointer lg:active:scale-95 flex-shrink-0 overflow-hidden">
                         <div className="w-full aspect-[9/16] lg:aspect-[9/16] bg-gray-600 rounded-lg lg:rounded-none overflow-hidden mb-2 lg:mb-3 relative">
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
@@ -1823,12 +1872,12 @@ export default function Dashboard() {
                         {/* PC版: 従来表示 */}
                         <div className="hidden lg:block">
                           {/* 投稿日 */}
-                          <p className="text-gray-900 dark:text-gray-200 text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
+                          <p className="text-gray-900 text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
 
                           {/* Views（大きく表示） */}
                           <div className="mb-3 text-center">
-                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">閲覧数</p>
-                            <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
+                            <p className="text-gray-500 text-xs mb-1">閲覧数</p>
+                            <p className="text-xl lg:text-2xl font-bold text-gray-900">{parseInt(String(story[3] || '').replace(/,/g, '')).toLocaleString()}</p>
                           </div>
 
                           {/* KPIピル */}
@@ -1840,7 +1889,7 @@ export default function Dashboard() {
                       </div>
                     ));
                   } else {
-                    return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
+                    return <p className="text-gray-500 text-center col-span-full">データがありません</p>;
                   }
                 })()}
               </div>
@@ -1853,9 +1902,9 @@ export default function Dashboard() {
         {activeTab === 'reels' && (
           <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
             {/* リール詳細上部グラフエリア */}
-            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white border border-gray-200/70 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">リール パフォーマンス分析</h3>
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight">リール パフォーマンス分析</h3>
               </div>
 
               {(() => {
@@ -1986,7 +2035,7 @@ export default function Dashboard() {
                           axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                           tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                           tick={{ fontSize: isMobile ? 10 : 14, fill: '#E11D48' }}
-                          className="dark:fill-rose-400"
+                          className=""
                           tickFormatter={(value) => value.toLocaleString()}
                           width={isMobile ? 38 : 60}
                         />
@@ -1996,7 +2045,7 @@ export default function Dashboard() {
                           axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                           tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                           tick={{ fontSize: isMobile ? 10 : 14, fill: '#10B981' }}
-                          className="dark:fill-emerald-400"
+                          className=""
                           tickFormatter={(value) => value.toString()}
                           width={isMobile ? 32 : 56}
                         />
@@ -2063,17 +2112,17 @@ export default function Dashboard() {
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                  <div className="h-64 flex items-center justify-center text-gray-500">
                     期間内にリールデータがありません
                   </div>
                 );
               })()}
             </div>
 
-            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white border border-gray-200/70 rounded-2xl shadow-sm p-6">
               {/* Header with count */}
               <div className={`${window.innerWidth < 768 ? 'mb-3' : 'flex justify-between items-center mb-4'}`}>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">リール詳細 ({(() => {
+                <h3 className="text-xl font-semibold text-gray-900">リール詳細 ({(() => {
                   const joinedReelData = joinReelData(data.reelRawDataRaw, data.reelSheetRaw);
                   const filteredJoinedData = filterJoinedReelData(joinedReelData, dateRange);
                   return filteredJoinedData.length;
@@ -2082,11 +2131,11 @@ export default function Dashboard() {
                 {/* Sort Controls - PC版のみ横並び */}
                 {window.innerWidth >= 768 && (
                   <div className="flex items-center space-x-3">
-                    <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
+                    <span className="text-gray-900 text-sm">並び替え:</span>
                     <select
                       value={reelSortBy}
                       onChange={(e) => setReelSortBy(e.target.value)}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                     >
                       <option value="date">投稿日</option>
                       <option value="views">再生数</option>
@@ -2097,7 +2146,7 @@ export default function Dashboard() {
                     </select>
                     <button
                       onClick={() => setReelSortOrder(reelSortOrder === 'desc' ? 'asc' : 'desc')}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                       title={reelSortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
                     >
                       {reelSortOrder === 'desc' ? '↓' : '↑'}
@@ -2109,12 +2158,12 @@ export default function Dashboard() {
               {/* Sort Controls - モバイル版のみ縦並び */}
               {window.innerWidth < 768 && (
                 <div className="flex items-center justify-end mb-4">
-                  <span className="text-gray-900 dark:text-gray-200 text-sm mr-3">並び替え:</span>
+                  <span className="text-gray-900 text-sm mr-3">並び替え:</span>
                   <div className="flex items-center space-x-3">
                     <select
                       value={reelSortBy}
                       onChange={(e) => setReelSortBy(e.target.value)}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                     >
                       <option value="date">投稿日</option>
                       <option value="views">再生数</option>
@@ -2125,7 +2174,7 @@ export default function Dashboard() {
                     </select>
                     <button
                       onClick={() => setReelSortOrder(reelSortOrder === 'desc' ? 'asc' : 'desc')}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                       title={reelSortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
                     >
                       {reelSortOrder === 'desc' ? '↓' : '↑'}
@@ -2239,8 +2288,8 @@ export default function Dashboard() {
                       return (
                         <div
                           key={index}
-                          className={`rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 border border-gray-200/70 dark:border-white/10 ${
-                            isMobile ? 'flex items-center space-x-4 p-3 bg-white text-gray-900 shadow-sm' : 'p-4 bg-white dark:bg-slate-800'
+                          className={`rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 border border-gray-200/70 ${
+                            isMobile ? 'flex items-center space-x-4 p-3 bg-white text-gray-900 shadow-sm' : 'p-4 bg-white'
                           }`}
                         >
                           {/* サムネイル */}
@@ -2266,7 +2315,7 @@ export default function Dashboard() {
                           {/* コンテンツエリア（モバイル時は右側、PC時は通常位置） */}
                             <div className={`${isMobile ? 'flex-1 min-w-0 text-gray-900' : 'mb-3'}`}>
                             <h4
-                              className={`${isMobile ? 'text-gray-900' : 'text-gray-900 dark:text-gray-200'} font-semibold leading-tight mb-1 ${isMobile ? 'text-sm mb-2' : 'text-sm'}`}
+                              className={`${isMobile ? 'text-gray-900' : 'text-gray-900'} font-semibold leading-tight mb-1 ${isMobile ? 'text-sm mb-2' : 'text-sm'}`}
                               title={title}
                               style={{
                                 display: '-webkit-box',
@@ -2278,7 +2327,7 @@ export default function Dashboard() {
                               {title}
                             </h4>
                             {formattedDate && (
-                              <p className={`${isMobile ? 'text-gray-500' : 'text-gray-500 dark:text-gray-400'} mb-2 ${isMobile ? 'text-sm' : 'text-xs'}`}>
+                              <p className={`${isMobile ? 'text-gray-500' : 'text-gray-500'} mb-2 ${isMobile ? 'text-sm' : 'text-xs'}`}>
                                 投稿日: {formattedDate}
                               </p>
                             )}
@@ -2292,31 +2341,31 @@ export default function Dashboard() {
                             {!isMobile && (
                               <>
                                 <div className="mb-3 text-center">
-                                  <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">再生数</p>
-                                  <p className="text-lg font-bold text-gray-900 dark:text-gray-200">{views.toLocaleString()}</p>
+                                  <p className="text-gray-500 text-xs mb-1">再生数</p>
+                                  <p className="text-lg font-bold text-gray-900">{views.toLocaleString()}</p>
                                 </div>
                                 <div className="grid grid-cols-4 gap-6 mb-3">
                                   <div className="flex flex-col items-center">
                                     <div className="h-5 w-5 text-red-500">❤️</div>
-                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`いいね ${likes}`}>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900" aria-label={`いいね ${likes}`}>
                                       {likes > 0 ? likes.toLocaleString() : ''}
                                     </span>
                                   </div>
                                   <div className="flex flex-col items-center">
                                     <div className="h-5 w-5 text-blue-500">💬</div>
-                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`コメント ${comments}`}>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900" aria-label={`コメント ${comments}`}>
                                       {comments > 0 ? comments.toLocaleString() : ''}
                                     </span>
                                   </div>
                                   <div className="flex flex-col items-center">
                                     <div className="h-5 w-5 text-amber-500">💾</div>
-                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`保存 ${saves}`}>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900" aria-label={`保存 ${saves}`}>
                                       {saves > 0 ? saves.toLocaleString() : ''}
                                     </span>
                                   </div>
                                   <div className="flex flex-col items-center">
                                     <div className="h-5 w-5 text-purple-500">👤</div>
-                                    <span className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-200" aria-label={`フォロー ${follows}`}>
+                                    <span className="mt-1 text-sm font-semibold text-gray-900" aria-label={`フォロー ${follows}`}>
                                       {follows > 0 ? follows.toLocaleString() : ''}
                                     </span>
                                   </div>
@@ -2327,18 +2376,18 @@ export default function Dashboard() {
                             {/* 概要（PC版のみ） */}
                             {window.innerWidth >= 768 && (views > 0 || totalWatchTime || viewRate > 0) && (
                               <div className="mt-2">
-                                <h5 className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-2">概要</h5>
+                                <h5 className="text-gray-500 text-xs font-medium mb-2">概要</h5>
                                 <div className="space-y-1 text-xs">
                                   {totalWatchTime && (
                                     <div className="flex justify-between">
-                                      <span className="text-gray-500 dark:text-gray-400">合計再生時間</span>
-                                      <span className="text-gray-900 dark:text-gray-200 font-bold">{totalWatchTime}</span>
+                                      <span className="text-gray-500">合計再生時間</span>
+                                      <span className="text-gray-900 font-bold">{totalWatchTime}</span>
                                     </div>
                                   )}
                                   {viewRate > 0 && (
                                     <div className="flex justify-between">
-                                      <span className="text-gray-500 dark:text-gray-400">視聴率</span>
-                                      <span className="text-gray-900 dark:text-gray-200 font-bold">{viewRate.toFixed(1)}%</span>
+                                      <span className="text-gray-500">視聴率</span>
+                                      <span className="text-gray-900 font-bold">{viewRate.toFixed(1)}%</span>
                                     </div>
                                   )}
                                 </div>
@@ -2350,7 +2399,7 @@ export default function Dashboard() {
                       );
                     })
                   ) : (
-                    <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>
+                    <p className="text-gray-500 text-center col-span-full">データがありません</p>
                   );
                 })()}
               </div>
@@ -2362,9 +2411,9 @@ export default function Dashboard() {
         {activeTab === 'stories' && (
           <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
             {/* ストーリー詳細上部グラフエリア */}
-            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white border border-gray-200/70 rounded-2xl shadow-sm p-6">
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-200 tracking-tight">ストーリー パフォーマンス分析</h3>
+                <h3 className="text-xl font-bold text-gray-900 tracking-tight">ストーリー パフォーマンス分析</h3>
               </div>
 
                   {(() => {
@@ -2378,7 +2427,7 @@ export default function Dashboard() {
 
                     if (filteredStoriesRaw.length <= 1) {
                       return (
-                        <div className="h-48 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                        <div className="h-48 flex items-center justify-center text-gray-500">
                           期間内にストーリーデータがありません
                         </div>
                       );
@@ -2507,7 +2556,7 @@ export default function Dashboard() {
                               axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                               tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                               tick={{ fontSize: isMobile ? 10 : 14, fill: '#F59E0B' }}
-                              className="dark:fill-amber-400"
+                              className=""
                               tickFormatter={(value) => `${value}%`}
                               width={isMobile ? 38 : 60}
                             />
@@ -2519,7 +2568,7 @@ export default function Dashboard() {
                               axisLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                               tickLine={{ stroke: '#D1D5DB', strokeWidth: 1 }}
                               tick={{ fontSize: isMobile ? 10 : 14, fill: '#8B5CF6' }}
-                              className="dark:fill-purple-400"
+                              className=""
                               tickFormatter={(value) => value.toString()}
                               width={isMobile ? 32 : 56}
                             />
@@ -2601,26 +2650,26 @@ export default function Dashboard() {
                         </ResponsiveContainer>
                       </div>
                     ) : (
-                      <div className="h-48 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                      <div className="h-48 flex items-center justify-center text-gray-500">
                         期間内にストーリーデータがありません
                       </div>
                     );
                   })()}
                 </div>
 
-            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
+            <div className="bg-white border border-gray-200/70 rounded-2xl shadow-sm p-6">
               {/* Header with count */}
               <div className={`${window.innerWidth < 768 ? 'mb-3' : 'flex justify-between items-center mb-4'}`}>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200">ストーリー詳細 ({summary.totalStories}件)</h3>
+                <h3 className="text-xl font-semibold text-gray-900">ストーリー詳細 ({summary.totalStories}件)</h3>
 
                 {/* Sort Controls - PC版のみ横並び */}
                 {window.innerWidth >= 768 && (
                   <div className="flex items-center space-x-3">
-                    <span className="text-gray-900 dark:text-gray-200 text-sm">並び替え:</span>
+                    <span className="text-gray-900 text-sm">並び替え:</span>
                     <select
                       value={storySortBy}
                       onChange={(e) => setStorySortBy(e.target.value)}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                     >
                       <option value="date">投稿日</option>
                       <option value="views">閲覧数</option>
@@ -2629,7 +2678,7 @@ export default function Dashboard() {
                     </select>
                     <button
                       onClick={() => setStorySortOrder(storySortOrder === 'desc' ? 'asc' : 'desc')}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                       title={storySortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
                     >
                       {storySortOrder === 'desc' ? '↓' : '↑'}
@@ -2641,12 +2690,12 @@ export default function Dashboard() {
               {/* Sort Controls - モバイル版のみ縦並び */}
               {window.innerWidth < 768 && (
                 <div className="flex items-center justify-end mb-4">
-                  <span className="text-gray-900 dark:text-gray-200 text-sm mr-3">並び替え:</span>
+                  <span className="text-gray-900 text-sm mr-3">並び替え:</span>
                   <div className="flex items-center space-x-3">
                     <select
                       value={storySortBy}
                       onChange={(e) => setStorySortBy(e.target.value)}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                     >
                       <option value="date">投稿日</option>
                       <option value="views">閲覧数</option>
@@ -2655,7 +2704,7 @@ export default function Dashboard() {
                     </select>
                     <button
                       onClick={() => setStorySortOrder(storySortOrder === 'desc' ? 'asc' : 'desc')}
-                      className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:ring-2 focus:ring-purple-200 dark:focus:ring-purple-400 focus:border-purple-400 transition-all duration-200"
+                      className="rounded-md border border-gray-300 bg-white text-gray-700 shadow-sm px-3 py-2 text-sm hover:bg-gray-50 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 transition-all duration-200"
                       title={storySortOrder === 'desc' ? '降順 (高い順/新しい順)' : '昇順 (低い順/古い順)'}
                     >
                       {storySortOrder === 'desc' ? '↓' : '↑'}
@@ -2669,7 +2718,7 @@ export default function Dashboard() {
                   const filteredStoriesProcessed = getFilteredData(data.storiesProcessed, 0, dateRange, { allowFallback: false });
 
                   if (!filteredStoriesProcessed || filteredStoriesProcessed.length <= 1) {
-                    return <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>;
+                    return <p className="text-gray-500 text-center col-span-full">データがありません</p>;
                   }
 
                   // ソート機能
@@ -2713,7 +2762,7 @@ export default function Dashboard() {
                       const mobileComments = parseInt(String(story[4] || '').replace(/,/g, '')) || 0;
 
                       return (
-                      <div key={index} className={`bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-center space-x-4 p-3' : 'text-center p-4'}`}>
+                      <div key={index} className={`bg-white border border-gray-200/70 rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300 cursor-pointer active:scale-95 ${window.innerWidth < 768 ? 'flex items-center space-x-4 p-3' : 'text-center p-4'}`}>
                         <div className={`bg-gray-600 rounded-lg overflow-hidden ${window.innerWidth < 768 ? 'w-20 flex-shrink-0 aspect-[9/16]' : 'w-full aspect-[9/16] mb-3'}`}>
                           {(() => {
                             const thumbnailUrl = toLh3(story[7] || ''); // storiesシート: H列（インデックス7）がサムネイル
@@ -2771,12 +2820,12 @@ export default function Dashboard() {
                         {window.innerWidth >= 768 && (
                           <div>
                             {/* 投稿日 */}
-                            <p className="text-gray-900 dark:text-gray-200 text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
+                            <p className="text-gray-900 text-xs mb-2 font-medium">{story[0] || `ストーリー ${index + 1}`}</p>
 
                             {/* Views（大きく表示） */}
                             <div className="mb-3 text-center">
-                              <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">閲覧数</p>
-                              <p className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-200">{mobileViews.toLocaleString()}</p>
+                              <p className="text-gray-500 text-xs mb-1">閲覧数</p>
+                              <p className="text-xl lg:text-2xl font-bold text-gray-900">{mobileViews.toLocaleString()}</p>
                             </div>
 
                             {/* KPIピル */}
@@ -2790,7 +2839,7 @@ export default function Dashboard() {
                     );
                   })
                   ) : (
-                    <p className="text-gray-500 dark:text-gray-400 text-center col-span-full">データがありません</p>
+                    <p className="text-gray-500 text-center col-span-full">データがありません</p>
                   );
                 })()}
               </div>
@@ -2801,8 +2850,8 @@ export default function Dashboard() {
         {/* Daily Data Detail */}
         {activeTab === 'daily' && (
           <div className="space-y-6 lg:space-y-6 px-4 lg:px-0">
-            <div className="bg-white dark:bg-slate-800 border border-gray-200/70 dark:border-white/10 rounded-2xl shadow-sm p-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-200 mb-4">デイリーデータ - 絞込期間: {
+            <div className="bg-white border border-gray-200/70 rounded-2xl shadow-sm p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">デイリーデータ - 絞込期間: {
                 dateRange.preset === 'this-week' ? '今週' :
                 dateRange.preset === 'last-week' ? '先週' :
                 dateRange.preset === 'this-month' ? '今月' :
@@ -2813,14 +2862,14 @@ export default function Dashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200/70 dark:border-white/20">
+                    <tr className="border-b border-gray-200/70">
                       {(() => {
                         const { headers } = getFilteredDailyData(data.dailyRaw, dateRange.preset);
                         return headers.map((header, index) => (
                           <th
                             key={index}
-                            className={`text-left text-gray-900 dark:text-gray-200 text-xs p-2 min-w-[120px] whitespace-nowrap ${
-                              index === 0 ? 'sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-sm border-r border-gray-200/60 dark:border-white/10' : ''
+                            className={`text-left text-gray-900 text-xs p-2 min-w-[120px] whitespace-nowrap ${
+                              index === 0 ? 'sticky left-0 bg-white z-10 shadow-sm border-r border-gray-200/60' : ''
                             }`}
                           >
                             {header || '---'}
@@ -2836,7 +2885,7 @@ export default function Dashboard() {
                       if (dailyData.length === 0) {
                         return (
                           <tr>
-                            <td colSpan={headers.length || 15} className="text-orange-500 dark:text-yellow-400 text-center p-8">
+                            <td colSpan={headers.length || 15} className="text-orange-500 text-center p-8">
                               選択された期間（{
                                 dateRange.preset === 'this-week' ? '今週' :
                                 dateRange.preset === 'last-week' ? '先週' :
@@ -2850,12 +2899,12 @@ export default function Dashboard() {
                       }
 
                       return dailyData.map((row, index) => (
-                        <tr key={index} className="border-b border-gray-200/50 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5">
+                        <tr key={index} className="border-b border-gray-200/50 hover:bg-gray-50">
                           {row.map((cell, cellIndex) => (
                             <td
                               key={cellIndex}
-                              className={`text-gray-900 dark:text-gray-200 text-xs p-2 whitespace-nowrap ${
-                                cellIndex === 0 ? 'sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-sm border-r border-gray-200/60 dark:border-white/10 font-medium' : ''
+                              className={`text-gray-900 text-xs p-2 whitespace-nowrap ${
+                                cellIndex === 0 ? 'sticky left-0 bg-white z-10 shadow-sm border-r border-gray-200/60 font-medium' : ''
                               }`}
                             >
                               {cell || '---'}
@@ -2874,31 +2923,31 @@ export default function Dashboard() {
         {/* カスタム期間選択モーダル */}
         {showCustomDateModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">カスタム期間を選択</h3>
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">カスタム期間を選択</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     開始日
                   </label>
                   <input
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     終了日
                   </label>
                   <input
                     type="date"
                     value={customEndDate}
                     onChange={(e) => setCustomEndDate(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full rounded-md border border-gray-300 bg-white text-gray-900 px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
               </div>
@@ -2908,7 +2957,7 @@ export default function Dashboard() {
                   onClick={() => {
                     setShowCustomDateModal(false);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
                 >
                   キャンセル
                 </button>
@@ -2929,15 +2978,19 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Mobile Bottom Tab Navigation */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-white/10 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_-2px_8px_rgba(0,0,0,0.3)] bottom-nav-enhanced z-50">
+        {/* Instagram チャネル閉じ */}
+        </>}
+
+        {/* Mobile Bottom Tab Navigation (Instagramチャネル時のみ) */}
+        {activeChannel === 'instagram' && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] bottom-nav-enhanced z-50">
           <div className="flex justify-around items-center px-1 py-2">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'dashboard'
-                  ? 'text-purple-600 dark:text-purple-400'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'text-purple-600'
+                  : 'text-gray-600'
               }`}
             >
               <div className="text-base mb-0.5">📊</div>
@@ -2947,8 +3000,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab('reels')}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'reels'
-                  ? 'text-purple-600 dark:text-purple-400'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'text-purple-600'
+                  : 'text-gray-600'
               }`}
             >
               <div className="text-base mb-0.5">🎬</div>
@@ -2958,8 +3011,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab('stories')}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'stories'
-                  ? 'text-purple-600 dark:text-purple-400'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'text-purple-600'
+                  : 'text-gray-600'
               }`}
             >
               <div className="text-base mb-0.5">📱</div>
@@ -2969,8 +3022,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab('daily')}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-all duration-200 ${
                 activeTab === 'daily'
-                  ? 'text-purple-600 dark:text-purple-400'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'text-purple-600'
+                  : 'text-gray-600'
               }`}
             >
               <div className="text-base mb-0.5">📈</div>
@@ -2978,9 +3031,10 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+        )}
 
-        <div className="mt-12 text-center border-t border-gray-200 dark:border-white pt-6 pb-24 lg:pb-6">
-          <p className="text-gray-500 dark:text-gray-400 text-sm">© Powered by ANALYCA</p>
+        <div className="mt-12 text-center border-t border-gray-200 pt-6 pb-24 lg:pb-6">
+          <p className="text-gray-500 text-sm">Powered by ANALYCA</p>
         </div>
       </div>
     </div>

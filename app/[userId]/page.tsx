@@ -731,7 +731,7 @@ function ThreadsContent({
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
-  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
 
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => {
@@ -1230,7 +1230,7 @@ function InstagramContent({
   profilePicture: string | undefined;
 }) {
   const [activeTab, setActiveTab] = useState<IGTab>('overview');
-  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
   const [reelSortBy, setReelSortBy] = useState('views');
   const [storySortBy, setStorySortBy] = useState('views');
 

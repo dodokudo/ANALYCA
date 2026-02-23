@@ -18,7 +18,16 @@ export default function LoginPage() {
     const error = params.get('error');
 
     if (!error) {
-      const userId = window.localStorage.getItem('analycaUserId');
+      // localStorageまたはcookieからuserIdを取得
+      let userId = window.localStorage.getItem('analycaUserId');
+      if (!userId) {
+        // cookieからフォールバック（OAuth callback後のドメイン不一致対策）
+        const match = document.cookie.match(/(?:^|;\s*)analycaUserId=([^;]+)/);
+        if (match) {
+          userId = decodeURIComponent(match[1]);
+          window.localStorage.setItem('analycaUserId', userId);
+        }
+      }
       if (userId) {
         setIsRedirecting(true);
         router.push(`/${userId}`);

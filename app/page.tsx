@@ -176,7 +176,14 @@ export default function HomePage() {
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    const userId = window.localStorage.getItem('analycaUserId');
+    let userId = window.localStorage.getItem('analycaUserId');
+    if (!userId) {
+      const match = document.cookie.match(/(?:^|;\s*)analycaUserId=([^;]+)/);
+      if (match) {
+        userId = decodeURIComponent(match[1]);
+        window.localStorage.setItem('analycaUserId', userId);
+      }
+    }
     if (userId) {
       setIsRedirecting(true);
       router.push(`/${userId}`);

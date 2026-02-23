@@ -98,9 +98,15 @@ export async function GET(request: NextRequest) {
     });
 
     // Step 6: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
-    return NextResponse.redirect(
-      new URL(`/${userId}?tab=instagram&auth=instagram_complete&syncing=true`, request.url)
-    );
+    // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）
+    const redirectUrl = new URL(`/${userId}?tab=instagram&auth=instagram_complete&syncing=true`, request.url);
+    const response = NextResponse.redirect(redirectUrl);
+    response.cookies.set('analycaUserId', userId, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365, // 1年
+      sameSite: 'lax',
+    });
+    return response;
   } catch (err) {
     console.error('Instagram OAuth callback error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';

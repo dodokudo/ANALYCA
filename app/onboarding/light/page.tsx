@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { openOAuthPopup, PopupBlockedError } from '@/lib/oauth-popup';
 
 export default function OnboardingLightPage() {
   return (
@@ -105,12 +106,25 @@ function OnboardingLightContent() {
             {/* OAuth連携ボタン */}
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
                 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
                 const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
                 const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
-                window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+                const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+
+                try {
+                  const { userId: returnedUserId } = await openOAuthPopup(oauthUrl);
+                  window.localStorage.setItem('analycaUserId', returnedUserId);
+                  window.location.replace(`/${returnedUserId}?tab=threads`);
+                } catch (err) {
+                  if (err instanceof PopupBlockedError) {
+                    // ポップアップブロック時: フォールバックでリダイレクト
+                    window.location.href = oauthUrl;
+                    return;
+                  }
+                  // ユーザーがポップアップを閉じた場合は何もしない
+                }
               }}
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50"

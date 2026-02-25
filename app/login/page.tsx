@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { openOAuthPopup, PopupBlockedError } from '@/lib/oauth-popup';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  const handleInstagramLogin = () => {
+  const handleInstagramLogin = async () => {
     setIsInstagramLoading(true);
 
     // Instagram Login (OAuth 2.0 Authorization Code Flow)
@@ -50,11 +51,24 @@ export default function LoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);
     const scope = 'instagram_business_basic,instagram_business_manage_insights';
+    const oauthUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
 
-    window.location.href = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+    try {
+      const { userId } = await openOAuthPopup(oauthUrl);
+      window.localStorage.setItem('analycaUserId', userId);
+      router.push(`/${userId}?tab=instagram&syncing=true`);
+    } catch (err) {
+      if (err instanceof PopupBlockedError) {
+        // ポップアップブロック時: フォールバックでリダイレクト
+        window.location.href = oauthUrl;
+        return;
+      }
+      // ユーザーがポップアップを閉じた場合等
+      setIsInstagramLoading(false);
+    }
   };
 
-  const handleThreadsLogin = () => {
+  const handleThreadsLogin = async () => {
     setIsThreadsLoading(true);
 
     // Threads OAuth 2.0 Authorization Code Flow
@@ -62,8 +76,21 @@ export default function LoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
     const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
+    const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
 
-    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+    try {
+      const { userId } = await openOAuthPopup(oauthUrl);
+      window.localStorage.setItem('analycaUserId', userId);
+      router.push(`/${userId}?tab=threads&syncing=true`);
+    } catch (err) {
+      if (err instanceof PopupBlockedError) {
+        // ポップアップブロック時: フォールバックでリダイレクト
+        window.location.href = oauthUrl;
+        return;
+      }
+      // ユーザーがポップアップを閉じた場合等
+      setIsThreadsLoading(false);
+    }
   };
 
   if (isRedirecting) {

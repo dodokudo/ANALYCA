@@ -423,83 +423,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
     return <LoadingScreen message="データ読み込み中" />;
   }
 
-  // サブスク状態チェック（active/trialのみ通す。それ以外はブロック）
-  const subStatus = user?.subscription_status;
-  const isAllowed = subStatus && ['active', 'trial'].includes(subStatus);
-  // 解約済みの場合、期限内はまだ使える
-  const isCanceledButValid = subStatus === 'canceled'
-    && user?.subscription_expires_at
-    && new Date(user.subscription_expires_at) > new Date();
-
-  if (!isAllowed && !isCanceledButValid) {
-    return (
-      <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-          <AnalycaLogo size="lg" />
-          <div className="mt-6">
-            {!subStatus || subStatus === 'none' ? (
-              <>
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">プランを選んで始めましょう</h2>
-                <p className="text-gray-600 mb-6">
-                  ANALYCAのダッシュボードをご利用いただくには、<br />
-                  プランの登録が必要です。
-                </p>
-              </>
-            ) : subStatus === 'unpaid' || subStatus === 'suspended' ? (
-              <>
-                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">お支払いの確認が必要です</h2>
-                <p className="text-gray-600 mb-6">
-                  決済が正常に処理されませんでした。<br />
-                  カード情報を更新するか、サポートまでお問い合わせください。
-                </p>
-              </>
-            ) : subStatus === 'canceled' ? (
-              <>
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">サブスクリプションが終了しました</h2>
-                <p className="text-gray-600 mb-6">
-                  ご利用期間が終了しました。<br />
-                  引き続きご利用いただくには、再度お申し込みください。
-                </p>
-              </>
-            ) : subStatus === 'expired' ? (
-              <>
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">無料体験期間が終了しました</h2>
-                <p className="text-gray-600 mb-6">
-                  引き続きご利用いただくには、有料プランにお申し込みください。
-                </p>
-              </>
-            ) : null}
-            <a
-              href="/pricing"
-              className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all"
-            >
-              プランを確認する
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // 課金ゲートは決済フロー完成後に有効化する（現時点では全ユーザー通す）
+  // TODO: 本番ローンチ時に課金ゲートを再実装
 
   if (error) {
     return (

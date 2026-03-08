@@ -8,8 +8,9 @@ import {
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
-// 1ユーザーの同期は並列化で10-15秒。cron(dispatcher)モードでも60秒で十分
-export const maxDuration = 60;
+// 1ユーザー同期: BigQuery読み書き + 50投稿のインサイト取得で最大90秒程度
+// ディスパッチャーモード: サブリクエストの完了を待つため余裕を持たせる
+export const maxDuration = 300;
 
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 

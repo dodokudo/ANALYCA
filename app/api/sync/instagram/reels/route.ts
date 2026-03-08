@@ -210,50 +210,24 @@ async function syncUserReels(
 /**
  * GET: リールを同期
  * - userId指定あり: そのユーザーのみ同期
- * - userId指定なし: 全アクティブユーザーを同期（cron用）
+ * - userId指定なし: ディスパッチャーモード（全ユーザーに個別HTTP fetch並列発行）
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
 
-    // アクティブなInstagramユーザーを取得
-    let users = await getActiveInstagramUsers();
-
-    // userIdが指定されている場合、そのユーザーのみに絞る
+    // ── 単一ユーザー同期モード ──
     if (targetUserId) {
-      users = users.filter(u => u.user_id === targetUserId);
-    }
+      const users = await getActiveInstagramUsers();
+      const user = users.find(u => u.user_id === targetUserId);
 
-    if (users.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No active Instagram users found',
-        results: [],
-      });
-    }
+      if (!user) {
+        return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      }
 
-    const results: Array<{
-      userId: string;
-      username: string | null;
-      success: boolean;
-      newCount: number;
-      updatedCount: number;
-      error?: string;
-    }> = [];
-
-    // 各ユーザーのリールを同期
-    for (const user of users) {
       if (!user.access_token || !user.instagram_user_id) {
-        results.push({
-          userId: user.user_id,
-          username: user.instagram_username,
-          success: false,
-          newCount: 0,
-          updatedCount: 0,
-          error: 'Missing access token or Instagram user ID',
-        });
-        continue;
+        return NextResponse.json({ success: false, error: 'Missing access token or Instagram user ID' }, { status: 400 });
       }
 
       const result = await syncUserReels(
@@ -262,25 +236,61 @@ export async function GET(request: Request) {
         user.instagram_user_id
       );
 
-      results.push({
+      return NextResponse.json({
+        success: result.success,
         userId: user.user_id,
         username: user.instagram_username,
         ...result,
       });
-
-      // API制限を考慮して少し待つ
-      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    // ── ディスパッチャーモード（cron用） ──
+    const users = await getActiveInstagramUsers();
+    const validUsers = users.filter(u => u.access_token && u.instagram_user_id);
+
+    if (validUsers.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No active Instagram users found',
+        results: [],
+      });
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+
+    const syncPromises = validUsers.map(async (user) => {
+      try {
+        const res = await fetch(
+          `${appUrl}/api/sync/instagram/reels?userId=${encodeURIComponent(user.user_id)}`,
+          { cache: 'no-store' }
+        );
+        const data = await res.json();
+        return {
+          userId: user.user_id,
+          username: user.instagram_username,
+          success: data.success ?? false,
+          newCount: data.newCount ?? 0,
+          updatedCount: data.updatedCount ?? 0,
+          error: data.error,
+        };
+      } catch (err) {
+        return {
+          userId: user.user_id,
+          username: user.instagram_username,
+          success: false,
+          newCount: 0,
+          updatedCount: 0,
+          error: err instanceof Error ? err.message : 'Dispatch failed',
+        };
+      }
+    });
+
+    const results = await Promise.all(syncPromises);
     const successCount = results.filter(r => r.success).length;
-    const totalNew = results.reduce((sum, r) => sum + r.newCount, 0);
-    const totalUpdated = results.reduce((sum, r) => sum + r.updatedCount, 0);
 
     return NextResponse.json({
       success: true,
-      message: `Synced reels for ${successCount}/${users.length} users`,
-      totalNew,
-      totalUpdated,
+      message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
       results,
     });
   } catch (error) {

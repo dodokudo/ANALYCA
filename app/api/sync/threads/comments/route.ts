@@ -7,8 +7,8 @@ import {
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
-// Vercel Functionの最大実行時間を延長
-export const maxDuration = 300;
+// 1ユーザーのコメント同期は再帰的で重いが、ディスパッチャー方式で各ユーザー独立実行
+export const maxDuration = 120;
 
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
@@ -219,6 +219,8 @@ async function syncUserComments(
 
 /**
  * GET: コメントを同期
+ * - userId指定あり: そのユーザーのみ同期（独立実行）
+ * - userId指定なし: ディスパッチャー。各ユーザーに個別リクエストを並列発行
  */
 export async function GET(request: Request) {
   try {
@@ -226,13 +228,30 @@ export async function GET(request: Request) {
     const targetUserId = searchParams.get('userId');
     const postLimit = parseInt(searchParams.get('limit') || '100', 10);
 
-    let users = await getActiveThreadsUsers();
-
+    // ── 単一ユーザー同期モード ──
     if (targetUserId) {
-      users = users.filter(u => u.user_id === targetUserId);
+      const users = await getActiveThreadsUsers();
+      const user = users.find(u => u.user_id === targetUserId);
+
+      if (!user || !user.threads_access_token) {
+        return NextResponse.json({ success: false, error: 'User not found or missing token' }, { status: 404 });
+      }
+
+      const result = await syncUserComments(user.user_id, user.threads_access_token, postLimit);
+
+      return NextResponse.json({
+        success: result.success,
+        userId: user.user_id,
+        username: user.threads_username,
+        ...result,
+      });
     }
 
-    if (users.length === 0) {
+    // ── ディスパッチャーモード（cron用） ──
+    const users = await getActiveThreadsUsers();
+    const validUsers = users.filter(u => u.threads_access_token);
+
+    if (validUsers.length === 0) {
       return NextResponse.json({
         success: true,
         message: 'No active Threads users found',
@@ -240,50 +259,39 @@ export async function GET(request: Request) {
       });
     }
 
-    const results: Array<{
-      userId: string;
-      username: string | null;
-      success: boolean;
-      commentsCount: number;
-      newComments: number;
-      error?: string;
-    }> = [];
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
 
-    for (const user of users) {
-      if (!user.threads_access_token) {
-        results.push({
+    const syncPromises = validUsers.map(async (user) => {
+      try {
+        const res = await fetch(
+          `${appUrl}/api/sync/threads/comments?userId=${encodeURIComponent(user.user_id)}&limit=${postLimit}`,
+          { cache: 'no-store' }
+        );
+        const data = await res.json();
+        return {
+          userId: user.user_id,
+          username: user.threads_username,
+          success: data.success ?? false,
+          commentsCount: data.commentsCount ?? 0,
+          error: data.error,
+        };
+      } catch (err) {
+        return {
           userId: user.user_id,
           username: user.threads_username,
           success: false,
           commentsCount: 0,
-          newComments: 0,
-          error: 'Missing access token',
-        });
-        continue;
+          error: err instanceof Error ? err.message : 'Dispatch failed',
+        };
       }
+    });
 
-      const result = await syncUserComments(
-        user.user_id,
-        user.threads_access_token,
-        postLimit
-      );
-
-      results.push({
-        userId: user.user_id,
-        username: user.threads_username,
-        ...result,
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
+    const results = await Promise.all(syncPromises);
     const successCount = results.filter(r => r.success).length;
-    const totalComments = results.reduce((sum, r) => sum + r.commentsCount, 0);
 
     return NextResponse.json({
       success: true,
-      message: `Synced comments for ${successCount}/${users.length} users`,
-      totalComments,
+      message: `Dispatched comment sync for ${successCount}/${validUsers.length} users`,
       results,
     });
   } catch (error) {

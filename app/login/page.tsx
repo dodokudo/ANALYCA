@@ -115,7 +115,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">ANALYCA</h1>
-          <p className="text-gray-600 mt-2">Instagram & Threadsデータを自動分析</p>
+          <p className="text-gray-600 mt-2">アカウントをお持ちの方はSNSでログイン</p>
         </div>
 
         {/* OAuthエラー表示 */}
@@ -161,9 +161,20 @@ export default function LoginPage() {
         </div>
 
         <p className="text-xs text-gray-500 mt-4 text-center">
-          それぞれのボタンでログインすると、<br />
-          InstagramまたはThreadsのデータを取得します
+          ご契約プランに対応するSNSアカウントでログインしてください
         </p>
+
+        <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+          <p className="text-sm text-gray-600">
+            アカウントをお持ちでない方は
+          </p>
+          <a
+            href="/pricing"
+            className="inline-block mt-2 text-sm font-medium bg-gradient-to-r from-purple-500 to-emerald-400 bg-clip-text text-transparent hover:from-purple-600 hover:to-emerald-500"
+          >
+            プランを選んで始める →
+          </a>
+        </div>
       </div>
     </div>
   );

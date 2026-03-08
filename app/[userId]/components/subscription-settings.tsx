@@ -184,6 +184,22 @@ export default function SubscriptionSettings({ userId }: SubscriptionSettingsPro
             </div>
           )}
 
+          {/* アップグレード案内（Lightプランのみ） */}
+          {(data.plan_id === 'light-threads' || data.plan_id === 'light-instagram') && !isCanceled && (
+            <div className="bg-gradient-to-r from-purple-50 to-emerald-50 border border-purple-200 rounded-xl p-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-1">Standardプランにアップグレード</h4>
+              <p className="text-xs text-gray-600 mb-3">
+                Instagram + Threads 両方の分析が利用できます
+              </p>
+              <a
+                href="/checkout?plan=standard"
+                className="inline-block w-full text-center bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-all"
+              >
+                アップグレード（¥9,800/月）
+              </a>
+            </div>
+          )}
+
           {/* 解約ボタン（アクティブ or 未払い時のみ表示） */}
           {!isCanceled && (data.subscription_status === 'current' || data.subscription_status === 'unpaid') && (
             <div className="pt-2">

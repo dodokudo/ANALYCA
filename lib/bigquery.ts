@@ -1808,3 +1808,133 @@ export async function expireTrialUsersWithoutCard(): Promise<number> {
   void rows;
   return 0;
 }
+
+// ==================== アフィリエイト関連 ====================
+
+/**
+ * アフィリエイトコードを発行・登録
+ */
+export async function registerAffiliate(userId: string, affiliateCode: string): Promise<void> {
+  const query = `
+    INSERT INTO \`mark-454114.analyca.affiliates\` (
+      user_id, affiliate_code, commission_rate, total_referrals, total_commission, created_at
+    ) VALUES (
+      @user_id, @affiliate_code, 0.5, 0, 0, CURRENT_TIMESTAMP()
+    )
+  `;
+  await bigquery.query({ query, params: { user_id: userId, affiliate_code: affiliateCode } });
+}
+
+/**
+ * ユーザーのアフィリエイト情報を取得
+ */
+export async function getAffiliateByUserId(userId: string): Promise<{
+  user_id: string;
+  affiliate_code: string;
+  commission_rate: number;
+  total_referrals: number;
+  total_commission: number;
+  created_at: string;
+} | null> {
+  const query = `
+    SELECT * FROM \`mark-454114.analyca.affiliates\`
+    WHERE user_id = @user_id
+    LIMIT 1
+  `;
+  const [rows] = await bigquery.query({ query, params: { user_id: userId } });
+  if (!rows || rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    user_id: row.user_id,
+    affiliate_code: row.affiliate_code,
+    commission_rate: row.commission_rate,
+    total_referrals: row.total_referrals,
+    total_commission: row.total_commission,
+    created_at: row.created_at?.value || row.created_at,
+  };
+}
+
+/**
+ * アフィリエイトコードで検索
+ */
+export async function getAffiliateByCode(code: string): Promise<{
+  user_id: string;
+  affiliate_code: string;
+  commission_rate: number;
+} | null> {
+  const query = `
+    SELECT user_id, affiliate_code, commission_rate
+    FROM \`mark-454114.analyca.affiliates\`
+    WHERE affiliate_code = @code
+    LIMIT 1
+  `;
+  const [rows] = await bigquery.query({ query, params: { code } });
+  if (!rows || rows.length === 0) return null;
+  return {
+    user_id: rows[0].user_id,
+    affiliate_code: rows[0].affiliate_code,
+    commission_rate: rows[0].commission_rate,
+  };
+}
+
+/**
+ * 紹介実績を記録
+ */
+export async function createReferral(data: {
+  id: string;
+  affiliate_code: string;
+  referred_user_id: string;
+  plan_id: string;
+  payment_amount: number;
+  commission_amount: number;
+}): Promise<void> {
+  const query = `
+    INSERT INTO \`mark-454114.analyca.referrals\` (
+      id, affiliate_code, referred_user_id, plan_id, payment_amount, commission_amount, status, created_at
+    ) VALUES (
+      @id, @affiliate_code, @referred_user_id, @plan_id, @payment_amount, @commission_amount, 'pending', CURRENT_TIMESTAMP()
+    )
+  `;
+  await bigquery.query({ query, params: data });
+
+  // affiliatesテーブルの集計を更新
+  const updateQuery = `
+    UPDATE \`mark-454114.analyca.affiliates\`
+    SET total_referrals = total_referrals + 1,
+        total_commission = total_commission + @commission_amount
+    WHERE affiliate_code = @affiliate_code
+  `;
+  await bigquery.query({
+    query: updateQuery,
+    params: { affiliate_code: data.affiliate_code, commission_amount: data.commission_amount },
+  });
+}
+
+/**
+ * ユーザーの紹介実績一覧を取得
+ */
+export async function getReferralsByAffiliateCode(affiliateCode: string): Promise<Array<{
+  id: string;
+  plan_id: string;
+  payment_amount: number;
+  commission_amount: number;
+  status: string;
+  created_at: string;
+}>> {
+  const query = `
+    SELECT id, plan_id, payment_amount, commission_amount, status, created_at
+    FROM \`mark-454114.analyca.referrals\`
+    WHERE affiliate_code = @affiliate_code
+    ORDER BY created_at DESC
+    LIMIT 100
+  `;
+  const [rows] = await bigquery.query({ query, params: { affiliate_code: affiliateCode } });
+  return (rows || []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    plan_id: row.plan_id as string,
+    payment_amount: row.payment_amount as number,
+    commission_amount: row.commission_amount as number,
+    status: row.status as string,
+    created_at: (row.created_at as { value?: string })?.value || String(row.created_at),
+  }));
+}

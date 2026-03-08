@@ -134,6 +134,28 @@ CREATE INDEX idx_insights_user_date ON `mark-454114.analyca.instagram_insights`(
 CREATE INDEX idx_line_user_date ON `mark-454114.analyca.line_daily`(user_id, date DESC);
 CREATE INDEX idx_threads_user_timestamp ON `mark-454114.analyca.threads_posts`(user_id, timestamp DESC);
 
+-- 7. アフィリエイトテーブル
+CREATE TABLE `mark-454114.analyca.affiliates` (
+  user_id STRING NOT NULL,
+  affiliate_code STRING NOT NULL,
+  commission_rate FLOAT64 DEFAULT 0.5,
+  total_referrals INT64 DEFAULT 0,
+  total_commission INT64 DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- 8. 紹介実績テーブル
+CREATE TABLE `mark-454114.analyca.referrals` (
+  id STRING NOT NULL,
+  affiliate_code STRING NOT NULL,
+  referred_user_id STRING NOT NULL,
+  plan_id STRING,
+  payment_amount INT64,
+  commission_amount INT64,
+  status STRING DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
 -- ALTER TABLE: トライアル/無料登録対応カラム追加
 ALTER TABLE `mark-454114.analyca.users` ADD COLUMN IF NOT EXISTS recurring_token_id STRING;
 ALTER TABLE `mark-454114.analyca.users` ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP;

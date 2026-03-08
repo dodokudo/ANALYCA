@@ -25,9 +25,10 @@ function CheckoutContent() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appId, setAppId] = useState<string | null>(null);
+  const [refCode, setRefCode] = useState<string>('');
   const formRef = useRef<HTMLFormElement>(null);
 
-  // UnivaPay設定を取得
+  // UnivaPay設定を取得 + refコード読み込み
   useEffect(() => {
     fetch('/api/payment/config')
       .then(res => res.json())
@@ -40,6 +41,12 @@ function CheckoutContent() {
         console.error('Failed to load payment config:', err);
         setError('決済設定の読み込みに失敗しました');
       });
+
+    // localStorageから紹介コードを読み込み
+    const savedRef = window.localStorage.getItem('analyca_ref');
+    if (savedRef) {
+      setRefCode(savedRef);
+    }
   }, []);
 
   // プランが見つからない場合
@@ -81,6 +88,7 @@ function CheckoutContent() {
         body: JSON.stringify({
           transactionTokenId: data.id,
           planId: planId,
+          refCode: refCode || undefined,
         }),
       });
       const result = await response.json();
@@ -132,6 +140,19 @@ function CheckoutContent() {
           </div>
           <div className="border-t border-gray-100 pt-3 mt-3 text-xs text-gray-400">
             月額・自動更新 ・ 次回請求日: 1ヶ月後
+          </div>
+
+          {/* 紹介コード */}
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <label htmlFor="refCode" className="text-xs text-gray-500">紹介コード（任意）</label>
+            <input
+              type="text"
+              id="refCode"
+              value={refCode}
+              onChange={(e) => setRefCode(e.target.value.trim())}
+              placeholder="紹介コードがあれば入力"
+              className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            />
           </div>
         </div>
 

@@ -71,13 +71,46 @@ export async function GET(
   try {
     const { userId } = await params;
 
-    // ユーザーの全データを取得
-    const userRecordPromise = getUserById(userId);
-    const dashboardDataPromise = getUserDashboardData(userId);
-    const [userRecord, { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats }] = await Promise.all([
-      userRecordPromise,
-      dashboardDataPromise,
-    ]);
+    // 認証チェック: cookieのuserIdとパスのuserIdが一致するか
+    const cookieUserId = request.cookies.get('analycaUserId')?.value;
+    if (cookieUserId && cookieUserId !== userId) {
+      return NextResponse.json({
+        success: false,
+        error: 'unauthorized',
+      }, { status: 403 });
+    }
+
+    // ユーザーの全データを取得（まずuserRecordだけ先に取得してサブスクチェック）
+    const userRecord = await getUserById(userId);
+
+    // サブスクリプション状態チェック
+    const subStatus = userRecord?.subscription_status;
+    const isAllowed = subStatus && ['active', 'trial'].includes(subStatus);
+    const isCanceledButValid = subStatus === 'canceled'
+      && userRecord?.subscription_expires_at
+      && new Date(userRecord.subscription_expires_at) > new Date();
+
+    if (!isAllowed && !isCanceledButValid) {
+      // 未課金でもユーザー情報（subscription_status, plan_id）は返す（フロントのブロック画面表示に必要）
+      return NextResponse.json({
+        success: true,
+        data: null,
+        user: {
+          threads_username: userRecord?.threads_username || null,
+          instagram_username: userRecord?.instagram_username || null,
+          subscription_status: userRecord?.subscription_status || null,
+          subscription_expires_at: userRecord?.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null,
+          plan_id: userRecord?.plan_id || null,
+        },
+        channels: {
+          instagram: !!userRecord?.has_instagram,
+          threads: !!userRecord?.has_threads,
+        },
+      });
+    }
+
+    // 課金済みユーザーのみダッシュボードデータを取得
+    const { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats } = await getUserDashboardData(userId);
 
     // データを統合ダッシュボード形式に変換
     const dashboardData = {

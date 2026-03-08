@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/univapay/client';
 import { PLANS } from '@/lib/univapay/plans';
-import { createPendingUser } from '@/lib/bigquery';
+import { createPendingUser, getAffiliateByCode, createReferral } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { transactionTokenId, planId } = body;
+    const { transactionTokenId, planId, refCode } = body;
 
     if (!transactionTokenId) {
       return NextResponse.json({
@@ -49,6 +49,27 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('Pending user created:', userId);
+
+    // 紹介コードがあればコミッション記録
+    if (refCode) {
+      try {
+        const affiliate = await getAffiliateByCode(refCode);
+        if (affiliate && affiliate.user_id !== userId) {
+          const commissionAmount = Math.floor(plan.price * affiliate.commission_rate);
+          await createReferral({
+            id: uuidv4(),
+            affiliate_code: refCode,
+            referred_user_id: userId,
+            plan_id: planId,
+            payment_amount: plan.price,
+            commission_amount: commissionAmount,
+          });
+          console.log('Referral recorded:', refCode, commissionAmount);
+        }
+      } catch (refErr) {
+        console.error('Referral recording failed (non-blocking):', refErr);
+      }
+    }
 
     // サブスクリプション作成成功
     return NextResponse.json({

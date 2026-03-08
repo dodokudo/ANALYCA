@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')?.replace(/#_$/, ''); // Threads adds #_ suffix
   const error = searchParams.get('error');
   const errorReason = searchParams.get('error_reason');
+  const stateParam = searchParams.get('state');
 
   // OAuth denied or error
   if (error) {
@@ -42,8 +43,15 @@ export async function GET(request: NextRequest) {
     const threads = new ThreadsAPI(longToken);
     const account = await threads.getAccountInfo();
 
-    // Step 4: Check for existing user (by Threads ID)
-    const existingUserId = await findUserIdByThreadsId(account.id || threadsUserId);
+    // Step 4: Check for existing user (by Threads ID or pending user from checkout)
+    let pendingUserId: string | undefined;
+    if (stateParam) {
+      try {
+        const state = JSON.parse(decodeURIComponent(stateParam));
+        pendingUserId = state.pendingUserId;
+      } catch { /* invalid state, ignore */ }
+    }
+    const existingUserId = pendingUserId || await findUserIdByThreadsId(account.id || threadsUserId);
 
     // Step 5: Save user (profile picture URLはCDNのまま保存、GCSアップロードはsyncで実行)
     const userId = await upsertThreadsUser({

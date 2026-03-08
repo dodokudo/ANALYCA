@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AnalycaLogo from '@/components/AnalycaLogo';
 
@@ -172,8 +171,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 
 // ============ メインコンポーネント ============
 export default function HomePage() {
-  const router = useRouter();
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
 
   useEffect(() => {
     let userId = window.localStorage.getItem('analycaUserId');
@@ -185,21 +183,16 @@ export default function HomePage() {
       }
     }
     if (userId) {
-      setIsRedirecting(true);
-      router.push(`/${userId}`);
+      setLoggedInUserId(userId);
     }
-  }, [router]);
 
-  if (isRedirecting) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">ダッシュボードへ移動中...</p>
-        </div>
-      </div>
-    );
-  }
+    // 紹介コード（refパラメータ）をlocalStorageに保存
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      window.localStorage.setItem('analyca_ref', ref);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -220,6 +213,18 @@ export default function HomePage() {
             <Link href="/demo" className="hidden md:block text-sm text-gray-600 hover:text-gray-900 transition-colors">
               デモを見る
             </Link>
+            {loggedInUserId ? (
+              <Link
+                href={`/${loggedInUserId}`}
+                className="text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors"
+              >
+                ダッシュボード
+              </Link>
+            ) : (
+              <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors">
+                ログイン
+              </Link>
+            )}
             <Link
               href="/pricing"
               className="bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all"

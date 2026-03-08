@@ -7,6 +7,7 @@ import { ScheduleTab } from './components/schedule-tab';
 import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings from './components/subscription-settings';
+import AffiliateDashboard from './components/affiliate-dashboard';
 import {
   ComposedChart,
   Bar,
@@ -356,30 +357,46 @@ function UserDashboardContent({ userId }: { userId: string }) {
     };
   }, [showSyncBanner]);
 
-  // 連携チャンネルのみ表示
+  // プランに基づいてチャンネルタブを表示（未連携でもタブ表示してアップグレード誘導）
+  const planId = user?.plan_id;
   const channelItems = useMemo(() => {
-    const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [];
-    if (channels.threads) {
-      items.push({ value: 'threads', label: 'Threads', Icon: ThreadsIcon });
-    }
-    if (channels.instagram) {
-      items.push({ value: 'instagram', label: 'Instagram', Icon: InstagramIcon });
-    }
+    const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }>; locked: boolean }[] = [];
+    // Threadsタブ: Threads連携済み or light-threadsプラン or standardプラン
+    items.push({
+      value: 'threads',
+      label: 'Threads',
+      Icon: ThreadsIcon,
+      locked: !channels.threads && planId === 'light-instagram',
+    });
+    // Instagramタブ
+    items.push({
+      value: 'instagram',
+      label: 'Instagram',
+      Icon: InstagramIcon,
+      locked: !channels.instagram && planId === 'light-threads',
+    });
     return items;
-  }, [channels]);
+  }, [channels, planId]);
+
+  // プランで制限されているチャンネルかどうか
+  const isChannelLocked = (channel: Channel): boolean => {
+    if (channel === 'instagram' && planId === 'light-threads') return true;
+    if (channel === 'threads' && planId === 'light-instagram') return true;
+    return false;
+  };
 
   // アクティブチャンネル（Threadsのみの場合はThreadsがデフォルト）
   const activeChannel = useMemo((): Channel => {
     if (tabParam === 'settings') return 'settings';
-    if (tabParam === 'threads' && channels.threads) return 'threads';
-    if (tabParam === 'instagram' && channels.instagram) return 'instagram';
+    if (tabParam === 'threads') return 'threads';
+    if (tabParam === 'instagram') return 'instagram';
     if (!tabParam) {
-      if (channels.threads && !channels.instagram) return 'threads';
-      if (channels.instagram) return 'instagram';
+      if (planId === 'light-threads' || (channels.threads && !channels.instagram)) return 'threads';
+      if (planId === 'light-instagram' || channels.instagram) return 'instagram';
       if (channels.threads) return 'threads';
     }
     return 'threads';
-  }, [tabParam, channels]);
+  }, [tabParam, channels, planId]);
 
   const setActiveChannel = (channel: Channel) => {
     // 履歴を汚さないようタブ変更は置き換え
@@ -406,21 +423,34 @@ function UserDashboardContent({ userId }: { userId: string }) {
     return <LoadingScreen message="データ読み込み中" />;
   }
 
-  // サブスク状態チェック（null/none/trial/activeは通す。それ以外はブロック）
+  // サブスク状態チェック（active/trialのみ通す。それ以外はブロック）
   const subStatus = user?.subscription_status;
-  const isBlocked = subStatus && !['none', 'active', 'trial'].includes(subStatus);
+  const isAllowed = subStatus && ['active', 'trial'].includes(subStatus);
   // 解約済みの場合、期限内はまだ使える
   const isCanceledButValid = subStatus === 'canceled'
     && user?.subscription_expires_at
     && new Date(user.subscription_expires_at) > new Date();
 
-  if (isBlocked && !isCanceledButValid) {
+  if (!isAllowed && !isCanceledButValid) {
     return (
       <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <AnalycaLogo size="lg" />
           <div className="mt-6">
-            {subStatus === 'unpaid' || subStatus === 'suspended' ? (
+            {!subStatus || subStatus === 'none' ? (
+              <>
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">プランを選んで始めましょう</h2>
+                <p className="text-gray-600 mb-6">
+                  ANALYCAのダッシュボードをご利用いただくには、<br />
+                  プランの登録が必要です。
+                </p>
+              </>
+            ) : subStatus === 'unpaid' || subStatus === 'suspended' ? (
               <>
                 <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -660,26 +690,45 @@ function UserDashboardContent({ userId }: { userId: string }) {
           </div>
 
           {activeChannel === 'threads' && (
-            <ThreadsContent
-              userId={userId}
-              user={user}
-              data={data}
-              username={username}
-              profilePicture={profilePicture}
-            />
+            isChannelLocked('threads') ? (
+              <UpgradeCard
+                currentPlan="Light (Instagram)"
+                targetChannel="Threads"
+                features={['Threads投稿分析', 'フォロワー推移', 'コメント欄遷移分析']}
+              />
+            ) : (
+              <ThreadsContent
+                userId={userId}
+                user={user}
+                data={data}
+                username={username}
+                profilePicture={profilePicture}
+              />
+            )
           )}
           {activeChannel === 'instagram' && (
-            <InstagramContent
-              user={user}
-              data={data}
-              username={username}
-              profilePicture={profilePicture}
-            />
+            isChannelLocked('instagram') ? (
+              <UpgradeCard
+                currentPlan="Light (Threads)"
+                targetChannel="Instagram"
+                features={['リール・ストーリー分析', 'フォロワー推移', 'エンゲージメント分析']}
+              />
+            ) : (
+              <InstagramContent
+                user={user}
+                data={data}
+                username={username}
+                profilePicture={profilePicture}
+              />
+            )
           )}
           {activeChannel === 'settings' && (
             <div className="max-w-2xl mx-auto py-6 px-4">
               <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-6">設定</h2>
               <SubscriptionSettings userId={userId} />
+              <div className="mt-6">
+                <AffiliateDashboard userId={userId} />
+              </div>
             </div>
           )}
         </div>
@@ -1776,6 +1825,45 @@ function InstagramContent({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ============ アップグレード案内カード ============
+function UpgradeCard({ currentPlan, targetChannel, features }: { currentPlan: string; targetChannel: string; features: string[] }) {
+  return (
+    <div className="max-w-lg mx-auto py-12 px-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="w-16 h-16 bg-gradient-to-r from-purple-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          {targetChannel}分析を利用する
+        </h3>
+        <p className="text-gray-600 mb-4">
+          現在のプラン（{currentPlan}）では{targetChannel}分析はご利用いただけません。<br />
+          Standardプランにアップグレードすると、以下の機能が解放されます。
+        </p>
+        <ul className="text-left space-y-2 mb-6 max-w-xs mx-auto">
+          {features.map((f, i) => (
+            <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
+              <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {f}
+            </li>
+          ))}
+        </ul>
+        <a
+          href="/checkout?plan=standard"
+          className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+        >
+          Standardプランにアップグレード
+        </a>
+        <p className="text-xs text-gray-500 mt-3">月額 ¥9,800 / Instagram + Threads 両方</p>
+      </div>
     </div>
   );
 }

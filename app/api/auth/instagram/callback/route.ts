@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const errorReason = searchParams.get('error_reason');
+  const stateParam = searchParams.get('state');
 
   // OAuth denied or error
   if (error) {
@@ -83,8 +84,15 @@ export async function GET(request: NextRequest) {
     const profile = await profileResponse.json();
     const igUserId = String(profile.user_id || instagramUserId);
 
-    // Step 4: Check for existing user (by Instagram ID)
-    const existingUserId = await findUserIdByInstagramId(igUserId);
+    // Step 4: Check for existing user (by Instagram ID or pending user from checkout)
+    let pendingUserId: string | undefined;
+    if (stateParam) {
+      try {
+        const state = JSON.parse(decodeURIComponent(stateParam));
+        pendingUserId = state.pendingUserId;
+      } catch { /* invalid state, ignore */ }
+    }
+    const existingUserId = pendingUserId || await findUserIdByInstagramId(igUserId);
 
     // Step 5: Save user
     const userId = await upsertUser({

@@ -7,8 +7,8 @@ import {
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
-// 1ユーザーのコメント同期は再帰的で重いが、ディスパッチャー方式で各ユーザー独立実行
-export const maxDuration = 120;
+// コメント同期は再帰的で重い。各ユーザー独立実行で300秒あれば十分
+export const maxDuration = 300;
 
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
@@ -132,8 +132,8 @@ async function getAllMyComments(
         allComments.push(...nestedComments);
       }
 
-      // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // API制限を考慮（Threads APIはレートリミットに余裕あり）
+      await new Promise(resolve => setTimeout(resolve, 30));
     }
   } catch (e) {
     console.warn(`Error fetching replies for ${startId}:`, e);
@@ -193,7 +193,7 @@ async function syncUserComments(
       }
 
       // 投稿間のAPI制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     let result = { newCount: 0, updatedCount: 0 };

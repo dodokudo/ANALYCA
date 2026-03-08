@@ -206,6 +206,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
         token_expires_at,
         drive_folder_id,
         has_instagram,
+        subscription_status,
         created_at,
         updated_at
       )
@@ -218,6 +219,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
         S.token_expires_at,
         S.drive_folder_id,
         TRUE,
+        'none',
         CURRENT_TIMESTAMP(),
         S.updated_at
       )
@@ -288,6 +290,7 @@ export async function upsertThreadsUser(userData: {
         threads_token_expires_at,
         threads_profile_picture_url,
         has_threads,
+        subscription_status,
         created_at,
         updated_at
       )
@@ -299,6 +302,7 @@ export async function upsertThreadsUser(userData: {
         S.threads_token_expires_at,
         S.threads_profile_picture_url,
         TRUE,
+        'none',
         CURRENT_TIMESTAMP(),
         S.updated_at
       )

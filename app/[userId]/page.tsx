@@ -739,17 +739,11 @@ function ThreadsContent({
     return allDailyPostStats.filter(d => isDateInRange(d.date, dateRange));
   }, [allDailyPostStats, dateRange]);
 
-  // フィルタ後の合計を計算
-  // dailyFollowerMetricsの最新日のスナップショット値を使用（全投稿の合計値）
-  const totalPosts = dailyPostStats.reduce((sum, d) => sum + (d.post_count || 0), 0);
-  const latestDailyMetric = useMemo(() => {
-    if (dailyFollowerMetrics.length === 0) return null;
-    const sorted = [...dailyFollowerMetrics].sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
-    return sorted[0];
-  }, [dailyFollowerMetrics]);
-  const totalViews = latestDailyMetric?.total_views || 0;
-  const totalLikes = latestDailyMetric?.total_likes || 0;
-  const totalReplies = latestDailyMetric?.total_replies || 0;
+  // フィルタ後の合計を計算（期間内の投稿データから直接集計）
+  const totalPosts = posts.length;
+  const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
+  const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
 
   // コメント紐付け
   const commentsByPostId = useMemo(() => {

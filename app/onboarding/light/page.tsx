@@ -18,26 +18,15 @@ function OnboardingLightContent() {
   const userId = searchParams?.get('userId') || '';
   const [error, setError] = useState<string | null>(null);
 
-  const handleThreadsOAuth = async () => {
+  const handleThreadsOAuth = () => {
     const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
     const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
     const state = userId ? encodeURIComponent(JSON.stringify({ pendingUserId: userId })) : '';
     const stateParam = state ? `&state=${state}` : '';
-    const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
 
-    try {
-      const { userId: returnedUserId } = await openOAuthPopup(oauthUrl);
-      window.localStorage.setItem('analycaUserId', returnedUserId);
-      window.location.replace(`/${returnedUserId}?tab=threads&syncing=true&auth=threads_complete`);
-    } catch (err) {
-      if (err instanceof PopupBlockedError) {
-        window.location.href = oauthUrl;
-        return;
-      }
-      setError('認証がキャンセルされました。もう一度お試しください。');
-    }
+    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
   };
 
   return (

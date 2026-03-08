@@ -68,29 +68,17 @@ export default function LoginPage() {
     }
   };
 
-  const handleThreadsLogin = async () => {
+  const handleThreadsLogin = () => {
     setIsThreadsLoading(true);
 
-    // Threads OAuth 2.0 Authorization Code Flow
+    // Threads OAuth 2.0 Authorization Code Flow（リダイレクト方式）
+    // Threads側のCOOPでポップアップが動作しないため、直接リダイレクト
     const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
     const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
-    const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
 
-    try {
-      const { userId } = await openOAuthPopup(oauthUrl);
-      window.localStorage.setItem('analycaUserId', userId);
-      router.push(`/${userId}?tab=threads&syncing=true&auth=threads_complete`);
-    } catch (err) {
-      if (err instanceof PopupBlockedError) {
-        // ポップアップブロック時: フォールバックでリダイレクト
-        window.location.href = oauthUrl;
-        return;
-      }
-      // ユーザーがポップアップを閉じた場合等
-      setIsThreadsLoading(false);
-    }
+    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
   };
 
   if (isRedirecting) {

@@ -30,25 +30,7 @@ function OnboardingStandardContent() {
     const targetUserId = connectedUserId || userId;
     const state = targetUserId ? encodeURIComponent(JSON.stringify({ pendingUserId: targetUserId })) : '';
     const stateParam = state ? `&state=${state}` : '';
-    const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
-
-    try {
-      const { userId: returnedUserId } = await openOAuthPopup(oauthUrl);
-      window.localStorage.setItem('analycaUserId', returnedUserId);
-      setConnectedUserId(returnedUserId);
-      setThreadsConnected(true);
-
-      // 両方連携済みならダッシュボードへ
-      if (instagramConnected) {
-        window.location.replace(`/${returnedUserId}?tab=threads&syncing=true&auth=threads_complete`);
-      }
-    } catch (err) {
-      if (err instanceof PopupBlockedError) {
-        window.location.href = oauthUrl;
-        return;
-      }
-      setError('Threads認証がキャンセルされました。もう一度お試しください。');
-    }
+    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
   };
 
   const handleInstagramOAuth = async () => {

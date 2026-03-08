@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Step 6: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）
-    const redirectUrl = new URL(`/auth/callback-success?userId=${userId}&tab=threads&syncing=true`, request.url);
+    const redirectUrl = new URL(`/${userId}?tab=threads&auth=threads_complete&syncing=true`, request.url);
     const response = NextResponse.redirect(redirectUrl);
     response.cookies.set('analycaUserId', userId, {
       path: '/',

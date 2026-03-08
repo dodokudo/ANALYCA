@@ -8,8 +8,8 @@ import {
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
-// Vercel Functionの最大実行時間を延長（5ユーザー×50投稿のインサイト取得に十分な時間）
-export const maxDuration = 300;
+// 1ユーザーの同期は並列化で10-15秒。cron(dispatcher)モードでも60秒で十分
+export const maxDuration = 60;
 
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
@@ -276,8 +276,12 @@ async function syncUserPosts(
 
 /**
  * GET: Threads投稿を同期
- * - userId指定あり: そのユーザーのみ同期
- * - userId指定なし: 全アクティブユーザーを同期（cron用）
+ *
+ * ■ スケーラブル設計:
+ * - userId指定あり: そのユーザーのみ同期（1ユーザー=1サーバーレス関数で独立実行）
+ * - userId指定なし: cron用ディスパッチャー。全ユーザーを取得し、各ユーザーごとに
+ *   個別のHTTPリクエストを発行して並列同期。1関数で全ユーザーを処理しないため、
+ *   ユーザーが500人でも1000人でもタイムアウトしない。
  */
 export async function GET(request: Request) {
   try {
@@ -287,51 +291,17 @@ export async function GET(request: Request) {
     const rawLimit = limitParam ? parseInt(limitParam, 10) : NaN;
     const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 50;
 
-    // アクティブなThreadsユーザーを取得
-    let users = await getActiveThreadsUsers();
-
-    // userIdが指定されている場合、そのユーザーのみに絞る
+    // ── 単一ユーザー同期モード ──
     if (targetUserId) {
-      users = users.filter(u => u.user_id === targetUserId);
-    }
+      const users = await getActiveThreadsUsers();
+      const user = users.find(u => u.user_id === targetUserId);
 
-    if (users.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No active Threads users found',
-        results: [],
-      });
-    }
+      if (!user) {
+        return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      }
 
-    const results: Array<{
-      userId: string;
-      username: string | null;
-      success: boolean;
-      postsCount: number;
-      newPosts: number;
-      updatedPosts: number;
-      commentsCount: number;
-      newComments: number;
-      updatedComments: number;
-      error?: string;
-    }> = [];
-
-    // 各ユーザーの投稿を同期
-    for (const user of users) {
       if (!user.threads_access_token || !user.threads_user_id) {
-        results.push({
-          userId: user.user_id,
-          username: user.threads_username,
-          success: false,
-          postsCount: 0,
-          newPosts: 0,
-          updatedPosts: 0,
-          commentsCount: 0,
-          newComments: 0,
-          updatedComments: 0,
-          error: 'Missing access token or Threads user ID',
-        });
-        continue;
+        return NextResponse.json({ success: false, error: 'Missing access token or Threads user ID' }, { status: 400 });
       }
 
       const result = await syncUserPosts(
@@ -341,25 +311,61 @@ export async function GET(request: Request) {
         postLimit
       );
 
-      results.push({
+      return NextResponse.json({
+        success: result.success,
         userId: user.user_id,
         username: user.threads_username,
         ...result,
       });
-
-      // API制限を考慮（ユーザー間は短めのwait）
-      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    // ── ディスパッチャーモード（cron用） ──
+    // 全ユーザーを取得して、各ユーザーに個別リクエストを並列発行
+    const users = await getActiveThreadsUsers();
+    const validUsers = users.filter(u => u.threads_access_token && u.threads_user_id);
+
+    if (validUsers.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No active Threads users found',
+        results: [],
+      });
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+
+    // 全ユーザーを並列で同期（各ユーザーが独立したサーバーレス関数で実行される）
+    const syncPromises = validUsers.map(async (user) => {
+      try {
+        const res = await fetch(
+          `${appUrl}/api/sync/threads/posts?userId=${encodeURIComponent(user.user_id)}&limit=${postLimit}`,
+          { cache: 'no-store' }
+        );
+        const data = await res.json();
+        return {
+          userId: user.user_id,
+          username: user.threads_username,
+          success: data.success ?? false,
+          postsCount: data.postsCount ?? 0,
+          error: data.error,
+        };
+      } catch (err) {
+        return {
+          userId: user.user_id,
+          username: user.threads_username,
+          success: false,
+          postsCount: 0,
+          error: err instanceof Error ? err.message : 'Dispatch failed',
+        };
+      }
+    });
+
+    const results = await Promise.all(syncPromises);
     const successCount = results.filter(r => r.success).length;
-    const totalPosts = results.reduce((sum, r) => sum + r.postsCount, 0);
-    const totalComments = results.reduce((sum, r) => sum + r.commentsCount, 0);
 
     return NextResponse.json({
       success: true,
-      message: `Synced Threads posts for ${successCount}/${users.length} users`,
-      totalPosts,
-      totalComments,
+      message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
       results,
     });
   } catch (error) {

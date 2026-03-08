@@ -746,118 +746,86 @@ export async function getUserThreadsPosts(userId: string, limit: number = 50): P
 export async function insertThreadsComments(comments: ThreadsComment[]): Promise<{ newCount: number; updatedCount: number }> {
   if (comments.length === 0) return { newCount: 0, updatedCount: 0 };
 
-  let processedCount = 0;
-  let streamingBufferErrorCount = 0;
+  // バッチMERGE: 50件ずつ1回のMERGEクエリで処理
+  const BATCH_SIZE = 50;
+  let totalProcessed = 0;
 
-  // 各コメントをMERGE文で処理（ストリーミングインサートではなくDMLを使用）
-  for (const comment of comments) {
+  for (let i = 0; i < comments.length; i += BATCH_SIZE) {
+    const batch = comments.slice(i, i + BATCH_SIZE);
+
+    const sourceRows = batch.map((_, idx) => `
+      SELECT
+        @id_${idx} as id,
+        @user_id_${idx} as user_id,
+        @comment_id_${idx} as comment_id,
+        @parent_post_id_${idx} as parent_post_id,
+        @text_${idx} as text,
+        TIMESTAMP(@timestamp_${idx}) as timestamp,
+        @permalink_${idx} as permalink,
+        @has_replies_${idx} as has_replies,
+        @views_${idx} as views,
+        @depth_${idx} as depth,
+        CURRENT_TIMESTAMP() as updated_at
+    `).join(' UNION ALL ');
+
+    const mergeQuery = `
+      MERGE \`mark-454114.analyca.threads_comments\` T
+      USING (${sourceRows}) S
+      ON T.user_id = S.user_id AND T.comment_id = S.comment_id
+      WHEN MATCHED THEN
+        UPDATE SET views = S.views, updated_at = S.updated_at
+      WHEN NOT MATCHED THEN
+        INSERT (id, user_id, comment_id, parent_post_id, text, timestamp, permalink, has_replies, views, depth, created_at, updated_at)
+        VALUES (S.id, S.user_id, S.comment_id, S.parent_post_id, S.text, S.timestamp, S.permalink, S.has_replies, S.views, S.depth, CURRENT_TIMESTAMP(), S.updated_at)
+    `;
+
+    const params: Record<string, string | number | boolean> = {};
+    batch.forEach((comment, idx) => {
+      params[`id_${idx}`] = comment.id;
+      params[`user_id_${idx}`] = comment.user_id;
+      params[`comment_id_${idx}`] = comment.comment_id;
+      params[`parent_post_id_${idx}`] = comment.parent_post_id;
+      params[`text_${idx}`] = comment.text;
+      params[`timestamp_${idx}`] = comment.timestamp.toISOString();
+      params[`permalink_${idx}`] = comment.permalink;
+      params[`has_replies_${idx}`] = comment.has_replies;
+      params[`views_${idx}`] = comment.views;
+      params[`depth_${idx}`] = comment.depth;
+    });
+
     try {
-      const mergeQuery = `
-        MERGE \`mark-454114.analyca.threads_comments\` T
-        USING (
-          SELECT
-            @id as id,
-            @user_id as user_id,
-            @comment_id as comment_id,
-            @parent_post_id as parent_post_id,
-            @text as text,
-            TIMESTAMP(@timestamp) as timestamp,
-            @permalink as permalink,
-            @has_replies as has_replies,
-            @views as views,
-            @depth as depth,
-            CURRENT_TIMESTAMP() as updated_at
-        ) S
-        ON T.user_id = S.user_id AND T.comment_id = S.comment_id
-        WHEN MATCHED THEN
-          UPDATE SET
-            views = S.views,
-            updated_at = S.updated_at
-        WHEN NOT MATCHED THEN
-          INSERT (id, user_id, comment_id, parent_post_id, text, timestamp, permalink, has_replies, views, depth, created_at, updated_at)
-          VALUES (S.id, S.user_id, S.comment_id, S.parent_post_id, S.text, S.timestamp, S.permalink, S.has_replies, S.views, S.depth, CURRENT_TIMESTAMP(), S.updated_at)
-      `;
-
-      await bigquery.query({
-        query: mergeQuery,
-        params: {
-          id: comment.id,
-          user_id: comment.user_id,
-          comment_id: comment.comment_id,
-          parent_post_id: comment.parent_post_id,
-          text: comment.text,
-          timestamp: comment.timestamp.toISOString(),
-          permalink: comment.permalink,
-          has_replies: comment.has_replies,
-          views: comment.views,
-          depth: comment.depth,
-        },
-      });
-
-      processedCount++;
+      await bigquery.query({ query: mergeQuery, params });
+      totalProcessed += batch.length;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // ストリーミングバッファエラーの場合、INSERT ONLY（新規レコードのみ）を試行
-      if (errorMessage.includes('streaming buffer')) {
-        streamingBufferErrorCount++;
-        console.warn(`Streaming buffer error for comment_id ${comment.comment_id}, trying INSERT ONLY...`);
-
+      console.error(`Batch comment MERGE failed:`, error);
+      // フォールバック: 1件ずつ処理
+      for (const comment of batch) {
         try {
-          // 既存レコードがあるかチェック
-          const checkQuery = `
-            SELECT 1 FROM \`mark-454114.analyca.threads_comments\`
-            WHERE user_id = @user_id AND comment_id = @comment_id
-            LIMIT 1
-          `;
-          const [checkRows] = await bigquery.query({
-            query: checkQuery,
-            params: { user_id: comment.user_id, comment_id: comment.comment_id },
+          await bigquery.query({
+            query: `
+              MERGE \`mark-454114.analyca.threads_comments\` T
+              USING (SELECT @user_id as user_id, @comment_id as comment_id, @id as id, @parent_post_id as parent_post_id, @text as text, TIMESTAMP(@timestamp) as timestamp, @permalink as permalink, @has_replies as has_replies, @views as views, @depth as depth, CURRENT_TIMESTAMP() as updated_at) S
+              ON T.user_id = S.user_id AND T.comment_id = S.comment_id
+              WHEN MATCHED THEN UPDATE SET views = S.views, updated_at = S.updated_at
+              WHEN NOT MATCHED THEN INSERT (id, user_id, comment_id, parent_post_id, text, timestamp, permalink, has_replies, views, depth, created_at, updated_at) VALUES (S.id, S.user_id, S.comment_id, S.parent_post_id, S.text, S.timestamp, S.permalink, S.has_replies, S.views, S.depth, CURRENT_TIMESTAMP(), S.updated_at)
+            `,
+            params: {
+              id: comment.id, user_id: comment.user_id, comment_id: comment.comment_id,
+              parent_post_id: comment.parent_post_id, text: comment.text,
+              timestamp: comment.timestamp.toISOString(), permalink: comment.permalink,
+              has_replies: comment.has_replies, views: comment.views, depth: comment.depth,
+            },
           });
-
-          if (checkRows.length === 0) {
-            // 新規レコードの場合のみINSERT
-            const insertQuery = `
-              INSERT INTO \`mark-454114.analyca.threads_comments\`
-              (id, user_id, comment_id, parent_post_id, text, timestamp, permalink, has_replies, views, depth, created_at, updated_at)
-              VALUES
-              (@id, @user_id, @comment_id, @parent_post_id, @text, TIMESTAMP(@timestamp), @permalink, @has_replies, @views, @depth, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
-            `;
-            await bigquery.query({
-              query: insertQuery,
-              params: {
-                id: comment.id,
-                user_id: comment.user_id,
-                comment_id: comment.comment_id,
-                parent_post_id: comment.parent_post_id,
-                text: comment.text,
-                timestamp: comment.timestamp.toISOString(),
-                permalink: comment.permalink,
-                has_replies: comment.has_replies,
-                views: comment.views,
-                depth: comment.depth,
-              },
-            });
-            processedCount++;
-            console.log(`INSERT successful for comment_id ${comment.comment_id}`);
-          } else {
-            // 既存レコードはスキップ
-            console.log(`Skipping update for comment_id ${comment.comment_id} (in streaming buffer)`);
-          }
-        } catch (insertError) {
-          console.warn(`INSERT also failed for comment_id ${comment.comment_id}:`, insertError);
+          totalProcessed++;
+        } catch (singleError) {
+          console.error(`Single comment MERGE failed for ${comment.comment_id}:`, singleError);
         }
-      } else {
-        console.warn(`コメント保存エラー (comment_id: ${comment.comment_id}):`, error);
       }
     }
   }
 
-  if (streamingBufferErrorCount > 0) {
-    console.log(`${streamingBufferErrorCount}件でストリーミングバッファエラー発生（フォールバック処理済み）`);
-  }
-  console.log(`${processedCount}件のThreadsコメントを処理（MERGE使用）`);
-  return { newCount: processedCount, updatedCount: 0 };
+  console.log(`${totalProcessed}件のThreadsコメントを処理（バッチMERGE使用）`);
+  return { newCount: totalProcessed, updatedCount: 0 };
 }
 
 // ユーザーのThreadsコメントデータ取得

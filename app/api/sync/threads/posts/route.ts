@@ -8,8 +8,8 @@ import {
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
-// Vercel Functionの最大実行時間を延長
-export const maxDuration = 60;
+// Vercel Functionの最大実行時間を延長（5ユーザー×50投稿のインサイト取得に十分な時間）
+export const maxDuration = 300;
 
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
@@ -198,30 +198,37 @@ async function syncUserPosts(
       return { success: true, postsCount: 0, newPosts: 0, updatedPosts: 0, commentsCount: 0, newComments: 0, updatedComments: 0 };
     }
 
-    // 各投稿のインサイトを取得
+    // 各投稿のインサイトを並列取得（10件ずつバッチ処理でAPI制限を考慮）
     const postsWithInsights: ThreadsPost[] = [];
+    const BATCH_SIZE = 10;
 
-    for (const post of posts) {
-      const insights = await getPostInsights(accessToken, post.id);
-
-      postsWithInsights.push({
-        id: uuidv4(),
-        user_id: userId,
-        threads_id: post.id,
-        text: post.text || '',
-        timestamp: new Date(post.timestamp),
-        permalink: post.permalink,
-        media_type: post.media_type,
-        is_quote_post: post.is_quote_post || false,
-        views: insights.views || 0,
-        likes: insights.likes || 0,
-        replies: insights.replies || 0,
-        reposts: insights.reposts || 0,
-        quotes: insights.quotes || 0,
-      });
-
-      // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 50));
+    for (let i = 0; i < posts.length; i += BATCH_SIZE) {
+      const batch = posts.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (post) => {
+          const insights = await getPostInsights(accessToken, post.id);
+          return {
+            id: uuidv4(),
+            user_id: userId,
+            threads_id: post.id,
+            text: post.text || '',
+            timestamp: new Date(post.timestamp),
+            permalink: post.permalink,
+            media_type: post.media_type,
+            is_quote_post: post.is_quote_post || false,
+            views: insights.views || 0,
+            likes: insights.likes || 0,
+            replies: insights.replies || 0,
+            reposts: insights.reposts || 0,
+            quotes: insights.quotes || 0,
+          } as ThreadsPost;
+        })
+      );
+      postsWithInsights.push(...batchResults);
+      // バッチ間にwait（API制限対策）
+      if (i + BATCH_SIZE < posts.length) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     }
 
     // コメント取得は重すぎるので定期同期ではスキップ（オンボーディング時のみ取得）
@@ -340,8 +347,8 @@ export async function GET(request: Request) {
         ...result,
       });
 
-      // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // API制限を考慮（ユーザー間は短めのwait）
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     const successCount = results.filter(r => r.success).length;

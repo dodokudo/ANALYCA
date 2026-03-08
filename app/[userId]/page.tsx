@@ -739,22 +739,17 @@ function ThreadsContent({
     return allDailyPostStats.filter(d => isDateInRange(d.date, dateRange));
   }, [allDailyPostStats, dateRange]);
 
-  // フィルタ後の合計を計算（日別フォロワーメトリクスの累計値から期間内の増加分を算出）
+  // フィルタ後の合計を計算
+  // dailyFollowerMetricsの最新日のスナップショット値を使用（全投稿の合計値）
   const totalPosts = dailyPostStats.reduce((sum, d) => sum + (d.post_count || 0), 0);
-  const periodMetrics = useMemo(() => {
-    if (dailyFollowerMetrics.length === 0) return { views: 0, likes: 0, replies: 0 };
-    const sorted = [...dailyFollowerMetrics].sort((a, b) => safeGetTime(a.date) - safeGetTime(b.date));
-    const oldest = sorted[0];
-    const newest = sorted[sorted.length - 1];
-    return {
-      views: (newest.total_views || 0) - (oldest.total_views || 0),
-      likes: (newest.total_likes || 0) - (oldest.total_likes || 0),
-      replies: (newest.total_replies || 0) - (oldest.total_replies || 0),
-    };
+  const latestDailyMetric = useMemo(() => {
+    if (dailyFollowerMetrics.length === 0) return null;
+    const sorted = [...dailyFollowerMetrics].sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date));
+    return sorted[0];
   }, [dailyFollowerMetrics]);
-  const totalViews = periodMetrics.views;
-  const totalLikes = periodMetrics.likes;
-  const totalReplies = periodMetrics.replies;
+  const totalViews = latestDailyMetric?.total_views || 0;
+  const totalLikes = latestDailyMetric?.total_likes || 0;
+  const totalReplies = latestDailyMetric?.total_replies || 0;
 
   // コメント紐付け
   const commentsByPostId = useMemo(() => {
@@ -820,18 +815,6 @@ function ThreadsContent({
       } else {
         metric.followers_count = lastKnownFollowers;
       }
-    }
-    // total_views/likes/repliesは累計値なので、日別の増加分に変換
-    for (let i = sorted.length - 1; i > 0; i--) {
-      sorted[i].total_views = Math.max(0, sorted[i].total_views - sorted[i - 1].total_views);
-      sorted[i].total_likes = Math.max(0, sorted[i].total_likes - sorted[i - 1].total_likes);
-      sorted[i].total_replies = Math.max(0, sorted[i].total_replies - sorted[i - 1].total_replies);
-    }
-    // 最初の日は差分が取れないので0にする（前日データなし）
-    if (sorted.length > 0) {
-      sorted[0].total_views = 0;
-      sorted[0].total_likes = 0;
-      sorted[0].total_replies = 0;
     }
     return sorted.reverse();
   }, [dailyFollowerMetrics, dailyPostStats, followersCount]);

@@ -770,24 +770,27 @@ function ThreadsContent({
 
   const dailyMetrics = useMemo(() => {
     const merged = new Map<string, DailyMetric>();
+    // dailyFollowerMetricsからはフォロワー情報のみ使用（total_views等は累計スナップショットなので日別テーブルには使わない）
     for (const metric of dailyFollowerMetrics) {
       merged.set(metric.date, {
         date: metric.date,
         followers_count: metric.followers_count || 0,
         follower_delta: metric.follower_delta || 0,
-        total_views: metric.total_views || 0,
-        total_likes: metric.total_likes || 0,
-        total_replies: metric.total_replies || 0,
-        post_count: metric.post_count || 0,
+        total_views: 0,
+        total_likes: 0,
+        total_replies: 0,
+        post_count: 0,
       });
     }
+    // dailyPostStatsからその日の投稿ベースの閲覧数・いいね数等をマージ
     for (const stat of dailyPostStats) {
       const existing = merged.get(stat.date);
       if (existing) {
-        // dailyPostStatsはその日に投稿された分の統計。フォロワーメトリクスの累計値を優先
-        // post_countはdailyPostStatsの方が正確（その日の新規投稿数）
         merged.set(stat.date, {
           ...existing,
+          total_views: stat.total_views || 0,
+          total_likes: stat.total_likes || 0,
+          total_replies: stat.total_replies || 0,
           post_count: stat.post_count || existing.post_count,
         });
       } else {

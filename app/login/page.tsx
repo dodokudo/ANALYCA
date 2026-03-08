@@ -56,7 +56,7 @@ export default function LoginPage() {
     try {
       const { userId } = await openOAuthPopup(oauthUrl);
       window.localStorage.setItem('analycaUserId', userId);
-      router.push(`/${userId}?tab=instagram&syncing=true`);
+      router.push(`/${userId}?tab=instagram&syncing=true&auth=instagram_complete`);
     } catch (err) {
       if (err instanceof PopupBlockedError) {
         // ポップアップブロック時: フォールバックでリダイレクト
@@ -81,7 +81,7 @@ export default function LoginPage() {
     try {
       const { userId } = await openOAuthPopup(oauthUrl);
       window.localStorage.setItem('analycaUserId', userId);
-      router.push(`/${userId}?tab=threads&syncing=true`);
+      router.push(`/${userId}?tab=threads&syncing=true&auth=threads_complete`);
     } catch (err) {
       if (err instanceof PopupBlockedError) {
         // ポップアップブロック時: フォールバックでリダイレクト

@@ -47,7 +47,7 @@ export default function CallbackSuccessPage() {
     // window.close()が効かなかった場合（一部ブラウザ）: ダッシュボードにリダイレクト
     // 少し待ってからリダイレクト（親がlocalStorageを読む時間を確保）
     const fallbackTimer = setTimeout(() => {
-      window.location.replace(`/${userId}?tab=${tab}&syncing=true`);
+      window.location.replace(`/${userId}?tab=${tab}&syncing=true&auth=${tab}_complete`);
     }, 2000);
 
     return () => clearTimeout(fallbackTimer);

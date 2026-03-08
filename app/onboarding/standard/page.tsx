@@ -95,7 +95,7 @@ function OnboardingStandardContent() {
           console.warn('Sync API error (continuing anyway):', syncError);
         }
         // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
-        window.location.replace(`/${result.userId}?tab=threads`);
+        window.location.replace(`/${result.userId}?tab=threads&syncing=true&auth=threads_complete`);
       } else {
         setError(result.error || 'セットアップに失敗しました');
       }

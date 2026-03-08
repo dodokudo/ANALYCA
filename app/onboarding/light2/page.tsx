@@ -76,7 +76,7 @@ function OnboardingLight2Content() {
           console.warn('Sync API error (continuing anyway):', syncError);
         }
         // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
-        window.location.replace(`/${result.userId}?tab=instagram`);
+        window.location.replace(`/${result.userId}?tab=instagram&syncing=true&auth=instagram_complete`);
       } else {
         setError(result.error || 'セットアップに失敗しました');
       }

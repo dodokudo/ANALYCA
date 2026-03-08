@@ -65,7 +65,7 @@ function OnboardingLightContent() {
           console.warn('Sync API error (continuing anyway):', syncError);
         }
         // 同期完了後にダッシュボードへリダイレクト（replaceで戻るボタン対策）
-        window.location.replace(`/${result.userId}?tab=threads`);
+        window.location.replace(`/${result.userId}?tab=threads&syncing=true&auth=threads_complete`);
       } else {
         setError(result.error || 'セットアップに失敗しました');
       }
@@ -116,7 +116,7 @@ function OnboardingLightContent() {
                 try {
                   const { userId: returnedUserId } = await openOAuthPopup(oauthUrl);
                   window.localStorage.setItem('analycaUserId', returnedUserId);
-                  window.location.replace(`/${returnedUserId}?tab=threads`);
+                  window.location.replace(`/${returnedUserId}?tab=threads&syncing=true&auth=threads_complete`);
                 } catch (err) {
                   if (err instanceof PopupBlockedError) {
                     // ポップアップブロック時: フォールバックでリダイレクト

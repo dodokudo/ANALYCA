@@ -226,7 +226,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
-    const postLimit = parseInt(searchParams.get('limit') || '100', 10);
+    const rawLimit = parseInt(searchParams.get('limit') || '100', 10);
+    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 100;
 
     // ── 単一ユーザー同期モード ──
     if (targetUserId) {

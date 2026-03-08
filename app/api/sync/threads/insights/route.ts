@@ -7,8 +7,8 @@ import {
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 
-// Vercel Functionの最大実行時間を延長
-export const maxDuration = 60;
+// ディスパッチャーモードでサブリクエスト完了を待つため余裕を持たせる
+export const maxDuration = 300;
 
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 

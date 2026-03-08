@@ -1144,6 +1144,26 @@ function ThreadsContent({
                     {isExpanded ? post.text : (post.text && post.text.length > 80 ? post.text.slice(0, 80) + '…' : post.text || '(テキストなし)')}
                   </p>
 
+                  {isExpanded && postComments.length > 0 && (
+                    <div className="mt-3 space-y-2 border-t border-gray-200 pt-3">
+                      <p className="text-xs font-medium text-gray-500">コメント欄</p>
+                      {postComments
+                        .sort((a, b) => a.depth - b.depth)
+                        .map((comment, cidx) => (
+                        <div
+                          key={comment.id}
+                          className="rounded-md bg-gray-50 p-2 text-xs"
+                        >
+                          <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-1">
+                            <span className="font-medium text-purple-600">コメント{cidx + 1}</span>
+                            <span>閲覧 {comment.views.toLocaleString()}</span>
+                          </div>
+                          <p className="text-gray-700 whitespace-pre-wrap">{comment.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {post.permalink && (
                     <a
                       href={post.permalink}

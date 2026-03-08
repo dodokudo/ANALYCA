@@ -42,24 +42,42 @@ interface ThreadsInsights {
 }
 
 /**
- * Threads投稿一覧を取得
+ * Threads投稿一覧を取得（ページネーション対応）
+ * Threads APIは1リクエスト最大100件。limitが100超の場合はカーソルで複数ページ取得
  */
 async function getThreadsPosts(accessToken: string, limit = 100): Promise<ThreadsPostData[]> {
-  try {
-    const response = await fetch(
-      `${GRAPH_BASE}/me/threads?fields=id,text,timestamp,permalink,media_type,is_quote_post&limit=${limit}&access_token=${accessToken}`
-    );
+  const allPosts: ThreadsPostData[] = [];
+  let cursor: string | null = null;
+  const perPage = Math.min(limit, 100);
 
-    if (!response.ok) {
-      console.warn('Failed to get Threads posts');
-      return [];
+  try {
+    while (allPosts.length < limit) {
+      let url = `${GRAPH_BASE}/me/threads?fields=id,text,timestamp,permalink,media_type,is_quote_post&limit=${perPage}&access_token=${accessToken}`;
+      if (cursor) {
+        url += `&after=${cursor}`;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn('Failed to get Threads posts');
+        break;
+      }
+
+      const data = await response.json();
+      const posts = data.data || [];
+      if (posts.length === 0) break;
+
+      allPosts.push(...posts);
+
+      // 次ページのカーソルがなければ終了
+      cursor = data.paging?.cursors?.after || null;
+      if (!cursor) break;
     }
 
-    const data = await response.json();
-    return data.data || [];
+    return allPosts.slice(0, limit);
   } catch (error) {
     console.error('Error fetching Threads posts:', error);
-    return [];
+    return allPosts; // 途中まで取得したデータは返す
   }
 }
 
@@ -290,7 +308,7 @@ export async function GET(request: Request) {
     const targetUserId = searchParams.get('userId');
     const limitParam = searchParams.get('limit');
     const rawLimit = limitParam ? parseInt(limitParam, 10) : NaN;
-    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 50;
+    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 50;
 
     // ── 単一ユーザー同期モード ──
     if (targetUserId) {

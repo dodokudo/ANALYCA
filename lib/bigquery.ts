@@ -563,132 +563,100 @@ export async function getUserLineData(userId: string, limit: number = 30): Promi
 export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCount: number; updatedCount: number }> {
   if (posts.length === 0) return { newCount: 0, updatedCount: 0 };
 
-  let newCount = 0;
-  const updatedCount = 0;
-  let streamingBufferErrorCount = 0;
+  // バッチMERGE: 50件ずつ1回のMERGEクエリで処理（1件ずつ実行の100倍高速）
+  const BATCH_SIZE = 50;
+  let totalProcessed = 0;
 
-  // 各投稿をMERGE文で処理（ストリーミングインサートではなくDMLを使用）
-  for (const post of posts) {
+  for (let i = 0; i < posts.length; i += BATCH_SIZE) {
+    const batch = posts.slice(i, i + BATCH_SIZE);
+
+    // UNION ALLでソースデータを構築
+    const sourceRows = batch.map((_, idx) => `
+      SELECT
+        @id_${idx} as id,
+        @user_id_${idx} as user_id,
+        @threads_id_${idx} as threads_id,
+        @text_${idx} as text,
+        TIMESTAMP(@timestamp_${idx}) as timestamp,
+        @permalink_${idx} as permalink,
+        @media_type_${idx} as media_type,
+        @is_quote_post_${idx} as is_quote_post,
+        @views_${idx} as views,
+        @likes_${idx} as likes,
+        @replies_${idx} as replies,
+        @reposts_${idx} as reposts,
+        @quotes_${idx} as quotes,
+        CURRENT_TIMESTAMP() as updated_at
+    `).join(' UNION ALL ');
+
+    const mergeQuery = `
+      MERGE \`mark-454114.analyca.threads_posts\` T
+      USING (${sourceRows}) S
+      ON T.user_id = S.user_id AND T.threads_id = S.threads_id
+      WHEN MATCHED THEN
+        UPDATE SET
+          views = S.views,
+          likes = S.likes,
+          replies = S.replies,
+          reposts = S.reposts,
+          quotes = S.quotes,
+          updated_at = S.updated_at
+      WHEN NOT MATCHED THEN
+        INSERT (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at)
+        VALUES (S.id, S.user_id, S.threads_id, S.text, S.timestamp, S.permalink, S.media_type, S.is_quote_post, S.views, S.likes, S.replies, S.reposts, S.quotes, CURRENT_TIMESTAMP(), S.updated_at)
+    `;
+
+    // パラメータを構築
+    const params: Record<string, string | number | boolean> = {};
+    batch.forEach((post, idx) => {
+      params[`id_${idx}`] = post.id;
+      params[`user_id_${idx}`] = post.user_id;
+      params[`threads_id_${idx}`] = post.threads_id;
+      params[`text_${idx}`] = post.text;
+      params[`timestamp_${idx}`] = post.timestamp.toISOString();
+      params[`permalink_${idx}`] = post.permalink;
+      params[`media_type_${idx}`] = post.media_type;
+      params[`is_quote_post_${idx}`] = post.is_quote_post;
+      params[`views_${idx}`] = post.views;
+      params[`likes_${idx}`] = post.likes;
+      params[`replies_${idx}`] = post.replies;
+      params[`reposts_${idx}`] = post.reposts;
+      params[`quotes_${idx}`] = post.quotes;
+    });
+
     try {
-      const mergeQuery = `
-        MERGE \`mark-454114.analyca.threads_posts\` T
-        USING (
-          SELECT
-            @id as id,
-            @user_id as user_id,
-            @threads_id as threads_id,
-            @text as text,
-            TIMESTAMP(@timestamp) as timestamp,
-            @permalink as permalink,
-            @media_type as media_type,
-            @is_quote_post as is_quote_post,
-            @views as views,
-            @likes as likes,
-            @replies as replies,
-            @reposts as reposts,
-            @quotes as quotes,
-            CURRENT_TIMESTAMP() as updated_at
-        ) S
-        ON T.user_id = S.user_id AND T.threads_id = S.threads_id
-        WHEN MATCHED THEN
-          UPDATE SET
-            views = S.views,
-            likes = S.likes,
-            replies = S.replies,
-            reposts = S.reposts,
-            quotes = S.quotes,
-            updated_at = S.updated_at
-        WHEN NOT MATCHED THEN
-          INSERT (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at)
-          VALUES (S.id, S.user_id, S.threads_id, S.text, S.timestamp, S.permalink, S.media_type, S.is_quote_post, S.views, S.likes, S.replies, S.reposts, S.quotes, CURRENT_TIMESTAMP(), S.updated_at)
-      `;
-
-      await bigquery.query({
-        query: mergeQuery,
-        params: {
-          id: post.id,
-          user_id: post.user_id,
-          threads_id: post.threads_id,
-          text: post.text,
-          timestamp: post.timestamp.toISOString(),
-          permalink: post.permalink,
-          media_type: post.media_type,
-          is_quote_post: post.is_quote_post,
-          views: post.views,
-          likes: post.likes,
-          replies: post.replies,
-          reposts: post.reposts,
-          quotes: post.quotes,
-        },
-      });
-
-      newCount++;
+      await bigquery.query({ query: mergeQuery, params });
+      totalProcessed += batch.length;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-
-      // ストリーミングバッファエラーの場合、INSERT ONLY（新規レコードのみ）を試行
-      if (errorMessage.includes('streaming buffer')) {
-        streamingBufferErrorCount++;
-        console.warn(`Streaming buffer error for threads_id ${post.threads_id}, trying INSERT ONLY...`);
-
+      console.error(`Batch MERGE failed for ${batch.length} posts:`, error);
+      // バッチが失敗した場合、1件ずつフォールバック
+      for (const post of batch) {
         try {
-          // 既存レコードがあるかチェック
-          const checkQuery = `
-            SELECT 1 FROM \`mark-454114.analyca.threads_posts\`
-            WHERE user_id = @user_id AND threads_id = @threads_id
-            LIMIT 1
-          `;
-          const [checkRows] = await bigquery.query({
-            query: checkQuery,
-            params: { user_id: post.user_id, threads_id: post.threads_id },
+          await bigquery.query({
+            query: `
+              MERGE \`mark-454114.analyca.threads_posts\` T
+              USING (SELECT @user_id as user_id, @threads_id as threads_id, @id as id, @text as text, TIMESTAMP(@timestamp) as timestamp, @permalink as permalink, @media_type as media_type, @is_quote_post as is_quote_post, @views as views, @likes as likes, @replies as replies, @reposts as reposts, @quotes as quotes, CURRENT_TIMESTAMP() as updated_at) S
+              ON T.user_id = S.user_id AND T.threads_id = S.threads_id
+              WHEN MATCHED THEN UPDATE SET views = S.views, likes = S.likes, replies = S.replies, reposts = S.reposts, quotes = S.quotes, updated_at = S.updated_at
+              WHEN NOT MATCHED THEN INSERT (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at) VALUES (S.id, S.user_id, S.threads_id, S.text, S.timestamp, S.permalink, S.media_type, S.is_quote_post, S.views, S.likes, S.replies, S.reposts, S.quotes, CURRENT_TIMESTAMP(), S.updated_at)
+            `,
+            params: {
+              id: post.id, user_id: post.user_id, threads_id: post.threads_id, text: post.text,
+              timestamp: post.timestamp.toISOString(), permalink: post.permalink, media_type: post.media_type,
+              is_quote_post: post.is_quote_post, views: post.views, likes: post.likes, replies: post.replies,
+              reposts: post.reposts, quotes: post.quotes,
+            },
           });
-
-          if (checkRows.length === 0) {
-            // 新規レコードの場合のみINSERT
-            const insertQuery = `
-              INSERT INTO \`mark-454114.analyca.threads_posts\`
-              (id, user_id, threads_id, text, timestamp, permalink, media_type, is_quote_post, views, likes, replies, reposts, quotes, created_at, updated_at)
-              VALUES
-              (@id, @user_id, @threads_id, @text, TIMESTAMP(@timestamp), @permalink, @media_type, @is_quote_post, @views, @likes, @replies, @reposts, @quotes, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
-            `;
-            await bigquery.query({
-              query: insertQuery,
-              params: {
-                id: post.id,
-                user_id: post.user_id,
-                threads_id: post.threads_id,
-                text: post.text,
-                timestamp: post.timestamp.toISOString(),
-                permalink: post.permalink,
-                media_type: post.media_type,
-                is_quote_post: post.is_quote_post,
-                views: post.views,
-                likes: post.likes,
-                replies: post.replies,
-                reposts: post.reposts,
-                quotes: post.quotes,
-              },
-            });
-            newCount++;
-            console.log(`INSERT successful for threads_id ${post.threads_id}`);
-          } else {
-            // 既存レコードはスキップ（ストリーミングバッファが解消されるまで待つ必要あり）
-            console.log(`Skipping update for threads_id ${post.threads_id} (in streaming buffer)`);
-          }
-        } catch (insertError) {
-          console.warn(`INSERT also failed for threads_id ${post.threads_id}:`, insertError);
+          totalProcessed++;
+        } catch (singleError) {
+          console.error(`Single MERGE failed for threads_id ${post.threads_id}:`, singleError);
         }
-      } else {
-        console.error(`Error processing threads_id ${post.threads_id}:`, error);
       }
     }
   }
 
-  if (streamingBufferErrorCount > 0) {
-    console.log(`${streamingBufferErrorCount}件でストリーミングバッファエラー発生（フォールバック処理済み）`);
-  }
-  console.log(`${newCount}件のThreads投稿を処理（MERGE使用）`);
-  return { newCount, updatedCount };
+  console.log(`${totalProcessed}件のThreads投稿を処理（バッチMERGE使用）`);
+  return { newCount: totalProcessed, updatedCount: 0 };
 }
 
 // BigQueryのTimestamp型を安全にDateに変換するヘルパー

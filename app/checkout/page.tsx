@@ -33,7 +33,7 @@ function CheckoutContent() {
     fetch('/api/payment/config')
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
+        if (data.success && data.config?.appId) {
           setAppId(data.config.appId);
         }
       })

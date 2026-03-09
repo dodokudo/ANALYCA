@@ -24,15 +24,18 @@ async function getInstagramProfilePicture(accessToken: string, userId: string): 
     const cdnUrl = data.profile_picture_url || null;
 
     if (cdnUrl) {
-      // GCSにアップロード
+      // GCSにアップロード（CDN URLは期限切れになるため永続化が必須）
       const fileName = `instagram_profile_${userId}_${Date.now()}`;
       const gcsUrl = await uploadImageToGCS(cdnUrl, fileName, 'profile-pictures/instagram');
       if (gcsUrl) {
         return gcsUrl;
       }
+      // GCSアップロード失敗時（CDN画像が410 Gone等）はnullを返し、既存URLを保持する
+      console.warn(`Instagram profile picture GCS upload failed for ${userId}, keeping existing URL`);
+      return null;
     }
 
-    return cdnUrl;
+    return null;
   } catch (e) {
     console.error('Instagram profile picture error:', e);
     return null;
@@ -55,15 +58,18 @@ async function getThreadsProfilePicture(accessToken: string, userId: string): Pr
     const cdnUrl = data.threads_profile_picture_url || null;
 
     if (cdnUrl) {
-      // GCSにアップロード
+      // GCSにアップロード（CDN URLは期限切れになるため永続化が必須）
       const fileName = `threads_profile_${userId}_${Date.now()}`;
       const gcsUrl = await uploadImageToGCS(cdnUrl, fileName, 'profile-pictures/threads');
       if (gcsUrl) {
         return gcsUrl;
       }
+      // GCSアップロード失敗時はnullを返し、既存URLを保持する
+      console.warn(`Threads profile picture GCS upload failed for ${userId}, keeping existing URL`);
+      return null;
     }
 
-    return cdnUrl;
+    return null;
   } catch (e) {
     console.error('Threads profile picture error:', e);
     return null;

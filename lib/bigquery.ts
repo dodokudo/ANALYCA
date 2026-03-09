@@ -23,6 +23,16 @@ const bigquery = new BigQuery({
 
 const dataset = bigquery.dataset('analyca');
 
+/**
+ * DML（INSERT/UPDATE/DELETE/MERGE）を確実に実行するヘルパー
+ * bigquery.query() はDMLで成功レスポンスを返しつつ未反映になることがあるため、
+ * createQueryJob() + getQueryResults() を使用する
+ */
+async function executeDML(options: { query: string; params?: Record<string, unknown>; types?: Record<string, string> }): Promise<void> {
+  const [job] = await bigquery.createQueryJob(options);
+  await job.getQueryResults();
+}
+
 export interface User {
   user_id: string;
   instagram_user_id?: string | null;
@@ -243,7 +253,7 @@ export async function upsertUser(userData: Omit<User, 'user_id'> & { user_id?: s
     },
   };
 
-  await bigquery.query(options);
+  await executeDML(options);
   return userId;
 }
 
@@ -323,7 +333,7 @@ export async function upsertThreadsUser(userData: {
     },
   };
 
-  await bigquery.query(options);
+  await executeDML(options);
   return userId;
 }
 
@@ -625,14 +635,14 @@ export async function insertThreadsPosts(posts: ThreadsPost[]): Promise<{ newCou
     });
 
     try {
-      await bigquery.query({ query: mergeQuery, params });
+      await executeDML({ query: mergeQuery, params });
       totalProcessed += batch.length;
     } catch (error) {
       console.error(`Batch MERGE failed for ${batch.length} posts:`, error);
       // バッチが失敗した場合、1件ずつフォールバック
       for (const post of batch) {
         try {
-          await bigquery.query({
+          await executeDML({
             query: `
               MERGE \`mark-454114.analyca.threads_posts\` T
               USING (SELECT @user_id as user_id, @threads_id as threads_id, @id as id, @text as text, TIMESTAMP(@timestamp) as timestamp, @permalink as permalink, @media_type as media_type, @is_quote_post as is_quote_post, @views as views, @likes as likes, @replies as replies, @reposts as reposts, @quotes as quotes, CURRENT_TIMESTAMP() as updated_at) S
@@ -794,14 +804,14 @@ export async function insertThreadsComments(comments: ThreadsComment[]): Promise
     });
 
     try {
-      await bigquery.query({ query: mergeQuery, params });
+      await executeDML({ query: mergeQuery, params });
       totalProcessed += batch.length;
     } catch (error) {
       console.error(`Batch comment MERGE failed:`, error);
       // フォールバック: 1件ずつ処理
       for (const comment of batch) {
         try {
-          await bigquery.query({
+          await executeDML({
             query: `
               MERGE \`mark-454114.analyca.threads_comments\` T
               USING (SELECT @user_id as user_id, @comment_id as comment_id, @id as id, @parent_post_id as parent_post_id, @text as text, TIMESTAMP(@timestamp) as timestamp, @permalink as permalink, @has_replies as has_replies, @views as views, @depth as depth, CURRENT_TIMESTAMP() as updated_at) S
@@ -946,7 +956,7 @@ export async function upsertThreadsDailyMetrics(metrics: ThreadsDailyMetrics): P
     },
   };
 
-  await bigquery.query(options);
+  await executeDML(options);
 }
 
 // ユーザーのThreads日別メトリクス取得
@@ -1222,7 +1232,7 @@ export async function upsertInstagramInsights(insights: InstagramInsights): Prom
     },
   };
 
-  await bigquery.query(options);
+  await executeDML(options);
 }
 
 // Instagram Reelsをupsert（既存のリールは更新、新規は挿入）
@@ -1505,7 +1515,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
     )
   `;
 
-  await bigquery.query({
+  await executeDML({
     query,
     params: {
       user_id: userId,
@@ -1564,7 +1574,7 @@ export async function updateUserSubscription(userId: string, data: {
     WHERE user_id = @user_id
   `;
 
-  await bigquery.query({ query, params });
+  await executeDML({ query, params });
 }
 
 /**
@@ -1640,7 +1650,7 @@ export async function updateSubscriptionStatusBySubId(subscriptionId: string, st
     WHERE subscription_id = @subscription_id
   `;
 
-  await bigquery.query({
+  await executeDML({
     query,
     params: { subscription_id: subscriptionId, status },
   });
@@ -1674,7 +1684,7 @@ export async function createTrialUser(userId: string, data: {
     )
   `;
 
-  await bigquery.query({
+  await executeDML({
     query,
     params: {
       user_id: userId,
@@ -1701,7 +1711,7 @@ export async function updateUserRecurringToken(userId: string, recurringTokenId:
     WHERE user_id = @user_id
   `;
 
-  await bigquery.query({
+  await executeDML({
     query,
     params: {
       user_id: userId,
@@ -1749,10 +1759,7 @@ export async function expireTrialUsersWithoutCard(): Promise<number> {
       AND trial_ends_at <= CURRENT_TIMESTAMP()
   `;
 
-  const [rows] = await bigquery.query({ query });
-  // DML文はrows配列ではなくメタデータで影響行数を返すが、型の制約上直接取得は困難
-  // UPDATE文は正常終了すれば成功とみなす
-  void rows;
+  await executeDML({ query });
   return 0;
 }
 
@@ -1769,7 +1776,7 @@ export async function registerAffiliate(userId: string, affiliateCode: string): 
       @user_id, @affiliate_code, 0.5, 0, 0, CURRENT_TIMESTAMP()
     )
   `;
-  await bigquery.query({ query, params: { user_id: userId, affiliate_code: affiliateCode } });
+  await executeDML({ query, params: { user_id: userId, affiliate_code: affiliateCode } });
 }
 
 /**
@@ -1842,7 +1849,7 @@ export async function createReferral(data: {
       @id, @affiliate_code, @referred_user_id, @plan_id, @payment_amount, @commission_amount, 'pending', CURRENT_TIMESTAMP()
     )
   `;
-  await bigquery.query({ query, params: data });
+  await executeDML({ query, params: data });
 
   // affiliatesテーブルの集計を更新
   const updateQuery = `
@@ -1851,7 +1858,7 @@ export async function createReferral(data: {
         total_commission = total_commission + @commission_amount
     WHERE affiliate_code = @affiliate_code
   `;
-  await bigquery.query({
+  await executeDML({
     query: updateQuery,
     params: { affiliate_code: data.affiliate_code, commission_amount: data.commission_amount },
   });

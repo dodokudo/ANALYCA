@@ -918,7 +918,7 @@ function ThreadsContent({
             <div className="flex items-center mb-4">
               <div className="w-14 h-14 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)] mr-4">
                 {profilePicture ? (
-                  <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-xl font-bold">
                     {username.charAt(0).toUpperCase()}
@@ -1348,7 +1348,7 @@ function InstagramContent({
                 <div className="flex items-center mb-4">
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)] mr-4">
                     {profilePicture ? (
-                      <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
+                      <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">
                         {username.charAt(0).toUpperCase()}

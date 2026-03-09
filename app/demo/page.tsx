@@ -1134,11 +1134,76 @@ function threadsFmtNum(n: number): string {
 }
 
 // ============ Threads デモ ============
+// ============ デモ用予約投稿データ ============
+const DEMO_SCHEDULED_POSTS = [
+  {
+    scheduleId: 'demo-1',
+    scheduledDate: '2026-03-10',
+    scheduledAt: '2026-03-10T09:00:00+09:00',
+    scheduledAtJst: '2026-03-10T09:00:00',
+    mainText: '【マジでやばい】インスタ運用してる人の9割が知らない事実。リーチが伸びない原因、アルゴリズムじゃなくて「〇〇」だった。',
+    comment1: '僕のコンサル生で、毎日投稿してるのにフォロワー全く増えなかった人がいて。原因を分析したら、投稿の「最初の1行」が全部同じパターンだった。\n\nフックを変えただけで、リーチが3倍になった実例を紹介します。',
+    comment2: '具体的にどうすればいいかは、プロフのリンクから無料で見れます。\n\n「何を言うか」より「どう言うか」の方が100倍大事。',
+    status: 'scheduled' as const,
+    createdAt: '2026-03-09T15:00:00',
+    updatedAt: '2026-03-09T15:00:00',
+  },
+  {
+    scheduleId: 'demo-2',
+    scheduledDate: '2026-03-10',
+    scheduledAt: '2026-03-10T18:00:00+09:00',
+    scheduledAtJst: '2026-03-10T18:00:00',
+    mainText: 'Threadsで伸びてる人と伸びてない人の決定的な違い、知りたい？\n\n答えは「コメント欄の使い方」。本文は短く、価値はコメント欄に詰め込む。',
+    comment1: 'データで証明します。僕の直近30投稿で、コメント欄に実績を入れた投稿は平均閲覧数が2.4倍。\n\n理由はシンプルで、コメント欄まで読む人＝本気で興味ある人。その人たちの滞在時間がアルゴリズムに効く。',
+    comment2: 'この分析、実はANALYCAっていうツールで全部自動で出せます。\n\nコメント欄の遷移率まで見れるのはこれだけ。',
+    status: 'scheduled' as const,
+    createdAt: '2026-03-09T15:30:00',
+    updatedAt: '2026-03-09T15:30:00',
+  },
+  {
+    scheduleId: 'demo-3',
+    scheduledDate: '2026-03-11',
+    scheduledAt: '2026-03-11T12:00:00+09:00',
+    scheduledAtJst: '2026-03-11T12:00:00',
+    mainText: '「毎日投稿しないとダメ」って思い込んでる人、損してます。\n\n週3投稿で月100万リーチ出してる人、実際にいるんで。',
+    comment1: '大事なのは量じゃなくて「当たる型」を持ってるかどうか。\n\n僕が分析した結果、伸びる投稿の1行目には共通パターンが11個ある。',
+    comment2: 'そのパターンをAIで自動分析して、自分の投稿に当てはめられるツールを作りました。\n\n無料で試せるので、プロフから見てみてください。',
+    status: 'draft' as const,
+    createdAt: '2026-03-09T16:00:00',
+    updatedAt: '2026-03-09T16:00:00',
+  },
+  {
+    scheduleId: 'demo-4',
+    scheduledDate: '2026-03-12',
+    scheduledAt: '2026-03-12T09:00:00+09:00',
+    scheduledAtJst: '2026-03-12T09:00:00',
+    mainText: '正直に言う。SNS分析ツール、高すぎる。\n\n月1万以上払って、見てるのはフォロワー数の推移だけ。それ、スマホのメモ帳でできるよね？',
+    comment1: '僕が本当に欲しかったのは「どの投稿がなぜ伸びたか」の分析。\n\nだから自分で作った。月額980円で、パターン分析・時間帯分析・コメント欄遷移率まで全部見れる。',
+    comment2: '既存ツールの1/10の価格で、10倍使える分析が手に入ります。\n\n嘘だと思ったら7日間無料で試してみてください。',
+    status: 'scheduled' as const,
+    createdAt: '2026-03-09T16:30:00',
+    updatedAt: '2026-03-09T16:30:00',
+  },
+  {
+    scheduleId: 'demo-5',
+    scheduledDate: '2026-03-09',
+    scheduledAt: '2026-03-09T09:00:00+09:00',
+    scheduledAtJst: '2026-03-09T09:00:00',
+    mainText: '今日の朝イチ投稿。フォロワー1万人以下の人がやるべきこと、たった1つだけ。',
+    comment1: 'それは「勝ちパターンの発見」。\n\n闇雲に投稿するんじゃなくて、自分のどの投稿が伸びたかを分析して、その型を再現する。',
+    comment2: 'ANALYCAならそれが一目で分かります。無料トライアルあり。',
+    status: 'posted' as const,
+    createdAt: '2026-03-08T20:00:00',
+    updatedAt: '2026-03-09T09:01:00',
+  },
+];
+
 function ThreadsDemo() {
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'date' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
   const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>('analysis');
 
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => {
@@ -1211,24 +1276,44 @@ function ThreadsDemo() {
 
   return (
     <div className="section-stack pb-20 lg:pb-6">
-      {/* ヘッダー: タブ + 日付選択 */}
+      {/* ヘッダー: サブタブ + 日付選択 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <button className="h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium bg-[color:var(--color-text-primary)] text-white">
-            ホーム
+          <button
+            onClick={() => setThreadsTab('analysis')}
+            className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium transition-colors ${
+              threadsTab === 'analysis'
+                ? 'bg-[color:var(--color-text-primary)] text-white'
+                : 'bg-white border border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:bg-gray-50'
+            }`}
+          >
+            分析
+          </button>
+          <button
+            onClick={() => setThreadsTab('schedule')}
+            className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium transition-colors ${
+              threadsTab === 'schedule'
+                ? 'bg-[color:var(--color-text-primary)] text-white'
+                : 'bg-white border border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:bg-gray-50'
+            }`}
+          >
+            予約投稿
           </button>
         </div>
-        <select
-          value={datePreset}
-          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-          className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
-        >
-          {datePresetOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        {threadsTab === 'analysis' && (
+          <select
+            value={datePreset}
+            onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+            className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+          >
+            {datePresetOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
+      {threadsTab === 'analysis' && (<>
       {/* アカウント + KPI */}
       <div className="grid lg:grid-cols-12 gap-4">
         {/* 左側：アカウント情報 */}
@@ -1713,6 +1798,251 @@ function ThreadsDemo() {
             </button>
           </div>
         )}
+      </div>
+      </>)}
+
+      {threadsTab === 'schedule' && (
+        <DemoScheduleTab />
+      )}
+    </div>
+  );
+}
+
+// ============ デモ予約投稿タブ ============
+function DemoScheduleTab() {
+  const [selectedDate, setSelectedDate] = useState<string>('2026-03-10');
+  const [selectedPost, setSelectedPost] = useState<typeof DEMO_SCHEDULED_POSTS[0] | null>(DEMO_SCHEDULED_POSTS[0]);
+
+  // カレンダー用: 2026年3月
+  const year = 2026;
+  const month = 2; // 0-indexed: March
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const today = '2026-03-09';
+  const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+  // 日付ごとの投稿数
+  const postsByDate = DEMO_SCHEDULED_POSTS.reduce((acc, post) => {
+    const d = post.scheduledDate;
+    if (!acc[d]) acc[d] = [];
+    acc[d].push(post);
+    return acc;
+  }, {} as Record<string, typeof DEMO_SCHEDULED_POSTS>);
+
+  const selectedDatePosts = postsByDate[selectedDate] || [];
+
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case 'scheduled': return { text: '予約済み', color: 'bg-blue-100 text-blue-700' };
+      case 'draft': return { text: '下書き', color: 'bg-gray-100 text-gray-600' };
+      case 'posted': return { text: '投稿済み', color: 'bg-green-100 text-green-700' };
+      default: return { text: s, color: 'bg-gray-100 text-gray-600' };
+    }
+  };
+
+  return (
+    <div className="grid lg:grid-cols-12 gap-4">
+      {/* 左: カレンダー */}
+      <div className="lg:col-span-5">
+        <div className="ui-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">2026年 3月</h3>
+            <div className="flex items-center gap-2 text-xs text-[color:var(--color-text-muted)]">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-400"></span>予約済み
+              <span className="inline-block w-2 h-2 rounded-full bg-green-400 ml-2"></span>投稿済み
+            </div>
+          </div>
+
+          {/* 曜日ヘッダー */}
+          <div className="grid grid-cols-7 gap-px mb-1">
+            {dayNames.map((d) => (
+              <div key={d} className="text-center text-xs font-medium text-[color:var(--color-text-muted)] py-1">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          {/* カレンダーグリッド */}
+          <div className="grid grid-cols-7 gap-px">
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+              <div key={`empty-${i}`} className="aspect-square" />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dateStr = `2026-03-${String(day).padStart(2, '0')}`;
+              const posts = postsByDate[dateStr] || [];
+              const isToday = dateStr === today;
+              const isSelected = dateStr === selectedDate;
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => {
+                    setSelectedDate(dateStr);
+                    if (posts.length > 0) setSelectedPost(posts[0]);
+                    else setSelectedPost(null);
+                  }}
+                  className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-colors relative ${
+                    isSelected
+                      ? 'bg-[color:var(--color-text-primary)] text-white'
+                      : isToday
+                        ? 'bg-purple-50 text-purple-700 font-semibold'
+                        : 'hover:bg-gray-50 text-[color:var(--color-text-primary)]'
+                  }`}
+                >
+                  {day}
+                  {posts.length > 0 && (
+                    <div className="flex gap-0.5 mt-0.5">
+                      {posts.map((p) => (
+                        <span
+                          key={p.scheduleId}
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            p.status === 'posted' ? 'bg-green-400' : p.status === 'scheduled' ? 'bg-blue-400' : 'bg-gray-300'
+                          } ${isSelected ? 'opacity-80' : ''}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 選択日の投稿一覧 */}
+          <div className="mt-4 border-t border-[color:var(--color-border)] pt-3">
+            <p className="text-xs text-[color:var(--color-text-muted)] mb-2">
+              {selectedDate.replace('2026-', '').replace('-', '/')} の投稿
+            </p>
+            {selectedDatePosts.length === 0 ? (
+              <p className="text-sm text-[color:var(--color-text-muted)] py-2">投稿なし</p>
+            ) : (
+              <div className="space-y-2">
+                {selectedDatePosts.map((post) => {
+                  const st = statusLabel(post.status);
+                  return (
+                    <button
+                      key={post.scheduleId}
+                      onClick={() => setSelectedPost(post)}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        selectedPost?.scheduleId === post.scheduleId
+                          ? 'border-purple-300 bg-purple-50/50'
+                          : 'border-[color:var(--color-border)] hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-[color:var(--color-text-muted)]">
+                          {new Date(post.scheduledAtJst).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${st.color}`}>
+                          {st.text}
+                        </span>
+                      </div>
+                      <p className="text-sm text-[color:var(--color-text-primary)] line-clamp-2">
+                        {post.mainText.split('\n')[0]}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 右: 投稿プレビュー */}
+      <div className="lg:col-span-7">
+        {selectedPost ? (
+          <div className="ui-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">投稿プレビュー</h3>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusLabel(selectedPost.status).color}`}>
+                {statusLabel(selectedPost.status).text}
+              </span>
+            </div>
+
+            {/* 投稿日時 */}
+            <div className="flex items-center gap-2 mb-4 text-sm text-[color:var(--color-text-secondary)]">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {new Date(selectedPost.scheduledAtJst).toLocaleString('ja-JP', {
+                month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+              })}
+            </div>
+
+            {/* 本文 */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-[color:var(--color-text-muted)] uppercase tracking-wide">本文（メインスレッド）</label>
+                <div className="mt-1.5 p-4 bg-[color:var(--color-surface-muted)] rounded-xl text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap leading-relaxed border border-[color:var(--color-border)]">
+                  {selectedPost.mainText}
+                </div>
+              </div>
+
+              {selectedPost.comment1 && (
+                <div>
+                  <label className="text-xs font-medium text-[color:var(--color-text-muted)] uppercase tracking-wide flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    コメント欄 1
+                  </label>
+                  <div className="mt-1.5 p-4 bg-blue-50/50 rounded-xl text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap leading-relaxed border border-blue-100">
+                    {selectedPost.comment1}
+                  </div>
+                </div>
+              )}
+
+              {selectedPost.comment2 && (
+                <div>
+                  <label className="text-xs font-medium text-[color:var(--color-text-muted)] uppercase tracking-wide flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    コメント欄 2
+                  </label>
+                  <div className="mt-1.5 p-4 bg-purple-50/50 rounded-xl text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap leading-relaxed border border-purple-100">
+                    {selectedPost.comment2}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 操作ボタン（デモなので無効） */}
+            <div className="flex gap-2 mt-5 pt-4 border-t border-[color:var(--color-border)]">
+              <button
+                disabled
+                className="flex-1 h-10 rounded-lg bg-[color:var(--color-text-primary)] text-white text-sm font-medium opacity-50 cursor-not-allowed"
+              >
+                編集
+              </button>
+              <button
+                disabled
+                className="h-10 px-4 rounded-lg border border-red-200 text-red-500 text-sm font-medium opacity-50 cursor-not-allowed"
+              >
+                削除
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="ui-card p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
+            <svg className="w-12 h-12 text-[color:var(--color-text-muted)] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="text-sm text-[color:var(--color-text-muted)]">日付を選択して予約投稿を確認</p>
+          </div>
+        )}
+
+        {/* 新規作成ボタン（デモ） */}
+        <button
+          disabled
+          className="mt-4 w-full h-12 rounded-xl border-2 border-dashed border-[color:var(--color-border)] text-[color:var(--color-text-muted)] text-sm font-medium flex items-center justify-center gap-2 opacity-60 cursor-not-allowed hover:border-purple-200 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          新しい予約投稿を作成
+        </button>
       </div>
     </div>
   );

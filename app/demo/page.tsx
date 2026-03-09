@@ -1808,241 +1808,287 @@ function ThreadsDemo() {
   );
 }
 
-// ============ デモ予約投稿タブ ============
+// ============ デモ予約投稿タブ（実際のUIと完全に同じ） ============
 function DemoScheduleTab() {
   const [selectedDate, setSelectedDate] = useState<string>('2026-03-10');
-  const [selectedPost, setSelectedPost] = useState<typeof DEMO_SCHEDULED_POSTS[0] | null>(DEMO_SCHEDULED_POSTS[0]);
+  const [selectedItem, setSelectedItem] = useState<typeof DEMO_SCHEDULED_POSTS[0] | null>(DEMO_SCHEDULED_POSTS[0]);
+  const [listFilter, setListFilter] = useState<'all' | 'scheduled' | 'posted'>('scheduled');
 
-  // カレンダー用: 2026年3月
   const year = 2026;
   const month = 2; // 0-indexed: March
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfWeek = new Date(year, month, 1).getDay();
-  const today = '2026-03-09';
-  const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+  const startOffset = new Date(year, month, 1).getDay();
+  const dayLabels = ['日', '月', '火', '水', '木', '金', '土'];
 
-  // 日付ごとの投稿数
-  const postsByDate = DEMO_SCHEDULED_POSTS.reduce((acc, post) => {
-    const d = post.scheduledDate;
-    if (!acc[d]) acc[d] = [];
-    acc[d].push(post);
+  const countsByDate = DEMO_SCHEDULED_POSTS.reduce<Record<string, number>>((acc, item) => {
+    acc[item.scheduledDate] = (acc[item.scheduledDate] ?? 0) + 1;
     return acc;
-  }, {} as Record<string, typeof DEMO_SCHEDULED_POSTS>);
+  }, {});
 
-  const selectedDatePosts = postsByDate[selectedDate] || [];
+  const selectedItems = DEMO_SCHEDULED_POSTS
+    .filter((item) => item.scheduledDate === selectedDate)
+    .filter((item) => {
+      if (listFilter === 'scheduled') return item.status === 'scheduled';
+      if (listFilter === 'posted') return item.status === 'posted';
+      return true;
+    })
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
 
-  const statusLabel = (s: string) => {
-    switch (s) {
-      case 'scheduled': return { text: '予約済み', color: 'bg-blue-100 text-blue-700' };
-      case 'draft': return { text: '下書き', color: 'bg-gray-100 text-gray-600' };
-      case 'posted': return { text: '投稿済み', color: 'bg-green-100 text-green-700' };
-      default: return { text: s, color: 'bg-gray-100 text-gray-600' };
-    }
+  const getTimeLabel = (value: string) => {
+    const timePart = value.split('T')[1] ?? '';
+    return timePart.slice(0, 5);
   };
 
   return (
-    <div className="grid lg:grid-cols-12 gap-4">
-      {/* 左: カレンダー */}
-      <div className="lg:col-span-5">
-        <div className="ui-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">2026年 3月</h3>
-            <div className="flex items-center gap-2 text-xs text-[color:var(--color-text-muted)]">
-              <span className="inline-block w-2 h-2 rounded-full bg-blue-400"></span>予約済み
-              <span className="inline-block w-2 h-2 rounded-full bg-green-400 ml-2"></span>投稿済み
-            </div>
-          </div>
-
-          {/* 曜日ヘッダー */}
-          <div className="grid grid-cols-7 gap-px mb-1">
-            {dayNames.map((d) => (
-              <div key={d} className="text-center text-xs font-medium text-[color:var(--color-text-muted)] py-1">
-                {d}
+    <div className="space-y-4">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        {/* 左: カレンダー + 予約一覧 */}
+        <div className="space-y-4">
+          <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <header className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">予約カレンダー</h2>
+                <p className="mt-1 text-xs text-gray-500">2026年3月 / JST</p>
               </div>
-            ))}
-          </div>
-
-          {/* カレンダーグリッド */}
-          <div className="grid grid-cols-7 gap-px">
-            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-square" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `2026-03-${String(day).padStart(2, '0')}`;
-              const posts = postsByDate[dateStr] || [];
-              const isToday = dateStr === today;
-              const isSelected = dateStr === selectedDate;
-
-              return (
+              <div className="flex items-center gap-2">
                 <button
-                  key={day}
-                  onClick={() => {
-                    setSelectedDate(dateStr);
-                    if (posts.length > 0) setSelectedPost(posts[0]);
-                    else setSelectedPost(null);
-                  }}
-                  className={`aspect-square flex flex-col items-center justify-center rounded-lg text-sm transition-colors relative ${
-                    isSelected
-                      ? 'bg-[color:var(--color-text-primary)] text-white'
-                      : isToday
-                        ? 'bg-purple-50 text-purple-700 font-semibold'
-                        : 'hover:bg-gray-50 text-[color:var(--color-text-primary)]'
-                  }`}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  disabled
+                  type="button"
                 >
-                  {day}
-                  {posts.length > 0 && (
-                    <div className="flex gap-0.5 mt-0.5">
-                      {posts.map((p) => (
-                        <span
-                          key={p.scheduleId}
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            p.status === 'posted' ? 'bg-green-400' : p.status === 'scheduled' ? 'bg-blue-400' : 'bg-gray-300'
-                          } ${isSelected ? 'opacity-80' : ''}`}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  前月
                 </button>
-              );
-            })}
-          </div>
-
-          {/* 選択日の投稿一覧 */}
-          <div className="mt-4 border-t border-[color:var(--color-border)] pt-3">
-            <p className="text-xs text-[color:var(--color-text-muted)] mb-2">
-              {selectedDate.replace('2026-', '').replace('-', '/')} の投稿
-            </p>
-            {selectedDatePosts.length === 0 ? (
-              <p className="text-sm text-[color:var(--color-text-muted)] py-2">投稿なし</p>
-            ) : (
-              <div className="space-y-2">
-                {selectedDatePosts.map((post) => {
-                  const st = statusLabel(post.status);
-                  return (
-                    <button
-                      key={post.scheduleId}
-                      onClick={() => setSelectedPost(post)}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                        selectedPost?.scheduleId === post.scheduleId
-                          ? 'border-purple-300 bg-purple-50/50'
-                          : 'border-[color:var(--color-border)] hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-[color:var(--color-text-muted)]">
-                          {new Date(post.scheduledAtJst).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${st.color}`}>
-                          {st.text}
-                        </span>
-                      </div>
-                      <p className="text-sm text-[color:var(--color-text-primary)] line-clamp-2">
-                        {post.mainText.split('\n')[0]}
-                      </p>
-                    </button>
-                  );
-                })}
+                <button
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  disabled
+                  type="button"
+                >
+                  次月
+                </button>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
+            </header>
 
-      {/* 右: 投稿プレビュー */}
-      <div className="lg:col-span-7">
-        {selectedPost ? (
-          <div className="ui-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">投稿プレビュー</h3>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusLabel(selectedPost.status).color}`}>
-                {statusLabel(selectedPost.status).text}
-              </span>
+            <div className="mt-4 grid grid-cols-7 gap-2 text-center text-xs text-gray-400">
+              {dayLabels.map((label) => (
+                <div key={label} className="font-medium">{label}</div>
+              ))}
             </div>
 
-            {/* 投稿日時 */}
-            <div className="flex items-center gap-2 mb-4 text-sm text-[color:var(--color-text-secondary)]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {new Date(selectedPost.scheduledAtJst).toLocaleString('ja-JP', {
-                month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            <div className="mt-2 grid grid-cols-7 gap-2">
+              {Array.from({ length: startOffset }).map((_, index) => (
+                <div key={`empty-${index}`} />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, index) => {
+                const day = index + 1;
+                const dateKey = `2026-03-${String(day).padStart(2, '0')}`;
+                const count = countsByDate[dateKey] ?? 0;
+                const isSelected = selectedDate === dateKey;
+
+                return (
+                  <button
+                    key={dateKey}
+                    type="button"
+                    onClick={() => { setSelectedDate(dateKey); setSelectedItem(null); }}
+                    className={[
+                      'flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-sm transition',
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 text-gray-900'
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-blue-400',
+                    ].join(' ')}
+                  >
+                    <span className="font-semibold">{day}</span>
+                    <span
+                      className={[
+                        'text-[10px] font-medium',
+                        count > 0
+                          ? 'rounded-full bg-blue-100 px-2 py-0.5 text-blue-600'
+                          : 'text-gray-400',
+                      ].join(' ')}
+                    >
+                      {count > 0 ? String(count) : '0'}
+                    </span>
+                  </button>
+                );
               })}
             </div>
+          </section>
 
-            {/* 本文 */}
-            <div className="space-y-3">
+          <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <header className="mb-3 flex items-center justify-between">
               <div>
-                <label className="text-xs font-medium text-[color:var(--color-text-muted)] uppercase tracking-wide">本文（メインスレッド）</label>
-                <div className="mt-1.5 p-4 bg-[color:var(--color-surface-muted)] rounded-xl text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap leading-relaxed border border-[color:var(--color-border)]">
-                  {selectedPost.mainText}
-                </div>
+                <h3 className="text-sm font-semibold text-gray-900">予約一覧</h3>
+                <p className="mt-1 text-xs text-gray-500">{selectedDate} / JST</p>
               </div>
+              <div className="flex items-center gap-1">
+                {([
+                  { key: 'all' as const, label: '一覧' },
+                  { key: 'scheduled' as const, label: '予約済み' },
+                  { key: 'posted' as const, label: '投稿完了' },
+                ]).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setListFilter(key)}
+                    className={[
+                      'rounded-full px-3 py-1 text-xs font-medium transition',
+                      listFilter === key
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+                    ].join(' ')}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </header>
 
-              {selectedPost.comment1 && (
-                <div>
-                  <label className="text-xs font-medium text-[color:var(--color-text-muted)] uppercase tracking-wide flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                    コメント欄 1
-                  </label>
-                  <div className="mt-1.5 p-4 bg-blue-50/50 rounded-xl text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap leading-relaxed border border-blue-100">
-                    {selectedPost.comment1}
+            {selectedItems.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-xs text-gray-400">
+                予約がありません
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedItems.map((item) => (
+                  <div
+                    key={item.scheduleId}
+                    className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white px-3 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => setSelectedItem(item)}
+                    title="クリックで詳細表示"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {getTimeLabel(item.scheduledAtJst)}
+                        <span
+                          className={[
+                            'ml-2 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                            item.status === 'draft' ? 'bg-amber-50 text-amber-700' : '',
+                            item.status === 'scheduled' ? 'bg-blue-50 text-blue-700' : '',
+                            item.status === 'posted' ? 'bg-green-50 text-green-700' : '',
+                          ].join(' ')}
+                        >
+                          {item.status === 'draft' && '下書き'}
+                          {item.status === 'scheduled' && '予約済み'}
+                          {item.status === 'posted' && '投稿完了'}
+                        </span>
+                      </div>
+                      {(item.status === 'draft' || item.status === 'scheduled') && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                            onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}
+                          >
+                            編集
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            削除
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 line-clamp-2">
+                      {item.mainText}
+                    </p>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
 
-              {selectedPost.comment2 && (
-                <div>
-                  <label className="text-xs font-medium text-[color:var(--color-text-muted)] uppercase tracking-wide flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                    コメント欄 2
-                  </label>
-                  <div className="mt-1.5 p-4 bg-purple-50/50 rounded-xl text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap leading-relaxed border border-purple-100">
-                    {selectedPost.comment2}
-                  </div>
-                </div>
-              )}
+        {/* 右: エディタ */}
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm h-fit">
+          <header className="mb-4">
+            <h2 className="text-base font-semibold text-gray-900">予約エディタ</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              {selectedItem ? '選択中の予約を編集' : '新規予約を作成'}
+            </p>
+          </header>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs font-medium text-gray-500">
+                予約日時（JST）
+                <input
+                  type="datetime-local"
+                  value={selectedItem ? `${selectedItem.scheduledDate}T${getTimeLabel(selectedItem.scheduledAtJst)}` : `${selectedDate}T09:00`}
+                  readOnly
+                  className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                />
+              </label>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium text-gray-500">即時投稿</span>
+                <button
+                  type="button"
+                  className="mt-2 h-[42px] rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  disabled
+                >
+                  今すぐ投稿
+                </button>
+              </div>
             </div>
 
-            {/* 操作ボタン（デモなので無効） */}
-            <div className="flex gap-2 mt-5 pt-4 border-t border-[color:var(--color-border)]">
+            <label className="block text-xs font-medium text-gray-500">
+              メイン投稿（必須）
+              <textarea
+                value={selectedItem?.mainText ?? ''}
+                readOnly
+                rows={4}
+                className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+              <div className="mt-1 text-right text-[11px] text-gray-400">
+                {(selectedItem?.mainText ?? '').length}/500
+              </div>
+            </label>
+
+            <label className="block text-xs font-medium text-gray-500">
+              コメント1（必須）
+              <textarea
+                value={selectedItem?.comment1 ?? ''}
+                readOnly
+                rows={9}
+                className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+              <div className="mt-1 text-right text-[11px] text-gray-400">
+                {(selectedItem?.comment1 ?? '').length}/500
+              </div>
+            </label>
+
+            <label className="block text-xs font-medium text-gray-500">
+              コメント2（必須）
+              <textarea
+                value={selectedItem?.comment2 ?? ''}
+                readOnly
+                rows={9}
+                className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+              />
+              <div className="mt-1 text-right text-[11px] text-gray-400">
+                {(selectedItem?.comment2 ?? '').length}/500
+              </div>
+            </label>
+
+            <div className="flex flex-wrap gap-2">
               <button
+                type="button"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 disabled
-                className="flex-1 h-10 rounded-lg bg-[color:var(--color-text-primary)] text-white text-sm font-medium opacity-50 cursor-not-allowed"
               >
-                編集
+                下書き保存
               </button>
               <button
+                type="button"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 disabled
-                className="h-10 px-4 rounded-lg border border-red-200 text-red-500 text-sm font-medium opacity-50 cursor-not-allowed"
               >
-                削除
+                予約登録
               </button>
             </div>
           </div>
-        ) : (
-          <div className="ui-card p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
-            <svg className="w-12 h-12 text-[color:var(--color-text-muted)] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <p className="text-sm text-[color:var(--color-text-muted)]">日付を選択して予約投稿を確認</p>
-          </div>
-        )}
-
-        {/* 新規作成ボタン（デモ） */}
-        <button
-          disabled
-          className="mt-4 w-full h-12 rounded-xl border-2 border-dashed border-[color:var(--color-border)] text-[color:var(--color-text-muted)] text-sm font-medium flex items-center justify-center gap-2 opacity-60 cursor-not-allowed hover:border-purple-200 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          新しい予約投稿を作成
-        </button>
+        </section>
       </div>
     </div>
   );

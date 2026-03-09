@@ -1317,8 +1317,8 @@ export async function getUserDashboardData(userId: string): Promise<{
     getUserStories(userId, 50),
     getUserInsights(userId, 30),
     getUserLineData(userId, 30),
-    getUserThreadsPosts(userId, 100),
-    getUserThreadsDailyMetrics(userId, 30),
+    getUserThreadsPosts(userId, 500),
+    getUserThreadsDailyMetrics(userId, 90),
     getUserThreadsDailyPostStats(userId, 90),
   ]);
 

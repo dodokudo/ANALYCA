@@ -5,7 +5,7 @@ import {
   findUserIdByThreadsId,
 } from '@/lib/bigquery';
 
-export const maxDuration = 30;
+export const maxDuration = 300;
 
 const REDIRECT_URI = `${process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp'}/api/auth/threads/callback`;
 

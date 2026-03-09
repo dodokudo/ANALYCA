@@ -6,7 +6,7 @@ import {
 } from '@/lib/bigquery';
 
 // Vercel Functionの最大実行時間を延長
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * GET: Threadsトークンの自動更新（cron用）

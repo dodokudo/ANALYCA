@@ -3,7 +3,7 @@ import { getActiveInstagramUsers, getActiveThreadsUsers, updateUserProfilePictur
 import { uploadImageToGCS } from '@/lib/gcs';
 import { detectGraphBase } from '@/lib/instagram-graph';
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const THREADS_GRAPH_BASE = 'https://graph.threads.net/v1.0';
 

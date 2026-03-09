@@ -4,7 +4,7 @@ import {
   findUserIdByInstagramId,
 } from '@/lib/bigquery';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const INSTAGRAM_APP_ID = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID || '1238454094361851';
 const INSTAGRAM_APP_SECRET = process.env.INSTAGRAM_APP_SECRET || '';

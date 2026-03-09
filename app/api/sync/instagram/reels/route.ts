@@ -9,7 +9,7 @@ import { detectGraphBase } from '@/lib/instagram-graph';
 import { v4 as uuidv4 } from 'uuid';
 
 // Vercel Functionの最大実行時間を延長
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 interface InstagramMedia {
   id: string;

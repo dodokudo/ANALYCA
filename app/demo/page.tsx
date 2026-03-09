@@ -118,201 +118,288 @@ const DUMMY_THREADS_DAILY = [
 ];
 
 const DUMMY_THREADS_POSTS = [
+  // 緊急・ヤバい系
   {
-    id: '1',
-    text: '今日は新しいプロジェクトの発表がありました！とても興奮しています。皆さんの反応が楽しみです。',
-    timestamp: '2024-12-16T10:30:00Z',
-    permalink: 'https://threads.net/@demo_account/post/1',
-    views: 12500,
-    likes: 420,
-    replies: 35,
+    id: '1', text: '緊急で伝えたいことがあります\nSNSの仕組みが根本的に変わりました。今までの投稿方法では伸びません。',
+    timestamp: '2024-12-16T10:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/1',
+    views: 28500, likes: 920, replies: 85,
     comments: [
-      { id: 'c1', text: '詳細はこちらのリンクから確認できます。ぜひチェックしてください！', views: 8200, depth: 0 },
-      { id: 'c2', text: '質問があればコメントで教えてくださいね。', views: 5800, depth: 1 },
+      { id: 'c1', text: '具体的にはアルゴリズムが「滞在時間」重視に変わっています。', views: 18200, depth: 0 },
+      { id: 'c2', text: 'つまり、長文+コメント欄活用が正攻法です。', views: 12800, depth: 1 },
     ],
   },
   {
-    id: '2',
-    text: 'マーケティングの基本について解説します。まず大切なのは、ターゲット顧客を明確にすることです。',
-    timestamp: '2024-12-15T14:20:00Z',
-    permalink: 'https://threads.net/@demo_account/post/2',
-    views: 18200,
-    likes: 680,
-    replies: 52,
+    id: '2', text: 'ヤバい、これ知らないと損する\nThreadsの最新アップデートで投稿の表示順が完全に変わった。',
+    timestamp: '2024-12-15T19:20:00+09:00', permalink: 'https://threads.net/@demo_account/post/2',
+    views: 25800, likes: 810, replies: 72,
     comments: [
-      { id: 'c3', text: '次に、顧客のニーズを深く理解することが重要です。', views: 12400, depth: 0 },
-      { id: 'c4', text: '最後に、価値提案を明確に伝えましょう。', views: 9100, depth: 1 },
-      { id: 'c5', text: 'まとめ：ターゲット→ニーズ理解→価値提案の3ステップ！', views: 6800, depth: 2 },
+      { id: 'c3', text: 'フォロワー外への露出が3倍に増えてます。', views: 16500, depth: 0 },
+      { id: 'c4', text: '今が一番伸ばしやすいタイミング。', views: 11200, depth: 1 },
+    ],
+  },
+  // ～してる人系
+  {
+    id: '3', text: '毎日投稿してる人ほど伸びてない理由\n量より質が大事なのは当たり前。でも本質はそこじゃない。',
+    timestamp: '2024-12-15T08:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/3',
+    views: 22400, likes: 780, replies: 68,
+    comments: [
+      { id: 'c5', text: '「誰の何を解決するか」が1投稿で明確じゃないと、量を増やしても意味がない。', views: 14800, depth: 0 },
+      { id: 'c6', text: '週3本でも刺さる投稿を作る方が伸びます。', views: 10600, depth: 1 },
     ],
   },
   {
-    id: '3',
-    text: '朝のルーティンを変えてから、生産性が2倍になりました。その秘訣をシェアします。',
-    timestamp: '2024-12-14T08:00:00Z',
-    permalink: 'https://threads.net/@demo_account/post/3',
-    views: 22400,
-    likes: 890,
-    replies: 78,
+    id: '4', text: 'フォロワー1000人以下でやってる人、これ見て\n実はフォロワー数より大事な指標がある。',
+    timestamp: '2024-12-14T20:15:00+09:00', permalink: 'https://threads.net/@demo_account/post/4',
+    views: 19800, likes: 650, replies: 55,
     comments: [
-      { id: 'c7', text: '朝いちで「重要タスク1つだけ」を決めるのがポイント。', views: 14800, depth: 0 },
-      { id: 'c8', text: 'タイムブロックで集中時間を確保するとさらに効きます。', views: 10600, depth: 1 },
+      { id: 'c7', text: 'それは「保存率」。保存される投稿はアルゴリズムに強い。', views: 13200, depth: 0 },
+    ],
+  },
+  // 時代遅れ系
+  {
+    id: '5', text: 'まだハッシュタグ戦略やってるの？完全に時代遅れです\nThreadsではハッシュタグの効果がほぼゼロ。',
+    timestamp: '2024-12-14T12:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/5',
+    views: 24200, likes: 850, replies: 78,
+    comments: [
+      { id: 'c8', text: '代わりに「冒頭3秒で引き込む」が最重要。', views: 15800, depth: 0 },
+      { id: 'c9', text: 'テスト結果：ハッシュタグあり vs なしでリーチ差なし。', views: 11400, depth: 1 },
     ],
   },
   {
-    id: '4',
-    text: 'SNS運用で大切なことは継続性です。毎日少しずつでも発信を続けることが成功への鍵。',
-    timestamp: '2024-12-13T16:45:00Z',
-    permalink: 'https://threads.net/@demo_account/post/4',
-    views: 15600,
-    likes: 520,
-    replies: 41,
+    id: '6', text: 'テンプレ投稿はもう時代遅れ\n同じフォーマットの繰り返しはアルゴリズムに弾かれる時代。',
+    timestamp: '2024-12-13T21:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/6',
+    views: 21500, likes: 720, replies: 62,
     comments: [
-      { id: 'c6', text: '具体的には、週3回以上の投稿を目標にしましょう。', views: 10200, depth: 0 },
+      { id: 'c10', text: '「型は持ちつつ、切り口を変える」が正解。', views: 14100, depth: 0 },
+      { id: 'c11', text: '具体的には見出しのパターンを11個持っておく。', views: 9800, depth: 1 },
+    ],
+  },
+  // 損してます系
+  {
+    id: '7', text: 'プロフィールを放置してる人、毎日フォロワーを損してます\nプロフを見に来た人の80%はそのまま離脱してる。',
+    timestamp: '2024-12-13T09:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/7',
+    views: 23100, likes: 790, replies: 71,
+    comments: [
+      { id: 'c12', text: '改善ポイント：①何者か ②何が得られるか ③実績を1行で。', views: 15200, depth: 0 },
+      { id: 'c13', text: 'プロフ改善だけでフォロー率2倍になった事例あり。', views: 10800, depth: 1 },
     ],
   },
   {
-    id: '5',
-    text: '今週のおすすめ本を紹介します。ビジネスパーソン必読の一冊です。',
-    timestamp: '2024-12-12T12:00:00Z',
-    permalink: 'https://threads.net/@demo_account/post/5',
-    views: 9800,
-    likes: 310,
-    replies: 24,
+    id: '8', text: 'コメント欄を使わないのは無駄すぎる\n投稿だけで完結させてる人、閲覧数の50%を捨ててます。',
+    timestamp: '2024-12-12T18:45:00+09:00', permalink: 'https://threads.net/@demo_account/post/8',
+    views: 20400, likes: 680, replies: 58,
     comments: [
-      { id: 'c9', text: '要点は「顧客視点を持ち続けること」。', views: 6200, depth: 0 },
-      { id: 'c10', text: '読後にやるべきワークも載ってて実践的でした。', views: 4100, depth: 1 },
+      { id: 'c14', text: 'コメント欄に「続き」を書くだけで滞在時間が1.8倍に。', views: 13500, depth: 0 },
+      { id: 'c15', text: '3段構成（メイン→補足→CTA）がベスト。', views: 9600, depth: 1 },
+      { id: 'c16', text: '実験データ：コメント欄あり投稿は平均1.5倍の閲覧数。', views: 7200, depth: 2 },
+    ],
+  },
+  // 間違ってます系
+  {
+    id: '9', text: '「バズらせよう」と思ってる時点で間違ってます\nバズは狙うものじゃなく、結果としてついてくるもの。',
+    timestamp: '2024-12-12T07:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/9',
+    views: 18600, likes: 620, replies: 52,
+    comments: [
+      { id: 'c17', text: 'まずは「保存される投稿」を作ることに集中すべき。', views: 12200, depth: 0 },
+      { id: 'c18', text: '保存率が高い投稿は自動的にリーチが伸びる。', views: 8800, depth: 1 },
+    ],
+  },
+  // 終わります系
+  {
+    id: '10', text: 'この3つをやり続けると、アカウントが終わります\n①毎日テーマがバラバラ ②結論が曖昧 ③プロフが弱い。',
+    timestamp: '2024-12-11T20:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/10',
+    views: 26200, likes: 880, replies: 82,
+    comments: [
+      { id: 'c19', text: '逆に言えば、この3つを直すだけで別人のように伸びる。', views: 17100, depth: 0 },
+      { id: 'c20', text: '特に①が致命的。テーマは最大3つに絞れ。', views: 12400, depth: 1 },
+      { id: 'c21', text: '実例：テーマ統一だけでフォロワー増加ペースが4倍に。', views: 9200, depth: 2 },
+    ],
+  },
+  // ～だけで系
+  {
+    id: '11', text: '冒頭1行を変えるだけで閲覧数が3倍になった話\n投稿の中身は全く同じ。見出しだけ変えた。',
+    timestamp: '2024-12-11T12:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/11',
+    views: 27300, likes: 910, replies: 88,
+    comments: [
+      { id: 'c22', text: 'Before:「投稿のコツ」→ After:「投稿してる人ほど伸びてない理由」', views: 18500, depth: 0 },
+      { id: 'c23', text: '否定形・疑問形の見出しはCTR（クリック率）が高い。', views: 13200, depth: 1 },
     ],
   },
   {
-    id: '6',
-    text: '売上が伸びない原因の7割は「見込み客の誤解」です。',
-    timestamp: '2024-12-11T09:10:00Z',
-    permalink: 'https://threads.net/@demo_account/post/6',
-    views: 17200,
-    likes: 540,
-    replies: 48,
+    id: '12', text: 'プロフィールに1行足すだけでフォロー率が倍になる\nその1行とは「あなたが得られるもの」を書くこと。',
+    timestamp: '2024-12-10T21:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/12',
+    views: 21800, likes: 730, replies: 63,
     comments: [
-      { id: 'c11', text: '「誰に向けた話か」を最初に明示しましょう。', views: 11000, depth: 0 },
-      { id: 'c12', text: '具体例→誤解→解決策の順が強いです。', views: 8300, depth: 1 },
+      { id: 'c24', text: '例：「SNSを仕組み化して月100万を自動化する方法を発信」', views: 14200, depth: 0 },
+      { id: 'c25', text: '「自分が何をするか」ではなく「相手が何を得るか」で書く。', views: 10100, depth: 1 },
+    ],
+  },
+  // 実は系
+  {
+    id: '13', text: '実はフォロワー数よりも大事な指標がある\nそれは「プロフィールアクセス率」。投稿を見た人の何%がプロフに来るか。',
+    timestamp: '2024-12-10T14:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/13',
+    views: 19200, likes: 640, replies: 54,
+    comments: [
+      { id: 'c26', text: 'この数字が2%以下なら、投稿の「誰に向けた話か」が弱い。', views: 12800, depth: 0 },
+      { id: 'c27', text: '改善法：冒頭に「〇〇な人へ」と明示する。', views: 9100, depth: 1 },
     ],
   },
   {
-    id: '7',
-    text: '今日から使える、投稿の反応が上がる見出しテンプレ。',
-    timestamp: '2024-12-10T18:05:00Z',
-    permalink: 'https://threads.net/@demo_account/post/7',
-    views: 14100,
-    likes: 460,
-    replies: 39,
+    id: '14', text: '実はバズった投稿からフォロワーはほとんど増えない\nバズ≠フォロワー増。これ、意外と知られてない事実。',
+    timestamp: '2024-12-09T19:45:00+09:00', permalink: 'https://threads.net/@demo_account/post/14',
+    views: 17500, likes: 580, replies: 48,
     comments: [
-      { id: 'c13', text: '「〇〇な人ほど△△してます」は鉄板。', views: 9100, depth: 0 },
-      { id: 'c14', text: '数字を入れると保存率が上がります。', views: 6400, depth: 1 },
+      { id: 'c28', text: 'バズ投稿はエンタメ消費されるだけ。フォローに繋がるのは「この人の他の投稿も見たい」と思わせる投稿。', views: 11400, depth: 0 },
+    ],
+  },
+  // 多すぎ系
+  {
+    id: '15', text: '投稿の情報量が多すぎて読まれない人、多すぎ\n1投稿1メッセージが鉄則。2つ以上入れると離脱される。',
+    timestamp: '2024-12-09T08:15:00+09:00', permalink: 'https://threads.net/@demo_account/post/15',
+    views: 20100, likes: 670, replies: 56,
+    comments: [
+      { id: 'c29', text: '「結論→理由→具体例」の3段構成が一番読まれる。', views: 13300, depth: 0 },
+      { id: 'c30', text: '情報を詰め込みたい場合はコメント欄に分ける。', views: 9500, depth: 1 },
+    ],
+  },
+  // 質問系
+  {
+    id: '16', text: 'あなたの投稿、誰に向けて書いてますか？\nターゲットが曖昧な投稿は誰にも刺さらない。',
+    timestamp: '2024-12-08T20:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/16',
+    views: 16800, likes: 550, replies: 45,
+    comments: [
+      { id: 'c31', text: '「30代の副業初心者」くらい具体的に決めると、共感されやすい。', views: 11000, depth: 0 },
+      { id: 'c32', text: 'ターゲットが決まると、見出しも本文も自然にシャープになる。', views: 7800, depth: 1 },
     ],
   },
   {
-    id: '8',
-    text: 'フォロワーが増えない人の共通点を3つだけ。',
-    timestamp: '2024-12-10T07:30:00Z',
-    permalink: 'https://threads.net/@demo_account/post/8',
-    views: 19500,
-    likes: 720,
-    replies: 66,
+    id: '17', text: 'なぜ同じ内容なのにあの人の投稿だけ伸びるのか？\n答えは「見出し」と「構成」の違い。中身の差ではない。',
+    timestamp: '2024-12-08T11:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/17',
+    views: 23800, likes: 800, replies: 74,
     comments: [
-      { id: 'c15', text: '①テーマが散らばっている', views: 13000, depth: 0 },
-      { id: 'c16', text: '②投稿の結論が曖昧', views: 9700, depth: 1 },
-      { id: 'c17', text: '③プロフィールで価値が伝わらない', views: 8200, depth: 2 },
+      { id: 'c33', text: '見出しで「これ自分のことだ」と思わせたら勝ち。', views: 15600, depth: 0 },
+      { id: 'c34', text: '構成は「問題提起→共感→解決策」が最強。', views: 11200, depth: 1 },
+    ],
+  },
+  // 数字・具体性
+  {
+    id: '18', text: '30分で投稿を作る方法を解説します\n1. ネタ出し5分 2. 構成5分 3. 執筆15分 4. 推敲5分。',
+    timestamp: '2024-12-07T19:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/18',
+    views: 24600, likes: 840, replies: 76,
+    comments: [
+      { id: 'c35', text: 'ネタ出しは「過去の自分の悩み」から出すのが最速。', views: 16200, depth: 0 },
+      { id: 'c36', text: '推敲は「冒頭1行だけ」に集中すればOK。', views: 11800, depth: 1 },
     ],
   },
   {
-    id: '9',
-    text: '1日10分でできる「反応の取れる投稿チェックリスト」。',
-    timestamp: '2024-12-09T20:15:00Z',
-    permalink: 'https://threads.net/@demo_account/post/9',
-    views: 12600,
-    likes: 380,
-    replies: 29,
+    id: '19', text: 'フォロワー500人から3000人まで伸ばした3つの施策\n①テーマ統一 ②コメント欄活用 ③投稿時間の最適化。',
+    timestamp: '2024-12-07T09:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/19',
+    views: 26800, likes: 900, replies: 84,
     comments: [
-      { id: 'c18', text: '冒頭で「誰の悩みか」を書く', views: 8000, depth: 0 },
-      { id: 'c19', text: '最後は1つだけ行動を促す', views: 5600, depth: 1 },
+      { id: 'c37', text: '特に②のコメント欄活用が一番効果があった。', views: 17800, depth: 0 },
+      { id: 'c38', text: '投稿時間は平日20-21時、休日9-10時がベスト。', views: 12600, depth: 1 },
+      { id: 'c39', text: '3ヶ月で達成。最初の1ヶ月は全く伸びなかった。', views: 9400, depth: 2 },
     ],
   },
   {
-    id: '10',
-    text: 'Threadsで伸びる投稿は「読後の変化」が明確。',
-    timestamp: '2024-12-09T11:45:00Z',
-    permalink: 'https://threads.net/@demo_account/post/10',
-    views: 20800,
-    likes: 760,
-    replies: 71,
+    id: '20', text: '1投稿で10人フォロワーを増やすテンプレート\n見出し→問題→共感→解決策→CTAの5ステップ。',
+    timestamp: '2024-12-06T21:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/20',
+    views: 22100, likes: 750, replies: 65,
     comments: [
-      { id: 'c20', text: 'Before/Afterでまとめると保存されやすいです。', views: 13400, depth: 0 },
-      { id: 'c21', text: '具体例は1つでOK、抽象化が鍵。', views: 9200, depth: 1 },
+      { id: 'c40', text: 'CTAは「フォローしてね」ではなく「他の投稿も見てみて」が効く。', views: 14500, depth: 0 },
+      { id: 'c41', text: '実績：このテンプレで平均フォロー率2.8%達成。', views: 10300, depth: 1 },
     ],
   },
+  // 緊急系 追加
   {
-    id: '11',
-    text: '「実はそれ、逆効果です」系の投稿が強い理由。',
-    timestamp: '2024-12-08T19:20:00Z',
-    permalink: 'https://threads.net/@demo_account/post/11',
-    views: 15300,
-    likes: 520,
-    replies: 44,
+    id: '21', text: '速報：Threadsのアルゴリズムがまた変わった\n今回の変更点は「初速の1時間」の重要度が上がったこと。',
+    timestamp: '2024-12-06T12:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/21',
+    views: 29100, likes: 960, replies: 92,
     comments: [
-      { id: 'c22', text: '常識を否定→根拠→代案の順が刺さる。', views: 9900, depth: 0 },
-      { id: 'c23', text: '結論を最初に置くと離脱が減ります。', views: 7000, depth: 1 },
+      { id: 'c42', text: '投稿後1時間のいいね・保存数でリーチの天井が決まる。', views: 19200, depth: 0 },
+      { id: 'c43', text: 'だからこそ投稿時間の最適化が超重要。', views: 13800, depth: 1 },
     ],
   },
+  // してる人系 追加
   {
-    id: '12',
-    text: '伸びた投稿の共通点をデータで分析してみた。',
-    timestamp: '2024-12-08T09:40:00Z',
-    permalink: 'https://threads.net/@demo_account/post/12',
-    views: 16800,
-    likes: 610,
-    replies: 53,
+    id: '22', text: 'インスタと同じノリで書いてる人、Threadsでは伸びません\nプラットフォームごとの「文化」が違う。',
+    timestamp: '2024-12-05T20:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/22',
+    views: 18900, likes: 630, replies: 53,
     comments: [
-      { id: 'c24', text: '見出しに数字が入っている率が高かった。', views: 11000, depth: 0 },
-      { id: 'c25', text: '1投稿1テーマが勝率高いです。', views: 7600, depth: 1 },
+      { id: 'c44', text: 'Threadsは「テキスト重視」。画像なしでも伸びる。', views: 12400, depth: 0 },
+      { id: 'c45', text: '逆に画像メインの投稿はリーチが落ちる傾向。', views: 8700, depth: 1 },
     ],
   },
+  // 損してます系 追加
   {
-    id: '13',
-    text: '「保存される投稿」を作るための3ステップ。',
-    timestamp: '2024-12-07T17:55:00Z',
-    permalink: 'https://threads.net/@demo_account/post/13',
-    views: 12100,
-    likes: 390,
-    replies: 31,
+    id: '23', text: 'CTA（行動喚起）を入れてない投稿はもったいない\n「いいね押して」すら入れない人が多すぎる。',
+    timestamp: '2024-12-05T10:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/23',
+    views: 15400, likes: 510, replies: 42,
     comments: [
-      { id: 'c26', text: '①箇条書き ②具体例 ③再現手順', views: 8300, depth: 0 },
-      { id: 'c27', text: '最後に「チェックリスト化」がおすすめ。', views: 5400, depth: 1 },
+      { id: 'c46', text: 'CTA入りの投稿はエンゲージメントが1.4倍。データで実証済み。', views: 10100, depth: 0 },
     ],
   },
+  // だけで系 追加
   {
-    id: '14',
-    text: 'コメント欄を活用すると滞在時間が伸びる。',
-    timestamp: '2024-12-07T08:25:00Z',
-    permalink: 'https://threads.net/@demo_account/post/14',
-    views: 13700,
-    likes: 470,
-    replies: 36,
+    id: '24', text: '投稿の最後に1行足すだけで保存率が2倍になった\nその1行は「保存して後で見返してください」。シンプルだけど効く。',
+    timestamp: '2024-12-04T19:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/24',
+    views: 20600, likes: 690, replies: 59,
     comments: [
-      { id: 'c28', text: '続きはコメント欄で、は強い導線。', views: 9100, depth: 0 },
-      { id: 'c29', text: '2段目で具体例を入れると伸びる。', views: 6700, depth: 1 },
+      { id: 'c47', text: '言われないと保存しない人が大半。だからお願いする。', views: 13600, depth: 0 },
+      { id: 'c48', text: 'テスト結果：CTAあり vs なし → 保存率 3.2% vs 1.5%。', views: 9800, depth: 1 },
     ],
   },
+  // 実は系 追加
   {
-    id: '15',
-    text: '投稿の反応が悪い時に見直すべきチェックポイント。',
-    timestamp: '2024-12-06T21:10:00Z',
-    permalink: 'https://threads.net/@demo_account/post/15',
-    views: 11200,
-    likes: 340,
-    replies: 28,
+    id: '25', text: '実は「いいね数」は全く意味がない指標です\n大事なのは保存数とプロフアクセス数。',
+    timestamp: '2024-12-04T08:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/25',
+    views: 17800, likes: 590, replies: 49,
     comments: [
-      { id: 'c30', text: '冒頭3行で価値が伝わっているか。', views: 7200, depth: 0 },
-      { id: 'c31', text: 'CTAが1つに絞れているか。', views: 5100, depth: 1 },
+      { id: 'c49', text: 'いいねは「共感した」、保存は「役に立った」。後者がフォローにつながる。', views: 11600, depth: 0 },
+      { id: 'c50', text: 'だからノウハウ系・リスト系の投稿が一番効率がいい。', views: 8200, depth: 1 },
     ],
+  },
+  // 質問系 追加
+  {
+    id: '26', text: 'そもそも誰のために発信してますか？\n自分のためだけに発信してる人は永遠に伸びない。',
+    timestamp: '2024-12-03T20:45:00+09:00', permalink: 'https://threads.net/@demo_account/post/26',
+    views: 14200, likes: 470, replies: 38,
+    comments: [
+      { id: 'c51', text: '「過去の自分」に向けて書くと自然と読者に刺さる。', views: 9300, depth: 0 },
+    ],
+  },
+  // 数字系 追加
+  {
+    id: '27', text: '1日3投稿を30日間続けた結果を公開\nフォロワー+1,240人。でも投稿数より大事だったのは別のこと。',
+    timestamp: '2024-12-03T11:15:00+09:00', permalink: 'https://threads.net/@demo_account/post/27',
+    views: 25400, likes: 860, replies: 80,
+    comments: [
+      { id: 'c52', text: '伸びた投稿と伸びなかった投稿の差は「見出し」だった。', views: 16800, depth: 0 },
+      { id: 'c53', text: '「量をこなす→データを取る→改善する」のサイクルが重要。', views: 12100, depth: 1 },
+    ],
+  },
+  // 終わります系 追加
+  {
+    id: '28', text: 'プロフィールがダサいとアカウントはアウトです\n投稿がどんなに良くても、プロフで離脱されたら意味がない。',
+    timestamp: '2024-12-02T18:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/28',
+    views: 19600, likes: 660, replies: 57,
+    comments: [
+      { id: 'c54', text: '「プロフ→固定投稿→最新投稿」の導線を意識する。', views: 12900, depth: 0 },
+      { id: 'c55', text: '固定投稿は自己紹介+実績まとめが最強。', views: 9300, depth: 1 },
+    ],
+  },
+  // その他（パターンマッチしない投稿）
+  {
+    id: '29', text: '今日のランチはカレーでした\n行きつけのお店が新メニュー出してたので試してみた。',
+    timestamp: '2024-12-02T12:30:00+09:00', permalink: 'https://threads.net/@demo_account/post/29',
+    views: 4200, likes: 120, replies: 8,
+    comments: [],
+  },
+  {
+    id: '30', text: '週末は読書して過ごしました\n最近読んだ本がすごく良かったのでおすすめ。',
+    timestamp: '2024-12-01T16:00:00+09:00', permalink: 'https://threads.net/@demo_account/post/30',
+    views: 3800, likes: 95, replies: 6,
+    comments: [],
   },
 ];
 
@@ -891,6 +978,161 @@ function InstagramDemo() {
   );
 }
 
+// ============ Threads パターン分析（インライン） ============
+const THREADS_PATTERNS = [
+  { name: '緊急・ヤバい系', regex: /(緊急|速報|ヤバい|ヤバすぎ)/ },
+  { name: '〜してる人系', regex: /(してる人|やってる人|使ってる人|書いてる人)/ },
+  { name: '時代遅れ系', regex: /時代遅れ/ },
+  { name: '損してます系', regex: /(損して|損します|無駄|もったいない)/ },
+  { name: '間違ってます系', regex: /(間違って|間違えて)/ },
+  { name: '終わります系', regex: /(終わって|終わります|アウト)/ },
+  { name: '〜だけで系', regex: /(だけで|するだけ)/ },
+  { name: '実は系', regex: /実は/ },
+  { name: '多すぎ系', regex: /多すぎ/ },
+  { name: '質問系', regex: /[？?]$/ },
+  { name: '数字・具体性', regex: /(\d+分|\d+時間|\d+倍|\d+人|\d+%)/ },
+];
+
+const THREADS_DAYS_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+const THREADS_HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+type ThreadsPatternStat = {
+  name: string;
+  count: number;
+  avgViews: number;
+  avgLikes: number;
+  examples: Array<{ text: string; views: number }>;
+};
+
+function threadsGetFirstLine(text: string): string {
+  return text.split('\n').filter((line) => line.trim())[0]?.trim() || '';
+}
+
+function threadsAnalyzePatterns(posts: typeof DUMMY_THREADS_POSTS) {
+  const overallAvgViews = posts.length > 0
+    ? Math.round(posts.reduce((sum, p) => sum + p.views, 0) / posts.length)
+    : 0;
+
+  const map = new Map<string, { totalViews: number; totalLikes: number; count: number; examples: Array<{ text: string; views: number }> }>();
+  const matchedPostIds = new Set<number>();
+
+  for (let i = 0; i < posts.length; i++) {
+    const post = posts[i];
+    const firstLine = threadsGetFirstLine(post.text);
+    let matched = false;
+    for (const pattern of THREADS_PATTERNS) {
+      if (pattern.regex.test(firstLine)) {
+        matched = true;
+        const entry = map.get(pattern.name) || { totalViews: 0, totalLikes: 0, count: 0, examples: [] };
+        entry.totalViews += post.views;
+        entry.totalLikes += post.likes;
+        entry.count++;
+        if (entry.examples.length < 2) {
+          entry.examples.push({ text: firstLine.slice(0, 40), views: post.views });
+        }
+        map.set(pattern.name, entry);
+      }
+    }
+    if (matched) matchedPostIds.add(i);
+  }
+
+  let otherStats: ThreadsPatternStat | null = null;
+  const unmatchedPosts = posts.filter((_, i) => !matchedPostIds.has(i));
+  if (unmatchedPosts.length > 0) {
+    const totalViews = unmatchedPosts.reduce((sum, p) => sum + p.views, 0);
+    const totalLikes = unmatchedPosts.reduce((sum, p) => sum + p.likes, 0);
+    otherStats = {
+      name: 'その他',
+      count: unmatchedPosts.length,
+      avgViews: Math.round(totalViews / unmatchedPosts.length),
+      avgLikes: Math.round(totalLikes / unmatchedPosts.length),
+      examples: unmatchedPosts.slice(0, 2).map(p => ({ text: threadsGetFirstLine(p.text).slice(0, 40), views: p.views })),
+    };
+  }
+
+  const stats: ThreadsPatternStat[] = Array.from(map.entries())
+    .map(([name, entry]) => ({
+      name,
+      count: entry.count,
+      avgViews: Math.round(entry.totalViews / entry.count),
+      avgLikes: Math.round(entry.totalLikes / entry.count),
+      examples: entry.examples,
+    }))
+    .sort((a, b) => b.avgViews - a.avgViews);
+
+  return { stats, overallAvgViews, otherStats };
+}
+
+function threadsAnalyzeTimePerformance(posts: typeof DUMMY_THREADS_POSTS) {
+  const matrix: Record<string, { totalViews: number; count: number }> = {};
+  const dayTotals: Record<number, { totalViews: number; count: number }> = {};
+  const hourTotals: Record<number, { totalViews: number; count: number }> = {};
+
+  for (let day = 0; day < 7; day++) {
+    dayTotals[day] = { totalViews: 0, count: 0 };
+    for (let hour = 0; hour < 24; hour++) {
+      matrix[`${day}-${hour}`] = { totalViews: 0, count: 0 };
+      if (day === 0) hourTotals[hour] = { totalViews: 0, count: 0 };
+    }
+  }
+
+  for (const post of posts) {
+    const date = new Date(post.timestamp);
+    if (Number.isNaN(date.getTime())) continue;
+    const jst = new Date(date.getTime() + 9 * 60 * 60 * 1000);
+    const dayIndex = jst.getUTCDay();
+    const hour = jst.getUTCHours();
+
+    matrix[`${dayIndex}-${hour}`].totalViews += post.views;
+    matrix[`${dayIndex}-${hour}`].count += 1;
+    dayTotals[dayIndex].totalViews += post.views;
+    dayTotals[dayIndex].count += 1;
+    hourTotals[hour].totalViews += post.views;
+    hourTotals[hour].count += 1;
+  }
+
+  type HeatmapCell = { dayIndex: number; hour: number; avgViews: number; postCount: number };
+  const heatmapData: HeatmapCell[] = [];
+  let maxAvg = 0;
+
+  for (let day = 0; day < 7; day++) {
+    for (let hour = 0; hour < 24; hour++) {
+      const { totalViews, count } = matrix[`${day}-${hour}`];
+      const avg = count > 0 ? totalViews / count : 0;
+      maxAvg = Math.max(maxAvg, avg);
+      heatmapData.push({ dayIndex: day, hour, avgViews: avg, postCount: count });
+    }
+  }
+
+  const dayStats = Object.entries(dayTotals).map(([day, data]) => ({
+    dayIndex: Number(day),
+    avgViews: data.count > 0 ? data.totalViews / data.count : 0,
+    postCount: data.count,
+  }));
+
+  const hourStats = Object.entries(hourTotals).map(([hour, data]) => ({
+    hour: Number(hour),
+    avgViews: data.count > 0 ? data.totalViews / data.count : 0,
+    postCount: data.count,
+  }));
+
+  return { heatmapData, dayStats, hourStats, maxAvgViews: maxAvg };
+}
+
+function threadsGetHeatColor(value: number, max: number): string {
+  if (max === 0 || value === 0) return 'bg-gray-100';
+  const intensity = value / max;
+  if (intensity >= 0.8) return 'bg-indigo-600';
+  if (intensity >= 0.6) return 'bg-indigo-500';
+  if (intensity >= 0.4) return 'bg-indigo-400';
+  if (intensity >= 0.2) return 'bg-indigo-300';
+  return 'bg-indigo-200';
+}
+
+function threadsFmtNum(n: number): string {
+  return new Intl.NumberFormat('ja-JP').format(Math.round(n));
+}
+
 // ============ Threads デモ ============
 function ThreadsDemo() {
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
@@ -924,6 +1166,9 @@ function ThreadsDemo() {
     return { totalViews, totalLikes, totalReplies, engagementRate, followerGrowth };
   }, []);
 
+  const patternData = useMemo(() => threadsAnalyzePatterns(DUMMY_THREADS_POSTS), []);
+  const timeData = useMemo(() => threadsAnalyzeTimePerformance(DUMMY_THREADS_POSTS), []);
+
   const getTransitionRates = (post: typeof DUMMY_THREADS_POSTS[0]) => {
     if (!post.comments.length || post.views === 0) return { transitions: [], overallRate: null };
     const transitions: { from: string; to: string; rate: number; views: number }[] = [];
@@ -950,6 +1195,19 @@ function ThreadsDemo() {
   const INITIAL_DISPLAY_COUNT = 10;
   const displayedPosts = showAllPosts ? sortedPosts : sortedPosts.slice(0, INITIAL_DISPLAY_COUNT);
   const hasMorePosts = sortedPosts.length > INITIAL_DISPLAY_COUNT;
+
+  // パターン分析用の計算
+  const topPattern = patternData.stats[0];
+  const maxBarValue = topPattern?.avgViews ?? 0;
+  const allPatternStats = [...patternData.stats];
+  if (patternData.otherStats) allPatternStats.push(patternData.otherStats);
+
+  const bestDay = timeData.dayStats.reduce((best, cur) =>
+    cur.avgViews > best.avgViews ? cur : best, timeData.dayStats[0]);
+  const bestHours = timeData.hourStats
+    .filter(h => h.postCount > 0)
+    .sort((a, b) => b.avgViews - a.avgViews)
+    .slice(0, 3);
 
   return (
     <div className="section-stack pb-20 lg:pb-6">
@@ -1033,13 +1291,13 @@ function ThreadsDemo() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--color-border)]">
-              {DUMMY_THREADS_DAILY.map((m) => (
+              {DUMMY_THREADS_DAILY.slice().reverse().map((m) => (
                 <tr key={m.date} className="hover:bg-[color:var(--color-surface-muted)]">
                   <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{m.date}</td>
                   <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{m.followers_count.toLocaleString()}</td>
                   <td className="px-3 py-2 text-right">
-                    <span className={m.follower_delta > 0 ? 'text-green-600' : 'text-[color:var(--color-text-secondary)]'}>
-                      {m.follower_delta > 0 ? `+${m.follower_delta}` : '0'}
+                    <span className={m.follower_delta > 0 ? 'text-green-600' : m.follower_delta < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
+                      {m.follower_delta > 0 ? `+${m.follower_delta}` : m.follower_delta || '0'}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.post_count}</td>
@@ -1051,10 +1309,10 @@ function ThreadsDemo() {
         </div>
         <div className="mt-6 h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={DUMMY_THREADS_DAILY} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <ComposedChart data={[...DUMMY_THREADS_DAILY].reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.slice(5)} />
-              <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v.toLocaleString()} />
+              <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
+              <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} />
               <YAxis
                 yAxisId="right"
                 orientation="right"
@@ -1064,12 +1322,253 @@ function ThreadsDemo() {
                   (dataMax: number) => Math.ceil(dataMax * 1.01)
                 ]}
               />
-              <Tooltip formatter={(value: number, name: string) => [value.toLocaleString(), name]} />
+              <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
               <Legend />
               <Bar yAxisId="left" dataKey="total_views" name="閲覧数" fill="#6366f1" opacity={0.7} />
               <Line yAxisId="right" type="monotone" dataKey="followers_count" name="フォロワー" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ============ 冒頭パターン分析 ============ */}
+      <div className="space-y-4">
+        <div className="ui-card">
+          <div>
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">
+              冒頭パターン分析
+            </h2>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+              投稿の1行目のパターン別パフォーマンス（{DUMMY_THREADS_POSTS.length}件）
+            </p>
+          </div>
+
+          {patternData.stats.length > 0 && (
+            <>
+              {/* サマリーカード */}
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                    全体の平均閲覧数
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">
+                    {threadsFmtNum(patternData.overallAvgViews)}
+                  </p>
+                </div>
+                <div className="rounded-[var(--radius-md)] border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                    最強の冒頭パターン
+                  </p>
+                  <p className="mt-2 text-xl font-semibold text-amber-900">
+                    {topPattern.name}
+                  </p>
+                  <p className="mt-1 text-sm text-amber-700">
+                    平均 {threadsFmtNum(topPattern.avgViews)} views（{topPattern.count}件）
+                  </p>
+                </div>
+              </div>
+
+              {/* パターン別バー */}
+              <div className="mt-6">
+                <h3 className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
+                  パターン別パフォーマンス
+                </h3>
+                <div className="space-y-3">
+                  {allPatternStats.map((stat, index) => {
+                    const isTop = index === 0;
+                    const isOther = stat.name === 'その他';
+                    const widthPercent = maxBarValue > 0 ? (stat.avgViews / maxBarValue) * 100 : 0;
+
+                    return (
+                      <div key={stat.name}>
+                        <div className="flex items-center gap-3">
+                          <span className={`w-28 shrink-0 text-xs ${
+                            isTop ? 'font-semibold text-amber-700' :
+                            isOther ? 'text-[color:var(--color-text-muted)]' :
+                            'text-[color:var(--color-text-secondary)]'
+                          }`}>
+                            {stat.name}
+                          </span>
+                          <div className="flex-1">
+                            <div className="h-5 overflow-hidden rounded bg-gray-100">
+                              <div
+                                className={`h-full transition-all ${
+                                  isTop ? 'bg-amber-500' : isOther ? 'bg-gray-300' : 'bg-indigo-500'
+                                }`}
+                                style={{ width: `${Math.min(widthPercent, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="w-16 text-right text-xs font-medium text-[color:var(--color-text-primary)]">
+                            {threadsFmtNum(stat.avgViews)}
+                          </span>
+                          <span className="w-12 text-right text-[10px] text-[color:var(--color-text-muted)]">
+                            ({stat.count}件)
+                          </span>
+                        </div>
+                        {stat.examples.length > 0 && (isTop || isOther) && (
+                          <div className="ml-28 mt-1 space-y-0.5 pl-3">
+                            {stat.examples.slice(0, isOther ? 2 : 1).map((ex, i) => (
+                              <p key={i} className="text-[10px] text-[color:var(--color-text-muted)]">
+                                例: {ex.text}...
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* インサイト */}
+              {topPattern && patternData.overallAvgViews > 0 && (
+                <div className="mt-6 rounded-[var(--radius-md)] border border-indigo-200 bg-indigo-50 p-4">
+                  <p className="text-xs font-medium text-indigo-700">分析インサイト</p>
+                  <p className="mt-1 text-sm text-indigo-900">
+                    「{topPattern.name}」パターンが最も効果的（全体平均の
+                    {Math.round((topPattern.avgViews / patternData.overallAvgViews) * 100)}%）。
+                    このパターンを意識した冒頭を増やすと効果的です。
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ============ 曜日・時間帯別パフォーマンス ============ */}
+        <div className="ui-card">
+          <div>
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">
+              曜日・時間帯別パフォーマンス
+            </h2>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+              投稿時間ごとの平均閲覧数をヒートマップで表示します
+            </p>
+          </div>
+
+          {/* サマリーカード */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                最も効果的な曜日
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">
+                {THREADS_DAYS_OF_WEEK[bestDay.dayIndex]}曜日
+              </p>
+              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+                平均 {threadsFmtNum(bestDay.avgViews)} views / {bestDay.postCount}投稿
+              </p>
+            </div>
+            <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                最も効果的な時間帯
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">
+                {bestHours.length > 0 ? `${bestHours[0].hour}時台` : '-'}
+              </p>
+              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+                {bestHours.length > 0
+                  ? `平均 ${threadsFmtNum(bestHours[0].avgViews)} views`
+                  : 'データなし'}
+              </p>
+            </div>
+          </div>
+
+          {/* ヒートマップ */}
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
+              時間帯 × 曜日 ヒートマップ
+            </h3>
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px]">
+                {/* 時間帯ヘッダー */}
+                <div className="flex">
+                  <div className="w-10 shrink-0" />
+                  {THREADS_HOURS.filter(h => h % 3 === 0).map(hour => (
+                    <div
+                      key={hour}
+                      className="flex-1 text-center text-[10px] text-[color:var(--color-text-secondary)]"
+                      style={{ minWidth: '24px' }}
+                    >
+                      {hour}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 曜日ごとの行 */}
+                {THREADS_DAYS_OF_WEEK.map((day, dayIndex) => (
+                  <div key={day} className="flex items-center">
+                    <div className="w-10 shrink-0 text-xs text-[color:var(--color-text-secondary)]">
+                      {day}
+                    </div>
+                    <div className="flex flex-1 gap-[2px]">
+                      {THREADS_HOURS.map(hour => {
+                        const cell = timeData.heatmapData.find(
+                          c => c.dayIndex === dayIndex && c.hour === hour
+                        );
+                        return (
+                          <div
+                            key={hour}
+                            className={`h-6 flex-1 rounded-sm transition-colors ${threadsGetHeatColor(cell?.avgViews ?? 0, timeData.maxAvgViews)}`}
+                            title={`${day}曜 ${hour}時: ${cell?.postCount ?? 0}投稿, 平均${threadsFmtNum(cell?.avgViews ?? 0)}views`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {/* 凡例 */}
+                <div className="mt-3 flex items-center justify-end gap-2 text-[10px] text-[color:var(--color-text-secondary)]">
+                  <span>低</span>
+                  <div className="flex gap-[2px]">
+                    <div className="h-3 w-3 rounded-sm bg-gray-100" />
+                    <div className="h-3 w-3 rounded-sm bg-indigo-200" />
+                    <div className="h-3 w-3 rounded-sm bg-indigo-300" />
+                    <div className="h-3 w-3 rounded-sm bg-indigo-400" />
+                    <div className="h-3 w-3 rounded-sm bg-indigo-500" />
+                    <div className="h-3 w-3 rounded-sm bg-indigo-600" />
+                  </div>
+                  <span>高</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 曜日別バーチャート */}
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
+              曜日別 平均閲覧数
+            </h3>
+            <div className="space-y-2">
+              {timeData.dayStats.map(stat => {
+                const maxDayAvg = Math.max(...timeData.dayStats.map(s => s.avgViews));
+                const widthPercent = maxDayAvg > 0 ? (stat.avgViews / maxDayAvg) * 100 : 0;
+                return (
+                  <div key={stat.dayIndex} className="flex items-center gap-3">
+                    <span className="w-6 text-xs text-[color:var(--color-text-secondary)]">
+                      {THREADS_DAYS_OF_WEEK[stat.dayIndex]}
+                    </span>
+                    <div className="flex-1">
+                      <div className="h-5 overflow-hidden rounded bg-gray-100">
+                        <div
+                          className="h-full bg-indigo-500 transition-all"
+                          style={{ width: `${widthPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="w-16 text-right text-xs text-[color:var(--color-text-secondary)]">
+                      {threadsFmtNum(stat.avgViews)}
+                    </span>
+                    <span className="w-12 text-right text-[10px] text-[color:var(--color-text-muted)]">
+                      ({stat.postCount}件)
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1166,7 +1665,7 @@ function ThreadsDemo() {
                 )}
 
                 <p className="mt-2 text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap">
-                  {isExpanded ? post.text : (post.text.length > 80 ? post.text.slice(0, 80) + '…' : post.text)}
+                  {isExpanded ? post.text : (post.text.length > 80 ? post.text.slice(0, 80) + '...' : post.text)}
                 </p>
 
                 {isExpanded && post.comments.length > 0 && (

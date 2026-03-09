@@ -11,72 +11,35 @@ import { v4 as uuidv4 } from 'uuid';
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 300;
 
-interface StoryInsights {
-  reach?: number;
-  impressions?: number;
-  replies?: number;
-  follows?: number;
-  profile_visits?: number;
-  shares?: number;
-  navigation_forward?: number;
-  navigation_back?: number;
-  navigation_exit?: number;
-}
-
-/**
- * Instagramビジネスアカウント情報を取得
- */
-async function getInstagramBusinessAccountId(graphBase: string, accessToken: string): Promise<string | null> {
-  try {
-    const pagesResponse = await fetch(
-      `${graphBase}/me/accounts?access_token=${accessToken}`
-    );
-
-    if (!pagesResponse.ok) return null;
-
-    const pagesData = await pagesResponse.json();
-
-    if (!pagesData.data || pagesData.data.length === 0) return null;
-
-    for (const page of pagesData.data) {
-      const igResponse = await fetch(
-        `${graphBase}/${page.id}?fields=instagram_business_account&access_token=${accessToken}`
-      );
-
-      if (!igResponse.ok) continue;
-
-      const igData = await igResponse.json();
-
-      if (igData.instagram_business_account) {
-        return igData.instagram_business_account.id;
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Failed to get Instagram business account:', error);
-    return null;
-  }
-}
-
-/**
- * ストーリー一覧を取得
- */
-async function getStories(graphBase: string, accessToken: string, accountId: string): Promise<Array<{
+interface StoryWithInsights {
   id: string;
   media_type: string;
   timestamp: string;
   thumbnail_url?: string;
   media_url?: string;
   caption?: string;
-}>> {
+  insights?: {
+    data: Array<{
+      name: string;
+      values: Array<{ value: number | Record<string, number> }>;
+    }>;
+  };
+}
+
+/**
+ * ストーリー一覧をインサイト込みで一括取得（GASと同じinline insights方式）
+ * insights.metric()でfieldsに含めることで1リクエストでストーリー+insightsを同時取得
+ */
+async function getStoriesWithInsights(graphBase: string, accessToken: string, accountId: string): Promise<StoryWithInsights[]> {
   try {
+    const fields = 'id,media_type,timestamp,thumbnail_url,media_url,caption,insights.metric(views,reach,replies,total_interactions,follows,profile_visits,navigation)';
     const response = await fetch(
-      `${graphBase}/${accountId}/stories?fields=id,media_type,timestamp,thumbnail_url,media_url,caption&access_token=${accessToken}`
+      `${graphBase}/${accountId}/stories?fields=${encodeURIComponent(fields)}&limit=50&access_token=${accessToken}`
     );
 
     if (!response.ok) {
-      console.warn('Failed to get stories');
+      const errorText = await response.text();
+      console.warn('Failed to get stories:', response.status, errorText);
       return [];
     }
 
@@ -89,62 +52,21 @@ async function getStories(graphBase: string, accessToken: string, accountId: str
 }
 
 /**
- * ストーリーのインサイトを取得
+ * inline insightsからメトリクスを抽出するヘルパー
  */
-async function getStoryInsights(graphBase: string, accessToken: string, storyId: string): Promise<StoryInsights> {
-  const insights: StoryInsights = {};
-
-  try {
-    const response = await fetch(
-      `${graphBase}/${storyId}/insights?metric=reach,impressions,replies,follows,profile_visits,shares,navigation&access_token=${accessToken}`
-    );
-
-    if (!response.ok) {
-      return insights;
+function extractMetrics(insights?: StoryWithInsights['insights']): Record<string, number> {
+  const metrics: Record<string, number> = {};
+  if (!insights?.data) return metrics;
+  for (const m of insights.data) {
+    const val = m.values?.[0]?.value;
+    if (typeof val === 'number') {
+      metrics[m.name] = val;
+    } else if (typeof val === 'object' && val !== null) {
+      // navigationはオブジェクト {forward, back, exited}
+      metrics[m.name] = Object.values(val).reduce((sum, v) => sum + (v || 0), 0);
     }
-
-    const data = await response.json();
-
-    if (data.data && Array.isArray(data.data)) {
-      for (const metric of data.data) {
-        const value = metric.values?.[0]?.value;
-
-        switch (metric.name) {
-          case 'reach':
-            insights.reach = value || 0;
-            break;
-          case 'impressions':
-            insights.impressions = value || 0;
-            break;
-          case 'replies':
-            insights.replies = value || 0;
-            break;
-          case 'follows':
-            insights.follows = value || 0;
-            break;
-          case 'profile_visits':
-            insights.profile_visits = value || 0;
-            break;
-          case 'shares':
-            insights.shares = value || 0;
-            break;
-          case 'navigation':
-            // navigationはオブジェクトで返ってくる
-            if (typeof value === 'object' && value !== null) {
-              insights.navigation_forward = value.forward || 0;
-              insights.navigation_back = value.back || 0;
-              insights.navigation_exit = value.exited || 0;
-            }
-            break;
-        }
-      }
-    }
-
-    return insights;
-  } catch (error) {
-    console.error(`Error fetching story insights for ${storyId}:`, error);
-    return insights;
   }
+  return metrics;
 }
 
 /**
@@ -159,42 +81,22 @@ async function syncUserStories(
     // トークンタイプに応じたGraph API Base URLを検出
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
 
-    // Instagram Business Account IDを取得（instagramUserIdと同じはず）
-    const accountId = instagramUserId || await getInstagramBusinessAccountId(graphBase, accessToken);
-
-    if (!accountId) {
-      return { success: false, storiesCount: 0, newCount: 0, updatedCount: 0, error: 'Instagram account not found' };
-    }
-
-    // ストーリー一覧を取得
-    const stories = await getStories(graphBase, accessToken, accountId);
+    // ストーリー一覧をinsights込みで一括取得
+    const stories = await getStoriesWithInsights(graphBase, accessToken, instagramUserId);
 
     if (stories.length === 0) {
       return { success: true, storiesCount: 0, newCount: 0, updatedCount: 0 };
     }
 
-    // 各ストーリーのインサイトを取得し、サムネイルをDriveにアップロード
-    const storiesWithInsights: InstagramStory[] = [];
+    const storiesData: InstagramStory[] = [];
 
     for (const story of stories) {
-      const insights = await getStoryInsights(graphBase, accessToken, story.id);
-
-      // 遷移数を合計（forward + back + exit）
-      const navigation = (insights.navigation_forward || 0) +
-                        (insights.navigation_back || 0) +
-                        (insights.navigation_exit || 0);
-
-      // total_interactionsを計算（replies + follows + profile_visits + shares）
-      const totalInteractions = (insights.replies || 0) +
-                                (insights.follows || 0) +
-                                (insights.profile_visits || 0) +
-                                (insights.shares || 0);
+      const metrics = extractMetrics(story.insights);
 
       // サムネイル取得（thumbnail_urlがなければmedia_urlを使用）
       const originalThumbnailUrl = story.thumbnail_url || story.media_url || null;
       let thumbnailUrl = originalThumbnailUrl;
       if (originalThumbnailUrl) {
-        // GCSにアップロード試行（失敗時は元URLを使用）
         const fileName = `story_${story.id}_${new Date(story.timestamp).toISOString().replace(/[:.]/g, '-')}`;
         const gcsUrl = await uploadImageToGCS(originalThumbnailUrl, fileName, 'instagram/stories');
         if (gcsUrl) {
@@ -202,32 +104,32 @@ async function syncUserStories(
         }
       }
 
-      storiesWithInsights.push({
+      storiesData.push({
         id: uuidv4(),
         user_id: userId,
         instagram_id: story.id,
         thumbnail_url: thumbnailUrl,
         timestamp: new Date(story.timestamp),
         caption: story.caption,
-        views: insights.impressions || 0,
-        reach: insights.reach || 0,
-        replies: insights.replies || 0,
-        total_interactions: totalInteractions,
-        follows: insights.follows || 0,
-        profile_visits: insights.profile_visits || 0,
-        navigation: navigation,
+        views: metrics.views || 0,
+        reach: metrics.reach || 0,
+        replies: metrics.replies || 0,
+        total_interactions: metrics.total_interactions || 0,
+        follows: metrics.follows || 0,
+        profile_visits: metrics.profile_visits || 0,
+        navigation: metrics.navigation || 0,
       });
 
       // API制限対策
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     // BigQueryに保存（upsert）
-    const result = await upsertInstagramStories(storiesWithInsights);
+    const result = await upsertInstagramStories(storiesData);
 
     return {
       success: true,
-      storiesCount: storiesWithInsights.length,
+      storiesCount: storiesData.length,
       newCount: result.newCount,
       updatedCount: result.updatedCount,
     };

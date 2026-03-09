@@ -11,110 +11,105 @@ import { v4 as uuidv4 } from 'uuid';
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 300;
 
-interface InstagramMedia {
+interface ReelListItem {
   id: string;
-  caption?: string;
-  media_type: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM';
+  media_type: string;
   media_product_type?: string;
   thumbnail_url?: string;
+}
+
+interface ReelWithInsights {
+  id: string;
+  caption?: string;
+  media_product_type?: string;
+  media_type: string;
   permalink: string;
   timestamp: string;
   like_count?: number;
   comments_count?: number;
-}
-
-interface ReelInsights {
-  reach?: number;
-  views?: number;
-  total_interactions?: number;
-  likes?: number;
-  comments?: number;
-  saved?: number;
-  shares?: number;
-  video_view_total_time?: number;
+  thumbnail_url?: string;
+  insights?: {
+    data: Array<{
+      name: string;
+      values: Array<{ value: number }>;
+    }>;
+  };
 }
 
 /**
- * リール一覧を取得
+ * メディア一覧からリールIDを取得（ページネーション対応）
  */
-async function getReels(graphBase: string, accessToken: string, accountId: string, limit = 15): Promise<InstagramMedia[]> {
-  try {
-    const response = await fetch(
-      `${graphBase}/${accountId}/media?fields=id,caption,media_type,media_product_type,thumbnail_url,permalink,timestamp,like_count,comments_count&limit=${limit}&access_token=${accessToken}`
-    );
-
-    if (!response.ok) {
-      console.warn('Failed to get media');
-      return [];
-    }
-
-    const data = await response.json();
-    // REELSのみフィルタ
-    return (data.data || []).filter((media: InstagramMedia) =>
-      media.media_type === 'VIDEO' && media.media_product_type === 'REELS'
-    );
-  } catch (error) {
-    console.error('Error fetching reels:', error);
-    return [];
-  }
-}
-
-/**
- * リールのインサイトを取得
- */
-async function getReelInsights(graphBase: string, accessToken: string, reelId: string): Promise<ReelInsights> {
-  const insights: ReelInsights = {};
+async function getReelIds(graphBase: string, accessToken: string, accountId: string, limit = 50): Promise<ReelListItem[]> {
+  const allReels: ReelListItem[] = [];
+  let cursor: string | null = null;
 
   try {
-    // リール専用のインサイトメトリクス
-    const response = await fetch(
-      `${graphBase}/${reelId}/insights?metric=reach,views,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time&access_token=${accessToken}`
-    );
-
-    if (!response.ok) {
-      return insights;
-    }
-
-    const data = await response.json();
-
-    if (data.data && Array.isArray(data.data)) {
-      for (const metric of data.data) {
-        const value = metric.values?.[0]?.value;
-
-        switch (metric.name) {
-          case 'reach':
-            insights.reach = value || 0;
-            break;
-          case 'views':
-            insights.views = value || 0;
-            break;
-          case 'total_interactions':
-            insights.total_interactions = value || 0;
-            break;
-          case 'likes':
-            insights.likes = value || 0;
-            break;
-          case 'comments':
-            insights.comments = value || 0;
-            break;
-          case 'saved':
-            insights.saved = value || 0;
-            break;
-          case 'shares':
-            insights.shares = value || 0;
-            break;
-          case 'ig_reels_video_view_total_time':
-            insights.video_view_total_time = value || 0;
-            break;
-        }
+    while (allReels.length < limit) {
+      let url = `${graphBase}/${accountId}/media?fields=id,media_type,media_product_type,thumbnail_url&limit=${Math.min(limit, 50)}&access_token=${accessToken}`;
+      if (cursor) {
+        url += `&after=${cursor}`;
       }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn('Failed to get media list:', response.status);
+        break;
+      }
+
+      const data = await response.json();
+      const media = data.data || [];
+      if (media.length === 0) break;
+
+      // REELSのみフィルタ
+      const reels = media.filter((m: ReelListItem) =>
+        m.media_type === 'VIDEO' || m.media_product_type === 'REELS'
+      );
+      allReels.push(...reels);
+
+      cursor = data.paging?.cursors?.after || null;
+      if (!cursor) break;
     }
 
-    return insights;
+    return allReels.slice(0, limit);
   } catch (error) {
-    console.error(`Error fetching reel insights for ${reelId}:`, error);
-    return insights;
+    console.error('Error fetching reel IDs:', error);
+    return allReels;
   }
+}
+
+/**
+ * 個別リールの詳細データをinline insightsで取得（GASと同じ方式）
+ */
+async function getReelDetails(graphBase: string, accessToken: string, reelId: string): Promise<ReelWithInsights | null> {
+  try {
+    const metrics = 'views,reach,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time,ig_reels_avg_watch_time';
+    const fields = `id,caption,media_product_type,media_type,permalink,timestamp,like_count,comments_count,thumbnail_url,insights.metric(${metrics})`;
+    const response = await fetch(
+      `${graphBase}/${reelId}?fields=${encodeURIComponent(fields)}&access_token=${accessToken}`
+    );
+
+    if (!response.ok) {
+      console.warn(`Failed to get reel details for ${reelId}:`, response.status);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching reel details for ${reelId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * inline insightsからメトリクスを抽出するヘルパー
+ */
+function extractMetrics(insights?: ReelWithInsights['insights']): Record<string, number> {
+  const metrics: Record<string, number> = {};
+  if (!insights?.data) return metrics;
+  for (const m of insights.data) {
+    metrics[m.name] = m.values?.[0]?.value || 0;
+  }
+  return metrics;
 }
 
 /**
@@ -124,39 +119,40 @@ async function syncUserReels(
   userId: string,
   accessToken: string,
   instagramUserId: string
-): Promise<{ success: boolean; newCount: number; updatedCount: number; error?: string }> {
+): Promise<{ success: boolean; reelsCount: number; newCount: number; updatedCount: number; error?: string }> {
   try {
     // トークンタイプに応じたGraph API Base URLを検出
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
 
-    // リール一覧を取得
-    const reels = await getReels(graphBase, accessToken, instagramUserId);
+    // メディア一覧からリールIDを取得（ページネーション対応、最大50件）
+    const reelIds = await getReelIds(graphBase, accessToken, instagramUserId, 50);
 
-    if (reels.length === 0) {
-      return { success: true, newCount: 0, updatedCount: 0 };
+    if (reelIds.length === 0) {
+      return { success: true, reelsCount: 0, newCount: 0, updatedCount: 0 };
     }
 
-    // 各リールのインサイトを取得
+    // 各リールの詳細データをinline insightsで取得（GASと同じ方式）
     const reelsWithInsights: InstagramReel[] = [];
 
-    for (const reel of reels) {
-      const insights = await getReelInsights(graphBase, accessToken, reel.id);
+    for (const reel of reelIds) {
+      const data = await getReelDetails(graphBase, accessToken, reel.id);
+      if (!data) continue;
 
-      // 視聴時間を時間に変換（秒→時間）
-      const viewTimeHours = insights.video_view_total_time
-        ? (insights.video_view_total_time / 3600).toFixed(2)
-        : '0';
+      const metrics = extractMetrics(data.insights);
 
-      // 平均視聴時間を計算（総視聴時間 / 再生回数）
-      const avgWatchTime = insights.views && insights.video_view_total_time
-        ? Math.round(insights.video_view_total_time / insights.views)
-        : 0;
+      // 視聴時間を時間に変換（ミリ秒→時間）
+      const viewTimeMs = metrics.ig_reels_video_view_total_time || 0;
+      const viewTimeHours = viewTimeMs > 0 ? (viewTimeMs / 1000 / 3600).toFixed(2) : '0';
+
+      // 平均視聴時間（ミリ秒→秒）
+      const avgWatchTimeMs = metrics.ig_reels_avg_watch_time || 0;
+      const avgWatchTime = avgWatchTimeMs > 0 ? Math.round(avgWatchTimeMs / 1000) : 0;
 
       // サムネイルをGCSにアップロード
-      const originalThumbnailUrl = reel.thumbnail_url || null;
+      const originalThumbnailUrl = data.thumbnail_url || reel.thumbnail_url || null;
       let thumbnailUrl = originalThumbnailUrl;
       if (originalThumbnailUrl) {
-        const fileName = `reel_${reel.id}_${new Date(reel.timestamp).toISOString().replace(/[:.]/g, '-')}`;
+        const fileName = `reel_${reel.id}_${new Date(data.timestamp).toISOString().replace(/[:.]/g, '-')}`;
         const gcsUrl = await uploadImageToGCS(originalThumbnailUrl, fileName, 'instagram/reels');
         if (gcsUrl) {
           thumbnailUrl = gcsUrl;
@@ -166,26 +162,26 @@ async function syncUserReels(
       reelsWithInsights.push({
         id: uuidv4(),
         user_id: userId,
-        instagram_id: reel.id,
-        caption: reel.caption || '',
-        media_product_type: reel.media_product_type || 'REELS',
-        media_type: reel.media_type,
-        permalink: reel.permalink,
-        timestamp: new Date(reel.timestamp),
-        views: insights.views || 0,
-        reach: insights.reach || 0,
-        total_interactions: insights.total_interactions || 0,
-        like_count: insights.likes || reel.like_count || 0,
-        comments_count: insights.comments || reel.comments_count || 0,
-        saved: insights.saved || 0,
-        shares: insights.shares || 0,
+        instagram_id: data.id || reel.id,
+        caption: data.caption || '',
+        media_product_type: data.media_product_type || 'REELS',
+        media_type: data.media_type || 'VIDEO',
+        permalink: data.permalink,
+        timestamp: new Date(data.timestamp),
+        views: metrics.views || 0,
+        reach: metrics.reach || 0,
+        total_interactions: metrics.total_interactions || 0,
+        like_count: metrics.likes || data.like_count || 0,
+        comments_count: metrics.comments || data.comments_count || 0,
+        saved: metrics.saved || 0,
+        shares: metrics.shares || 0,
         video_view_total_time_hours: viewTimeHours,
         avg_watch_time_seconds: avgWatchTime,
         thumbnail_url: thumbnailUrl,
       });
 
-      // API制限を考慮
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // API制限対策
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     // BigQueryに保存（upsert）
@@ -193,6 +189,7 @@ async function syncUserReels(
 
     return {
       success: true,
+      reelsCount: reelsWithInsights.length,
       newCount: result.newCount,
       updatedCount: result.updatedCount,
     };
@@ -200,6 +197,7 @@ async function syncUserReels(
     console.error(`Error syncing reels for user ${userId}:`, error);
     return {
       success: false,
+      reelsCount: 0,
       newCount: 0,
       updatedCount: 0,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -269,8 +267,7 @@ export async function GET(request: Request) {
           userId: user.user_id,
           username: user.instagram_username,
           success: data.success ?? false,
-          newCount: data.newCount ?? 0,
-          updatedCount: data.updatedCount ?? 0,
+          reelsCount: data.reelsCount ?? 0,
           error: data.error,
         };
       } catch (err) {
@@ -278,8 +275,7 @@ export async function GET(request: Request) {
           userId: user.user_id,
           username: user.instagram_username,
           success: false,
-          newCount: 0,
-          updatedCount: 0,
+          reelsCount: 0,
           error: err instanceof Error ? err.message : 'Dispatch failed',
         };
       }
@@ -318,8 +314,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: result.success,
-      newCount: result.newCount,
-      updatedCount: result.updatedCount,
+      reelsCount: result.reelsCount,
       error: result.error,
     });
   } catch (error) {

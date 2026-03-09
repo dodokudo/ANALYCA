@@ -1463,7 +1463,8 @@ export async function updateUserProfilePictures(
     WHERE user_id = @user_id
   `;
 
-  await bigquery.query({ query, params });
+  const [job] = await bigquery.createQueryJob({ query, params });
+  await job.getQueryResults();
 }
 
 // ===== Subscription Management =====

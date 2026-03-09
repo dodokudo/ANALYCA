@@ -43,7 +43,8 @@ export async function fetchInstagramAPI(
  */
 export async function detectGraphBase(accessToken: string, testPath: string = '/me'): Promise<string> {
   try {
-    const igUrl = `${INSTAGRAM_GRAPH_BASE}${testPath}?access_token=${accessToken}`;
+    const separator = testPath.includes('?') ? '&' : '?';
+    const igUrl = `${INSTAGRAM_GRAPH_BASE}${testPath}${separator}access_token=${accessToken}`;
     const igResponse = await fetch(igUrl);
     if (igResponse.ok) {
       return INSTAGRAM_GRAPH_BASE;

@@ -124,8 +124,8 @@ async function syncUserReels(
     // トークンタイプに応じたGraph API Base URLを検出
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
 
-    // メディア一覧からリールIDを取得（ページネーション対応、最大50件）
-    const reelIds = await getReelIds(graphBase, accessToken, instagramUserId, 50);
+    // メディア一覧からリールIDを取得（最新15件）
+    const reelIds = await getReelIds(graphBase, accessToken, instagramUserId, 15);
 
     if (reelIds.length === 0) {
       return { success: true, reelsCount: 0, newCount: 0, updatedCount: 0 };

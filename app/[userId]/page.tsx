@@ -1244,9 +1244,7 @@ function InstagramContent({
   const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: true }), [datePreset]);
 
   const reels = useMemo(() => {
-    const filtered = allReels.filter(r => isDateInRange(r.timestamp, dateRange));
-    // 日付範囲内にリールがない場合は全リールを表示
-    return filtered.length > 0 ? filtered : allReels;
+    return allReels.filter(r => isDateInRange(r.timestamp, dateRange));
   }, [allReels, dateRange]);
 
   const stories = useMemo(() => {

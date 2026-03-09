@@ -1136,7 +1136,7 @@ export async function upsertInstagramStories(stories: InstagramStory[]): Promise
     console.log(`${newStories.length}件の新規ストーリーを保存`);
   }
 
-  // 既存ストーリーのインサイトを更新
+  // 既存ストーリーのインサイト+サムネイルを更新
   for (const story of existingStories) {
     const updateQuery = `
       UPDATE \`mark-454114.analyca.instagram_stories\`
@@ -1148,10 +1148,11 @@ export async function upsertInstagramStories(stories: InstagramStory[]): Promise
         follows = @follows,
         profile_visits = @profile_visits,
         navigation = @navigation,
+        thumbnail_url = @thumbnail_url,
         updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @user_id AND instagram_id = @instagram_id
     `;
-    await bigquery.query({
+    const [job] = await bigquery.createQueryJob({
       query: updateQuery,
       params: {
         user_id: story.user_id,
@@ -1163,8 +1164,10 @@ export async function upsertInstagramStories(stories: InstagramStory[]): Promise
         follows: story.follows,
         profile_visits: story.profile_visits,
         navigation: story.navigation,
+        thumbnail_url: story.thumbnail_url ?? null,
       },
     });
+    await job.getQueryResults();
   }
 
   if (existingStories.length > 0) {
@@ -1259,7 +1262,7 @@ export async function upsertInstagramReels(reels: InstagramReel[]): Promise<{ ne
     console.log(`${newReels.length}件の新規リールを保存`);
   }
 
-  // 既存リールのインサイトを更新
+  // 既存リールのインサイト+サムネイルを更新
   for (const reel of existingReels) {
     const updateQuery = `
       UPDATE \`mark-454114.analyca.instagram_reels\`
@@ -1273,10 +1276,11 @@ export async function upsertInstagramReels(reels: InstagramReel[]): Promise<{ ne
         shares = @shares,
         video_view_total_time_hours = @video_view_total_time_hours,
         avg_watch_time_seconds = @avg_watch_time_seconds,
+        thumbnail_url = @thumbnail_url,
         updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @user_id AND instagram_id = @instagram_id
     `;
-    await bigquery.query({
+    const [job] = await bigquery.createQueryJob({
       query: updateQuery,
       params: {
         user_id: reel.user_id,
@@ -1290,8 +1294,10 @@ export async function upsertInstagramReels(reels: InstagramReel[]): Promise<{ ne
         shares: reel.shares,
         video_view_total_time_hours: reel.video_view_total_time_hours,
         avg_watch_time_seconds: reel.avg_watch_time_seconds,
+        thumbnail_url: reel.thumbnail_url ?? null,
       },
     });
+    await job.getQueryResults();
   }
 
   if (existingReels.length > 0) {

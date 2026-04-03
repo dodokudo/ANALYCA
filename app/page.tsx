@@ -40,25 +40,25 @@ function ChevronDownIcon({ className = 'w-5 h-5' }: { className?: string }) {
 // ============ モックアップコンポーネント ============
 function DashboardMockup() {
   return (
-    <div className="relative">
-      {/* PCモックアップ */}
-      <div className="hidden md:block relative">
+    <div className="relative w-full max-w-xl mx-auto">
+      {/* PCモックアップ（メイン） */}
+      <div className="relative z-10">
         <img
           src="/demo/mockup-pc.png"
           alt="ANALYCA ダッシュボード - PC表示"
-          className="w-full rounded-xl shadow-2xl"
+          className="w-full drop-shadow-2xl"
+          style={{ background: 'transparent' }}
         />
       </div>
 
-      {/* スマホモックアップ */}
-      <div className="md:absolute md:-right-8 md:-bottom-8 md:w-48">
-        <div className="mx-auto w-48 md:w-full">
-          <img
-            src="/demo/mockup-mobile.png"
-            alt="ANALYCA ダッシュボード - スマホ表示"
-            className="w-full rounded-2xl shadow-2xl"
-          />
-        </div>
+      {/* スマホモックアップ（右下に重ねる） */}
+      <div className="absolute -right-4 -bottom-4 w-[35%] z-20 md:-right-8 md:-bottom-8">
+        <img
+          src="/demo/mockup-mobile.png"
+          alt="ANALYCA ダッシュボード - スマホ表示"
+          className="w-full drop-shadow-2xl"
+          style={{ background: 'transparent' }}
+        />
       </div>
     </div>
   );
@@ -82,6 +82,148 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+// ============ 料金プランセクション ============
+const PRICING_PLANS = [
+  {
+    id: 'light-threads',
+    yearlyId: 'light-threads-yearly',
+    name: 'Light',
+    subtitle: 'Threads分析',
+    monthlyPrice: 4980,
+    yearlyMonthlyPrice: 3980,
+    yearlyTotal: 47760,
+    features: ['Threads分析', '投稿パフォーマンス追跡', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 30件/月'],
+    popular: false,
+  },
+  {
+    id: 'standard',
+    yearlyId: 'standard-yearly',
+    name: 'Standard',
+    subtitle: 'Instagram + Threads',
+    monthlyPrice: 9800,
+    yearlyMonthlyPrice: 7840,
+    yearlyTotal: 94080,
+    features: ['Instagram + Threads両方', 'クロスプラットフォーム分析', '全投稿タイプ対応', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 100件/月'],
+    popular: true,
+  },
+  {
+    id: 'pro',
+    yearlyId: 'pro-yearly',
+    name: 'Pro',
+    subtitle: '全機能 + 予約投稿無制限',
+    monthlyPrice: 19000,
+    yearlyMonthlyPrice: 15200,
+    yearlyTotal: 182400,
+    features: ['Standard全機能', '予約投稿 無制限', '優先サポート'],
+    popular: false,
+  },
+];
+
+function PricingSection() {
+  const [isYearly, setIsYearly] = useState(false);
+
+  return (
+    <section id="pricing" className="py-16 md:py-24 bg-gradient-to-br from-gray-50 to-white">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            料金プラン
+          </h2>
+          <p className="text-gray-600 text-lg">
+            SNS分析で成果を最大化しましょう
+          </p>
+        </div>
+
+        {/* 月払い/年払いトグル */}
+        <div className="flex justify-center mb-12">
+          <div className="inline-flex bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setIsYearly(false)}
+              className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                !isYearly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              月払い
+            </button>
+            <button
+              onClick={() => setIsYearly(true)}
+              className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
+                isYearly ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              年払い
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                20%OFF
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {PRICING_PLANS.map((plan) => {
+            const displayPrice = isYearly ? plan.yearlyMonthlyPrice : plan.monthlyPrice;
+            const planId = isYearly ? plan.yearlyId : plan.id;
+
+            return (
+              <div
+                key={plan.id}
+                className={`bg-white rounded-2xl border-2 p-6 relative transition-all hover:shadow-xl ${
+                  plan.popular ? 'border-purple-500 shadow-lg scale-105' : 'border-gray-200 hover:border-purple-300'
+                }`}
+              >
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                  {plan.popular ? (
+                    <span className="bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-sm font-semibold px-5 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                      人気 - 7日間無料
+                    </span>
+                  ) : (
+                    <span className="bg-emerald-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
+                      7日間無料
+                    </span>
+                  )}
+                </div>
+                <div className="mb-4 pt-2">
+                  <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
+                  <p className="text-sm text-gray-500">{plan.subtitle}</p>
+                </div>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-gray-900">¥{displayPrice.toLocaleString()}</span>
+                  <span className="text-gray-500">/月</span>
+                  {isYearly && (
+                    <p className="text-xs text-gray-400 mt-1">年額 ¥{plan.yearlyTotal.toLocaleString()}</p>
+                  )}
+                </div>
+                <ul className="space-y-3 mb-6">
+                  {plan.features.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                      <CheckIcon className="w-5 h-5 text-emerald-500" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={`/checkout?plan=${planId}`}
+                  className={`block w-full text-center font-medium py-3 rounded-lg transition-all ${
+                    plan.popular
+                      ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white hover:from-purple-600 hover:to-emerald-500'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  無料で試す
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="text-center text-sm text-gray-500 mt-8">
+          すべてのプランに7日間の無料体験がつきます。期間中はいつでもキャンセル可能。8日目から課金が開始されます。
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -400,118 +542,46 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ============ 料金プラン ============ */}
-      <section id="pricing" className="py-16 md:py-24 bg-gradient-to-br from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto px-4">
+      {/* ============ 始める3ステップ ============ */}
+      <section className="py-16 md:py-24 bg-gradient-to-br from-purple-50 via-white to-emerald-50">
+        <div className="max-w-5xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              料金プラン
+              かんたん3ステップで始められる
             </h2>
             <p className="text-gray-600 text-lg">
-              SNS分析で成果を最大化しましょう
+              難しい操作は一切ありません
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Light */}
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-colors relative">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                <span className="bg-emerald-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
-                  7日間無料
-                </span>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-purple-600">1</span>
               </div>
-              <div className="mb-4 pt-2">
-                <h3 className="text-2xl font-bold text-gray-900">Light</h3>
-                <p className="text-sm text-gray-500">Threads分析</p>
-              </div>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">¥4,980</span>
-                <span className="text-gray-500">/月</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['Threads分析', '投稿パフォーマンス追跡', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 30件/月'].map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckIcon className="w-5 h-5 text-emerald-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/checkout?plan=light-threads"
-                className="block w-full text-center bg-gray-100 text-gray-800 font-medium py-3 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                無料で試す
-              </Link>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">プランを選んで申し込み</h3>
+              <p className="text-gray-600 text-sm">7日間無料。クレジットカードを登録するだけ。期間中はいつでもキャンセル可能です。</p>
             </div>
-
-            {/* Standard */}
-            <div className="bg-white rounded-2xl border-2 border-purple-500 p-6 relative shadow-lg scale-105">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                <span className="bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-sm font-semibold px-5 py-1.5 rounded-full shadow-md whitespace-nowrap">
-                  人気 - 7日間無料
-                </span>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-emerald-600">2</span>
               </div>
-              <div className="mb-4 pt-2">
-                <h3 className="text-2xl font-bold text-gray-900">Standard</h3>
-                <p className="text-sm text-gray-500">Instagram + Threads</p>
-              </div>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">¥9,800</span>
-                <span className="text-gray-500">/月</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['Instagram + Threads両方', 'クロスプラットフォーム分析', '全投稿タイプ対応', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 100件/月'].map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckIcon className="w-5 h-5 text-emerald-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/checkout?plan=standard"
-                className="block w-full text-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white font-medium py-3 rounded-lg hover:from-purple-600 hover:to-emerald-500 transition-all"
-              >
-                無料で試す
-              </Link>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">SNSアカウントでログイン</h3>
+              <p className="text-gray-600 text-sm">ThreadsまたはInstagramのアカウントで認証するだけ。面倒な設定は不要です。</p>
             </div>
-
-            {/* Pro */}
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-colors relative">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                <span className="bg-emerald-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
-                  7日間無料
-                </span>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-blue-600">3</span>
               </div>
-              <div className="mb-4 pt-2">
-                <h3 className="text-2xl font-bold text-gray-900">Pro</h3>
-                <p className="text-sm text-gray-500">全機能 + 予約投稿無制限</p>
-              </div>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">¥19,000</span>
-                <span className="text-gray-500">/月</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['Standard全機能', '予約投稿 無制限', '優先サポート'].map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckIcon className="w-5 h-5 text-emerald-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/checkout?plan=pro"
-                className="block w-full text-center bg-gray-100 text-gray-800 font-medium py-3 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                無料で試す
-              </Link>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">すぐにダッシュボードを確認</h3>
+              <p className="text-gray-600 text-sm">ログインした瞬間からデータを取得開始。投稿分析・フォロワー推移がすぐに見られます。</p>
             </div>
           </div>
-
-          <p className="text-center text-sm text-gray-500 mt-8">
-            すべてのプランに7日間の無料体験がつきます。期間中はいつでもキャンセル可能。8日目から課金が開始されます。
-          </p>
         </div>
       </section>
+
+      {/* ============ 料金プラン ============ */}
+      <PricingSection />
 
       {/* ============ よくある質問 ============ */}
       <section id="faq" className="py-16 md:py-24 bg-white">

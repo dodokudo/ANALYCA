@@ -463,7 +463,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
             {/* PC版デモ */}
             <div>
-              <p className="text-sm font-semibold text-gray-500 mb-3 text-center">PC版ダッシュボード</p>
+              <p className="text-sm font-semibold text-gray-500 mb-3 text-center">PC版</p>
               <div className="bg-gray-800 rounded-t-xl pt-3 px-3">
                 <div className="flex items-center gap-1.5 mb-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
@@ -486,20 +486,16 @@ export default function HomePage() {
             {/* スマホ版デモ */}
             <div className="flex justify-center">
               <div>
-                <p className="text-sm font-semibold text-gray-500 mb-3 text-center">スマホ版ダッシュボード</p>
-                <div className="mx-auto" style={{ maxWidth: '280px' }}>
-                  <div className="bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl">
-                    <div className="bg-black rounded-[2rem] overflow-hidden">
-                      <video
-                        src="/demo/demo-1.mp4"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
+                <p className="text-sm font-semibold text-gray-500 mb-3 text-center">スマホ版</p>
+                <div className="mx-auto" style={{ maxWidth: '260px' }}>
+                  <video
+                    src="/demo/demo-phone.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full rounded-2xl drop-shadow-2xl"
+                  />
                 </div>
               </div>
             </div>

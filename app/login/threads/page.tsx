@@ -43,7 +43,11 @@ export default function ThreadsLoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
     const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
-    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
+    const currentUserId = window.localStorage.getItem('analycaUserId');
+    const stateParam = currentUserId
+      ? `&state=${encodeURIComponent(JSON.stringify({ pendingUserId: currentUserId }))}`
+      : '';
+    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
   };
 
   if (isRedirecting) {

@@ -8,7 +8,7 @@ import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
-import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
+import { canUseChannelBySubscription } from '@/lib/univapay/plans';
 import {
   ComposedChart,
   Bar,
@@ -238,7 +238,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
+  const [prefetchedSubscriptionStatus, setPrefetchedSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
   const [affiliateDashboardData, setAffiliateDashboardData] = useState<AffiliateDashboardResponse | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isInitialSetup = searchParams?.get('auth')?.includes('complete') || false;
@@ -262,7 +262,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
         void Promise.all([
           fetch(`/api/subscription/status?userId=${encodeURIComponent(userId)}`)
             .then((res) => res.json())
-            .then((json) => setSubscriptionStatus(json as SubscriptionStatusResponse))
+            .then((json) => setPrefetchedSubscriptionStatus(json as SubscriptionStatusResponse))
             .catch(() => {}),
           fetch(`/api/affiliate/dashboard?userId=${encodeURIComponent(userId)}`)
             .then((res) => res.json())
@@ -381,6 +381,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
   // プランに基づいてチャンネルタブを表示（未連携でもタブ表示してアップグレード誘導）
   const planId = user?.plan_id;
+  const subscriptionStatus = user?.subscription_status;
   const channelItems = useMemo(() => {
     const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }>; locked: boolean }[] = [];
     // プラン未対応チャンネルはロック状態で表示し、アップグレード導線を優先する
@@ -388,13 +389,13 @@ function UserDashboardContent({ userId }: { userId: string }) {
       value: 'threads',
       label: 'Threads',
       Icon: ThreadsIcon,
-      locked: isChannelBlockedByPlan(planId, 'threads'),
+      locked: !canUseChannelBySubscription(planId, subscriptionStatus, 'threads'),
     });
     items.push({
       value: 'instagram',
       label: 'Instagram',
       Icon: InstagramIcon,
-      locked: isChannelBlockedByPlan(planId, 'instagram'),
+      locked: !canUseChannelBySubscription(planId, subscriptionStatus, 'instagram'),
     });
     items.push({
       value: 'affiliate',
@@ -403,15 +404,24 @@ function UserDashboardContent({ userId }: { userId: string }) {
       locked: false,
     });
     return items;
-  }, [channels, planId]);
+  }, [planId, subscriptionStatus]);
 
   // プランで制限されているチャンネルかどうか
   const isChannelLocked = (channel: Channel): boolean => {
     if (channel === 'instagram' || channel === 'threads') {
-      return isChannelBlockedByPlan(planId, channel);
+      return !canUseChannelBySubscription(planId, subscriptionStatus, channel);
     }
     return false;
   };
+
+  const currentPlanLabel = useMemo(() => {
+    if (!subscriptionStatus || subscriptionStatus === 'none' || !planId) return '未契約';
+    if (planId === 'light-threads' || planId === 'light-threads-yearly') return 'Light (Threads)';
+    if (planId === 'light-instagram' || planId === 'light-instagram-yearly') return 'Light (Instagram)';
+    if (planId === 'standard' || planId === 'standard-yearly') return 'Standard';
+    if (planId === 'pro' || planId === 'pro-yearly') return 'Pro';
+    return planId;
+  }, [planId, subscriptionStatus]);
 
   // アクティブチャンネル（Threadsのみの場合はThreadsがデフォルト）
   const activeChannel = useMemo((): Channel => {
@@ -624,7 +634,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
           {activeChannel === 'threads' && (
             isChannelLocked('threads') ? (
               <UpgradeCard
-                currentPlan="Light (Instagram)"
+                currentPlan={currentPlanLabel}
                 targetChannel="Threads"
                 features={['Threads投稿分析', 'フォロワー推移', 'コメント欄遷移分析']}
               />
@@ -643,7 +653,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
           {activeChannel === 'instagram' && (
             isChannelLocked('instagram') ? (
               <UpgradeCard
-                currentPlan="Light (Threads)"
+                currentPlan={currentPlanLabel}
                 targetChannel="Instagram"
                 features={['リール・ストーリー分析', 'フォロワー推移', 'エンゲージメント分析']}
               />
@@ -661,7 +671,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
           {activeChannel === 'settings' && (
             <div className="max-w-2xl mx-auto py-6 px-4">
               <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-6">設定</h2>
-              <SubscriptionSettings userId={userId} initialData={subscriptionStatus} />
+              <SubscriptionSettings userId={userId} initialData={prefetchedSubscriptionStatus} />
             </div>
           )}
           {activeChannel === 'affiliate' && (
@@ -899,8 +909,8 @@ function ThreadsContent({
   return (
     <div className="section-stack pb-20 lg:pb-6">
       {/* ヘッダー: タブ + 日付選択 */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex w-full rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:w-auto">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
           {([
             { key: 'analysis', label: '分析' },
             { key: 'schedule', label: '予約投稿' },
@@ -910,7 +920,7 @@ function ThreadsContent({
               onClick={() => setThreadsTab(key)}
               className={`h-10 flex-1 rounded-[var(--radius-sm)] px-6 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] ${
                 threadsTab === key
-                  ? 'bg-[color:var(--color-text-primary)] text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white shadow-sm'
                   : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
               }`}
             >
@@ -922,7 +932,7 @@ function ThreadsContent({
           <select
             value={datePreset}
             onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-            className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+            className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
           >
             {datePresetOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -1332,15 +1342,15 @@ function InstagramContent({
   return (
     <div className="section-stack pb-20 lg:pb-6">
       {/* ヘッダー: タブ + 日付選択 */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex w-full rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:w-auto">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
           {tabItems.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={`h-10 flex-1 rounded-[var(--radius-sm)] px-5 text-sm font-semibold transition-all md:flex-none md:min-w-[92px] ${
                 activeTab === tab.value
-                  ? 'bg-[color:var(--color-text-primary)] text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white shadow-sm'
                   : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
               }`}
             >
@@ -1351,7 +1361,7 @@ function InstagramContent({
         <select
           value={datePreset}
           onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-          className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+          className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
         >
           {datePresetOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>

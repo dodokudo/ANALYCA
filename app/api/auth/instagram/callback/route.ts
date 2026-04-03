@@ -5,7 +5,7 @@ import {
   findUserIdByInstagramId,
   updateLastLogin,
 } from '@/lib/bigquery';
-import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
+import { canUseChannelBySubscription } from '@/lib/univapay/plans';
 
 export const maxDuration = 300;
 
@@ -96,9 +96,21 @@ export async function GET(request: NextRequest) {
       } catch { /* invalid state, ignore */ }
     }
     const existingUserId = pendingUserId || await findUserIdByInstagramId(igUserId);
+    if (!existingUserId) {
+      return NextResponse.redirect(new URL('/pricing?error=plan_required', request.url));
+    }
     if (existingUserId) {
       const existingUser = await getUserById(existingUserId);
-      if (existingUser && isChannelBlockedByPlan(existingUser.plan_id, 'instagram')) {
+      if (!existingUser) {
+        return NextResponse.redirect(new URL('/pricing?error=plan_required', request.url));
+      }
+      if (
+        !canUseChannelBySubscription(
+          existingUser.plan_id,
+          existingUser.subscription_status,
+          'instagram'
+        )
+      ) {
         return NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
       }
     }
@@ -115,7 +127,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Step 6: 最終ログイン日時を更新
-    updateLastLogin(userId).catch(err => console.error('Failed to update last_login_at:', err));
+    await updateLastLogin(userId).catch(err => console.error('Failed to update last_login_at:', err));
 
     // Step 7: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）

@@ -489,8 +489,8 @@ export default function AffiliateDashboard({ userId, initialData = null }: Affil
       )}
 
       {/* ヘッダー: サブタブ + 日付選択 */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex w-full rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:w-auto">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
           {([
             { key: 'insight', label: 'インサイト' },
             { key: 'settings', label: '設定' },
@@ -500,7 +500,7 @@ export default function AffiliateDashboard({ userId, initialData = null }: Affil
               onClick={() => setSubTab(key)}
               className={`h-10 flex-1 rounded-[var(--radius-sm)] px-6 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] ${
                 subTab === key
-                  ? 'bg-[color:var(--color-text-primary)] text-white shadow-sm'
+                  ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white shadow-sm'
                   : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
               }`}
             >
@@ -512,7 +512,7 @@ export default function AffiliateDashboard({ userId, initialData = null }: Affil
           <select
             value={datePreset}
             onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-            className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+            className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
           >
             {datePresetOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>

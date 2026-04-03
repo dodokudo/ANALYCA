@@ -1910,7 +1910,8 @@ export async function getReferralsByAffiliateCode(affiliateCode: string): Promis
 export async function updateLastLogin(userId: string): Promise<void> {
   const query = `
     UPDATE \`mark-454114.analyca.users\`
-    SET updated_at = CURRENT_TIMESTAMP()
+    SET last_login_at = CURRENT_TIMESTAMP(),
+        updated_at = CURRENT_TIMESTAMP()
     WHERE user_id = @user_id
   `;
   await executeDML({ query, params: { user_id: userId } });

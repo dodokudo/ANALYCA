@@ -65,6 +65,12 @@ export const PLANS: Record<string, Plan> = {
 
 export type BillableChannel = 'instagram' | 'threads';
 
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['current', 'active', 'trial']);
+
+export function hasActiveSubscriptionAccess(subscriptionStatus: string | null | undefined): boolean {
+  return ACTIVE_SUBSCRIPTION_STATUSES.has(subscriptionStatus || '');
+}
+
 export function isChannelBlockedByPlan(
   planId: string | null | undefined,
   channel: BillableChannel
@@ -74,4 +80,13 @@ export function isChannelBlockedByPlan(
   }
 
   return planId === 'light-instagram' || planId === 'light-instagram-yearly';
+}
+
+export function canUseChannelBySubscription(
+  planId: string | null | undefined,
+  subscriptionStatus: string | null | undefined,
+  channel: BillableChannel
+): boolean {
+  if (!hasActiveSubscriptionAccess(subscriptionStatus)) return false;
+  return !isChannelBlockedByPlan(planId, channel);
 }

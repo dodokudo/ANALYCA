@@ -44,7 +44,11 @@ export default function InstagramLoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);
     const scope = 'instagram_business_basic,instagram_business_manage_insights';
-    const oauthUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+    const currentUserId = window.localStorage.getItem('analycaUserId');
+    const stateParam = currentUserId
+      ? `&state=${encodeURIComponent(JSON.stringify({ pendingUserId: currentUserId }))}`
+      : '';
+    const oauthUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}${stateParam}`;
 
     try {
       const { userId } = await openOAuthPopup(oauthUrl);

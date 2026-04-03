@@ -900,7 +900,7 @@ function ThreadsContent({
     <div className="section-stack pb-20 lg:pb-6">
       {/* ヘッダー: タブ + 日付選択 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:w-auto">
           {([
             { key: 'analysis', label: '分析' },
             { key: 'schedule', label: '予約投稿' },
@@ -908,10 +908,10 @@ function ThreadsContent({
             <button
               key={key}
               onClick={() => setThreadsTab(key)}
-              className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium ${
+              className={`h-10 flex-1 rounded-[var(--radius-sm)] px-6 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] ${
                 threadsTab === key
-                  ? 'bg-[color:var(--color-text-primary)] text-white'
-                  : 'bg-[color:var(--color-surface-muted)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-border)]'
+                  ? 'bg-[color:var(--color-text-primary)] text-white shadow-sm'
+                  : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
               }`}
             >
               {label}
@@ -1333,15 +1333,15 @@ function InstagramContent({
     <div className="section-stack pb-20 lg:pb-6">
       {/* ヘッダー: タブ + 日付選択 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:w-auto">
           {tabItems.map((tab) => (
             <button
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
-              className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium transition-colors ${
+              className={`h-10 flex-1 rounded-[var(--radius-sm)] px-5 text-sm font-semibold transition-all md:flex-none md:min-w-[92px] ${
                 activeTab === tab.value
-                  ? 'bg-[color:var(--color-text-primary)] text-white'
-                  : 'border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+                  ? 'bg-[color:var(--color-text-primary)] text-white shadow-sm'
+                  : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
               }`}
             >
               {tab.label}

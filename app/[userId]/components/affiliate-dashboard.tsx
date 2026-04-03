@@ -490,7 +490,7 @@ export default function AffiliateDashboard({ userId, initialData = null }: Affil
 
       {/* ヘッダー: サブタブ + 日付選択 */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:w-auto">
           {([
             { key: 'insight', label: 'インサイト' },
             { key: 'settings', label: '設定' },
@@ -498,10 +498,10 @@ export default function AffiliateDashboard({ userId, initialData = null }: Affil
             <button
               key={key}
               onClick={() => setSubTab(key)}
-              className={`h-9 rounded-[var(--radius-sm)] px-3 text-sm font-medium ${
+              className={`h-10 flex-1 rounded-[var(--radius-sm)] px-6 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] ${
                 subTab === key
-                  ? 'bg-[color:var(--color-text-primary)] text-white'
-                  : 'bg-[color:var(--color-surface-muted)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-border)]'
+                  ? 'bg-[color:var(--color-text-primary)] text-white shadow-sm'
+                  : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
               }`}
             >
               {label}

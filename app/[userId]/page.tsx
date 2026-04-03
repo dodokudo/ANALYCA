@@ -1866,6 +1866,7 @@ function UpgradeCard({
   features: string[];
 }) {
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
 
   const handleUpgrade = async () => {
@@ -1924,14 +1925,44 @@ Standardプランにアップグレードすると
         {upgradeError && (
           <p className="mb-4 text-sm font-medium text-red-600">{upgradeError}</p>
         )}
-        <button
-          type="button"
-          onClick={handleUpgrade}
-          disabled={isUpgrading}
-          className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {isUpgrading ? 'アップグレード中...' : 'Standardプランにアップグレード'}
-        </button>
+        {!showUpgradeConfirm ? (
+          <button
+            type="button"
+            onClick={() => {
+              setUpgradeError(null);
+              setShowUpgradeConfirm(true);
+            }}
+            className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+          >
+            Standardプランにアップグレード
+          </button>
+        ) : (
+          <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-left">
+            <p className="text-sm font-semibold text-gray-900">この内容でアップグレードしますか？</p>
+            <p className="mt-2 text-xs leading-relaxed text-gray-700">
+              差額分を今すぐ決済し、現在の契約をStandardプランへ変更します。
+              アップグレード時に7日間無料体験は付きません。
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={handleUpgrade}
+                disabled={isUpgrading}
+                className="flex-1 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-purple-600 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isUpgrading ? '変更中...' : '確定する'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeConfirm(false)}
+                disabled={isUpgrading}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+              >
+                戻る
+              </button>
+            </div>
+          </div>
+        )}
         <p className="text-xs text-gray-500 mt-3">月額 ¥9,800 / Instagram + Threads 両方</p>
       </div>
     </div>

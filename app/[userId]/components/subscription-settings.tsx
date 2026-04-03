@@ -76,6 +76,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
     initialData && !initialData.success ? initialData.error || 'データの取得に失敗しました' : null
   );
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [cancelResult, setCancelResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -156,6 +157,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
 
       if (json.success) {
         setUpgradeResult({ success: true, message: json.message || 'アップグレードが完了しました' });
+        setShowUpgradeConfirm(false);
         await fetchStatus();
       } else {
         setUpgradeResult({ success: false, message: json.error || 'アップグレードに失敗しました' });
@@ -274,14 +276,44 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
               <p className="text-xs text-gray-600 mb-3">
                 Instagram + Threads 両方の分析が利用できます
               </p>
-              <button
-                type="button"
-                onClick={handleUpgrade}
-                disabled={upgrading}
-                className="inline-block w-full text-center bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {upgrading ? 'アップグレード中...' : 'アップグレード（¥9,800/月）'}
-              </button>
+              {!showUpgradeConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUpgradeResult(null);
+                    setShowUpgradeConfirm(true);
+                  }}
+                  className="inline-block w-full text-center bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-all"
+                >
+                  アップグレード（¥9,800/月）
+                </button>
+              ) : (
+                <div className="mt-3 rounded-lg border border-purple-200 bg-white/80 p-3">
+                  <p className="text-xs font-semibold text-gray-900">この内容でアップグレードしますか？</p>
+                  <p className="mt-2 text-xs leading-relaxed text-gray-600">
+                    差額分を今すぐ決済し、現在の契約をStandardプランへ変更します。
+                    アップグレード時に7日間無料体験は付きません。
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleUpgrade}
+                      disabled={upgrading}
+                      className="flex-1 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-400 px-3 py-2 text-xs font-semibold text-white transition-all hover:from-purple-600 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {upgrading ? '変更中...' : '確定する'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowUpgradeConfirm(false)}
+                      disabled={upgrading}
+                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      戻る
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

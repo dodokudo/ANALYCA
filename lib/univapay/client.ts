@@ -68,6 +68,20 @@ export interface CreateChargeParams {
   metadata?: Record<string, string>;
 }
 
+export interface UpdateSubscriptionParams {
+  amount?: number;
+  metadata?: Record<string, string>;
+  status?: 'unpaid' | 'suspended';
+  schedule_settings?: {
+    start_on?: string;
+    termination_mode?: 'immediate' | 'on_next_payment';
+  };
+  next_payment?: {
+    amount?: number;
+    due_date?: string;
+  };
+}
+
 function getAuthHeader(): string {
   return `Bearer ${UNIVAPAY_SECRET}.${UNIVAPAY_JWT}`;
 }
@@ -161,6 +175,27 @@ export async function getSubscription(subscriptionId: string): Promise<UnivaPayS
   }
 
   return fetchUnivaPay<UnivaPaySubscription>(`/subscriptions/${subscriptionId}`);
+}
+
+/**
+ * 既存サブスクリプションを更新
+ */
+export async function updateSubscription(
+  subscriptionId: string,
+  params: UpdateSubscriptionParams,
+): Promise<UnivaPaySubscription> {
+  const storeId = UNIVAPAY_STORE_ID;
+  if (!storeId) {
+    throw new Error('UNIVAPAY_STORE_ID is not configured');
+  }
+
+  return fetchUnivaPay<UnivaPaySubscription>(
+    `/subscriptions/${subscriptionId}`,
+    {
+      method: 'PATCH',
+      body: params as Record<string, unknown>,
+    },
+  );
 }
 
 /**

@@ -77,7 +77,9 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
   );
   const [showConfirm, setShowConfirm] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
   const [cancelResult, setCancelResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [upgradeResult, setUpgradeResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -134,6 +136,34 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
       setCancelResult({ success: false, message: '通信エラーが発生しました' });
     } finally {
       setCanceling(false);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    if (!data?.plan_id) return;
+
+    const targetPlanId = data.plan_id.endsWith('-yearly') ? 'standard-yearly' : 'standard';
+
+    setUpgrading(true);
+    setUpgradeResult(null);
+    try {
+      const res = await fetch('/api/subscription/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, targetPlanId }),
+      });
+      const json = await res.json();
+
+      if (json.success) {
+        setUpgradeResult({ success: true, message: json.message || 'アップグレードが完了しました' });
+        await fetchStatus();
+      } else {
+        setUpgradeResult({ success: false, message: json.error || 'アップグレードに失敗しました' });
+      }
+    } catch {
+      setUpgradeResult({ success: false, message: '通信エラーが発生しました' });
+    } finally {
+      setUpgrading(false);
     }
   };
 
@@ -231,6 +261,12 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
             </div>
           )}
 
+          {upgradeResult && (
+            <div className={`rounded-lg p-3 text-sm ${upgradeResult.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              {upgradeResult.message}
+            </div>
+          )}
+
           {/* アップグレード案内（Lightプランのみ） */}
           {(data.plan_id === 'light-threads' || data.plan_id === 'light-instagram') && !isCanceled && (
             <div className="bg-gradient-to-r from-purple-50 to-emerald-50 border border-purple-200 rounded-xl p-4">
@@ -238,12 +274,14 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
               <p className="text-xs text-gray-600 mb-3">
                 Instagram + Threads 両方の分析が利用できます
               </p>
-              <a
-                href="/checkout?plan=standard"
-                className="inline-block w-full text-center bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-all"
+              <button
+                type="button"
+                onClick={handleUpgrade}
+                disabled={upgrading}
+                className="inline-block w-full text-center bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                アップグレード（¥9,800/月）
-              </a>
+                {upgrading ? 'アップグレード中...' : 'アップグレード（¥9,800/月）'}
+              </button>
             </div>
           )}
 

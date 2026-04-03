@@ -636,6 +636,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
           {activeChannel === 'threads' && (
             isChannelLocked('threads') ? (
               <UpgradeCard
+                userId={userId}
                 currentPlan={currentPlanLabel}
                 targetChannel="Threads"
                 features={['Threads投稿分析', 'フォロワー推移', 'コメント欄遷移分析']}
@@ -655,6 +656,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
           {activeChannel === 'instagram' && (
             isChannelLocked('instagram') ? (
               <UpgradeCard
+                userId={userId}
                 currentPlan={currentPlanLabel}
                 targetChannel="Instagram"
                 features={['リール・ストーリー分析', 'フォロワー推移', 'エンゲージメント分析']}
@@ -1853,7 +1855,44 @@ function ConnectCard({ channel, userId }: { channel: 'threads' | 'instagram'; us
   );
 }
 
-function UpgradeCard({ currentPlan, targetChannel, features }: { currentPlan: string; targetChannel: string; features: string[] }) {
+function UpgradeCard({
+  userId,
+  targetChannel,
+  features,
+}: {
+  userId: string;
+  currentPlan: string;
+  targetChannel: string;
+  features: string[];
+}) {
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    setUpgradeError(null);
+
+    try {
+      const res = await fetch('/api/subscription/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, targetPlanId: 'standard' }),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        setUpgradeError(json.error || 'アップグレードに失敗しました');
+        return;
+      }
+
+      window.location.reload();
+    } catch {
+      setUpgradeError('通信エラーが発生しました');
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
   return (
     <div className="max-w-lg mx-auto py-12 px-4">
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
@@ -1865,9 +1904,12 @@ function UpgradeCard({ currentPlan, targetChannel, features }: { currentPlan: st
         <h3 className="text-xl font-bold text-gray-900 mb-2">
           {targetChannel}分析を利用する
         </h3>
-        <p className="text-gray-600 mb-4">
-          現在のプラン（{currentPlan}）では{targetChannel}分析はご利用いただけません。<br />
-          Standardプランにアップグレードすると、以下の機能が解放されます。
+        <p className="text-gray-600 mb-6 leading-relaxed whitespace-pre-line">
+          {`現在のプランでは
+${targetChannel}分析はご利用いただけません。
+
+Standardプランにアップグレードすると
+以下の機能が解放されます。`}
         </p>
         <ul className="text-left space-y-2 mb-6 max-w-xs mx-auto">
           {features.map((f, i) => (
@@ -1879,12 +1921,17 @@ function UpgradeCard({ currentPlan, targetChannel, features }: { currentPlan: st
             </li>
           ))}
         </ul>
-        <a
-          href="/checkout?plan=standard"
-          className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+        {upgradeError && (
+          <p className="mb-4 text-sm font-medium text-red-600">{upgradeError}</p>
+        )}
+        <button
+          type="button"
+          onClick={handleUpgrade}
+          disabled={isUpgrading}
+          className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Standardプランにアップグレード
-        </a>
+          {isUpgrading ? 'アップグレード中...' : 'Standardプランにアップグレード'}
+        </button>
         <p className="text-xs text-gray-500 mt-3">月額 ¥9,800 / Instagram + Threads 両方</p>
       </div>
     </div>

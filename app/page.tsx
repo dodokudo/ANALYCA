@@ -456,36 +456,50 @@ export default function HomePage() {
               実際の操作をチェック
             </h2>
             <p className="text-gray-600 text-lg">
-              ANALYCAのダッシュボードを動画でご覧ください
+              PC・スマホどちらからでも快適に分析できます
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <div className="relative mx-auto" style={{ maxWidth: '300px' }}>
-              <div className="bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl">
-                <div className="bg-black rounded-[2rem] overflow-hidden">
-                  <video
-                    src="/demo/demo-1.mp4"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="w-full"
-                  />
+          <div className="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+            {/* PC版デモ */}
+            <div>
+              <p className="text-sm font-semibold text-gray-500 mb-3 text-center">PC版ダッシュボード</p>
+              <div className="bg-gray-800 rounded-t-xl pt-3 px-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
                 </div>
               </div>
+              <div className="bg-gray-800 rounded-b-xl overflow-hidden shadow-2xl pb-2 px-2">
+                <video
+                  src="/demo/demo-pc.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full rounded-b-lg"
+                />
+              </div>
             </div>
-            <div className="relative mx-auto" style={{ maxWidth: '300px' }}>
-              <div className="bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl">
-                <div className="bg-black rounded-[2rem] overflow-hidden">
-                  <video
-                    src="/demo/demo-2.mp4"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="w-full"
-                  />
+
+            {/* スマホ版デモ */}
+            <div className="flex justify-center">
+              <div>
+                <p className="text-sm font-semibold text-gray-500 mb-3 text-center">スマホ版ダッシュボード</p>
+                <div className="mx-auto" style={{ maxWidth: '280px' }}>
+                  <div className="bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl">
+                    <div className="bg-black rounded-[2rem] overflow-hidden">
+                      <video
+                        src="/demo/demo-1.mp4"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

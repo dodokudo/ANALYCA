@@ -464,23 +464,14 @@ export default function HomePage() {
             {/* PC版デモ */}
             <div>
               <p className="text-sm font-semibold text-gray-500 mb-3 text-center">PC版</p>
-              <div className="bg-gray-800 rounded-t-xl pt-3 px-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                </div>
-              </div>
-              <div className="bg-gray-800 rounded-b-xl overflow-hidden shadow-2xl pb-2 px-2">
-                <video
-                  src="/demo/demo-pc.mp4"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="w-full rounded-b-lg"
-                />
-              </div>
+              <video
+                src="/demo/demo-pc.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full rounded-xl shadow-2xl"
+              />
             </div>
 
             {/* スマホ版デモ */}

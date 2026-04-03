@@ -5,7 +5,7 @@ import {
   findUserIdByInstagramId,
   updateLastLogin,
 } from '@/lib/bigquery';
-import { canUseChannelBySubscription } from '@/lib/univapay/plans';
+import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
 
 export const maxDuration = 300;
 
@@ -104,13 +104,7 @@ export async function GET(request: NextRequest) {
       if (!existingUser) {
         return NextResponse.redirect(new URL('/pricing?error=plan_required', request.url));
       }
-      if (
-        !canUseChannelBySubscription(
-          existingUser.plan_id,
-          existingUser.subscription_status,
-          'instagram'
-        )
-      ) {
+      if (isChannelBlockedByPlan(existingUser.plan_id, 'instagram')) {
         return NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
       }
     }

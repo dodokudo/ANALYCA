@@ -8,7 +8,7 @@ import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
-import { canUseChannelBySubscription } from '@/lib/univapay/plans';
+import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
 import {
   ComposedChart,
   Bar,
@@ -381,7 +381,6 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
   // プランに基づいてチャンネルタブを表示（未連携でもタブ表示してアップグレード誘導）
   const planId = user?.plan_id;
-  const subscriptionStatus = user?.subscription_status;
   const channelItems = useMemo(() => {
     const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }>; locked: boolean }[] = [];
     // プラン未対応チャンネルはロック状態で表示し、アップグレード導線を優先する
@@ -389,13 +388,13 @@ function UserDashboardContent({ userId }: { userId: string }) {
       value: 'threads',
       label: 'Threads',
       Icon: ThreadsIcon,
-      locked: !canUseChannelBySubscription(planId, subscriptionStatus, 'threads'),
+      locked: isChannelBlockedByPlan(planId, 'threads'),
     });
     items.push({
       value: 'instagram',
       label: 'Instagram',
       Icon: InstagramIcon,
-      locked: !canUseChannelBySubscription(planId, subscriptionStatus, 'instagram'),
+      locked: isChannelBlockedByPlan(planId, 'instagram'),
     });
     items.push({
       value: 'affiliate',
@@ -404,24 +403,24 @@ function UserDashboardContent({ userId }: { userId: string }) {
       locked: false,
     });
     return items;
-  }, [planId, subscriptionStatus]);
+  }, [planId]);
 
   // プランで制限されているチャンネルかどうか
   const isChannelLocked = (channel: Channel): boolean => {
     if (channel === 'instagram' || channel === 'threads') {
-      return !canUseChannelBySubscription(planId, subscriptionStatus, channel);
+      return isChannelBlockedByPlan(planId, channel);
     }
     return false;
   };
 
   const currentPlanLabel = useMemo(() => {
-    if (!subscriptionStatus || subscriptionStatus === 'none' || !planId) return '未契約';
+    if (!planId) return '未契約';
     if (planId === 'light-threads' || planId === 'light-threads-yearly') return 'Light (Threads)';
     if (planId === 'light-instagram' || planId === 'light-instagram-yearly') return 'Light (Instagram)';
     if (planId === 'standard' || planId === 'standard-yearly') return 'Standard';
     if (planId === 'pro' || planId === 'pro-yearly') return 'Pro';
     return planId;
-  }, [planId, subscriptionStatus]);
+  }, [planId]);
 
   // アクティブチャンネル（Threadsのみの場合はThreadsがデフォルト）
   const activeChannel = useMemo((): Channel => {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserById, getUserDashboardData } from '@/lib/bigquery';
+import { getUserById, getUserDashboardData, updateLastLogin } from '@/lib/bigquery';
 
 /**
  * BigQueryのタイムスタンプを安全にシリアライズ
@@ -73,6 +73,11 @@ export async function GET(
 
     // ユーザーデータを取得
     const userRecord = await getUserById(userId);
+    if (userRecord) {
+      updateLastLogin(userId).catch((err) => {
+        console.error('Failed to update last_login_at from dashboard:', err);
+      });
+    }
 
     // ダッシュボードデータを取得
     const { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats } = await getUserDashboardData(userId);

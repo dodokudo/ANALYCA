@@ -460,50 +460,46 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* PC版デモ - MacBookフレーム */}
-          <div className="max-w-5xl mx-auto mb-16">
-            <p className="text-sm font-semibold text-gray-500 mb-4 text-center">PC版ダッシュボード</p>
-            <div className="relative">
-              {/* MacBook上部（画面部分） */}
-              <div className="bg-[#2d2d2d] rounded-t-2xl pt-4 px-4">
-                {/* カメラ */}
-                <div className="flex justify-center mb-3">
-                  <div className="w-2 h-2 rounded-full bg-gray-600" />
+          <div className="flex flex-col md:flex-row gap-10 items-center justify-center max-w-5xl mx-auto">
+            {/* PC版デモ - MacBookフレーム */}
+            <div className="md:flex-[3]">
+              <p className="text-sm font-semibold text-gray-500 mb-4 text-center">PC版</p>
+              <div className="relative">
+                <div className="bg-[#2d2d2d] rounded-t-xl pt-3 px-3">
+                  <div className="flex justify-center mb-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+                  </div>
+                  <div className="bg-black rounded-t-sm overflow-hidden">
+                    <video
+                      src="/demo/demo-pc.mp4"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full"
+                    />
+                  </div>
                 </div>
-                {/* 画面 */}
-                <div className="bg-black rounded-t-sm overflow-hidden">
+                <div className="bg-gradient-to-b from-[#c0c0c0] to-[#a8a8a8] h-3 rounded-b-lg" style={{ width: '102%', marginLeft: '-1%' }}>
+                  <div className="bg-[#b0b0b0] h-0.5 rounded-full mx-auto" style={{ width: '18%', marginTop: '5px' }} />
+                </div>
+              </div>
+            </div>
+
+            {/* スマホ版デモ */}
+            <div className="md:flex-[1] flex justify-center">
+              <div>
+                <p className="text-sm font-semibold text-gray-500 mb-4 text-center">スマホ版</p>
+                <div style={{ maxWidth: '220px' }}>
                   <video
-                    src="/demo/demo-pc.mp4"
+                    src="/demo/demo-phone.mp4"
                     autoPlay
                     muted
                     loop
                     playsInline
-                    className="w-full"
+                    className="w-full rounded-2xl drop-shadow-2xl"
                   />
                 </div>
-              </div>
-              {/* MacBook下部（キーボード部分） */}
-              <div className="bg-gradient-to-b from-[#c0c0c0] to-[#a8a8a8] h-4 rounded-b-lg mx-auto" style={{ width: '101%', marginLeft: '-0.5%' }}>
-                <div className="bg-[#b0b0b0] h-1 rounded-full mx-auto" style={{ width: '20%', marginTop: '6px' }} />
-              </div>
-              {/* 底面の影 */}
-              <div className="bg-gradient-to-b from-[#999] to-transparent h-1 rounded-b-2xl mx-auto" style={{ width: '80%' }} />
-            </div>
-          </div>
-
-          {/* スマホ版デモ */}
-          <div className="flex justify-center">
-            <div>
-              <p className="text-sm font-semibold text-gray-500 mb-4 text-center">スマホ版ダッシュボード</p>
-              <div className="mx-auto" style={{ maxWidth: '240px' }}>
-                <video
-                  src="/demo/demo-phone.mp4"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="w-full rounded-2xl drop-shadow-2xl"
-                />
               </div>
             </div>
           </div>

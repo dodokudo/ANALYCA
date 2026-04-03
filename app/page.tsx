@@ -43,105 +43,21 @@ function DashboardMockup() {
     <div className="relative">
       {/* PCモックアップ */}
       <div className="hidden md:block relative">
-        <div className="bg-gray-800 rounded-t-xl pt-3 px-3">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-          </div>
-        </div>
-        <div className="bg-white border-x-4 border-b-4 border-gray-800 rounded-b-xl overflow-hidden shadow-2xl">
-          <div className="bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 p-4">
-            {/* ヘッダー */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-emerald-400 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <span className="text-sm font-bold text-gray-800">ANALYCA</span>
-            </div>
-            {/* コンテンツ */}
-            <div className="grid grid-cols-4 gap-3 mb-4">
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <p className="text-[10px] text-gray-500">投稿数</p>
-                <p className="text-lg font-bold text-gray-900">128</p>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <p className="text-[10px] text-gray-500">閲覧数</p>
-                <p className="text-lg font-bold text-gray-900">245K</p>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <p className="text-[10px] text-gray-500">いいね</p>
-                <p className="text-lg font-bold text-gray-900">18.2K</p>
-              </div>
-              <div className="bg-white rounded-lg p-3 shadow-sm">
-                <p className="text-[10px] text-gray-500">エンゲージ率</p>
-                <p className="text-lg font-bold text-gray-900">4.8%</p>
-              </div>
-            </div>
-            {/* グラフエリア */}
-            <div className="bg-white rounded-lg p-3 shadow-sm">
-              <p className="text-xs font-semibold text-gray-800 mb-2">インプレッション推移</p>
-              <div className="h-24 flex items-end gap-1">
-                {[40, 65, 45, 80, 55, 90, 70, 85, 95, 75, 88, 100].map((h, i) => (
-                  <div key={i} className="flex-1 bg-gradient-to-t from-purple-500 to-emerald-400 rounded-t" style={{ height: `${h}%` }} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <img
+          src="/demo/mockup-pc.png"
+          alt="ANALYCA ダッシュボード - PC表示"
+          className="w-full rounded-xl shadow-2xl"
+        />
       </div>
 
       {/* スマホモックアップ */}
       <div className="md:absolute md:-right-8 md:-bottom-8 md:w-48">
         <div className="mx-auto w-48 md:w-full">
-          <div className="bg-gray-900 rounded-[2rem] p-2 shadow-2xl">
-            <div className="bg-white rounded-[1.5rem] overflow-hidden">
-              {/* ノッチ */}
-              <div className="bg-gray-900 h-6 flex items-center justify-center">
-                <div className="w-16 h-4 bg-black rounded-full" />
-              </div>
-              {/* コンテンツ */}
-              <div className="bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 p-3 h-72">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-emerald-400 rounded-md flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-bold text-gray-800">ANALYCA</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div className="bg-white rounded-lg p-2 shadow-sm">
-                    <p className="text-[8px] text-gray-500">フォロワー</p>
-                    <p className="text-sm font-bold text-gray-900">8,320</p>
-                    <p className="text-[8px] text-green-500">+89</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-2 shadow-sm">
-                    <p className="text-[8px] text-gray-500">閲覧数</p>
-                    <p className="text-sm font-bold text-gray-900">29.4K</p>
-                  </div>
-                </div>
-                <div className="bg-white rounded-lg p-2 shadow-sm">
-                  <p className="text-[8px] font-semibold text-gray-800 mb-1">トップ投稿</p>
-                  <div className="space-y-1">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center gap-2 text-[8px]">
-                        <span className="w-4 h-4 bg-amber-100 rounded text-amber-700 flex items-center justify-center font-bold">{i}</span>
-                        <span className="text-gray-600 truncate flex-1">投稿テキスト...</span>
-                        <span className="text-gray-800 font-medium">12.5K</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {/* ホームバー */}
-              <div className="h-4 flex items-center justify-center">
-                <div className="w-24 h-1 bg-gray-300 rounded-full" />
-              </div>
-            </div>
-          </div>
+          <img
+            src="/demo/mockup-mobile.png"
+            alt="ANALYCA ダッシュボード - スマホ表示"
+            className="w-full rounded-2xl shadow-2xl"
+          />
         </div>
       </div>
     </div>
@@ -390,6 +306,51 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ============ デモ動画 ============ */}
+      <section className="py-16 md:py-24 bg-white">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              実際の操作をチェック
+            </h2>
+            <p className="text-gray-600 text-lg">
+              ANALYCAのダッシュボードを動画でご覧ください
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="relative mx-auto" style={{ maxWidth: '300px' }}>
+              <div className="bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl">
+                <div className="bg-black rounded-[2rem] overflow-hidden">
+                  <video
+                    src="/demo/demo-1.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="relative mx-auto" style={{ maxWidth: '300px' }}>
+              <div className="bg-gray-900 rounded-[2.5rem] p-3 shadow-2xl">
+                <div className="bg-black rounded-[2rem] overflow-hidden">
+                  <video
+                    src="/demo/demo-2.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ============ 選ばれる5つの理由 ============ */}
       <section id="reasons" className="py-16 md:py-24 bg-white">
         <div className="max-w-6xl mx-auto px-4">
@@ -447,26 +408,28 @@ export default function HomePage() {
               料金プラン
             </h2>
             <p className="text-gray-600 text-lg">
-              分析したいプラットフォームに合わせて選べる3つのプラン
+              SNS分析で成果を最大化しましょう
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Light Threads */}
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-colors">
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <ThreadsIcon className="w-5 h-5" />
-                  <span className="text-sm text-gray-500">Threads専用</span>
-                </div>
+            {/* Light */}
+            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-colors relative">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                <span className="bg-emerald-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
+                  7日間無料
+                </span>
+              </div>
+              <div className="mb-4 pt-2">
                 <h3 className="text-2xl font-bold text-gray-900">Light</h3>
+                <p className="text-sm text-gray-500">Threads分析</p>
               </div>
               <div className="mb-6">
                 <span className="text-4xl font-bold text-gray-900">¥4,980</span>
                 <span className="text-gray-500">/月</span>
               </div>
               <ul className="space-y-3 mb-6">
-                {['Threads投稿分析', 'フォロワー推移', 'コメント欄遷移分析', 'データ無期限保存'].map((f, i) => (
+                {['Threads分析', '投稿パフォーマンス追跡', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 30件/月'].map((f, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
                     <CheckIcon className="w-5 h-5 text-emerald-500" />
                     {f}
@@ -477,60 +440,27 @@ export default function HomePage() {
                 href="/checkout?plan=light-threads"
                 className="block w-full text-center bg-gray-100 text-gray-800 font-medium py-3 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                このプランを選択
-              </Link>
-            </div>
-
-            {/* Light Instagram */}
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-pink-300 transition-colors">
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <InstagramIcon className="w-5 h-5" />
-                  <span className="text-sm text-gray-500">Instagram専用</span>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">Light</h3>
-              </div>
-              <div className="mb-6">
-                <span className="text-4xl font-bold text-gray-900">¥4,980</span>
-                <span className="text-gray-500">/月</span>
-              </div>
-              <ul className="space-y-3 mb-6">
-                {['リール・ストーリー分析', 'フォロワー推移', 'エンゲージメント分析', 'データ無期限保存'].map((f, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                    <CheckIcon className="w-5 h-5 text-emerald-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/checkout?plan=light-instagram"
-                className="block w-full text-center bg-gray-100 text-gray-800 font-medium py-3 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                このプランを選択
+                無料で試す
               </Link>
             </div>
 
             {/* Standard */}
             <div className="bg-white rounded-2xl border-2 border-purple-500 p-6 relative shadow-lg scale-105">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-sm font-medium px-4 py-1 rounded-full">
-                  人気
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                <span className="bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-sm font-semibold px-5 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                  人気 - 7日間無料
                 </span>
               </div>
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <InstagramIcon className="w-5 h-5" />
-                  <span className="text-gray-400">+</span>
-                  <ThreadsIcon className="w-5 h-5" />
-                </div>
+              <div className="mb-4 pt-2">
                 <h3 className="text-2xl font-bold text-gray-900">Standard</h3>
+                <p className="text-sm text-gray-500">Instagram + Threads</p>
               </div>
               <div className="mb-6">
                 <span className="text-4xl font-bold text-gray-900">¥9,800</span>
                 <span className="text-gray-500">/月</span>
               </div>
               <ul className="space-y-3 mb-6">
-                {['Instagram + Threads両方', 'クロスプラットフォーム分析', '全投稿タイプ対応', 'データ無期限保存', '優先サポート'].map((f, i) => (
+                {['Instagram + Threads両方', 'クロスプラットフォーム分析', '全投稿タイプ対応', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 100件/月'].map((f, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
                     <CheckIcon className="w-5 h-5 text-emerald-500" />
                     {f}
@@ -541,13 +471,44 @@ export default function HomePage() {
                 href="/checkout?plan=standard"
                 className="block w-full text-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white font-medium py-3 rounded-lg hover:from-purple-600 hover:to-emerald-500 transition-all"
               >
-                このプランを選択
+                無料で試す
+              </Link>
+            </div>
+
+            {/* Pro */}
+            <div className="bg-white rounded-2xl border-2 border-gray-200 p-6 hover:border-purple-300 transition-colors relative">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                <span className="bg-emerald-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
+                  7日間無料
+                </span>
+              </div>
+              <div className="mb-4 pt-2">
+                <h3 className="text-2xl font-bold text-gray-900">Pro</h3>
+                <p className="text-sm text-gray-500">全機能 + 予約投稿無制限</p>
+              </div>
+              <div className="mb-6">
+                <span className="text-4xl font-bold text-gray-900">¥19,000</span>
+                <span className="text-gray-500">/月</span>
+              </div>
+              <ul className="space-y-3 mb-6">
+                {['Standard全機能', '予約投稿 無制限', '優先サポート'].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckIcon className="w-5 h-5 text-emerald-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/checkout?plan=pro"
+                className="block w-full text-center bg-gray-100 text-gray-800 font-medium py-3 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                無料で試す
               </Link>
             </div>
           </div>
 
           <p className="text-center text-sm text-gray-500 mt-8">
-            すべてのプランは月額課金です。いつでも解約できます。
+            すべてのプランに7日間の無料体験がつきます。期間中はいつでもキャンセル可能。8日目から課金が開始されます。
           </p>
         </div>
       </section>
@@ -568,7 +529,7 @@ export default function HomePage() {
             />
             <FAQItem
               question="どのプランを選べばいいですか？"
-              answer="Threadsのみ分析したい場合は「Light（Threads）」、Instagramのみの場合は「Light（Instagram）」をお選びください。両方のプラットフォームを分析したい場合は「Standard」プランがおすすめです。"
+              answer="Threadsのみ分析したい場合は「Light」プランをお選びください。Instagram・Threads両方を分析したい場合は「Standard」プランがおすすめです。予約投稿を無制限に使いたい場合は「Pro」プランをどうぞ。すべてのプランに7日間の無料体験がついています。"
             />
             <FAQItem
               question="登録に必要なものは何ですか？"
@@ -670,7 +631,7 @@ export default function HomePage() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
-            <p>&copy; 2024 ANALYCA. All rights reserved.</p>
+            <p>&copy; 2026 ANALYCA. All rights reserved.</p>
           </div>
         </div>
       </footer>

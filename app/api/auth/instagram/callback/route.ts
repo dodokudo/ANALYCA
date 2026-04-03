@@ -125,7 +125,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Step 6: 最終ログイン日時を更新
-    await updateLastLogin(userId).catch(err => console.error('Failed to update last_login_at:', err));
+    await updateLastLogin(userId, {
+      accessPath: '/auth/instagram/callback',
+      userAgent: request.headers.get('user-agent') || undefined,
+    }).catch(err => console.error('Failed to update last_login_at:', err));
 
     // Step 7: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）

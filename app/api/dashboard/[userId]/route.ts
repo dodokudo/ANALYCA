@@ -74,7 +74,10 @@ export async function GET(
     // ユーザーデータを取得
     const userRecord = await getUserById(userId);
     if (userRecord) {
-      updateLastLogin(userId).catch((err) => {
+      updateLastLogin(userId, {
+        accessPath: `/${userId}`,
+        userAgent: request.headers.get('user-agent') || undefined,
+      }).catch((err) => {
         console.error('Failed to update last_login_at from dashboard:', err);
       });
     }

@@ -35,6 +35,10 @@ interface UserExtended {
   user_id: string;
   email: string | null;
   last_login_at: string | null;
+  subscription_created_at: string | null;
+  created_at: string | null;
+  total_access_count: number;
+  active_days_7d: number;
   utm_source: string | null;
   affiliate_code: string | null;
 }
@@ -80,6 +84,38 @@ function relativeTime(dateStr: string | null): string {
     if (diffDay < 30) return `${diffDay}日前`;
     const diffMonth = Math.floor(diffDay / 30);
     return `${diffMonth}ヶ月前`;
+  } catch {
+    return '-';
+  }
+}
+
+function formatDateTime(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '-';
+  }
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
   } catch {
     return '-';
   }
@@ -220,6 +256,8 @@ function AdminPageContent() {
   const realUsers = data.users.filter(u =>
     u.instagram_username !== 'demo_account' &&
     u.threads_username !== 'demo_account' &&
+    u.instagram_username !== 'yoko_gemqueen' &&
+    u.threads_username !== 'yoko_gemqueen' &&
     !u.user_id.includes('demo')
   );
   const activeUsers = realUsers.filter(isActive);
@@ -242,11 +280,6 @@ function AdminPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ヘッダー */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-xl font-bold text-gray-800">ANALYCA 管理画面</h1>
-      </header>
-
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* タブ */}
         <div className="flex gap-2 mb-6">
@@ -339,7 +372,10 @@ function AdminPageContent() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">メール</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">プラン</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">連携媒体</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">契約開始</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">作成日</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">最終ログイン</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">起動回数</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録経路</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ステータス</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ダッシュボードURL</th>
@@ -389,8 +425,27 @@ function AdminPageContent() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-500">
-                          {relativeTime(ext?.last_login_at ?? null)}
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {formatDate(ext?.subscription_created_at ?? null)}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {formatDate(ext?.created_at ?? user.created_at ?? null)}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          <div className="font-medium text-gray-800">
+                            {relativeTime(ext?.last_login_at ?? null)}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {formatDateTime(ext?.last_login_at ?? null)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-right text-sm text-gray-700 whitespace-nowrap">
+                          <div className="font-semibold text-gray-800">
+                            {(ext?.total_access_count ?? 0).toLocaleString('ja-JP')}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            直近7日 {ext?.active_days_7d ?? 0}日
+                          </div>
                         </td>
                         <td className="px-4 py-4">
                           <span className={`text-xs font-medium ${

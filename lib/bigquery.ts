@@ -22,6 +22,7 @@ const bigquery = new BigQuery({
 });
 
 const dataset = bigquery.dataset('analyca');
+let ensureUserAccessLogsTablePromise: Promise<void> | null = null;
 
 /**
  * DML（INSERT/UPDATE/DELETE/MERGE）を確実に実行するヘルパー
@@ -31,6 +32,27 @@ const dataset = bigquery.dataset('analyca');
 async function executeDML(options: { query: string; params?: Record<string, unknown>; types?: Record<string, string> }): Promise<void> {
   const [job] = await bigquery.createQueryJob(options);
   await job.getQueryResults();
+}
+
+async function ensureUserAccessLogsTable(): Promise<void> {
+  if (!ensureUserAccessLogsTablePromise) {
+    ensureUserAccessLogsTablePromise = executeDML({
+      query: `
+        CREATE TABLE IF NOT EXISTS \`${projectId}.analyca.user_access_logs\` (
+          id STRING NOT NULL,
+          user_id STRING NOT NULL,
+          access_path STRING,
+          user_agent STRING,
+          accessed_at TIMESTAMP NOT NULL
+        )
+      `,
+    }).catch((error) => {
+      ensureUserAccessLogsTablePromise = null;
+      throw error;
+    });
+  }
+
+  return ensureUserAccessLogsTablePromise;
 }
 
 export interface User {
@@ -1907,14 +1929,47 @@ export async function getReferralsByAffiliateCode(affiliateCode: string): Promis
 /**
  * ユーザーの最終ログイン日時を更新
  */
-export async function updateLastLogin(userId: string): Promise<void> {
-  const query = `
-    UPDATE \`mark-454114.analyca.users\`
-    SET last_login_at = CURRENT_TIMESTAMP(),
-        updated_at = CURRENT_TIMESTAMP()
-    WHERE user_id = @user_id
-  `;
-  await executeDML({ query, params: { user_id: userId } });
+export async function updateLastLogin(
+  userId: string,
+  accessInfo?: {
+    accessPath?: string;
+    userAgent?: string;
+  },
+): Promise<void> {
+  await ensureUserAccessLogsTable();
+
+  await executeDML({
+    query: `
+      UPDATE \`mark-454114.analyca.users\`
+      SET last_login_at = CURRENT_TIMESTAMP(),
+          updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @user_id
+    `,
+    params: { user_id: userId },
+  });
+
+  await executeDML({
+    query: `
+      INSERT INTO \`${projectId}.analyca.user_access_logs\` (
+        id,
+        user_id,
+        access_path,
+        user_agent,
+        accessed_at
+      ) VALUES (
+        GENERATE_UUID(),
+        @user_id,
+        @access_path,
+        @user_agent,
+        CURRENT_TIMESTAMP()
+      )
+    `,
+    params: {
+      user_id: userId,
+      access_path: accessInfo?.accessPath || null,
+      user_agent: accessInfo?.userAgent || null,
+    },
+  });
 }
 
 /**

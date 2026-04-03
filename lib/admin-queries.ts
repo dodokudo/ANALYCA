@@ -17,6 +17,32 @@ const bigquery = new BigQuery({
   credentials: parseCredentials(credentialsJson),
 });
 
+let ensureUserAccessLogsTablePromise: Promise<void> | null = null;
+
+async function executeDML(query: string): Promise<void> {
+  const [job] = await bigquery.createQueryJob({ query });
+  await job.getQueryResults();
+}
+
+async function ensureUserAccessLogsTable(): Promise<void> {
+  if (!ensureUserAccessLogsTablePromise) {
+    ensureUserAccessLogsTablePromise = executeDML(`
+      CREATE TABLE IF NOT EXISTS \`${projectId}.analyca.user_access_logs\` (
+        id STRING NOT NULL,
+        user_id STRING NOT NULL,
+        access_path STRING,
+        user_agent STRING,
+        accessed_at TIMESTAMP NOT NULL
+      )
+    `).catch((error) => {
+      ensureUserAccessLogsTablePromise = null;
+      throw error;
+    });
+  }
+
+  return ensureUserAccessLogsTablePromise;
+}
+
 // ========================================
 // 管理者用: アフィリエイト全体統計
 // ========================================
@@ -86,19 +112,52 @@ export interface UserExtendedInfo {
   user_id: string;
   email: string | null;
   last_login_at: string | null;
+  subscription_created_at: string | null;
+  created_at: string | null;
+  total_access_count: number;
+  active_days_7d: number;
   utm_source: string | null;
   affiliate_code: string | null;
 }
 
 export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
+  await ensureUserAccessLogsTable();
+
   const query = `
+    WITH user_access_stats AS (
+      SELECT
+        user_id,
+        COUNT(*) AS total_access_count,
+        COUNT(DISTINCT IF(
+          accessed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY),
+          DATE(accessed_at, 'Asia/Tokyo'),
+          NULL
+        )) AS active_days_7d
+      FROM \`${projectId}.analyca.user_access_logs\`
+      GROUP BY user_id
+    )
     SELECT
       u.user_id,
       u.email,
       u.last_login_at,
+      u.subscription_created_at,
+      u.created_at,
+      COALESCE(
+        ua.total_access_count,
+        IF(u.last_login_at IS NULL, 0, 1)
+      ) AS total_access_count,
+      COALESCE(
+        ua.active_days_7d,
+        IF(
+          u.last_login_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY),
+          1,
+          0
+        )
+      ) AS active_days_7d,
       ce.utm_source,
       r.affiliate_code
     FROM \`${projectId}.analyca.users\` u
+    LEFT JOIN user_access_stats ua ON u.user_id = ua.user_id
     LEFT JOIN (
       SELECT user_id, utm_source,
         ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at ASC) as rn
@@ -114,7 +173,32 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
   `;
 
   const [rows] = await bigquery.query({ query });
-  return rows as UserExtendedInfo[];
+  return rows.map((row: Record<string, unknown>) => ({
+    user_id: row.user_id as string,
+    email: (row.email as string | null) || null,
+    last_login_at:
+      typeof row.last_login_at === 'object' &&
+      row.last_login_at !== null &&
+      'value' in row.last_login_at
+        ? String((row.last_login_at as { value?: string }).value || '')
+        : (row.last_login_at as string | null) || null,
+    subscription_created_at:
+      typeof row.subscription_created_at === 'object' &&
+      row.subscription_created_at !== null &&
+      'value' in row.subscription_created_at
+        ? String((row.subscription_created_at as { value?: string }).value || '')
+        : (row.subscription_created_at as string | null) || null,
+    created_at:
+      typeof row.created_at === 'object' &&
+      row.created_at !== null &&
+      'value' in row.created_at
+        ? String((row.created_at as { value?: string }).value || '')
+        : (row.created_at as string | null) || null,
+    total_access_count: Number(row.total_access_count || 0),
+    active_days_7d: Number(row.active_days_7d || 0),
+    utm_source: (row.utm_source as string | null) || null,
+    affiliate_code: (row.affiliate_code as string | null) || null,
+  }));
 }
 
 // ========================================

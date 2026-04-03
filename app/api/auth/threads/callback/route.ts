@@ -6,7 +6,7 @@ import {
   findUserIdByThreadsId,
   updateLastLogin,
 } from '@/lib/bigquery';
-import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
+import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
 
 export const maxDuration = 300;
 
@@ -63,7 +63,11 @@ export async function GET(request: NextRequest) {
       if (!existingUser) {
         return NextResponse.redirect(new URL('/pricing?error=plan_required', request.url));
       }
-      if (isChannelBlockedByPlan(existingUser.plan_id, 'threads')) {
+      const effectivePlanId = resolveEffectivePlanId(existingUser.plan_id, {
+        has_threads: existingUser.has_threads,
+        has_instagram: existingUser.has_instagram,
+      });
+      if (isChannelBlockedByPlan(effectivePlanId, 'threads')) {
         return NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
       }
     }

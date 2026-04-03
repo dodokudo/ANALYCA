@@ -8,7 +8,7 @@ import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
-import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
+import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
 import {
   ComposedChart,
   Bar,
@@ -380,7 +380,10 @@ function UserDashboardContent({ userId }: { userId: string }) {
   }, [showSyncBanner]);
 
   // プランに基づいてチャンネルタブを表示（未連携でもタブ表示してアップグレード誘導）
-  const planId = user?.plan_id;
+  const planId = resolveEffectivePlanId(user?.plan_id, {
+    has_threads: channels.threads,
+    has_instagram: channels.instagram,
+  });
   const channelItems = useMemo(() => {
     const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }>; locked: boolean }[] = [];
     // プラン未対応チャンネルはロック状態で表示し、アップグレード導線を優先する

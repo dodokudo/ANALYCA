@@ -82,6 +82,17 @@ export function isChannelBlockedByPlan(
   return planId === 'light-instagram' || planId === 'light-instagram-yearly';
 }
 
+export function resolveEffectivePlanId(
+  planId: string | null | undefined,
+  channels: { has_threads?: boolean | null; has_instagram?: boolean | null }
+): string | null {
+  if (planId) return planId;
+  if (channels.has_threads && channels.has_instagram) return 'standard';
+  if (channels.has_threads) return 'light-threads';
+  if (channels.has_instagram) return 'light-instagram';
+  return null;
+}
+
 export function canUseChannelBySubscription(
   planId: string | null | undefined,
   subscriptionStatus: string | null | undefined,

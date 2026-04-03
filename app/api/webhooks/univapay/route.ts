@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
         const subscriptionId = (body.data as Record<string, unknown>)?.subscription_id as string
           || ((body.data as Record<string, unknown>)?.metadata as Record<string, unknown>)?.subscription_id as string;
         if (subscriptionId) {
-          updateSubscriptionStatusBySubId(subscriptionId, 'active').catch(err =>
-            console.error('[WEBHOOK] Failed to update status to active:', err)
+          updateSubscriptionStatusBySubId(subscriptionId, 'current').catch(err =>
+            console.error('[WEBHOOK] Failed to update status to current:', err)
           );
           console.log(`[PAYMENT SUCCESS] SubID: ${subscriptionId}, Amount: ${(body.data as Record<string, unknown>)?.amount}`);
         }
@@ -44,8 +44,20 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      case 'subscription_payment':
-      case 'subscription.suspended': {
+      case 'subscription_payment': {
+        // 定期課金の支払い完了通知 → ステータスをcurrentに維持
+        const subIdPayment = (body.data as Record<string, unknown>)?.id as string;
+        if (subIdPayment) {
+          updateSubscriptionStatusBySubId(subIdPayment, 'current').catch(err =>
+            console.error('[WEBHOOK] Failed to update status to current (payment):', err)
+          );
+          console.log(`[SUBSCRIPTION PAYMENT] SubID: ${subIdPayment}`);
+        }
+        break;
+      }
+
+      case 'subscription.suspended':
+      case 'subscription_suspended': {
         const subId = (body.data as Record<string, unknown>)?.id as string;
         if (subId) {
           updateSubscriptionStatusBySubId(subId, 'suspended').catch(err =>

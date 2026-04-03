@@ -136,6 +136,13 @@ body {
 .section-stack {
   display: grid;
   gap: 32px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.section-stack > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (min-width: 768px) {

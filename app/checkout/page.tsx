@@ -6,6 +6,7 @@ import Script from 'next/script';
 import LoadingScreen from '@/components/LoadingScreen';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import { PLANS } from '@/lib/univapay/plans';
+import * as gtag from '@/lib/gtag';
 
 declare global {
   interface Window {
@@ -20,6 +21,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const planId = searchParams?.get('plan') || '';
   const plan = PLANS[planId];
+  const isYearly = plan?.yearly === true;
 
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -80,27 +82,68 @@ function CheckoutContent() {
     setProcessing(true);
 
     try {
+      console.log('[CHECKOUT] Submitting UnivaPay form...');
       const data = await window.UnivapayCheckout.submit(iframe);
+      console.log('[CHECKOUT] Token received:', JSON.stringify(data));
+
+      // トークンIDを取得（submit()の返り値の構造に対応）
+      const d = data as Record<string, unknown>;
+      const tokenId = d?.token || d?.transactionToken || d?.id || d?.transactionTokenId;
+      const email = (d?.tokenData as Record<string, unknown>)?.email as string || '';
+      console.log('[CHECKOUT] Raw data:', JSON.stringify(data), 'Resolved tokenId:', tokenId, 'email:', email);
+
+      // GA4: begin_checkout はフォーム送信時点で発火済み（下記purchase前のタイミング）
+
+      if (!tokenId) {
+        console.error('[CHECKOUT] No token ID found. Keys:', Object.keys(d || {}));
+        setError(`決済トークンの取得に失敗しました。返り値: ${JSON.stringify(data).substring(0, 200)}`);
+        setProcessing(false);
+        return;
+      }
+
       // トークン取得成功 → サブスク作成
+      // UTMパラメータをlocalStorageから取得して送信
+      const utmSource = window.localStorage.getItem('analyca_utm_source') || '';
+      const utmMedium = window.localStorage.getItem('analyca_utm_medium') || '';
+      const utmCampaign = window.localStorage.getItem('analyca_utm_campaign') || '';
+      const utmContent = window.localStorage.getItem('analyca_utm_content') || '';
+
+      console.log('[CHECKOUT] Creating subscription with token:', tokenId, 'plan:', planId);
       const response = await fetch('/api/payment/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          transactionTokenId: data.id,
+          transactionTokenId: tokenId,
           planId: planId,
           refCode: refCode || undefined,
+          utm_source: utmSource || undefined,
+          utm_medium: utmMedium || undefined,
+          utm_campaign: utmCampaign || undefined,
+          utm_content: utmContent || undefined,
+          email: email || undefined,
         }),
       });
+
+      console.log('[CHECKOUT] Subscribe API response status:', response.status);
       const result = await response.json();
+      console.log('[CHECKOUT] Subscribe API result:', JSON.stringify(result));
+
       if (result.success) {
+        // GA4: purchase イベント
+        gtag.event('purchase', {
+          value: plan.price,
+          currency: 'JPY',
+          plan_id: planId,
+        });
         router.push(result.onboardingPath);
       } else {
         setError(result.error || '課金処理に失敗しました');
         setProcessing(false);
       }
     } catch (err) {
-      console.error('Payment error:', err);
-      setError('決済に失敗しました。入力内容を確認してもう一度お試しください。');
+      const errorDetail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      console.error('[CHECKOUT] Payment error:', errorDetail, err);
+      setError(`決済エラー: ${errorDetail}`);
       setProcessing(false);
     }
   };
@@ -135,12 +178,34 @@ function CheckoutContent() {
               <span className="text-2xl font-bold text-gray-800">
                 ¥{plan.price.toLocaleString()}
               </span>
-              <p className="text-xs text-gray-400">税込 / 月</p>
+              <p className="text-xs text-gray-400">税込 / {isYearly ? '年' : '月'}</p>
             </div>
           </div>
-          <div className="border-t border-gray-100 pt-3 mt-3 text-xs text-gray-400">
-            月額・自動更新 ・ 次回請求日: 1ヶ月後
+
+          {/* 7日間無料トライアル表示 */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mt-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm font-medium text-emerald-800">7日間無料体験</p>
+            </div>
+            <p className="text-xs text-emerald-600 mt-1 ml-7">
+              今日から7日間は無料。期間中はいつでもキャンセルできます。
+            </p>
           </div>
+
+          {(() => {
+            const trialEndDate = new Date();
+            trialEndDate.setDate(trialEndDate.getDate() + 7);
+            const formatted = trialEndDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+            return (
+              <div className="border-t border-gray-100 pt-3 mt-3 space-y-1">
+                <p className="text-sm text-gray-600">8日目から{isYearly ? '年額' : '月額'} ¥{plan.price.toLocaleString()}（税込）・自動更新</p>
+                <p className="text-xs text-gray-400">初回課金日: {formatted}</p>
+              </div>
+            );
+          })()}
 
           {/* 紹介コード */}
           <div className="border-t border-gray-100 pt-3 mt-3">
@@ -202,7 +267,7 @@ function CheckoutContent() {
             <button
               type="submit"
               disabled={!formReady || processing}
-              className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-xl hover:from-purple-700 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-400 text-white font-bold rounded-xl hover:from-emerald-600 hover:to-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 text-lg"
             >
               {processing ? (
                 <span className="flex items-center justify-center gap-2">
@@ -210,11 +275,15 @@ function CheckoutContent() {
                   処理中...
                 </span>
               ) : (
-                `¥${plan.price.toLocaleString()} を支払う`
+                '無料で始める（7日間）'
               )}
             </button>
 
-            <div className="flex items-center justify-center gap-2 mt-4">
+            <p className="text-center text-xs text-gray-500 mt-3">
+              7日間無料。期間中はいつでもキャンセル可能。8日目から{isYearly ? '年額' : '月額'}¥{plan.price.toLocaleString()}
+            </p>
+
+            <div className="flex items-center justify-center gap-2 mt-3">
               <svg className="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
               </svg>

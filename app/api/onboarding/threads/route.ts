@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { upsertThreadsUser, getUserById, insertThreadsPosts, upsertThreadsDailyMetrics } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
+import { sendOnboardingCompleteEmail } from '@/lib/email';
 
 // Vercel Functionの最大実行時間を延長（Hobbyプラン: 最大60秒、Proプラン: 最大300秒）
 export const maxDuration = 60;
@@ -325,6 +326,15 @@ export async function POST(request: NextRequest) {
 
     // 9. ユーザー情報を取得
     const userRecord = await getUserById(userId);
+
+    // 10. オンボーディング完了メール送信（非ブロッキング）
+    if (userRecord?.email) {
+      sendOnboardingCompleteEmail(
+        userRecord.email,
+        accountInfo.username,
+        `https://analyca.jp/dashboard/${userId}`,
+      ).catch(err => console.error('Onboarding email send failed:', err));
+    }
 
     return NextResponse.json({
       success: true,

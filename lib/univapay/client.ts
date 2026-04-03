@@ -34,7 +34,7 @@ export interface UnivaPaySubscription {
   amount: number;
   currency: string;
   status: 'unverified' | 'unconfirmed' | 'canceled' | 'unpaid' | 'suspended' | 'current' | 'completed';
-  period: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly';
+  period: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly' | 'yearly';
   initial_amount?: number;
   next_payment_date?: string;
   metadata?: Record<string, string>;
@@ -52,8 +52,11 @@ export interface CreateSubscriptionParams {
   transaction_token_id: string;
   amount: number;
   currency?: string;
-  period: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly';
+  period: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly' | 'yearly';
   initial_amount?: number;
+  schedule_settings?: {
+    start_on?: string; // ISO date string (YYYY-MM-DD) - delays first charge until this date
+  };
   metadata?: Record<string, string>;
 }
 
@@ -126,18 +129,24 @@ export async function createSubscription(
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
+  const body: Record<string, unknown> = {
+    transaction_token_id: params.transaction_token_id,
+    amount: params.amount,
+    currency: params.currency ?? 'JPY',
+    period: params.period,
+    initial_amount: params.initial_amount,
+    metadata: params.metadata,
+  };
+
+  if (params.schedule_settings) {
+    body.schedule_settings = params.schedule_settings;
+  }
+
   return fetchUnivaPay<UnivaPaySubscription>(
-    `/stores/${storeId}/subscriptions`,
+    `/subscriptions`,
     {
       method: 'POST',
-      body: {
-        transaction_token_id: params.transaction_token_id,
-        amount: params.amount,
-        currency: params.currency ?? 'JPY',
-        period: params.period,
-        initial_amount: params.initial_amount,
-        metadata: params.metadata,
-      },
+      body,
     },
   );
 }
@@ -151,7 +160,7 @@ export async function getSubscription(subscriptionId: string): Promise<UnivaPayS
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
-  return fetchUnivaPay<UnivaPaySubscription>(`/stores/${storeId}/subscriptions/${subscriptionId}`);
+  return fetchUnivaPay<UnivaPaySubscription>(`/subscriptions/${subscriptionId}`);
 }
 
 /**
@@ -166,7 +175,7 @@ export async function listSubscriptions(
   }
 
   return fetchUnivaPay<UnivaPayListResponse<UnivaPaySubscription>>(
-    `/stores/${storeId}/subscriptions`,
+    `/subscriptions`,
     { params: params as Record<string, string | number | undefined> },
   );
 }
@@ -183,7 +192,7 @@ export async function createCharge(
   }
 
   return fetchUnivaPay<UnivaPayCharge>(
-    `/stores/${storeId}/charges`,
+    `/charges`,
     {
       method: 'POST',
       body: {
@@ -206,7 +215,7 @@ export async function getCharge(chargeId: string): Promise<UnivaPayCharge> {
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
-  return fetchUnivaPay<UnivaPayCharge>(`/stores/${storeId}/charges/${chargeId}`);
+  return fetchUnivaPay<UnivaPayCharge>(`/charges/${chargeId}`);
 }
 
 /**
@@ -221,7 +230,7 @@ export async function listCharges(
   }
 
   return fetchUnivaPay<UnivaPayListResponse<UnivaPayCharge>>(
-    `/stores/${storeId}/charges`,
+    `/charges`,
     { params: params as Record<string, string | number | undefined> },
   );
 }
@@ -236,7 +245,7 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
   }
 
   await fetchUnivaPay(
-    `/stores/${storeId}/subscriptions/${subscriptionId}`,
+    `/subscriptions/${subscriptionId}`,
     { method: 'PATCH', body: { status: 'canceled' } },
   );
 }
@@ -262,7 +271,7 @@ export async function deleteRecurringToken(tokenId: string): Promise<void> {
   }
 
   await fetchUnivaPay(
-    `/stores/${storeId}/tokens/${tokenId}`,
+    `/tokens/${tokenId}`,
     { method: 'DELETE' },
   );
 }
@@ -283,7 +292,7 @@ export async function createSubscriptionFromToken(params: {
   }
 
   return fetchUnivaPay<UnivaPaySubscription>(
-    `/stores/${storeId}/subscriptions`,
+    `/subscriptions`,
     {
       method: 'POST',
       body: {

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ThreadsAPI } from '@/lib/threads';
 import {
+  getUserById,
   upsertThreadsUser,
   findUserIdByThreadsId,
+  updateLastLogin,
 } from '@/lib/bigquery';
+import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
 
 export const maxDuration = 300;
 
@@ -52,6 +55,12 @@ export async function GET(request: NextRequest) {
       } catch { /* invalid state, ignore */ }
     }
     const existingUserId = pendingUserId || await findUserIdByThreadsId(account.id || threadsUserId);
+    if (existingUserId) {
+      const existingUser = await getUserById(existingUserId);
+      if (existingUser && isChannelBlockedByPlan(existingUser.plan_id, 'threads')) {
+        return NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
+      }
+    }
 
     // Step 5: Save user (profile picture URLはCDNのまま保存、GCSアップロードはsyncで実行)
     const userId = await upsertThreadsUser({
@@ -63,7 +72,10 @@ export async function GET(request: NextRequest) {
       threads_profile_picture_url: account.threads_profile_picture_url || undefined,
     });
 
-    // Step 6: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
+    // Step 6: 最終ログイン日時を更新
+    updateLastLogin(userId).catch(err => console.error('Failed to update last_login_at:', err));
+
+    // Step 7: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）
     const redirectUrl = new URL(`/${userId}?tab=threads&auth=threads_complete&syncing=true`, request.url);
     const response = NextResponse.redirect(redirectUrl);

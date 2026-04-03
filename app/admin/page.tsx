@@ -13,6 +13,32 @@ interface AdminUser {
   created_at: string | null;
 }
 
+interface AffiliateRow {
+  user_id: string;
+  affiliate_code: string;
+  commission_rate: number;
+  total_referrals: number;
+  total_commission: number;
+  created_at: string | null;
+  total_clicks: number;
+  conversion_rate: number;
+}
+
+interface ConversionFunnel {
+  total_conversions: number;
+  total_revenue: number;
+  affiliate_sources: number;
+  utm_tracked: number;
+}
+
+interface UserExtended {
+  user_id: string;
+  email: string | null;
+  last_login_at: string | null;
+  utm_source: string | null;
+  affiliate_code: string | null;
+}
+
 interface AdminData {
   users: AdminUser[];
   stats: {
@@ -20,18 +46,43 @@ interface AdminData {
     instagram_users: number;
     threads_users: number;
   };
+  affiliates: AffiliateRow[];
+  funnel: ConversionFunnel;
+  usersExtended: UserExtended[];
   fetchedAt: string;
 }
 
-// プラン判定（とりあえず全員Lightプラン）
+// プラン判定
 function getPlan(user: AdminUser): string {
   if (user.has_instagram && user.has_threads) return 'Standard';
   return 'Light';
 }
 
-// アクティブ判定（連携があればアクティブ）
+// アクティブ判定
 function isActive(user: AdminUser): boolean {
   return user.has_instagram || user.has_threads;
+}
+
+// 相対時間表示
+function relativeTime(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '-';
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'たった今';
+    if (diffMin < 60) return `${diffMin}分前`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}時間前`;
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 30) return `${diffDay}日前`;
+    const diffMonth = Math.floor(diffDay / 30);
+    return `${diffMonth}ヶ月前`;
+  } catch {
+    return '-';
+  }
 }
 
 function AdminPageContent() {
@@ -43,6 +94,42 @@ function AdminPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'users' | 'affiliates' | 'conversions'>('users');
+  const [rewardMonth, setRewardMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  const handleRewardAction = async (action: 'confirm_rewards' | 'mark_paid', affiliateCode: string) => {
+    const key = `${action}-${affiliateCode}`;
+    setActionLoading(key);
+    setActionMessage(null);
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, action, affiliateCode, month: rewardMonth }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setActionMessage(result.message);
+      } else {
+        setActionMessage(`Error: ${result.error}`);
+      }
+    } catch {
+      setActionMessage('Request failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const getPrevMonth = () => {
+    const [y, m] = rewardMonth.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
 
   useEffect(() => {
     const pwFromUrl = searchParams?.get('password');
@@ -139,6 +226,20 @@ function AdminPageContent() {
   const lightUsers = realUsers.filter(u => getPlan(u) === 'Light');
   const standardUsers = realUsers.filter(u => getPlan(u) === 'Standard');
 
+  // ユーザー拡張情報のマップ
+  const extendedMap = new Map<string, UserExtended>();
+  (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
+
+  // アフィリエイトデータ
+  const affiliates = data.affiliates || [];
+  const funnel = data.funnel || { total_conversions: 0, total_revenue: 0, affiliate_sources: 0, utm_tracked: 0 };
+
+  const tabs = [
+    { key: 'users' as const, label: 'ユーザー一覧' },
+    { key: 'affiliates' as const, label: 'アフィリエイト' },
+    { key: 'conversions' as const, label: 'コンバージョン' },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ヘッダー */}
@@ -147,129 +248,297 @@ function AdminPageContent() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* デモアカウント */}
-        <div className="bg-gradient-to-r from-purple-100 to-emerald-100 rounded-xl p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium text-purple-700">デモアカウント</span>
-              <p className="text-gray-600 text-sm mt-1">体験用のサンプルダッシュボード</p>
-            </div>
-            <a
-              href={`${baseUrl}/demo`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-white text-purple-700 font-medium rounded-lg hover:bg-purple-50 transition-colors shadow-sm"
+        {/* タブ */}
+        <div className="flex gap-2 mb-6">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
             >
-              デモを見る
-            </a>
-          </div>
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* サマリーカード */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">総契約数</p>
-            <p className="text-3xl font-bold text-gray-800">{realUsers.length}</p>
+        {/* タブ別サマリーカード */}
+        {activeTab === 'users' && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">総契約数</p>
+              <p className="text-3xl font-bold text-gray-800">{realUsers.length}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">アクティブ</p>
+              <p className="text-3xl font-bold text-green-600">{activeUsers.length}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Lightプラン</p>
+              <p className="text-3xl font-bold text-gray-800">{lightUsers.length}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">Standardプラン</p>
+              <p className="text-3xl font-bold text-gray-800">{standardUsers.length}</p>
+            </div>
           </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">アクティブ</p>
-            <p className="text-3xl font-bold text-green-600">{activeUsers.length}</p>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Lightプラン</p>
-            <p className="text-3xl font-bold text-blue-600">{lightUsers.length}</p>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <p className="text-sm text-gray-500">Standardプラン</p>
-            <p className="text-3xl font-bold text-purple-600">{standardUsers.length}</p>
-          </div>
-        </div>
+        )}
 
-        {/* ユーザー一覧 */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800">契約ユーザー一覧</h2>
+        {activeTab === 'affiliates' && (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">アフィリエイター数</p>
+              <p className="text-3xl font-bold text-gray-800">{affiliates.length}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">今月の紹介件数</p>
+              <p className="text-3xl font-bold text-purple-600">{affiliates.reduce((s, a) => s + a.total_referrals, 0)}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">今月のアフィリエイト報酬</p>
+              <p className="text-3xl font-bold text-emerald-600">{affiliates.reduce((s, a) => s + a.total_commission, 0).toLocaleString()}円</p>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザー名</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">プラン</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">連携媒体</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ステータス</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ダッシュボードURL</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {realUsers.map((user) => {
-                  const dashboardUrl = `${baseUrl}/${user.user_id}`;
-                  const plan = getPlan(user);
-                  const active = isActive(user);
+        )}
 
-                  return (
-                    <tr key={user.user_id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4">
-                        <p className="font-medium text-gray-800">
-                          {user.instagram_username || user.threads_username || '-'}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          plan === 'Standard'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {plan}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex gap-1">
-                          {user.has_instagram && (
-                            <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded">Instagram</span>
-                          )}
-                          {user.has_threads && (
-                            <span className="px-2 py-1 bg-gray-800 text-white text-xs rounded">Threads</span>
-                          )}
-                          {!user.has_instagram && !user.has_threads && (
-                            <span className="text-gray-400 text-sm">-</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          active
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          {active ? 'アクティブ' : '未連携'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={dashboardUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-purple-600 hover:text-purple-800 text-sm truncate max-w-[200px]"
-                          >
-                            {dashboardUrl}
-                          </a>
-                          <button
-                            onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
-                            className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                          >
-                            {copied === user.user_id ? '✓' : 'コピー'}
-                          </button>
-                        </div>
-                      </td>
+        {activeTab === 'conversions' && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">総決済数</p>
+              <p className="text-3xl font-bold text-gray-800">{funnel.total_conversions}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">総売上</p>
+              <p className="text-3xl font-bold text-purple-600">{funnel.total_revenue.toLocaleString()}円</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">アフィリエイト経由</p>
+              <p className="text-3xl font-bold text-blue-600">{funnel.affiliate_sources}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">UTM追跡済み</p>
+              <p className="text-3xl font-bold text-blue-600">{funnel.utm_tracked}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ユーザー一覧タブ */}
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-800">契約ユーザー一覧</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザー名</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">メール</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">プラン</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">連携媒体</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">最終ログイン</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録経路</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ステータス</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ダッシュボードURL</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {realUsers.map((user) => {
+                    const dashboardUrl = `${baseUrl}/${user.user_id}`;
+                    const plan = getPlan(user);
+                    const active = isActive(user);
+                    const ext = extendedMap.get(user.user_id);
+                    const source = ext?.affiliate_code
+                      ? `AF: ${ext.affiliate_code}`
+                      : ext?.utm_source
+                        ? `UTM: ${ext.utm_source}`
+                        : '-';
+
+                    return (
+                      <tr key={user.user_id} className="hover:bg-gray-50">
+                        <td className="px-4 py-4">
+                          <p className="font-medium text-gray-800">
+                            {user.instagram_username || user.threads_username || '-'}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 max-w-[180px] truncate">
+                          {ext?.email || '-'}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            plan === 'Standard'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {plan}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex gap-1">
+                            {user.has_instagram && (
+                              <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded">Instagram</span>
+                            )}
+                            {user.has_threads && (
+                              <span className="px-2 py-1 bg-gray-800 text-white text-xs rounded">Threads</span>
+                            )}
+                            {!user.has_instagram && !user.has_threads && (
+                              <span className="text-gray-400 text-sm">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-500">
+                          {relativeTime(ext?.last_login_at ?? null)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`text-xs font-medium ${
+                            ext?.affiliate_code ? 'text-emerald-700' : ext?.utm_source ? 'text-blue-700' : 'text-gray-400'
+                          }`}>
+                            {source}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            active
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {active ? 'アクティブ' : '未連携'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={dashboardUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-purple-600 hover:text-purple-800 text-sm truncate max-w-[200px]"
+                            >
+                              {dashboardUrl}
+                            </a>
+                            <button
+                              onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
+                              className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              {copied === user.user_id ? '✓' : 'コピー'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* アフィリエイト一覧タブ */}
+        {activeTab === 'affiliates' && (
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">アフィリエイト一覧</h2>
+                  <p className="text-sm text-gray-500 mt-1">全アフィリエイターの成績</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-500">対象月:</label>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setRewardMonth(getPrevMonth())}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                        rewardMonth === getPrevMonth()
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      前月
+                    </button>
+                    <button
+                      onClick={() => {
+                        const now = new Date();
+                        setRewardMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+                      }}
+                      className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                        rewardMonth !== getPrevMonth()
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      当月
+                    </button>
+                  </div>
+                  <span className="text-sm font-mono text-gray-700 bg-gray-100 px-2 py-1 rounded">{rewardMonth}</span>
+                </div>
+              </div>
+              {actionMessage && (
+                <div className={`mt-2 text-sm px-3 py-2 rounded ${
+                  actionMessage.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
+                }`}>
+                  {actionMessage}
+                </div>
+              )}
+            </div>
+            {affiliates.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-400">
+                アフィリエイトデータがありません
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">コード</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">クリック数</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">紹介数</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">転換率</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">報酬率</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">累計コミッション</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">報酬管理</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {affiliates.map((af) => (
+                      <tr key={af.affiliate_code} className="hover:bg-gray-50">
+                        <td className="px-4 py-4">
+                          <span className="font-mono text-sm text-gray-800 bg-gray-100 px-2 py-1 rounded">{af.affiliate_code}</span>
+                        </td>
+                        <td className="px-4 py-4 text-right text-sm text-gray-700">{af.total_clicks.toLocaleString()}</td>
+                        <td className="px-4 py-4 text-right text-sm text-gray-700">{af.total_referrals}</td>
+                        <td className="px-4 py-4 text-right text-sm text-gray-700">{af.conversion_rate}%</td>
+                        <td className="px-4 py-4 text-right text-sm text-gray-700">{(af.commission_rate * 100).toFixed(0)}%</td>
+                        <td className="px-4 py-4 text-right text-sm font-medium text-gray-900">{af.total_commission.toLocaleString()}円</td>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex gap-1 justify-center">
+                            <button
+                              onClick={() => handleRewardAction('confirm_rewards', af.affiliate_code)}
+                              disabled={actionLoading === `confirm_rewards-${af.affiliate_code}`}
+                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === `confirm_rewards-${af.affiliate_code}` ? '...' : '報酬確定'}
+                            </button>
+                            <button
+                              onClick={() => handleRewardAction('mark_paid', af.affiliate_code)}
+                              disabled={actionLoading === `mark_paid-${af.affiliate_code}`}
+                              className="px-2 py-1 text-xs bg-green-100 text-green-700 hover:bg-green-200 rounded transition-colors disabled:opacity-50"
+                            >
+                              {actionLoading === `mark_paid-${af.affiliate_code}` ? '...' : '振込済み'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* コンバージョン詳細（サマリーカードは上部で表示済み） */}
       </main>
     </div>
   );

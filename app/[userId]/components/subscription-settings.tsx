@@ -33,6 +33,7 @@ function formatPrice(price: number): string {
 function getStatusLabel(status: string): { text: string; className: string } {
   switch (status) {
     case 'current':
+    case 'active':
       return { text: 'アクティブ', className: 'bg-green-100 text-green-800' };
     case 'unpaid':
       return { text: '未払い', className: 'bg-yellow-100 text-yellow-800' };
@@ -168,12 +169,26 @@ export default function SubscriptionSettings({ userId }: SubscriptionSettingsPro
             </div>
           )}
 
+          {/* 次回更新日（アクティブ時） */}
+          {!isCanceled && data.subscription_expires_at && (
+            <div>
+              <p className="text-sm text-gray-500">次回更新日</p>
+              <p className="text-sm text-gray-900">{formatDate(data.subscription_expires_at)}</p>
+            </div>
+          )}
+
           {/* 解約済みの場合: 利用期限表示 */}
           {isCanceled && data.subscription_expires_at && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-sm font-medium text-amber-900 mb-1">解約済み</p>
               <p className="text-sm text-amber-800">
-                {formatDate(data.subscription_expires_at)}までご利用いただけます
+                {formatDate(data.subscription_expires_at)}まで利用可能です
               </p>
+              {data.subscription_created_at && (
+                <p className="text-xs text-amber-600 mt-2">
+                  利用開始日: {formatDate(data.subscription_created_at)}
+                </p>
+              )}
             </div>
           )}
 

@@ -2,7 +2,9 @@ const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 空の設定 - 静的エクスポートを完全に無効化
+  turbopack: {
+    root: __dirname,
+  },
 };
 
 module.exports = withSentryConfig(nextConfig, {

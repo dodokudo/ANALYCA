@@ -8,6 +8,7 @@ import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings from './components/subscription-settings';
 import AffiliateDashboard from './components/affiliate-dashboard';
+import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
 import {
   ComposedChart,
   Bar,
@@ -53,6 +54,15 @@ function InstagramIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function AffiliateIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+    </svg>
+  );
+}
+
 function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -62,7 +72,7 @@ function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
 }
 
 // ============ 型定義 ============
-type Channel = 'instagram' | 'threads' | 'settings';
+type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate';
 
 type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
 
@@ -361,27 +371,33 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const planId = user?.plan_id;
   const channelItems = useMemo(() => {
     const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }>; locked: boolean }[] = [];
-    // Threadsタブ: Threads連携済み or light-threadsプラン or standardプラン
+    // プラン未対応チャンネルはロック状態で表示し、アップグレード導線を優先する
     items.push({
       value: 'threads',
       label: 'Threads',
       Icon: ThreadsIcon,
-      locked: !channels.threads && planId === 'light-instagram',
+      locked: isChannelBlockedByPlan(planId, 'threads'),
     });
-    // Instagramタブ
     items.push({
       value: 'instagram',
       label: 'Instagram',
       Icon: InstagramIcon,
-      locked: !channels.instagram && planId === 'light-threads',
+      locked: isChannelBlockedByPlan(planId, 'instagram'),
+    });
+    items.push({
+      value: 'affiliate',
+      label: 'アフィリエイト',
+      Icon: AffiliateIcon,
+      locked: false,
     });
     return items;
   }, [channels, planId]);
 
   // プランで制限されているチャンネルかどうか
   const isChannelLocked = (channel: Channel): boolean => {
-    if (channel === 'instagram' && planId === 'light-threads') return true;
-    if (channel === 'threads' && planId === 'light-instagram') return true;
+    if (channel === 'instagram' || channel === 'threads') {
+      return isChannelBlockedByPlan(planId, channel);
+    }
     return false;
   };
 
@@ -390,6 +406,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
     if (tabParam === 'settings') return 'settings';
     if (tabParam === 'threads') return 'threads';
     if (tabParam === 'instagram') return 'instagram';
+    if (tabParam === 'affiliate') return 'affiliate';
     if (!tabParam) {
       if (planId === 'light-threads' || (channels.threads && !channels.instagram)) return 'threads';
       if (planId === 'light-instagram' || channels.instagram) return 'instagram';
@@ -450,7 +467,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
+    <div className="min-h-screen max-w-full bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
       {/* 同期中バナー */}
       {showSyncBanner && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-blue-500 text-white px-4 py-3 flex items-center justify-center gap-3">
@@ -575,7 +592,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
       )}
 
       {/* メインコンテンツ */}
-      <main className="flex-1 lg:ml-56">
+      <main className="flex-1 lg:ml-56 min-w-0">
         <header className="lg:hidden sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -589,30 +606,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
           <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
         </header>
 
-        <div className="p-4 lg:p-6">
-          {/* 同期ステータスバー */}
-          <div className="flex items-center justify-between mb-4 px-1">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>
-                {lastUpdated
-                  ? `最終更新: ${lastUpdated.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
-                  : '読み込み中...'}
-              </span>
-            </div>
-            <button
-              onClick={handleManualSync}
-              disabled={isManualSyncing}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg className={`w-4 h-4 ${isManualSyncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {isManualSyncing ? '同期中...' : '再同期'}
-            </button>
-          </div>
+        <div className="p-4 lg:p-6 min-w-0">
+          {/* 同期ステータスバー - PC版のみ表示 */}
 
           {activeChannel === 'threads' && (
             isChannelLocked('threads') ? (
@@ -621,6 +616,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
                 targetChannel="Threads"
                 features={['Threads投稿分析', 'フォロワー推移', 'コメント欄遷移分析']}
               />
+            ) : !channels.threads ? (
+              <ConnectCard channel="threads" userId={userId} />
             ) : (
               <ThreadsContent
                 userId={userId}
@@ -638,6 +635,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
                 targetChannel="Instagram"
                 features={['リール・ストーリー分析', 'フォロワー推移', 'エンゲージメント分析']}
               />
+            ) : !channels.instagram ? (
+              <ConnectCard channel="instagram" userId={userId} />
             ) : (
               <InstagramContent
                 user={user}
@@ -651,38 +650,51 @@ function UserDashboardContent({ userId }: { userId: string }) {
             <div className="max-w-2xl mx-auto py-6 px-4">
               <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-6">設定</h2>
               <SubscriptionSettings userId={userId} />
-              <div className="mt-6">
-                <AffiliateDashboard userId={userId} />
-              </div>
             </div>
+          )}
+          {activeChannel === 'affiliate' && (
+            <AffiliateDashboard userId={userId} />
           )}
         </div>
       </main>
 
       {/* モバイルボトムナビ */}
-      {channelItems.length > 1 && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)] safe-area-bottom z-40">
-          <div className="flex justify-around py-2">
-            {channelItems.map((channel) => {
-              const Icon = channel.Icon;
-              return (
-                <button
-                  key={channel.value}
-                  onClick={() => setActiveChannel(channel.value)}
-                  className={`flex flex-col items-center px-4 py-1 ${
-                    activeChannel === channel.value
-                      ? 'text-[color:var(--color-accent)]'
-                      : 'text-[color:var(--color-text-muted)]'
-                  }`}
-                >
-                  <Icon className="w-6 h-6" />
-                  <span className="text-xs mt-1">{channel.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)] safe-area-bottom z-40">
+        <div className="flex py-2">
+          {channelItems.map((channel) => {
+            const Icon = channel.Icon;
+            return (
+              <button
+                key={channel.value}
+                onClick={() => setActiveChannel(channel.value)}
+                className={`flex flex-col items-center justify-center flex-1 py-1 ${
+                  activeChannel === channel.value
+                    ? 'text-[color:var(--color-accent)]'
+                    : 'text-[color:var(--color-text-muted)]'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">{channel.label}</span>
+              </button>
+            );
+          })}
+          {/* 設定タブ */}
+          <button
+            onClick={() => setActiveChannel('settings')}
+            className={`flex flex-col items-center justify-center flex-1 py-1 ${
+              activeChannel === 'settings'
+                ? 'text-[color:var(--color-accent)]'
+                : 'text-[color:var(--color-text-muted)]'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-[10px] mt-0.5">設定</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }
@@ -911,9 +923,9 @@ function ThreadsContent({
 
       {threadsTab === 'analysis' && <>
       {/* アカウント + KPI */}
-      <div className="grid lg:grid-cols-12 gap-4">
+      <div className="grid min-w-0 lg:grid-cols-12 gap-4">
         {/* 左側：アカウント情報 */}
-        <div className="lg:col-span-3">
+        <div className="min-w-0 lg:col-span-3">
           <div className="ui-card p-6 h-full flex flex-col justify-center">
             <div className="flex items-center mb-4">
               <div className="w-14 h-14 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)] mr-4">
@@ -939,25 +951,25 @@ function ThreadsContent({
           </div>
         </div>
         {/* 右側：KPI */}
-        <div className="lg:col-span-9">
-          <div className="ui-card p-6">
-            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">パフォーマンス指標</h2>
-            <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">投稿数</dt>
-                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{totalPosts}</dd>
+        <div className="min-w-0 lg:col-span-9">
+          <div className="ui-card p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold text-[color:var(--color-text-primary)] mb-3 md:mb-6">パフォーマンス指標</h2>
+            <dl className="grid min-w-0 grid-cols-4 gap-1.5 md:gap-4">
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">投稿数</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{totalPosts}</dd>
               </div>
-              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">閲覧数</dt>
-                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">閲覧数</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
               </div>
-              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">いいね</dt>
-                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">いいね</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
               </div>
-              <div className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-4">
-                <dt className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">エンゲージメント率</dt>
-                <dd className="mt-2 text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">エンゲ率</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
               </div>
             </dl>
           </div>
@@ -1759,6 +1771,64 @@ function InstagramContent({
 }
 
 // ============ アップグレード案内カード ============
+function ConnectCard({ channel, userId }: { channel: 'threads' | 'instagram'; userId: string }) {
+  const isThreads = channel === 'threads';
+  const label = isThreads ? 'Threads' : 'Instagram';
+  const icon = isThreads ? (
+    <svg className="w-8 h-8 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/>
+    </svg>
+  ) : (
+    <svg className="w-8 h-8 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+  );
+
+  const handleConnect = () => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+    const state = encodeURIComponent(JSON.stringify({ pendingUserId: userId }));
+
+    if (isThreads) {
+      const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
+      const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
+      const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
+      window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
+    } else {
+      const clientId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID || '1238454094361851';
+      const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);
+      const scope = 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish';
+      window.location.href = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
+    }
+  };
+
+  return (
+    <div className="max-w-lg mx-auto py-12 px-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          {icon}
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{label}アカウントを連携</h3>
+        <p className="text-gray-500 text-sm mb-6">
+          {label}アカウントを連携して、分析データの取得を開始しましょう。
+        </p>
+        <button
+          onClick={handleConnect}
+          className={`w-full py-3 px-6 rounded-xl font-semibold text-white transition-all ${
+            isThreads
+              ? 'bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black'
+              : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600'
+          }`}
+        >
+          {label}アカウントで連携
+        </button>
+        <p className="text-xs text-gray-400 mt-4">
+          連携後、自動的にデータの同期が開始されます。
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function UpgradeCard({ currentPlan, targetChannel, features }: { currentPlan: string; targetChannel: string; features: string[] }) {
   return (
     <div className="max-w-lg mx-auto py-12 px-4">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTrialExpiredUsersWithCard, expireTrialUsersWithoutCard, updateUserSubscription } from '@/lib/bigquery';
+import { getTrialExpiredUsersWithCard, expireTrialUsersWithoutCard, updateUserSubscription, confirmReferralByUserId } from '@/lib/bigquery';
 import { createSubscriptionFromToken } from '@/lib/univapay/client';
 import { PLANS } from '@/lib/univapay/plans';
 
@@ -34,12 +34,20 @@ export async function GET(request: NextRequest) {
           metadata: { planId: user.plan_id, userId: user.user_id },
         });
 
-        // BigQuery更新
+        // BigQuery更新: trial → current
         await updateUserSubscription(user.user_id, {
           subscription_id: subscription.id,
-          subscription_status: 'active',
+          subscription_status: 'current',
           subscription_created_at: new Date(),
         });
+
+        // referralのステータスをpending→confirmedに更新
+        try {
+          await confirmReferralByUserId(user.user_id);
+          console.log(`[TRIAL CONVERSION] Referral confirmed for user ${user.user_id}`);
+        } catch (refErr) {
+          console.error(`[TRIAL CONVERSION] Referral confirm failed for user ${user.user_id}:`, refErr);
+        }
 
         results.push({ userId: user.user_id, status: 'converted' });
         console.log(`[TRIAL CONVERSION] User ${user.user_id} converted to paid (${user.plan_id})`);

@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { openOAuthPopup, PopupBlockedError } from '@/lib/oauth-popup';
+import * as gtag from '@/lib/gtag';
 
 export default function OnboardingLight2Page() {
   return (
@@ -19,6 +20,9 @@ function OnboardingLight2Content() {
   const [error, setError] = useState<string | null>(null);
 
   const handleInstagramOAuth = async () => {
+    // GA4: sign_up イベント（オンボーディング完了 = OAuth連携開始）
+    gtag.event('sign_up', { method: 'instagram' });
+
     const clientId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID || '1238454094361851';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);

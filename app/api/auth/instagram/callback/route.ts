@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  getUserById,
   upsertUser,
   findUserIdByInstagramId,
+  updateLastLogin,
 } from '@/lib/bigquery';
+import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
 
 export const maxDuration = 300;
 
@@ -93,6 +96,12 @@ export async function GET(request: NextRequest) {
       } catch { /* invalid state, ignore */ }
     }
     const existingUserId = pendingUserId || await findUserIdByInstagramId(igUserId);
+    if (existingUserId) {
+      const existingUser = await getUserById(existingUserId);
+      if (existingUser && isChannelBlockedByPlan(existingUser.plan_id, 'instagram')) {
+        return NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
+      }
+    }
 
     // Step 5: Save user
     const userId = await upsertUser({
@@ -105,7 +114,10 @@ export async function GET(request: NextRequest) {
       drive_folder_id: process.env.GOOGLE_DRIVE_FOLDER_ID || '1lH92NxycLKE4adG3hlURhIAr6qW1LBeb',
     });
 
-    // Step 6: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
+    // Step 6: 最終ログイン日時を更新
+    updateLastLogin(userId).catch(err => console.error('Failed to update last_login_at:', err));
+
+    // Step 7: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）
     const redirectUrl = new URL(`/auth/callback-success?userId=${userId}&tab=instagram&syncing=true`, request.url);
     const response = NextResponse.redirect(redirectUrl);

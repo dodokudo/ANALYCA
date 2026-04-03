@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserSubscriptionStatus, updateUserSubscription } from '@/lib/bigquery';
+import { getUserSubscriptionStatus, updateUserSubscription, getUserById } from '@/lib/bigquery';
+import { sendCancellationEmail } from '@/lib/email';
 import { cancelSubscription, getSubscription } from '@/lib/univapay/client';
 
 export async function POST(request: NextRequest) {
@@ -40,6 +41,19 @@ export async function POST(request: NextRequest) {
       subscription_status: 'canceled',
       subscription_expires_at: expiresAt,
     });
+
+    // 解約完了メール送信（非ブロッキング）
+    getUserById(userId).then((user) => {
+      if (user?.email) {
+        const planName = user.plan_id || 'ANALYCA';
+        const expiresStr = expiresAt
+          ? `${expiresAt.getFullYear()}年${expiresAt.getMonth() + 1}月${expiresAt.getDate()}日`
+          : '次回更新日';
+        sendCancellationEmail(user.email, planName, expiresStr).catch((err) =>
+          console.error('Failed to send cancellation email:', err),
+        );
+      }
+    }).catch((err) => console.error('Failed to get user for cancellation email:', err));
 
     return NextResponse.json({
       success: true,

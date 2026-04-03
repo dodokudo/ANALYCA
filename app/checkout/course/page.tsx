@@ -76,7 +76,7 @@ function CourseCheckoutContent() {
                   data-currency="jpy"
                   data-allow-card-installments="true"
                   data-card-installment-options="1,3,6,12,24"
-                  data-success-redirect-url="https://analyca.vercel.app/checkout/course/complete"
+                  data-success-redirect-url="https://analyca.jp/checkout/course/complete"
                   data-metadata={JSON.stringify({ courseName: COURSE.name })}
                   className="univapay-payment-checkout w-full py-4 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold text-lg rounded-xl hover:from-purple-700 hover:to-pink-600 transition-all cursor-pointer shadow-lg text-center block"
                 >

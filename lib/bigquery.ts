@@ -35,6 +35,7 @@ async function executeDML(options: { query: string; params?: Record<string, unkn
 
 export interface User {
   user_id: string;
+  email?: string | null;
   instagram_user_id?: string | null;
   instagram_username?: string | null;
   instagram_profile_picture_url?: string | null;
@@ -463,6 +464,7 @@ export async function getUserById(userId: string): Promise<User | null> {
   const row = rows[0];
   return {
     user_id: row.user_id,
+    email: row.email ?? null,
     instagram_user_id: row.instagram_user_id ?? null,
     instagram_username: row.instagram_username ?? null,
     instagram_profile_picture_url: row.instagram_profile_picture_url ?? null,
@@ -1494,22 +1496,28 @@ export async function createPendingUser(userId: string, subscriptionData: {
   plan_id: string;
   subscription_status: string;
   subscription_created_at: Date;
+  email?: string;
+  trial_ends_at?: Date;
 }): Promise<string> {
   const query = `
     INSERT INTO \`mark-454114.analyca.users\` (
       user_id,
+      email,
       subscription_id,
       plan_id,
       subscription_status,
       subscription_created_at,
+      trial_ends_at,
       created_at,
       updated_at
     ) VALUES (
       @user_id,
+      @email,
       @subscription_id,
       @plan_id,
       @subscription_status,
       @subscription_created_at,
+      @trial_ends_at,
       CURRENT_TIMESTAMP(),
       CURRENT_TIMESTAMP()
     )
@@ -1519,13 +1527,16 @@ export async function createPendingUser(userId: string, subscriptionData: {
     query,
     params: {
       user_id: userId,
+      email: subscriptionData.email || null,
       subscription_id: subscriptionData.subscription_id,
       plan_id: subscriptionData.plan_id,
       subscription_status: subscriptionData.subscription_status,
       subscription_created_at: subscriptionData.subscription_created_at.toISOString(),
+      trial_ends_at: subscriptionData.trial_ends_at ? subscriptionData.trial_ends_at.toISOString() : null,
     },
     types: {
       subscription_created_at: 'TIMESTAMP',
+      trial_ends_at: 'TIMESTAMP',
     },
   });
 
@@ -1891,4 +1902,316 @@ export async function getReferralsByAffiliateCode(affiliateCode: string): Promis
     status: row.status as string,
     created_at: (row.created_at as { value?: string })?.value || String(row.created_at),
   }));
+}
+
+/**
+ * ユーザーの最終ログイン日時を更新
+ */
+export async function updateLastLogin(userId: string): Promise<void> {
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @user_id
+  `;
+  await executeDML({ query, params: { user_id: userId } });
+}
+
+/**
+ * アフィリエイトクリックを記録
+ */
+export async function recordAffiliateClick(data: {
+  affiliate_code: string;
+  referrer: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  user_agent: string;
+  ip_hash: string;
+}): Promise<void> {
+  const query = `
+    INSERT INTO \`mark-454114.analyca.affiliate_clicks\` (
+      id, affiliate_code, referrer, utm_source, utm_medium, utm_campaign, user_agent, ip_hash, created_at
+    ) VALUES (
+      GENERATE_UUID(), @affiliate_code, @referrer, @utm_source, @utm_medium, @utm_campaign, @user_agent, @ip_hash, CURRENT_TIMESTAMP()
+    )
+  `;
+  await executeDML({ query, params: data });
+}
+
+/**
+ * アフィリエイトクリック数を取得
+ */
+export async function getAffiliateClickCount(affiliateCode: string): Promise<number> {
+  const query = `
+    SELECT COUNT(*) as count
+    FROM \`mark-454114.analyca.affiliate_clicks\`
+    WHERE affiliate_code = @affiliate_code
+  `;
+  const [rows] = await bigquery.query({ query, params: { affiliate_code: affiliateCode } });
+  return rows[0]?.count || 0;
+}
+
+/**
+ * コンバージョンイベントを記録
+ */
+export async function recordConversionEvent(data: {
+  id: string;
+  user_id: string;
+  event_type: string;
+  plan_id: string;
+  amount: number;
+  affiliate_code: string;
+  utm_source: string;
+  utm_medium: string;
+  utm_campaign: string;
+  utm_content: string;
+  referrer: string;
+}): Promise<void> {
+  const query = `
+    INSERT INTO \`mark-454114.analyca.conversion_events\` (
+      id, user_id, event_type, plan_id, amount, affiliate_code,
+      utm_source, utm_medium, utm_campaign, utm_content, referrer, created_at
+    ) VALUES (
+      @id, @user_id, @event_type, @plan_id, @amount, @affiliate_code,
+      @utm_source, @utm_medium, @utm_campaign, @utm_content, @referrer, CURRENT_TIMESTAMP()
+    )
+  `;
+  await executeDML({ query, params: data });
+}
+
+// ========================================
+// アフィリエイト: 振込先口座情報
+// ========================================
+
+export interface BankAccount {
+  user_id: string;
+  bank_name: string | null;
+  branch_name: string | null;
+  account_type: string;
+  account_number: string | null;
+  account_holder: string | null;
+  has_invoice: boolean;
+  invoice_number: string | null;
+  identity_verified: boolean;
+  identity_doc_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 振込先情報の保存（UPSERT）
+ */
+export async function upsertAffiliateBankAccount(data: {
+  user_id: string;
+  bank_name: string;
+  branch_name: string;
+  account_type: string;
+  account_number: string;
+  account_holder: string;
+  has_invoice: boolean;
+  invoice_number: string;
+}): Promise<void> {
+  const query = `
+    MERGE \`mark-454114.analyca.affiliate_bank_accounts\` T
+    USING (
+      SELECT
+        @user_id as user_id,
+        @bank_name as bank_name,
+        @branch_name as branch_name,
+        @account_type as account_type,
+        @account_number as account_number,
+        @account_holder as account_holder,
+        @has_invoice as has_invoice,
+        @invoice_number as invoice_number
+    ) S
+    ON T.user_id = S.user_id
+    WHEN MATCHED THEN
+      UPDATE SET
+        bank_name = S.bank_name,
+        branch_name = S.branch_name,
+        account_type = S.account_type,
+        account_number = S.account_number,
+        account_holder = S.account_holder,
+        has_invoice = S.has_invoice,
+        invoice_number = S.invoice_number,
+        updated_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN
+      INSERT (user_id, bank_name, branch_name, account_type, account_number, account_holder, has_invoice, invoice_number, created_at, updated_at)
+      VALUES (S.user_id, S.bank_name, S.branch_name, S.account_type, S.account_number, S.account_holder, S.has_invoice, S.invoice_number, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+  `;
+  await executeDML({
+    query,
+    params: {
+      user_id: data.user_id,
+      bank_name: data.bank_name,
+      branch_name: data.branch_name,
+      account_type: data.account_type,
+      account_number: data.account_number,
+      account_holder: data.account_holder,
+      has_invoice: data.has_invoice,
+      invoice_number: data.invoice_number,
+    },
+  });
+}
+
+/**
+ * 振込先情報の取得
+ */
+export async function getAffiliateBankAccount(userId: string): Promise<BankAccount | null> {
+  const query = `
+    SELECT *
+    FROM \`mark-454114.analyca.affiliate_bank_accounts\`
+    WHERE user_id = @user_id
+    LIMIT 1
+  `;
+  const [rows] = await bigquery.query({ query, params: { user_id: userId } });
+  if (!rows || rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    user_id: row.user_id,
+    bank_name: row.bank_name ?? null,
+    branch_name: row.branch_name ?? null,
+    account_type: row.account_type ?? 'savings',
+    account_number: row.account_number ?? null,
+    account_holder: row.account_holder ?? null,
+    has_invoice: row.has_invoice ?? false,
+    invoice_number: row.invoice_number ?? null,
+    identity_verified: row.identity_verified ?? false,
+    identity_doc_url: row.identity_doc_url ?? null,
+    created_at: (row.created_at as { value?: string })?.value || String(row.created_at),
+    updated_at: (row.updated_at as { value?: string })?.value || String(row.updated_at),
+  };
+}
+
+/**
+ * 本人確認ステータスの更新
+ */
+export async function updateIdentityVerification(userId: string, docUrl: string): Promise<void> {
+  const query = `
+    UPDATE \`mark-454114.analyca.affiliate_bank_accounts\`
+    SET identity_verified = TRUE,
+        identity_doc_url = @doc_url,
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @user_id
+  `;
+  await executeDML({ query, params: { user_id: userId, doc_url: docUrl } });
+}
+
+/**
+ * 報酬確定（pending → confirmed）
+ */
+export async function confirmReferrals(affiliateCode: string, month: string): Promise<number> {
+  const query = `
+    UPDATE \`mark-454114.analyca.referrals\`
+    SET status = 'confirmed'
+    WHERE affiliate_code = @affiliate_code
+      AND status = 'pending'
+      AND FORMAT_TIMESTAMP('%Y-%m', created_at) = @month
+  `;
+  const [job] = await bigquery.createQueryJob({
+    query,
+    params: { affiliate_code: affiliateCode, month },
+  });
+  await job.getQueryResults();
+  const metadata = await job.getMetadata();
+  const affected = metadata[0]?.statistics?.query?.numDmlAffectedRows;
+  return Number(affected) || 0;
+}
+
+/**
+ * 報酬支払済み（confirmed → paid）
+ */
+export async function markReferralsPaid(affiliateCode: string, month: string): Promise<number> {
+  const query = `
+    UPDATE \`mark-454114.analyca.referrals\`
+    SET status = 'paid'
+    WHERE affiliate_code = @affiliate_code
+      AND status = 'confirmed'
+      AND FORMAT_TIMESTAMP('%Y-%m', created_at) = @month
+  `;
+  const [job] = await bigquery.createQueryJob({
+    query,
+    params: { affiliate_code: affiliateCode, month },
+  });
+  await job.getQueryResults();
+  const metadata = await job.getMetadata();
+  const affected = metadata[0]?.statistics?.query?.numDmlAffectedRows;
+  return Number(affected) || 0;
+}
+
+/**
+ * 月次報酬サマリー取得
+ */
+export async function getMonthlyRewardSummary(affiliateCode: string, month: string): Promise<{
+  total_referrals: number;
+  total_amount: number;
+  commission_amount: number;
+  withholding_tax: number;
+  net_amount: number;
+}> {
+  const query = `
+    SELECT
+      COUNT(*) as total_referrals,
+      COALESCE(SUM(payment_amount), 0) as total_amount,
+      COALESCE(SUM(commission_amount), 0) as commission_amount
+    FROM \`mark-454114.analyca.referrals\`
+    WHERE affiliate_code = @affiliate_code
+      AND FORMAT_TIMESTAMP('%Y-%m', created_at) = @month
+  `;
+  const [rows] = await bigquery.query({
+    query,
+    params: { affiliate_code: affiliateCode, month },
+  });
+  const row = rows[0] || { total_referrals: 0, total_amount: 0, commission_amount: 0 };
+  const commission = Number(row.commission_amount) || 0;
+
+  // インボイスなしの場合の源泉徴収: 10.21%
+  const withholdingTax = Math.floor(commission * 0.1021);
+  const netAmount = commission - withholdingTax;
+
+  return {
+    total_referrals: Number(row.total_referrals) || 0,
+    total_amount: Number(row.total_amount) || 0,
+    commission_amount: commission,
+    withholding_tax: withholdingTax,
+    net_amount: netAmount,
+  };
+}
+
+/**
+ * トライアル有料転換時にreferralのステータスをpending→confirmedに更新
+ */
+export async function confirmReferralByUserId(userId: string): Promise<void> {
+  const query = `
+    UPDATE \`mark-454114.analyca.referrals\`
+    SET status = 'confirmed'
+    WHERE referred_user_id = @user_id
+      AND status = 'pending'
+  `;
+  await executeDML({ query, params: { user_id: userId } });
+}
+
+/**
+ * アフィリエイトコード別のステータス別件数を取得
+ */
+export async function getReferralStatusCounts(affiliateCode: string): Promise<{
+  pending_count: number;
+  confirmed_count: number;
+  paid_count: number;
+}> {
+  const query = `
+    SELECT
+      COUNTIF(status = 'pending') as pending_count,
+      COUNTIF(status = 'confirmed') as confirmed_count,
+      COUNTIF(status = 'paid') as paid_count
+    FROM \`mark-454114.analyca.referrals\`
+    WHERE affiliate_code = @affiliate_code
+  `;
+  const [rows] = await bigquery.query({ query, params: { affiliate_code: affiliateCode } });
+  const row = rows[0] || {};
+  return {
+    pending_count: Number(row.pending_count) || 0,
+    confirmed_count: Number(row.confirmed_count) || 0,
+    paid_count: Number(row.paid_count) || 0,
+  };
 }

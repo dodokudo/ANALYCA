@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAffiliateByUserId, getReferralsByAffiliateCode } from '@/lib/bigquery';
+import { getAffiliateByUserId, getReferralsByAffiliateCode, getAffiliateClickCount, getReferralStatusCounts } from '@/lib/bigquery';
+import { getAffiliateDailyClicks, getAffiliatePlanBreakdown } from '@/lib/admin-queries';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +16,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, registered: false });
     }
 
-    const referrals = await getReferralsByAffiliateCode(affiliate.affiliate_code);
+    const [referrals, clickCount, dailyStats, planBreakdown, statusCounts] = await Promise.all([
+      getReferralsByAffiliateCode(affiliate.affiliate_code),
+      getAffiliateClickCount(affiliate.affiliate_code),
+      getAffiliateDailyClicks(affiliate.affiliate_code).catch(() => []),
+      getAffiliatePlanBreakdown(affiliate.affiliate_code).catch(() => []),
+      getReferralStatusCounts(affiliate.affiliate_code).catch(() => ({ pending_count: 0, confirmed_count: 0, paid_count: 0 })),
+    ]);
+
+    const conversionRate = clickCount > 0 ? (affiliate.total_referrals / clickCount) * 100 : 0;
 
     return NextResponse.json({
       success: true,
@@ -24,7 +33,14 @@ export async function GET(request: NextRequest) {
       commission_rate: affiliate.commission_rate,
       total_referrals: affiliate.total_referrals,
       total_commission: affiliate.total_commission,
+      total_clicks: clickCount,
+      conversion_rate: Math.round(conversionRate * 10) / 10,
       referrals,
+      daily_stats: dailyStats,
+      plan_breakdown: planBreakdown,
+      pending_count: statusCounts.pending_count,
+      confirmed_count: statusCounts.confirmed_count,
+      paid_count: statusCounts.paid_count,
     });
   } catch (error) {
     console.error('Affiliate dashboard error:', error);

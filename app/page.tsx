@@ -191,7 +191,30 @@ export default function HomePage() {
     const ref = params.get('ref');
     if (ref) {
       window.localStorage.setItem('analyca_ref', ref);
+      // アフィリエイトクリックを記録
+      fetch('/api/affiliate/click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          affiliate_code: ref,
+          referrer: document.referrer || '',
+          utm_source: params.get('utm_source') || '',
+          utm_medium: params.get('utm_medium') || '',
+          utm_campaign: params.get('utm_campaign') || '',
+          user_agent: navigator.userAgent,
+        }),
+      }).catch(() => { /* non-blocking */ });
     }
+
+    // UTMパラメータをlocalStorageに保存
+    const utmSource = params.get('utm_source');
+    const utmMedium = params.get('utm_medium');
+    const utmCampaign = params.get('utm_campaign');
+    const utmContent = params.get('utm_content');
+    if (utmSource) window.localStorage.setItem('analyca_utm_source', utmSource);
+    if (utmMedium) window.localStorage.setItem('analyca_utm_medium', utmMedium);
+    if (utmCampaign) window.localStorage.setItem('analyca_utm_campaign', utmCampaign);
+    if (utmContent) window.localStorage.setItem('analyca_utm_content', utmContent);
   }, []);
 
   return (

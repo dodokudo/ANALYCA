@@ -280,7 +280,7 @@ function AdminPageContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="mx-auto max-w-[1800px] px-4 py-8 xl:px-8">
         {/* タブ */}
         <div className="flex gap-2 mb-6">
           {tabs.map(tab => (
@@ -365,20 +365,20 @@ function AdminPageContent() {
               <h2 className="text-lg font-semibold text-gray-800">契約ユーザー一覧</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[1500px]">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザー名</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">メール</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">プラン</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">連携媒体</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">契約開始</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">作成日</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">最終ログイン</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">起動回数</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録経路</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ステータス</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ダッシュボードURL</th>
+                    <th className="min-w-[180px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ユーザー名</th>
+                    <th className="min-w-[200px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">メール</th>
+                    <th className="min-w-[90px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">プラン</th>
+                    <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">連携媒体</th>
+                    <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">契約開始</th>
+                    <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">作成日</th>
+                    <th className="min-w-[160px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">最終ログイン</th>
+                    <th className="min-w-[110px] px-4 py-3 text-right text-xs font-medium uppercase whitespace-nowrap text-gray-500">起動回数</th>
+                    <th className="min-w-[130px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">登録経路</th>
+                    <th className="min-w-[110px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ステータス</th>
+                    <th className="min-w-[280px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ダッシュボードURL</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -396,11 +396,11 @@ function AdminPageContent() {
                     return (
                       <tr key={user.user_id} className="hover:bg-gray-50">
                         <td className="px-4 py-4">
-                          <p className="font-medium text-gray-800">
+                          <p className="whitespace-nowrap font-medium text-gray-800">
                             {user.instagram_username || user.threads_username || '-'}
                           </p>
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-600 max-w-[180px] truncate">
+                        <td className="max-w-[200px] px-4 py-4 text-sm text-gray-600 truncate whitespace-nowrap">
                           {ext?.email || '-'}
                         </td>
                         <td className="px-4 py-4">
@@ -413,7 +413,7 @@ function AdminPageContent() {
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 whitespace-nowrap">
                             {user.has_instagram && (
                               <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded">Instagram</span>
                             )}
@@ -447,7 +447,7 @@ function AdminPageContent() {
                             直近7日 {ext?.active_days_7d ?? 0}日
                           </div>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <span className={`text-xs font-medium ${
                             ext?.affiliate_code ? 'text-emerald-700' : ext?.utm_source ? 'text-blue-700' : 'text-gray-400'
                           }`}>
@@ -469,7 +469,7 @@ function AdminPageContent() {
                               href={dashboardUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-purple-600 hover:text-purple-800 text-sm truncate max-w-[200px]"
+                              className="max-w-[240px] truncate text-sm text-purple-600 hover:text-purple-800"
                             >
                               {dashboardUrl}
                             </a>

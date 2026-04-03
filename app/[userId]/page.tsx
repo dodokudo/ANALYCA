@@ -6,8 +6,8 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { ScheduleTab } from './components/schedule-tab';
 import { ThreadsInsights } from './components/threads-insights';
 import AnalycaLogo from '@/components/AnalycaLogo';
-import SubscriptionSettings from './components/subscription-settings';
-import AffiliateDashboard from './components/affiliate-dashboard';
+import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
+import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
 import { isChannelBlockedByPlan } from '@/lib/univapay/plans';
 import {
   ComposedChart,
@@ -238,6 +238,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
+  const [affiliateDashboardData, setAffiliateDashboardData] = useState<AffiliateDashboardResponse | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isInitialSetup = searchParams?.get('auth')?.includes('complete') || false;
   const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
@@ -257,6 +259,16 @@ function UserDashboardContent({ userId }: { userId: string }) {
         setData(result.data || null);
         setChannels(result.channels || { instagram: false, threads: false });
         setLastUpdated(new Date());
+        void Promise.all([
+          fetch(`/api/subscription/status?userId=${encodeURIComponent(userId)}`)
+            .then((res) => res.json())
+            .then((json) => setSubscriptionStatus(json as SubscriptionStatusResponse))
+            .catch(() => {}),
+          fetch(`/api/affiliate/dashboard?userId=${encodeURIComponent(userId)}`)
+            .then((res) => res.json())
+            .then((json) => setAffiliateDashboardData(json as AffiliateDashboardResponse))
+            .catch(() => {}),
+        ]);
       }
     } catch {
       setError('データの取得に失敗しました');
@@ -649,49 +661,49 @@ function UserDashboardContent({ userId }: { userId: string }) {
           {activeChannel === 'settings' && (
             <div className="max-w-2xl mx-auto py-6 px-4">
               <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-6">設定</h2>
-              <SubscriptionSettings userId={userId} />
+              <SubscriptionSettings userId={userId} initialData={subscriptionStatus} />
             </div>
           )}
           {activeChannel === 'affiliate' && (
-            <AffiliateDashboard userId={userId} />
+            <AffiliateDashboard userId={userId} initialData={affiliateDashboardData} />
           )}
         </div>
       </main>
 
       {/* モバイルボトムナビ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)] safe-area-bottom z-40">
-        <div className="flex py-2">
+        <div className="flex py-2.5">
           {channelItems.map((channel) => {
             const Icon = channel.Icon;
             return (
               <button
                 key={channel.value}
                 onClick={() => setActiveChannel(channel.value)}
-                className={`flex flex-col items-center justify-center flex-1 py-1 ${
+                className={`flex flex-col items-center justify-center flex-1 py-1.5 ${
                   activeChannel === channel.value
                     ? 'text-[color:var(--color-accent)]'
                     : 'text-[color:var(--color-text-muted)]'
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-[10px] mt-0.5">{channel.label}</span>
+                <Icon className="w-[22px] h-[22px]" />
+                <span className="text-[11px] leading-none mt-1 font-medium">{channel.label}</span>
               </button>
             );
           })}
           {/* 設定タブ */}
           <button
             onClick={() => setActiveChannel('settings')}
-            className={`flex flex-col items-center justify-center flex-1 py-1 ${
+            className={`flex flex-col items-center justify-center flex-1 py-1.5 ${
               activeChannel === 'settings'
                 ? 'text-[color:var(--color-accent)]'
                 : 'text-[color:var(--color-text-muted)]'
             }`}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-[10px] mt-0.5">設定</span>
+            <span className="text-[11px] leading-none mt-1 font-medium">設定</span>
           </button>
         </div>
       </nav>
@@ -926,9 +938,9 @@ function ThreadsContent({
       <div className="grid min-w-0 lg:grid-cols-12 gap-4">
         {/* 左側：アカウント情報 */}
         <div className="min-w-0 lg:col-span-3">
-          <div className="ui-card p-6 h-full flex flex-col justify-center">
-            <div className="flex items-center mb-4">
-              <div className="w-14 h-14 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)] mr-4">
+          <div className="ui-card p-4 md:p-6 h-full">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)]">
                 {profilePicture ? (
                   <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
                 ) : (
@@ -937,16 +949,16 @@ function ThreadsContent({
                   </div>
                 )}
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
-                <p className="text-xs text-[color:var(--color-text-muted)]">フォロワー数</p>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
+                  <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
+                  <span className={`text-xs font-medium ${summary.followerGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center">
-              <span className="text-2xl font-semibold text-[color:var(--color-text-primary)] mr-3">{followersCount.toLocaleString()}</span>
-              <span className={`text-sm font-medium ${summary.followerGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth}
-              </span>
             </div>
           </div>
         </div>
@@ -1354,9 +1366,9 @@ function InstagramContent({
           <div className="grid lg:grid-cols-12 gap-4">
             {/* アカウント情報 */}
             <div className="lg:col-span-3">
-              <div className="ui-card p-6 h-full flex flex-col justify-center">
-                <div className="flex items-center mb-4">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)] mr-4">
+              <div className="ui-card p-4 md:p-6 h-full">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)]">
                     {profilePicture ? (
                       <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
                     ) : (
@@ -1365,18 +1377,18 @@ function InstagramContent({
                       </div>
                     )}
                   </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
-                    <p className="text-xs text-[color:var(--color-text-muted)]">現在のフォロワー数</p>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
+                      <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
+                      {summary.followerGrowth !== 0 && (
+                        <span className={`text-xs font-medium ${summary.followerGrowth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-2xl font-semibold text-[color:var(--color-text-primary)] mr-3">{followersCount.toLocaleString()}</span>
-                  {summary.followerGrowth !== 0 && (
-                    <span className={`text-sm font-medium ${summary.followerGrowth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>

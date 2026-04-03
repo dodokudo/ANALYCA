@@ -76,6 +76,7 @@ function isDateInRange(dateStr: string | null | undefined, range: { start: Date;
 // ============ 型定義 ============
 interface AffiliateDashboardProps {
   userId: string;
+  initialData?: AffiliateDashboardResponse | null;
 }
 
 interface Referral {
@@ -106,6 +107,22 @@ interface BankAccount {
   account_holder: string;
   has_invoice: boolean;
   invoice_number: string;
+}
+
+export interface AffiliateDashboardResponse {
+  success: boolean;
+  error?: string;
+  registered: boolean;
+  affiliate_code: string | null;
+  total_referrals: number;
+  total_commission: number;
+  total_clicks?: number;
+  conversion_rate?: number;
+  referrals?: Referral[];
+  daily_stats?: DailyStat[];
+  plan_breakdown?: PlanBreakdownItem[];
+  bank_account?: BankAccount | null;
+  identity_uploaded?: boolean;
 }
 
 // ============ ヘルパー ============
@@ -143,25 +160,8 @@ function getPlanLabel(planId: string): string {
   }
 }
 
-export default function AffiliateDashboard({ userId }: AffiliateDashboardProps) {
-  const [subTab, setSubTab] = useState<'insight' | 'settings'>('insight');
-  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
-  const [loading, setLoading] = useState(true);
-  const [registered, setRegistered] = useState(false);
-  const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [dailyStats, setDailyStats] = useState<DailyStat[]>([]);
-  const [planBreakdown, setPlanBreakdown] = useState<PlanBreakdownItem[]>([]);
-  const [totalClicks, setTotalClicks] = useState(0);
-  const [totalReferrals, setTotalReferrals] = useState(0);
-  const [totalCommission, setTotalCommission] = useState(0);
-  const [conversionRate, setConversionRate] = useState(0);
-  const [registering, setRegistering] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Bank account form state
-  const [bankForm, setBankForm] = useState<BankAccount>({
+function createEmptyBankForm(): BankAccount {
+  return {
     bank_name: '',
     branch_name: '',
     account_type: 'ordinary',
@@ -169,37 +169,93 @@ export default function AffiliateDashboard({ userId }: AffiliateDashboardProps) 
     account_holder: '',
     has_invoice: false,
     invoice_number: '',
-  });
+  };
+}
+
+function applyDashboardResponse(
+  json: AffiliateDashboardResponse,
+  setters: {
+    setRegistered: (value: boolean) => void;
+    setAffiliateCode: (value: string | null) => void;
+    setTotalReferrals: (value: number) => void;
+    setTotalCommission: (value: number) => void;
+    setTotalClicks: (value: number) => void;
+    setConversionRate: (value: number) => void;
+    setReferrals: (value: Referral[]) => void;
+    setDailyStats: (value: DailyStat[]) => void;
+    setPlanBreakdown: (value: PlanBreakdownItem[]) => void;
+    setBankForm: (value: BankAccount) => void;
+    setBankSaved: (value: boolean) => void;
+    setIdentityUploaded: (value: boolean) => void;
+  }
+) {
+  setters.setRegistered(json.registered);
+  if (!json.registered) return;
+  setters.setAffiliateCode(json.affiliate_code);
+  setters.setTotalReferrals(json.total_referrals);
+  setters.setTotalCommission(json.total_commission);
+  setters.setTotalClicks(json.total_clicks || 0);
+  setters.setConversionRate(json.conversion_rate || 0);
+  setters.setReferrals(json.referrals || []);
+  setters.setDailyStats(json.daily_stats || []);
+  setters.setPlanBreakdown(json.plan_breakdown || []);
+  if (json.bank_account) {
+    setters.setBankForm(json.bank_account);
+    setters.setBankSaved(true);
+  }
+  if (json.identity_uploaded) {
+    setters.setIdentityUploaded(true);
+  }
+}
+
+export default function AffiliateDashboard({ userId, initialData = null }: AffiliateDashboardProps) {
+  const [subTab, setSubTab] = useState<'insight' | 'settings'>('insight');
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
+  const [loading, setLoading] = useState(!initialData);
+  const [registered, setRegistered] = useState(initialData?.registered || false);
+  const [affiliateCode, setAffiliateCode] = useState<string | null>(initialData?.affiliate_code || null);
+  const [referrals, setReferrals] = useState<Referral[]>(initialData?.referrals || []);
+  const [dailyStats, setDailyStats] = useState<DailyStat[]>(initialData?.daily_stats || []);
+  const [planBreakdown, setPlanBreakdown] = useState<PlanBreakdownItem[]>(initialData?.plan_breakdown || []);
+  const [totalClicks, setTotalClicks] = useState(initialData?.total_clicks || 0);
+  const [totalReferrals, setTotalReferrals] = useState(initialData?.total_referrals || 0);
+  const [totalCommission, setTotalCommission] = useState(initialData?.total_commission || 0);
+  const [conversionRate, setConversionRate] = useState(initialData?.conversion_rate || 0);
+  const [registering, setRegistering] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(
+    initialData && !initialData.success ? initialData.error || 'データの取得に失敗しました' : null
+  );
+
+  // Bank account form state
+  const [bankForm, setBankForm] = useState<BankAccount>(initialData?.bank_account || createEmptyBankForm());
   const [bankSaving, setBankSaving] = useState(false);
-  const [bankSaved, setBankSaved] = useState(false);
+  const [bankSaved, setBankSaved] = useState(Boolean(initialData?.bank_account));
   const [bankError, setBankError] = useState<string | null>(null);
   const [identityFile, setIdentityFile] = useState<File | null>(null);
   const [identityUploading, setIdentityUploading] = useState(false);
-  const [identityUploaded, setIdentityUploaded] = useState(false);
+  const [identityUploaded, setIdentityUploaded] = useState(Boolean(initialData?.identity_uploaded));
 
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch(`/api/affiliate/dashboard?userId=${encodeURIComponent(userId)}`);
-      const json = await res.json();
+      const json = (await res.json()) as AffiliateDashboardResponse;
       if (json.success) {
-        setRegistered(json.registered);
-        if (json.registered) {
-          setAffiliateCode(json.affiliate_code);
-          setTotalReferrals(json.total_referrals);
-          setTotalCommission(json.total_commission);
-          setTotalClicks(json.total_clicks || 0);
-          setConversionRate(json.conversion_rate || 0);
-          setReferrals(json.referrals || []);
-          setDailyStats(json.daily_stats || []);
-          setPlanBreakdown(json.plan_breakdown || []);
-          if (json.bank_account) {
-            setBankForm(json.bank_account);
-            setBankSaved(true);
-          }
-          if (json.identity_uploaded) {
-            setIdentityUploaded(true);
-          }
-        }
+        applyDashboardResponse(json, {
+          setRegistered,
+          setAffiliateCode,
+          setTotalReferrals,
+          setTotalCommission,
+          setTotalClicks,
+          setConversionRate,
+          setReferrals,
+          setDailyStats,
+          setPlanBreakdown,
+          setBankForm,
+          setBankSaved,
+          setIdentityUploaded,
+        });
+        setError(null);
       }
     } catch {
       setError('データの取得に失敗しました');
@@ -209,8 +265,33 @@ export default function AffiliateDashboard({ userId }: AffiliateDashboardProps) 
   }, [userId]);
 
   useEffect(() => {
+    if (initialData) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, initialData]);
+
+  useEffect(() => {
+    if (!initialData) return;
+    if (initialData.success) {
+      applyDashboardResponse(initialData, {
+        setRegistered,
+        setAffiliateCode,
+        setTotalReferrals,
+        setTotalCommission,
+        setTotalClicks,
+        setConversionRate,
+        setReferrals,
+        setDailyStats,
+        setPlanBreakdown,
+        setBankForm,
+        setBankSaved,
+        setIdentityUploaded,
+      });
+      setError(null);
+    } else {
+      setError(initialData.error || 'データの取得に失敗しました');
+    }
+    setLoading(false);
+  }, [initialData]);
 
   const handleRegister = async () => {
     setRegistering(true);

@@ -5,6 +5,17 @@ import { PLANS } from '@/lib/univapay/plans';
 
 interface SubscriptionSettingsProps {
   userId: string;
+  initialData?: SubscriptionStatusResponse | null;
+}
+
+export interface SubscriptionStatusResponse {
+  success: boolean;
+  error?: string;
+  subscription_id: string | null;
+  plan_id: string | null;
+  subscription_status: string;
+  subscription_created_at: string | null;
+  subscription_expires_at: string | null;
 }
 
 interface SubscriptionData {
@@ -46,10 +57,24 @@ function getStatusLabel(status: string): { text: string; className: string } {
   }
 }
 
-export default function SubscriptionSettings({ userId }: SubscriptionSettingsProps) {
-  const [data, setData] = useState<SubscriptionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function toSubscriptionData(json: SubscriptionStatusResponse): SubscriptionData {
+  return {
+    subscription_id: json.subscription_id,
+    plan_id: json.plan_id,
+    subscription_status: json.subscription_status,
+    subscription_created_at: json.subscription_created_at,
+    subscription_expires_at: json.subscription_expires_at,
+  };
+}
+
+export default function SubscriptionSettings({ userId, initialData = null }: SubscriptionSettingsProps) {
+  const [data, setData] = useState<SubscriptionData | null>(
+    initialData?.success ? toSubscriptionData(initialData) : null
+  );
+  const [loading, setLoading] = useState(!initialData);
+  const [error, setError] = useState<string | null>(
+    initialData && !initialData.success ? initialData.error || 'データの取得に失敗しました' : null
+  );
   const [showConfirm, setShowConfirm] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [cancelResult, setCancelResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -58,15 +83,10 @@ export default function SubscriptionSettings({ userId }: SubscriptionSettingsPro
     try {
       setLoading(true);
       const res = await fetch(`/api/subscription/status?userId=${encodeURIComponent(userId)}`);
-      const json = await res.json();
+      const json = (await res.json()) as SubscriptionStatusResponse;
       if (json.success) {
-        setData({
-          subscription_id: json.subscription_id,
-          plan_id: json.plan_id,
-          subscription_status: json.subscription_status,
-          subscription_created_at: json.subscription_created_at,
-          subscription_expires_at: json.subscription_expires_at,
-        });
+        setData(toSubscriptionData(json));
+        setError(null);
       } else {
         setError(json.error || 'データの取得に失敗しました');
       }
@@ -78,8 +98,20 @@ export default function SubscriptionSettings({ userId }: SubscriptionSettingsPro
   }, [userId]);
 
   useEffect(() => {
+    if (initialData) return;
     fetchStatus();
-  }, [fetchStatus]);
+  }, [fetchStatus, initialData]);
+
+  useEffect(() => {
+    if (!initialData) return;
+    if (initialData.success) {
+      setData(toSubscriptionData(initialData));
+      setError(null);
+    } else {
+      setError(initialData.error || 'データの取得に失敗しました');
+    }
+    setLoading(false);
+  }, [initialData]);
 
   const handleCancel = async () => {
     setCanceling(true);

@@ -460,11 +460,11 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-8 items-end max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 items-end max-w-5xl mx-auto">
             {/* PC版デモ - MacBookフレーム、幅いっぱい */}
             <div>
               <p className="text-sm font-semibold text-gray-500 mb-4 text-center">PC版</p>
-              <div className="relative">
+              <div className="relative" id="demo-pc-wrapper">
                 <div className="bg-[#2d2d2d] rounded-t-xl pt-3 px-3">
                   <div className="flex justify-center mb-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-gray-600" />
@@ -487,19 +487,32 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* スマホ版デモ */}
-            <div className="flex flex-col items-center">
+            {/* スマホ版デモ — PC版MacBookフレームと同じ高さに揃える */}
+            <div className="flex flex-col items-center self-end">
               <p className="text-sm font-semibold text-gray-500 mb-4 text-center">スマホ版</p>
-              <video
-                src="/demo/demo-phone.mp4"
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="w-full rounded-2xl drop-shadow-2xl"
-              />
+              <div className="overflow-hidden" style={{ height: 'var(--pc-frame-height, 400px)' }}>
+                <video
+                  src="/demo/demo-phone.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="h-full w-auto rounded-2xl drop-shadow-2xl"
+                />
+              </div>
             </div>
           </div>
+          <script dangerouslySetInnerHTML={{ __html: `
+            (function syncHeight() {
+              var pc = document.getElementById('demo-pc-wrapper');
+              if (!pc) { setTimeout(syncHeight, 200); return; }
+              var h = pc.offsetHeight;
+              pc.closest('.grid').style.setProperty('--pc-frame-height', h + 'px');
+              new ResizeObserver(function() {
+                pc.closest('.grid').style.setProperty('--pc-frame-height', pc.offsetHeight + 'px');
+              }).observe(pc);
+            })();
+          `}} />
         </div>
       </section>
 

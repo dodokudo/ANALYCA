@@ -460,9 +460,9 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-10 items-end justify-center max-w-5xl mx-auto">
-            {/* PC版デモ - MacBookフレーム */}
-            <div className="md:flex-[3]">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-8 items-end max-w-5xl mx-auto">
+            {/* PC版デモ - MacBookフレーム、幅いっぱい */}
+            <div>
               <p className="text-sm font-semibold text-gray-500 mb-4 text-center">PC版</p>
               <div className="relative">
                 <div className="bg-[#2d2d2d] rounded-t-xl pt-3 px-3">
@@ -471,12 +471,13 @@ export default function HomePage() {
                   </div>
                   <div className="bg-black rounded-t-sm overflow-hidden">
                     <video
+                      id="demo-pc-video"
                       src="/demo/demo-pc.mp4"
                       autoPlay
                       muted
                       loop
                       playsInline
-                      className="w-full"
+                      className="w-full block"
                     />
                   </div>
                 </div>
@@ -486,8 +487,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* スマホ版デモ - PC版と同じ高さに揃える */}
-            <div className="md:flex-none">
+            {/* スマホ版デモ */}
+            <div className="flex flex-col items-center">
               <p className="text-sm font-semibold text-gray-500 mb-4 text-center">スマホ版</p>
               <video
                 src="/demo/demo-phone.mp4"
@@ -495,8 +496,7 @@ export default function HomePage() {
                 muted
                 loop
                 playsInline
-                className="rounded-2xl drop-shadow-2xl"
-                style={{ height: '420px', width: 'auto' }}
+                className="w-full rounded-2xl drop-shadow-2xl"
               />
             </div>
           </div>

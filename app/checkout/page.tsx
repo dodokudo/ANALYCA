@@ -82,6 +82,12 @@ function CheckoutContent() {
     setProcessing(true);
 
     try {
+      gtag.event('add_payment_info', {
+        value: plan.price,
+        currency: 'JPY',
+        plan_id: planId,
+      });
+
       console.log('[CHECKOUT] Submitting UnivaPay form...');
       const data = await window.UnivapayCheckout.submit(iframe);
       console.log('[CHECKOUT] Token received:', JSON.stringify(data));
@@ -91,8 +97,6 @@ function CheckoutContent() {
       const tokenId = d?.token || d?.transactionToken || d?.id || d?.transactionTokenId;
       const email = (d?.tokenData as Record<string, unknown>)?.email as string || '';
       console.log('[CHECKOUT] Raw data:', JSON.stringify(data), 'Resolved tokenId:', tokenId, 'email:', email);
-
-      // GA4: begin_checkout はフォーム送信時点で発火済み（下記purchase前のタイミング）
 
       if (!tokenId) {
         console.error('[CHECKOUT] No token ID found. Keys:', Object.keys(d || {}));

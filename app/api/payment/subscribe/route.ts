@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
     const plan = PLANS[planId];
     const isTrial = TRIAL_ENABLED;
     const isYearly = plan.yearly === true;
+    const userId = uuidv4();
 
     // UnivaPayでサブスクリプション作成
     const subscriptionParams: Parameters<typeof createSubscription>[0] = {
@@ -39,7 +40,8 @@ export async function POST(request: NextRequest) {
       currency: 'JPY',
       period: isYearly ? 'yearly' : 'monthly',
       metadata: {
-        planId: planId,
+        analycaUserId: userId,
+        planId,
         planName: plan.name,
       },
     };
@@ -60,7 +62,6 @@ export async function POST(request: NextRequest) {
     console.log('Subscription created:', subscription.id, subscription.status, isTrial ? '(trial)' : '');
 
     // BigQueryに仮ユーザーを作成
-    const userId = uuidv4();
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
 

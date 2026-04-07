@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getAllUsersWithStats, getAdminOverallStats, confirmReferrals, markReferralsPaid } from '@/lib/bigquery';
 import { getAllAffiliatesWithStats, getConversionFunnelStats, getUsersExtendedInfo } from '@/lib/admin-queries';
+import { listSubscriptions } from '@/lib/univapay/client';
 
 // パスワード認証
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '7684';
@@ -74,14 +75,25 @@ export async function GET(request: Request) {
       }, { status: 401 });
     }
 
-    // データ取得
-    const [users, stats, affiliates, funnel, usersExtended] = await Promise.all([
+    // データ取得（UnivaPay一括取得を並行）
+    const [users, stats, affiliates, funnel, usersExtended, subscriptions] = await Promise.all([
       getAllUsersWithStats(),
       getAdminOverallStats(),
       getAllAffiliatesWithStats().catch(() => []),
       getConversionFunnelStats().catch(() => ({ total_conversions: 0, total_revenue: 0, affiliate_sources: 0, utm_tracked: 0 })),
       getUsersExtendedInfo().catch(() => []),
+      listSubscriptions({ limit: 50 }).catch(() => ({ items: [], has_more: false })),
     ]);
+
+    // subscription_id → next_payment_date のマップ
+    const subscriptionMap: Record<string, { next_payment_date: string | null; amount: number; status: string }> = {};
+    for (const sub of subscriptions.items) {
+      subscriptionMap[sub.id] = {
+        next_payment_date: sub.next_payment_date ?? null,
+        amount: sub.amount,
+        status: sub.status,
+      };
+    }
 
     return NextResponse.json({
       success: true,
@@ -91,6 +103,7 @@ export async function GET(request: Request) {
         affiliates,
         funnel,
         usersExtended,
+        subscriptionMap,
         fetchedAt: new Date().toISOString()
       }
     });

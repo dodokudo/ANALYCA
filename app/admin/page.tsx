@@ -36,6 +36,7 @@ interface UserExtended {
   user_id: string;
   email: string | null;
   plan_id: string | null;
+  subscription_id: string | null;
   subscription_status: string | null;
   last_login_at: string | null;
   subscription_created_at: string | null;
@@ -45,6 +46,12 @@ interface UserExtended {
   active_days_7d: number;
   utm_source: string | null;
   affiliate_code: string | null;
+}
+
+interface SubscriptionInfo {
+  next_payment_date: string | null;
+  amount: number;
+  status: string;
 }
 
 interface AdminData {
@@ -57,6 +64,7 @@ interface AdminData {
   affiliates: AffiliateRow[];
   funnel: ConversionFunnel;
   usersExtended: UserExtended[];
+  subscriptionMap: Record<string, SubscriptionInfo>;
   fetchedAt: string;
 }
 
@@ -338,6 +346,9 @@ function AdminPageContent() {
   const extendedMap = new Map<string, UserExtended>();
   (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
 
+  // UnivaPayサブスクリプション情報
+  const subMap = data.subscriptionMap || {};
+
   // アフィリエイトデータ
   const affiliates = data.affiliates || [];
   const funnel = data.funnel || { total_conversions: 0, total_revenue: 0, affiliate_sources: 0, utm_tracked: 0 };
@@ -444,6 +455,7 @@ function AdminPageContent() {
                     <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">連携媒体</th>
                     <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">契約開始</th>
                     <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">初回決済</th>
+                    <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">次回決済</th>
                     <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">決済金額</th>
                     <th className="min-w-[160px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">最終ログイン</th>
                     <th className="min-w-[110px] px-4 py-3 text-right text-xs font-medium uppercase whitespace-nowrap text-gray-500">起動回数</th>
@@ -513,7 +525,18 @@ function AdminPageContent() {
                           </div>
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {formatAmount(paymentAmount)}
+                          {(() => {
+                            const subId = ext?.subscription_id;
+                            const sub = subId ? subMap[subId] : null;
+                            return sub?.next_payment_date ? formatDate(sub.next_payment_date) : '-';
+                          })()}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {(() => {
+                            const subId = ext?.subscription_id;
+                            const sub = subId ? subMap[subId] : null;
+                            return sub ? formatAmount(sub.amount) : formatAmount(paymentAmount);
+                          })()}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                           <div className="font-medium text-gray-800">

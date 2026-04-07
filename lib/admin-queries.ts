@@ -112,6 +112,7 @@ export interface UserExtendedInfo {
   user_id: string;
   email: string | null;
   plan_id: string | null;
+  subscription_id: string | null;
   subscription_status: string | null;
   last_login_at: string | null;
   subscription_created_at: string | null;
@@ -143,6 +144,7 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
       u.user_id,
       u.email,
       u.plan_id,
+      u.subscription_id,
       u.subscription_status,
       u.last_login_at,
       u.subscription_created_at,
@@ -197,6 +199,7 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
     user_id: row.user_id as string,
     email: (row.email as string | null) || null,
     plan_id: (row.plan_id as string | null) || null,
+    subscription_id: (row.subscription_id as string | null) || null,
     subscription_status: (row.subscription_status as string | null) || null,
     last_login_at:
       typeof row.last_login_at === 'object' &&

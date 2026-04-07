@@ -540,8 +540,18 @@ export async function POST(request: NextRequest) {
       insertInstagramInsights([insights]),
     ]);
 
-    // ============ レスポンス ============
     const userRecord = await getUserById(userId);
+
+    if (userRecord?.email) {
+      const { sendOnboardingCompleteEmail } = await import('@/lib/email');
+      sendOnboardingCompleteEmail(
+        userRecord.email,
+        instagramAccount.username,
+        `https://analyca.jp/${userId}`,
+      ).catch((err) => console.error('Onboarding email send failed:', err));
+    }
+
+    // ============ レスポンス ============
 
     return NextResponse.json({
       success: true,

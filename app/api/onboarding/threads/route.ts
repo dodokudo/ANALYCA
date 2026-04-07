@@ -332,7 +332,7 @@ export async function POST(request: NextRequest) {
       sendOnboardingCompleteEmail(
         userRecord.email,
         accountInfo.username,
-        `https://analyca.jp/dashboard/${userId}`,
+        `https://analyca.jp/${userId}`,
       ).catch(err => console.error('Onboarding email send failed:', err));
     }
 

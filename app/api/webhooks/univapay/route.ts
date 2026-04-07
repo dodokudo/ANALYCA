@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateSubscriptionStatusBySubId } from '@/lib/bigquery';
+import { findUserBySubscriptionId, updateSubscriptionStatusBySubId } from '@/lib/bigquery';
+import { sendAdminPaymentNotificationEmail } from '@/lib/email';
+import { PLANS } from '@/lib/univapay/plans';
+
+function extractAmount(data: Record<string, unknown>): number | null {
+  const raw = data.amount ?? data.charged_amount ?? data.requested_amount;
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string') {
+    const parsed = Number(raw);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   let event: string | undefined;
@@ -20,13 +32,30 @@ export async function POST(request: NextRequest) {
     switch (event) {
       case 'charge_finished':
       case 'charge.successful': {
-        const subscriptionId = (body.data as Record<string, unknown>)?.subscription_id as string
-          || ((body.data as Record<string, unknown>)?.metadata as Record<string, unknown>)?.subscription_id as string;
+        const data = (body.data as Record<string, unknown>) || {};
+        const subscriptionId = data.subscription_id as string
+          || (data.metadata as Record<string, unknown>)?.subscription_id as string;
         if (subscriptionId) {
           updateSubscriptionStatusBySubId(subscriptionId, 'current').catch(err =>
             console.error('[WEBHOOK] Failed to update status to current:', err)
           );
-          console.log(`[PAYMENT SUCCESS] SubID: ${subscriptionId}, Amount: ${(body.data as Record<string, unknown>)?.amount}`);
+          findUserBySubscriptionId(subscriptionId)
+            .then((user) => {
+              if (!user) return;
+              const plan = user.plan_id ? PLANS[user.plan_id] : null;
+              return sendAdminPaymentNotificationEmail({
+                userId: user.user_id,
+                email: user.email,
+                username: user.instagram_username || user.threads_username || null,
+                planId: user.plan_id,
+                planName: plan ? `${plan.name} ${plan.subtitle}`.trim() : user.plan_id,
+                amount: extractAmount(data),
+                paidAt: new Date(),
+                paymentType: '課金',
+              });
+            })
+            .catch((err) => console.error('[WEBHOOK] Failed to send admin payment email:', err));
+          console.log(`[PAYMENT SUCCESS] SubID: ${subscriptionId}, Amount: ${data.amount}`);
         }
         break;
       }

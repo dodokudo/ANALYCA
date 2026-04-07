@@ -11,6 +11,33 @@ const transporter = nodemailer.createTransport({
 });
 
 const FROM_ADDRESS = 'ANALYCA <info@analyca.jp>';
+const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || 'kudo@teckneat.com';
+
+function getAppUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+}
+
+function buildDashboardUrl(userId: string): string {
+  return `${getAppUrl()}/${userId}`;
+}
+
+function formatDateTime(value: Date | string | null | undefined): string {
+  if (!value) return '-';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatAmount(amount: number | null | undefined): string {
+  if (typeof amount !== 'number' || Number.isNaN(amount)) return '-';
+  return `¥${amount.toLocaleString('ja-JP')}`;
+}
 
 /**
  * HTMLメールのベーステンプレート
@@ -71,7 +98,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 /**
- * 決済完了メール
+ * 決済完了メール（初回登録時 = トライアル開始 or 即課金）
  */
 export async function sendPaymentCompleteEmail(
   to: string,
@@ -79,19 +106,19 @@ export async function sendPaymentCompleteEmail(
   loginUrl: string,
 ): Promise<void> {
   const body = `
-    <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">決済が完了しました</h2>
+    <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">無料会員登録が完了しました</h2>
     <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.7;">
-      ANALYCAをご利用いただきありがとうございます。<br>
-      <strong>${planName}プラン</strong>のお支払いが正常に処理されました。
+      ANALYCAへようこそ！<br>
+      <strong>${planName}プラン</strong>の登録が完了しました。
     </p>
     <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;">
-      続けてSNSアカウントの連携を行い、セットアップを完了してください。
+      下のボタンからログインして、SNSアカウントの連携を完了してください。
     </p>
     <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
       <tr>
         <td style="background:#7c3aed;border-radius:8px;">
           <a href="${loginUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
-            セットアップを続ける
+            ログインしてセットアップを始める
           </a>
         </td>
       </tr>
@@ -103,7 +130,79 @@ export async function sendPaymentCompleteEmail(
 
   await sendEmail(
     to,
-    '【ANALYCA】決済が完了しました',
+    '【ANALYCA】無料会員登録が完了しました',
+    wrapHtml('無料会員登録完了', body),
+  );
+}
+
+interface AdminNotificationBase {
+  userId: string;
+  email?: string | null;
+  username?: string | null;
+  planName?: string | null;
+  planId?: string | null;
+  dashboardUrl?: string | null;
+}
+
+interface AdminCardRegisteredNotification extends AdminNotificationBase {
+  scheduledPaymentAt?: Date | string | null;
+}
+
+export async function sendAdminCardRegisteredEmail(
+  payload: AdminCardRegisteredNotification,
+): Promise<void> {
+  const dashboardUrl = payload.dashboardUrl || buildDashboardUrl(payload.userId);
+  const body = `
+    <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">カード登録が完了しました</h2>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">
+      無料開始ユーザーのカード登録が完了しました。
+    </p>
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#374151;">
+      <tr><td style="padding:8px 0;font-weight:600;width:140px;">ユーザーID</td><td style="padding:8px 0;">${payload.userId}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">ユーザー名</td><td style="padding:8px 0;">${payload.username || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">メール</td><td style="padding:8px 0;">${payload.email || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">プラン</td><td style="padding:8px 0;">${payload.planName || payload.planId || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">初回決済予定</td><td style="padding:8px 0;">${formatDateTime(payload.scheduledPaymentAt)}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">ダッシュボード</td><td style="padding:8px 0;"><a href="${dashboardUrl}" style="color:#7c3aed;text-decoration:none;">${dashboardUrl}</a></td></tr>
+    </table>
+  `;
+
+  await sendEmail(
+    ADMIN_NOTIFICATION_EMAIL,
+    '【ANALYCA 管理通知】カード登録完了',
+    wrapHtml('カード登録完了', body),
+  );
+}
+
+interface AdminPaymentNotification extends AdminNotificationBase {
+  amount?: number | null;
+  paidAt?: Date | string | null;
+  paymentType?: string | null;
+}
+
+export async function sendAdminPaymentNotificationEmail(
+  payload: AdminPaymentNotification,
+): Promise<void> {
+  const dashboardUrl = payload.dashboardUrl || buildDashboardUrl(payload.userId);
+  const body = `
+    <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">決済が完了しました</h2>
+    <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">
+      ${payload.paymentType || '決済'}の完了通知です。
+    </p>
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#374151;">
+      <tr><td style="padding:8px 0;font-weight:600;width:140px;">ユーザーID</td><td style="padding:8px 0;">${payload.userId}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">ユーザー名</td><td style="padding:8px 0;">${payload.username || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">メール</td><td style="padding:8px 0;">${payload.email || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">プラン</td><td style="padding:8px 0;">${payload.planName || payload.planId || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">決済金額</td><td style="padding:8px 0;">${formatAmount(payload.amount)}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">決済日時</td><td style="padding:8px 0;">${formatDateTime(payload.paidAt)}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">ダッシュボード</td><td style="padding:8px 0;"><a href="${dashboardUrl}" style="color:#7c3aed;text-decoration:none;">${dashboardUrl}</a></td></tr>
+    </table>
+  `;
+
+  await sendEmail(
+    ADMIN_NOTIFICATION_EMAIL,
+    '【ANALYCA 管理通知】決済完了',
     wrapHtml('決済完了', body),
   );
 }
@@ -147,6 +246,44 @@ export async function sendOnboardingCompleteEmail(
   );
 }
 
+
+/**
+ * カード登録完了メール（ユーザー宛）
+ * 無料会員登録完了後、ログインURLを案内する
+ */
+export async function sendCardRegisteredUserEmail(
+  to: string,
+  loginUrl: string,
+): Promise<void> {
+  const body = `
+    <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">無料会員登録が完了しました</h2>
+    <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.7;">
+      ANALYCAへようこそ！<br>
+      カード登録が完了し、無料トライアルが開始されました。
+    </p>
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;">
+      下のボタンからログインして、SNSアカウントの連携を完了してください。
+    </p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+      <tr>
+        <td style="background:#7c3aed;border-radius:8px;">
+          <a href="${loginUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+            ログインしてセットアップを始める
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#9ca3af;">
+      ご不明な点がございましたら、このメールに返信してください。
+    </p>
+  `;
+
+  await sendEmail(
+    to,
+    '【ANALYCA】無料会員登録が完了しました',
+    wrapHtml('無料会員登録完了', body),
+  );
+}
 
 /**
  * 解約完了メール

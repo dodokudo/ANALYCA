@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, updateUserRecurringToken, updateUserSubscription } from '@/lib/bigquery';
+import { sendAdminCardRegisteredEmail, sendCardRegisteredUserEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +31,28 @@ export async function POST(request: NextRequest) {
         subscription_status: 'trial',
       });
     }
+
+    // ユーザー宛: カード登録完了 + ログインURL
+    if (user.email) {
+      const { PLANS } = await import('@/lib/univapay/plans');
+      const plan = user.plan_id ? PLANS[user.plan_id] : null;
+      const onboardingPath = plan?.onboardingPath || '/onboarding/light';
+      const loginUrl = `https://analyca.jp${onboardingPath}?userId=${userId}`;
+      sendCardRegisteredUserEmail(user.email, loginUrl).catch((err) => {
+        console.error('Card registered user email failed:', err);
+      });
+    }
+
+    // 管理者宛: カード登録通知
+    sendAdminCardRegisteredEmail({
+      userId,
+      email: user.email,
+      username: user.instagram_username || user.threads_username || null,
+      planId: user.plan_id,
+      scheduledPaymentAt: user.trial_ends_at,
+    }).catch((error) => {
+      console.error('Admin card registration email failed:', error);
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

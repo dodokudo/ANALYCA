@@ -1615,7 +1615,7 @@ export async function updateUserSubscription(userId: string, data: {
  */
 export async function findUserBySubscriptionId(subscriptionId: string): Promise<User | null> {
   const query = `
-    SELECT user_id, subscription_id, plan_id, subscription_status,
+    SELECT user_id, email, subscription_id, plan_id, subscription_status,
            instagram_username, threads_username
     FROM \`mark-454114.analyca.users\`
     WHERE subscription_id = @subscription_id

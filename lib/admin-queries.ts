@@ -111,8 +111,11 @@ export async function getConversionFunnelStats(): Promise<ConversionFunnelStats>
 export interface UserExtendedInfo {
   user_id: string;
   email: string | null;
+  plan_id: string | null;
+  subscription_status: string | null;
   last_login_at: string | null;
   subscription_created_at: string | null;
+  trial_ends_at: string | null;
   created_at: string | null;
   total_access_count: number;
   active_days_7d: number;
@@ -139,8 +142,11 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
     SELECT
       u.user_id,
       u.email,
+      u.plan_id,
+      u.subscription_status,
       u.last_login_at,
       u.subscription_created_at,
+      u.trial_ends_at,
       u.created_at,
       COALESCE(
         ua.total_access_count,
@@ -155,7 +161,15 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
         )
       ) AS active_days_7d,
       ce.utm_source,
-      r.affiliate_code
+      r.affiliate_code,
+      COALESCE(
+        u.trial_ends_at,
+        IF(
+          u.subscription_status = 'trial' AND fc.created_at IS NOT NULL,
+          TIMESTAMP_ADD(fc.created_at, INTERVAL 7 DAY),
+          NULL
+        )
+      ) AS trial_ends_at
     FROM \`${projectId}.analyca.users\` u
     LEFT JOIN user_access_stats ua ON u.user_id = ua.user_id
     LEFT JOIN (
@@ -164,6 +178,12 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
       FROM \`${projectId}.analyca.conversion_events\`
       WHERE utm_source IS NOT NULL AND utm_source != ''
     ) ce ON u.user_id = ce.user_id AND ce.rn = 1
+    LEFT JOIN (
+      SELECT user_id, created_at,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at ASC) as rn
+      FROM \`${projectId}.analyca.conversion_events\`
+      WHERE event_type = 'trial_start'
+    ) fc ON u.user_id = fc.user_id AND fc.rn = 1
     LEFT JOIN (
       SELECT referred_user_id, affiliate_code,
         ROW_NUMBER() OVER (PARTITION BY referred_user_id ORDER BY created_at ASC) as rn
@@ -176,6 +196,8 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
   return rows.map((row: Record<string, unknown>) => ({
     user_id: row.user_id as string,
     email: (row.email as string | null) || null,
+    plan_id: (row.plan_id as string | null) || null,
+    subscription_status: (row.subscription_status as string | null) || null,
     last_login_at:
       typeof row.last_login_at === 'object' &&
       row.last_login_at !== null &&
@@ -188,6 +210,12 @@ export async function getUsersExtendedInfo(): Promise<UserExtendedInfo[]> {
       'value' in row.subscription_created_at
         ? String((row.subscription_created_at as { value?: string }).value || '')
         : (row.subscription_created_at as string | null) || null,
+    trial_ends_at:
+      typeof row.trial_ends_at === 'object' &&
+      row.trial_ends_at !== null &&
+      'value' in row.trial_ends_at
+        ? String((row.trial_ends_at as { value?: string }).value || '')
+        : (row.trial_ends_at as string | null) || null,
     created_at:
       typeof row.created_at === 'object' &&
       row.created_at !== null &&

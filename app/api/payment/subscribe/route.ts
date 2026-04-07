@@ -3,7 +3,7 @@ import { createSubscription } from '@/lib/univapay/client';
 import { PLANS } from '@/lib/univapay/plans';
 import { createPendingUser, getAffiliateByCode, createReferral, recordConversionEvent } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
-import { sendPaymentCompleteEmail } from '@/lib/email';
+import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
 
 // トライアル日数（将来トグルで切り替え可能にする想定）
 const TRIAL_ENABLED = true;
@@ -84,6 +84,14 @@ export async function POST(request: NextRequest) {
         `https://analyca.jp${plan.onboardingPath}?userId=${userId}`,
       ).catch(err => console.error('Payment email send failed:', err));
     }
+
+    sendAdminCardRegisteredEmail({
+      userId,
+      email: email || null,
+      planId,
+      planName: `${plan.name} ${plan.subtitle}`.trim(),
+      scheduledPaymentAt: isTrial ? trialEndsAt : new Date(),
+    }).catch((err) => console.error('Admin card registration email failed:', err));
 
     // 紹介コードがあればコミッション記録（トライアルの場合はpendingで記録）
     if (refCode) {

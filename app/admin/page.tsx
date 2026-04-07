@@ -88,9 +88,39 @@ function getPlanAmount(user: AdminUser, ext?: UserExtended): number | null {
   return PLANS[planId]?.price ?? null;
 }
 
-// アクティブ判定
+// アクティブ判定（統計カード用）
 function isActive(user: AdminUser): boolean {
   return user.has_instagram || user.has_threads;
+}
+
+// ステータス判定
+type UserStatus = 'active' | 'trial' | 'cancelled' | 'inactive';
+
+function getUserStatus(user: AdminUser, ext?: UserExtended): UserStatus {
+  const subStatus = ext?.subscription_status;
+  if (subStatus === 'trial') return 'trial';
+  if (subStatus === 'cancelled' || subStatus === 'expired') return 'cancelled';
+  if (subStatus === 'active' || subStatus === 'current') return 'active';
+  if (user.has_instagram || user.has_threads) return 'active';
+  return 'inactive';
+}
+
+function getStatusLabel(status: UserStatus): string {
+  switch (status) {
+    case 'active': return 'アクティブ';
+    case 'trial': return '無料期間';
+    case 'cancelled': return '退会';
+    case 'inactive': return '未連携';
+  }
+}
+
+function getStatusStyle(status: UserStatus): string {
+  switch (status) {
+    case 'active': return 'bg-green-100 text-green-700';
+    case 'trial': return 'bg-blue-100 text-blue-700';
+    case 'cancelled': return 'bg-red-100 text-red-700';
+    case 'inactive': return 'bg-gray-100 text-gray-500';
+  }
 }
 
 // 相対時間表示
@@ -203,6 +233,9 @@ function AdminPageContent() {
     if (pwFromUrl) {
       setPassword(pwFromUrl);
       fetchData(pwFromUrl);
+    } else {
+      // cookie認証を試行（パスワードなしでAPI呼び出し）
+      fetchData('');
     }
   }, [searchParams]);
 
@@ -211,16 +244,22 @@ function AdminPageContent() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin?password=${encodeURIComponent(pw)}`);
+      const url = pw ? `/api/admin?password=${encodeURIComponent(pw)}` : '/api/admin';
+      const response = await fetch(url);
       const result = await response.json();
 
       if (!result.success) {
+        // cookie認証失敗時はパスワード入力画面を表示（エラーは出さない）
+        if (!pw) {
+          setLoading(false);
+          return;
+        }
         setError(result.error || '認証に失敗しました');
         setIsAuthenticated(false);
       } else {
         setData(result.data);
         setIsAuthenticated(true);
-        if (!searchParams?.get('password')) {
+        if (pw && !searchParams?.get('password')) {
           router.replace(`/admin?password=${encodeURIComponent(pw)}`, { scroll: false });
         }
       }
@@ -418,7 +457,6 @@ function AdminPageContent() {
                     const dashboardUrl = `${baseUrl}/${user.user_id}`;
                     const ext = extendedMap.get(user.user_id);
                     const plan = getPlanLabel(user, ext);
-                    const active = isActive(user);
                     const paymentAmount = getPlanAmount(user, ext);
                     const firstPaymentAt = ext?.subscription_created_at ?? null;
                     const scheduledPaymentAt =
@@ -502,11 +540,9 @@ function AdminPageContent() {
                         </td>
                         <td className="px-4 py-4">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            active
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-500'
+                            getStatusStyle(getUserStatus(user, ext))
                           }`}>
-                            {active ? 'アクティブ' : '未連携'}
+                            {getStatusLabel(getUserStatus(user, ext))}
                           </span>
                         </td>
                         <td className="px-4 py-4">

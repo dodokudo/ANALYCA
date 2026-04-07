@@ -1,9 +1,29 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getAllUsersWithStats, getAdminOverallStats, confirmReferrals, markReferralsPaid } from '@/lib/bigquery';
 import { getAllAffiliatesWithStats, getConversionFunnelStats, getUsersExtendedInfo } from '@/lib/admin-queries';
 
 // パスワード認証
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '7684';
+
+// Cookie認証で管理画面アクセスを許可するユーザーID
+const ADMIN_USER_IDS = new Set([
+  '10012809578833342', // kudooo_ai
+]);
+
+async function isAdminByCookie(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get('analycaUserId')?.value;
+    return !!userId && ADMIN_USER_IDS.has(userId);
+  } catch {
+    return false;
+  }
+}
+
+function isAdminByPassword(password: string | null): boolean {
+  return password === ADMIN_PASSWORD;
+}
 
 
 export async function POST(request: Request) {
@@ -11,7 +31,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const password = body.password || request.headers.get('x-admin-password');
 
-    if (password !== ADMIN_PASSWORD) {
+    if (!isAdminByPassword(password) && !(await isAdminByCookie())) {
       return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
     }
 
@@ -43,11 +63,11 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    // パスワード認証
+    // 認証（cookie or パスワード）
     const url = new URL(request.url);
     const password = url.searchParams.get('password') || request.headers.get('x-admin-password');
 
-    if (password !== ADMIN_PASSWORD) {
+    if (!isAdminByPassword(password) && !(await isAdminByCookie())) {
       return NextResponse.json({
         success: false,
         error: '認証が必要です'

@@ -349,6 +349,9 @@ function AdminPageContent() {
   // UnivaPayサブスクリプション情報
   const subMap = data.subscriptionMap || {};
 
+  // 売上集計から除外するユーザー（工藤さん・山崎さん）
+  const excludeUserIds = new Set(['10012809578833342', '25490712063929916']);
+
   // アフィリエイトデータ
   const affiliates = data.affiliates || [];
   const funnel = data.funnel || { total_conversions: 0, total_revenue: 0, affiliate_sources: 0, utm_tracked: 0 };
@@ -383,7 +386,6 @@ function AdminPageContent() {
         {activeTab === 'users' && (() => {
           // ステータス別集計
           const statusCounts = { active: 0, trial: 0, cancelled: 0, inactive: 0 };
-          const excludeUserIds = new Set(['10012809578833342', '25490712063929916']); // kudooo_ai, zakiyamadesu_ai
           realUsers.forEach(u => {
             const ext = extendedMap.get(u.user_id);
             statusCounts[getUserStatus(u, ext)]++;
@@ -528,10 +530,11 @@ function AdminPageContent() {
                     const dashboardUrl = `${baseUrl}/${user.user_id}`;
                     const ext = extendedMap.get(user.user_id);
                     const plan = getPlanLabel(user, ext);
-                    const paymentAmount = getPlanAmount(user, ext);
-                    const firstPaymentAt = ext?.subscription_created_at ?? null;
+                    const isExcluded = excludeUserIds.has(user.user_id);
+                    const paymentAmount = isExcluded ? null : getPlanAmount(user, ext);
+                    const firstPaymentAt = isExcluded ? null : (ext?.subscription_created_at ?? null);
                     const scheduledPaymentAt =
-                      !firstPaymentAt && ext?.subscription_status === 'trial'
+                      !firstPaymentAt && !isExcluded && ext?.subscription_status === 'trial'
                         ? ext.trial_ends_at
                         : null;
                     const source = ext?.affiliate_code

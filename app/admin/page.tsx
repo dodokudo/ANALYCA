@@ -380,26 +380,85 @@ function AdminPageContent() {
         </div>
 
         {/* タブ別サマリーカード */}
-        {activeTab === 'users' && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">総契約数</p>
-              <p className="text-3xl font-bold text-gray-800">{realUsers.length}</p>
+        {activeTab === 'users' && (() => {
+          // ステータス別集計
+          const statusCounts = { active: 0, trial: 0, cancelled: 0, inactive: 0 };
+          const excludeUserIds = new Set(['10012809578833342', '25490712063929916']); // kudooo_ai, zakiyamadesu_ai
+          realUsers.forEach(u => {
+            const ext = extendedMap.get(u.user_id);
+            statusCounts[getUserStatus(u, ext)]++;
+          });
+
+          // 売上集計（subMapから。除外ユーザーのサブスクは含めない）
+          const excludeSubIds = new Set<string>();
+          excludeUserIds.forEach(uid => {
+            const ext = extendedMap.get(uid);
+            if (ext?.subscription_id) excludeSubIds.add(ext.subscription_id);
+          });
+
+          let confirmedRevenue = 0; // 決済済み（active/currentで今月の次回決済日が今日以前）
+          let projectedRevenue = 0; // 決済見込み（今月中に決済予定）
+          const now = new Date();
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+          realUsers.forEach(u => {
+            if (excludeUserIds.has(u.user_id)) return;
+            const ext = extendedMap.get(u.user_id);
+            const subId = ext?.subscription_id;
+            if (!subId) return;
+            const sub = subMap[subId];
+            if (!sub) return;
+            if (excludeSubIds.has(subId)) return;
+
+            const nextDate = sub.next_payment_date ? new Date(sub.next_payment_date) : null;
+            if (!nextDate) return;
+
+            // 次回決済日が今月内かチェック
+            if (nextDate >= monthStart && nextDate <= monthEnd) {
+              if (nextDate <= now) {
+                confirmedRevenue += sub.amount;
+              } else {
+                projectedRevenue += sub.amount;
+              }
+            }
+            // 次回決済日が来月 = 今月は既に決済済み
+            if (nextDate > monthEnd) {
+              confirmedRevenue += sub.amount;
+            }
+          });
+
+          const totalMonthly = confirmedRevenue + projectedRevenue;
+
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">今月売上</p>
+                <p className="text-2xl font-bold text-gray-800">¥{totalMonthly.toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">決済済み</p>
+                <p className="text-2xl font-bold text-green-600">¥{confirmedRevenue.toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">決済見込み</p>
+                <p className="text-2xl font-bold text-blue-600">¥{projectedRevenue.toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">アクティブ</p>
+                <p className="text-2xl font-bold text-green-600">{statusCounts.active}人</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">無料体験</p>
+                <p className="text-2xl font-bold text-blue-600">{statusCounts.trial}人</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">退会</p>
+                <p className="text-2xl font-bold text-red-600">{statusCounts.cancelled}人</p>
+              </div>
             </div>
-            <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">アクティブ</p>
-              <p className="text-3xl font-bold text-green-600">{activeUsers.length}</p>
-            </div>
-            <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">Lightプラン</p>
-              <p className="text-3xl font-bold text-gray-800">{lightUsers.length}</p>
-            </div>
-            <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">Standardプラン</p>
-              <p className="text-3xl font-bold text-gray-800">{standardUsers.length}</p>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeTab === 'affiliates' && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">

@@ -107,7 +107,7 @@ async function getAllMyComments(
           views,
         });
 
-        // このコメントに返信がある場合、再帰的に取得
+        // このコメントに返信がある場合、再帰的に取得（自分のセルフリプライチェーンのみ辿る）
         if (reply.has_replies) {
           const nestedComments = await getAllMyComments(
             accessToken,
@@ -119,18 +119,8 @@ async function getAllMyComments(
           );
           allComments.push(...nestedComments);
         }
-      } else if (reply.has_replies) {
-        // 他人のコメントにも自分のネスト返信がある可能性があるので再帰
-        const nestedComments = await getAllMyComments(
-          accessToken,
-          rootPostId,
-          myUsername,
-          reply.id,
-          depth + 1,
-          maxDepth
-        );
-        allComments.push(...nestedComments);
       }
+      // 他人のコメントは辿らない: 戦略的なコメント連結（自分のセルフリプライチェーン）のみを対象とする
 
       // API制限を考慮（Threads APIはレートリミットに余裕あり）
       await new Promise(resolve => setTimeout(resolve, 30));

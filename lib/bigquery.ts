@@ -1677,9 +1677,17 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
  * subscription_idでサブスクステータスを更新（Webhook用）
  */
 export async function updateSubscriptionStatusBySubId(subscriptionId: string, status: string): Promise<void> {
+  // status=current に遷移する時、subscription_created_at がまだ設定されていなければ CURRENT_TIMESTAMP を入れる
+  // （trial期間中は NULL のまま → 初回決済成功でwebhook発火 → 日時が入る）
   const query = `
     UPDATE \`mark-454114.analyca.users\`
-    SET subscription_status = @status, updated_at = CURRENT_TIMESTAMP()
+    SET
+      subscription_status = @status,
+      subscription_created_at = CASE
+        WHEN @status = 'current' AND subscription_created_at IS NULL THEN CURRENT_TIMESTAMP()
+        ELSE subscription_created_at
+      END,
+      updated_at = CURRENT_TIMESTAMP()
     WHERE subscription_id = @subscription_id
   `;
 

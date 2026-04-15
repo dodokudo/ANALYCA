@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import * as Sentry from '@sentry/nextjs';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.lolipop.jp',
@@ -87,14 +88,31 @@ function wrapHtml(title: string, body: string): string {
 
 /**
  * メール送信ベース関数
+ * SMTPエラーは必ずSentryに送信して即検知可能にする（握り潰し禁止）
  */
 export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  await transporter.sendMail({
-    from: FROM_ADDRESS,
-    to,
-    subject,
-    html,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: FROM_ADDRESS,
+      to,
+      subject,
+      html,
+    });
+    console.log(`[EMAIL SENT] to=${to} subject="${subject.slice(0, 60)}" messageId=${info.messageId}`);
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error('[EMAIL FAILED]', {
+      to,
+      subject: subject.slice(0, 80),
+      error: err.message,
+      code: (err as { code?: string }).code,
+    });
+    Sentry.captureException(err, {
+      tags: { feature: 'email', recipient: to },
+      extra: { subject, smtpHost: process.env.SMTP_HOST, smtpUser: process.env.SMTP_USER },
+    });
+    throw err;
+  }
 }
 
 /**
@@ -246,44 +264,6 @@ export async function sendOnboardingCompleteEmail(
   );
 }
 
-
-/**
- * カード登録完了メール（ユーザー宛）
- * 無料会員登録完了後、ログインURLを案内する
- */
-export async function sendCardRegisteredUserEmail(
-  to: string,
-  loginUrl: string,
-): Promise<void> {
-  const body = `
-    <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">無料会員登録が完了しました</h2>
-    <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.7;">
-      ANALYCAへようこそ！<br>
-      カード登録が完了し、無料トライアルが開始されました。
-    </p>
-    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;">
-      下のボタンからログインして、SNSアカウントの連携を完了してください。
-    </p>
-    <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
-      <tr>
-        <td style="background:#7c3aed;border-radius:8px;">
-          <a href="${loginUrl}" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
-            ログインしてセットアップを始める
-          </a>
-        </td>
-      </tr>
-    </table>
-    <p style="margin:0;font-size:13px;color:#9ca3af;">
-      ご不明な点がございましたら、このメールに返信してください。
-    </p>
-  `;
-
-  await sendEmail(
-    to,
-    '【ANALYCA】無料会員登録が完了しました',
-    wrapHtml('無料会員登録完了', body),
-  );
-}
 
 /**
  * 解約完了メール

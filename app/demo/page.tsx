@@ -569,7 +569,7 @@ function DemoPageContent() {
       )}
 
       {/* メインコンテンツ */}
-      <main className="flex-1 lg:ml-56">
+      <main className="flex-1 lg:ml-56 min-w-0">
         {/* モバイルヘッダー */}
         <header className="lg:hidden sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
           <button
@@ -585,7 +585,7 @@ function DemoPageContent() {
         </header>
 
         {/* チャンネルコンテンツ */}
-        <div className="p-4 lg:p-6">
+        <div className="p-4 lg:p-6 min-w-0">
           {activeChannel === 'instagram' && <InstagramDemo />}
           {activeChannel === 'threads' && <ThreadsDemo />}
           {activeChannel === 'line' && <LineDemo />}
@@ -594,21 +594,21 @@ function DemoPageContent() {
 
       {/* モバイルボトムナビ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)] safe-area-bottom z-40">
-        <div className="flex justify-around py-2">
+        <div className="flex py-2.5">
           {channelItems.map((channel) => {
             const Icon = channel.Icon;
             return (
               <button
                 key={channel.value}
                 onClick={() => setActiveChannel(channel.value)}
-                className={`flex flex-col items-center px-4 py-1 ${
+                className={`flex flex-col items-center justify-center flex-1 py-1.5 ${
                   activeChannel === channel.value
                     ? 'text-[color:var(--color-accent)]'
                     : 'text-[color:var(--color-text-muted)]'
                 }`}
               >
-                <Icon className="w-6 h-6" />
-                <span className="text-xs mt-1">{channel.label}</span>
+                <Icon className="w-[22px] h-[22px]" />
+                <span className="text-[11px] leading-none mt-1 font-medium">{channel.label}</span>
               </button>
             );
           })}

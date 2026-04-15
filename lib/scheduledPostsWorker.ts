@@ -10,7 +10,10 @@ import {
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 5000;
-const STUCK_THRESHOLD_MS = 10 * 60 * 1000; // 10分
+const STUCK_THRESHOLD_MS = 4 * 60 * 1000; // 4分（cron3分間隔+余裕1分）
+const COMMENT_DELAY_MIN_MS = 15000; // コメント間待機の最小値: 15秒
+const COMMENT_DELAY_RANGE_MS = 30000; // 上乗せ範囲: 最大+30秒（合計15-45秒）
+const TIMEOUT_SAFE_MARGIN_MS = 240000; // 関数起動から240秒経過で安全撤退（maxDuration 300秒）
 
 function getJstNow() {
   const now = new Date();
@@ -55,7 +58,7 @@ async function fetchOnePendingPost(): Promise<ScheduledPostRow | undefined> {
   const items = await listAllPendingPosts({ startDate, endDate });
 
   return items.find((item) => {
-    return item.status === 'scheduled' && isScheduledTimePassed(item.scheduled_time);
+    return (item.status === 'scheduled' || item.status === 'partial') && isScheduledTimePassed(item.scheduled_time);
   });
 }
 
@@ -87,75 +90,128 @@ async function recoverStuckPosts(): Promise<number> {
 async function executeScheduledPost(post: ScheduledPostRow): Promise<{
   success: boolean;
   mainThreadId?: string;
-  comment1ThreadId?: string;
-  comment2ThreadId?: string;
+  commentThreadIds: Record<number, string | undefined>;
   error?: string;
 }> {
   console.log(`[scheduledPostsWorker] Executing: ${post.schedule_id} for user ${post.user_id}`);
+
+  const startedAt = Date.now();
+  const errors: string[] = [];
+  const commentThreadIds: Record<number, string | undefined> = {};
 
   // ユーザーのThreadsトークンを取得
   const user = await getUserById(post.user_id);
   if (!user?.threads_access_token) {
     const errMsg = `No Threads token for user ${post.user_id}`;
     console.error(`[scheduledPostsWorker] ${errMsg}`);
-    await updateScheduledPost(post.schedule_id, { status: 'failed' });
-    return { success: false, error: errMsg };
+    await updateScheduledPost(post.schedule_id, { status: 'failed', errorMessage: errMsg });
+    return { success: false, commentThreadIds, error: errMsg };
   }
 
   const api = new ThreadsAPI(user.threads_access_token);
 
-  try {
-    // 1. メイン投稿
-    let mainThreadId = post.main_thread_id || undefined;
-    if (!mainThreadId) {
+  // 1. メイン投稿（既に投稿済みならスキップ）
+  let mainThreadId = post.main_thread_id || undefined;
+  if (!mainThreadId) {
+    try {
       console.log('[scheduledPostsWorker] Posting main thread...');
       mainThreadId = await postWithRetry(api, post.main_text);
       console.log(`[scheduledPostsWorker] Main thread posted: ${mainThreadId}`);
       await updateScheduledPost(post.schedule_id, { mainThreadId });
-    } else {
-      console.log(`[scheduledPostsWorker] Main thread already posted: ${mainThreadId}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[scheduledPostsWorker] Main thread failed: ${post.schedule_id}`, errorMessage);
+      await updateScheduledPost(post.schedule_id, { status: 'failed', errorMessage: `Main: ${errorMessage}` });
+      return { success: false, commentThreadIds, error: errorMessage };
     }
-
-    let replyToId = mainThreadId;
-
-    // 2. コメント1
-    let comment1ThreadId = post.comment1_thread_id || undefined;
-    if (!comment1ThreadId && post.comment1?.trim()) {
-      const delay1 = Math.floor(Math.random() * 60000) + 30000;
-      console.log(`[scheduledPostsWorker] Waiting ${(delay1 / 1000).toFixed(1)}s before comment1...`);
-      await new Promise((resolve) => setTimeout(resolve, delay1));
-
-      console.log('[scheduledPostsWorker] Posting comment1...');
-      comment1ThreadId = await postWithRetry(api, post.comment1, replyToId);
-      console.log(`[scheduledPostsWorker] Comment1 posted: ${comment1ThreadId}`);
-      await updateScheduledPost(post.schedule_id, { comment1ThreadId });
-      replyToId = comment1ThreadId;
-    } else if (comment1ThreadId) {
-      replyToId = comment1ThreadId;
-    }
-
-    // 3. コメント2
-    let comment2ThreadId = post.comment2_thread_id || undefined;
-    if (!comment2ThreadId && post.comment2?.trim()) {
-      const delay2 = Math.floor(Math.random() * 60000) + 30000;
-      console.log(`[scheduledPostsWorker] Waiting ${(delay2 / 1000).toFixed(1)}s before comment2...`);
-      await new Promise((resolve) => setTimeout(resolve, delay2));
-
-      console.log('[scheduledPostsWorker] Posting comment2...');
-      comment2ThreadId = await postWithRetry(api, post.comment2, replyToId);
-      console.log(`[scheduledPostsWorker] Comment2 posted: ${comment2ThreadId}`);
-      await updateScheduledPost(post.schedule_id, { comment2ThreadId });
-    }
-
-    await updateScheduledPost(post.schedule_id, { status: 'posted' });
-    console.log(`[scheduledPostsWorker] Successfully completed: ${post.schedule_id}`);
-    return { success: true, mainThreadId, comment1ThreadId, comment2ThreadId };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[scheduledPostsWorker] Failed: ${post.schedule_id}`, errorMessage);
-    await updateScheduledPost(post.schedule_id, { status: 'failed' });
-    return { success: false, error: errorMessage };
+  } else {
+    console.log(`[scheduledPostsWorker] Main thread already posted: ${mainThreadId}`);
   }
+
+  let replyToId = mainThreadId;
+
+  // 2. コメント1〜7を順次投稿
+  const comments: Array<{
+    index: number;
+    text: string;
+    existingThreadId?: string | null;
+    updateKey:
+      | 'comment1ThreadId'
+      | 'comment2ThreadId'
+      | 'comment3ThreadId'
+      | 'comment4ThreadId'
+      | 'comment5ThreadId'
+      | 'comment6ThreadId'
+      | 'comment7ThreadId';
+  }> = [
+    { index: 1, text: post.comment1, existingThreadId: post.comment1_thread_id, updateKey: 'comment1ThreadId' },
+    { index: 2, text: post.comment2, existingThreadId: post.comment2_thread_id, updateKey: 'comment2ThreadId' },
+    { index: 3, text: post.comment3, existingThreadId: post.comment3_thread_id, updateKey: 'comment3ThreadId' },
+    { index: 4, text: post.comment4, existingThreadId: post.comment4_thread_id, updateKey: 'comment4ThreadId' },
+    { index: 5, text: post.comment5, existingThreadId: post.comment5_thread_id, updateKey: 'comment5ThreadId' },
+    { index: 6, text: post.comment6, existingThreadId: post.comment6_thread_id, updateKey: 'comment6ThreadId' },
+    { index: 7, text: post.comment7, existingThreadId: post.comment7_thread_id, updateKey: 'comment7ThreadId' },
+  ];
+
+  let timedOut = false;
+  for (const comment of comments) {
+    const existing = comment.existingThreadId || undefined;
+    if (existing) {
+      console.log(`[scheduledPostsWorker] Comment${comment.index} already posted: ${existing}`);
+      commentThreadIds[comment.index] = existing;
+      replyToId = existing;
+      continue;
+    }
+    if (!comment.text?.trim()) {
+      continue;
+    }
+
+    // タイムアウト前の安全撤退: 残時間が足りなければ次cronに委ねる
+    const elapsed = Date.now() - startedAt;
+    if (elapsed >= TIMEOUT_SAFE_MARGIN_MS) {
+      console.warn(
+        `[scheduledPostsWorker] Timeout margin reached (${(elapsed / 1000).toFixed(1)}s), yielding to next cron for comment${comment.index}+`,
+      );
+      timedOut = true;
+      break;
+    }
+
+    try {
+      const delay = Math.floor(Math.random() * COMMENT_DELAY_RANGE_MS) + COMMENT_DELAY_MIN_MS;
+      console.log(
+        `[scheduledPostsWorker] Waiting ${(delay / 1000).toFixed(1)}s before comment${comment.index}...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      console.log(`[scheduledPostsWorker] Posting comment${comment.index}...`);
+      const threadId = await postWithRetry(api, comment.text, replyToId);
+      console.log(`[scheduledPostsWorker] Comment${comment.index} posted: ${threadId}`);
+      await updateScheduledPost(post.schedule_id, { [comment.updateKey]: threadId });
+      commentThreadIds[comment.index] = threadId;
+      replyToId = threadId;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[scheduledPostsWorker] Comment${comment.index} failed: ${post.schedule_id}`, errorMessage);
+      errors.push(`Comment${comment.index}: ${errorMessage}`);
+    }
+  }
+
+  // 結果判定
+  if (timedOut) {
+    const combinedError = errors.length > 0 ? `${errors.join('; ')}; timeout-yield` : 'timeout-yield';
+    await updateScheduledPost(post.schedule_id, { status: 'partial', errorMessage: combinedError });
+    console.log(`[scheduledPostsWorker] Timeout yield: ${post.schedule_id} (${combinedError})`);
+    return { success: true, mainThreadId, commentThreadIds, error: combinedError };
+  }
+  if (errors.length > 0) {
+    const combinedError = errors.join('; ');
+    await updateScheduledPost(post.schedule_id, { status: 'partial', errorMessage: combinedError });
+    console.log(`[scheduledPostsWorker] Partial completion: ${post.schedule_id} (${combinedError})`);
+    return { success: true, mainThreadId, commentThreadIds, error: combinedError };
+  }
+  await updateScheduledPost(post.schedule_id, { status: 'posted' });
+  console.log(`[scheduledPostsWorker] Successfully completed: ${post.schedule_id}`);
+  return { success: true, mainThreadId, commentThreadIds };
 }
 
 export async function processScheduledPosts(): Promise<{

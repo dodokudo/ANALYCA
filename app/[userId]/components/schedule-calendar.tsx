@@ -298,6 +298,23 @@ export function ScheduleCalendar({
                   {detailItem.comment2 || '（なし）'}
                 </div>
               </div>
+
+              {([
+                { index: 3, value: detailItem.comment3 },
+                { index: 4, value: detailItem.comment4 },
+                { index: 5, value: detailItem.comment5 },
+                { index: 6, value: detailItem.comment6 },
+                { index: 7, value: detailItem.comment7 },
+              ] as const).map((c) =>
+                c.value ? (
+                  <div key={c.index}>
+                    <h4 className="mb-2 text-xs font-semibold text-gray-500">コメント{c.index}</h4>
+                    <div className="whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900">
+                      {c.value}
+                    </div>
+                  </div>
+                ) : null,
+              )}
             </div>
 
             <div className="mt-6 flex justify-end">

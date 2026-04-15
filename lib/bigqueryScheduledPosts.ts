@@ -27,11 +27,22 @@ const SCHEMA = [
   { name: 'main_text', type: 'STRING' },
   { name: 'comment1', type: 'STRING' },
   { name: 'comment2', type: 'STRING' },
+  { name: 'comment3', type: 'STRING' },
+  { name: 'comment4', type: 'STRING' },
+  { name: 'comment5', type: 'STRING' },
+  { name: 'comment6', type: 'STRING' },
+  { name: 'comment7', type: 'STRING' },
   { name: 'created_at', type: 'TIMESTAMP' },
   { name: 'updated_at', type: 'TIMESTAMP' },
   { name: 'main_thread_id', type: 'STRING' },
   { name: 'comment1_thread_id', type: 'STRING' },
   { name: 'comment2_thread_id', type: 'STRING' },
+  { name: 'comment3_thread_id', type: 'STRING' },
+  { name: 'comment4_thread_id', type: 'STRING' },
+  { name: 'comment5_thread_id', type: 'STRING' },
+  { name: 'comment6_thread_id', type: 'STRING' },
+  { name: 'comment7_thread_id', type: 'STRING' },
+  { name: 'error_message', type: 'STRING' },
 ];
 
 async function query<T = Record<string, unknown>>(sql: string, params?: Record<string, unknown>, types?: Record<string, string>) {
@@ -49,6 +60,30 @@ async function ensureTable() {
     } catch (error) {
       const message = (error as Error)?.message || '';
       if (!message.includes('Already Exists')) throw error;
+    }
+  } else {
+    // マイグレーション: 新カラムを追加（既存テーブル用）
+    const newColumns = [
+      'comment3',
+      'comment4',
+      'comment5',
+      'comment6',
+      'comment7',
+      'comment3_thread_id',
+      'comment4_thread_id',
+      'comment5_thread_id',
+      'comment6_thread_id',
+      'comment7_thread_id',
+      'error_message',
+    ];
+    for (const col of newColumns) {
+      try {
+        await client.query({
+          query: `ALTER TABLE \`${projectId}.${DATASET}.${TABLE}\` ADD COLUMN ${col} STRING`,
+        });
+      } catch {
+        // カラムが既に存在する場合は無視
+      }
     }
   }
 }
@@ -74,11 +109,22 @@ export type ScheduledPostRow = {
   main_text: string;
   comment1: string;
   comment2: string;
+  comment3: string;
+  comment4: string;
+  comment5: string;
+  comment6: string;
+  comment7: string;
   created_at: string;
   updated_at: string;
   main_thread_id?: string | null;
   comment1_thread_id?: string | null;
   comment2_thread_id?: string | null;
+  comment3_thread_id?: string | null;
+  comment4_thread_id?: string | null;
+  comment5_thread_id?: string | null;
+  comment6_thread_id?: string | null;
+  comment7_thread_id?: string | null;
+  error_message?: string | null;
 };
 
 function mapRow(row: Record<string, unknown>): ScheduledPostRow {
@@ -92,13 +138,37 @@ function mapRow(row: Record<string, unknown>): ScheduledPostRow {
     main_text: toPlain(row.main_text),
     comment1: toPlain(row.comment1),
     comment2: toPlain(row.comment2),
+    comment3: toPlain(row.comment3),
+    comment4: toPlain(row.comment4),
+    comment5: toPlain(row.comment5),
+    comment6: toPlain(row.comment6),
+    comment7: toPlain(row.comment7),
     created_at: toPlain(row.created_at),
     updated_at: toPlain(row.updated_at),
     main_thread_id: toPlain(row.main_thread_id) || null,
     comment1_thread_id: toPlain(row.comment1_thread_id) || null,
     comment2_thread_id: toPlain(row.comment2_thread_id) || null,
+    comment3_thread_id: toPlain(row.comment3_thread_id) || null,
+    comment4_thread_id: toPlain(row.comment4_thread_id) || null,
+    comment5_thread_id: toPlain(row.comment5_thread_id) || null,
+    comment6_thread_id: toPlain(row.comment6_thread_id) || null,
+    comment7_thread_id: toPlain(row.comment7_thread_id) || null,
+    error_message: toPlain(row.error_message) || null,
   };
 }
+
+const SELECT_COLUMNS = `
+  sp.schedule_id, sp.user_id, sp.scheduled_time, sp.status,
+  sp.main_text,
+  sp.comment1, sp.comment2, sp.comment3, sp.comment4, sp.comment5, sp.comment6, sp.comment7,
+  sp.created_at, sp.updated_at,
+  sp.main_thread_id,
+  sp.comment1_thread_id, sp.comment2_thread_id, sp.comment3_thread_id,
+  sp.comment4_thread_id, sp.comment5_thread_id, sp.comment6_thread_id, sp.comment7_thread_id,
+  sp.error_message,
+  FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S+09:00', sp.scheduled_time, 'Asia/Tokyo') AS scheduled_at_jst,
+  FORMAT_DATE('%Y-%m-%d', DATE(sp.scheduled_time, 'Asia/Tokyo')) AS scheduled_date
+`;
 
 export async function listScheduledPosts(userId: string, params: { startDate?: string; endDate?: string }) {
   await ensureTable();
@@ -115,13 +185,7 @@ export async function listScheduledPosts(userId: string, params: { startDate?: s
   }
 
   const sql = `
-    SELECT
-      sp.schedule_id, sp.user_id, sp.scheduled_time, sp.status,
-      sp.main_text, sp.comment1, sp.comment2,
-      sp.created_at, sp.updated_at,
-      sp.main_thread_id, sp.comment1_thread_id, sp.comment2_thread_id,
-      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S+09:00', sp.scheduled_time, 'Asia/Tokyo') AS scheduled_at_jst,
-      FORMAT_DATE('%Y-%m-%d', DATE(sp.scheduled_time, 'Asia/Tokyo')) AS scheduled_date
+    SELECT ${SELECT_COLUMNS}
     FROM \`${projectId}.${DATASET}.${TABLE}\` sp
     WHERE ${conditions.join(' AND ')}
     ORDER BY sp.scheduled_time ASC
@@ -133,7 +197,7 @@ export async function listScheduledPosts(userId: string, params: { startDate?: s
 
 export async function listAllPendingPosts(params: { startDate?: string; endDate?: string }) {
   await ensureTable();
-  const conditions: string[] = ["sp.status = 'scheduled'"];
+  const conditions: string[] = ["sp.status IN ('scheduled', 'partial')"];
   const queryParams: Record<string, unknown> = {};
 
   if (params.startDate) {
@@ -146,13 +210,7 @@ export async function listAllPendingPosts(params: { startDate?: string; endDate?
   }
 
   const sql = `
-    SELECT
-      sp.schedule_id, sp.user_id, sp.scheduled_time, sp.status,
-      sp.main_text, sp.comment1, sp.comment2,
-      sp.created_at, sp.updated_at,
-      sp.main_thread_id, sp.comment1_thread_id, sp.comment2_thread_id,
-      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S+09:00', sp.scheduled_time, 'Asia/Tokyo') AS scheduled_at_jst,
-      FORMAT_DATE('%Y-%m-%d', DATE(sp.scheduled_time, 'Asia/Tokyo')) AS scheduled_date
+    SELECT ${SELECT_COLUMNS}
     FROM \`${projectId}.${DATASET}.${TABLE}\` sp
     WHERE ${conditions.join(' AND ')}
     ORDER BY sp.scheduled_time ASC
@@ -162,16 +220,22 @@ export async function listAllPendingPosts(params: { startDate?: string; endDate?
   return rows.map(mapRow);
 }
 
+export async function listAllProcessingPosts() {
+  await ensureTable();
+  const sql = `
+    SELECT ${SELECT_COLUMNS}
+    FROM \`${projectId}.${DATASET}.${TABLE}\` sp
+    WHERE sp.status = 'processing'
+    ORDER BY sp.scheduled_time ASC
+  `;
+  const rows = await query(sql);
+  return rows.map(mapRow);
+}
+
 export async function getScheduledPostById(scheduleId: string) {
   await ensureTable();
   const sql = `
-    SELECT
-      sp.schedule_id, sp.user_id, sp.scheduled_time, sp.status,
-      sp.main_text, sp.comment1, sp.comment2,
-      sp.created_at, sp.updated_at,
-      sp.main_thread_id, sp.comment1_thread_id, sp.comment2_thread_id,
-      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S+09:00', sp.scheduled_time, 'Asia/Tokyo') AS scheduled_at_jst,
-      FORMAT_DATE('%Y-%m-%d', DATE(sp.scheduled_time, 'Asia/Tokyo')) AS scheduled_date
+    SELECT ${SELECT_COLUMNS}
     FROM \`${projectId}.${DATASET}.${TABLE}\` sp
     WHERE sp.schedule_id = @scheduleId
     LIMIT 1
@@ -188,12 +252,21 @@ export async function insertScheduledPost(params: {
   mainText: string;
   comment1: string;
   comment2: string;
+  comment3?: string;
+  comment4?: string;
+  comment5?: string;
+  comment6?: string;
+  comment7?: string;
 }) {
   await ensureTable();
   const sql = `
     INSERT INTO \`${projectId}.${DATASET}.${TABLE}\`
-    (schedule_id, user_id, scheduled_time, status, main_text, comment1, comment2, created_at, updated_at)
-    VALUES (@scheduleId, @userId, @scheduledTime, @status, @mainText, @comment1, @comment2, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+    (schedule_id, user_id, scheduled_time, status, main_text,
+     comment1, comment2, comment3, comment4, comment5, comment6, comment7,
+     created_at, updated_at)
+    VALUES (@scheduleId, @userId, @scheduledTime, @status, @mainText,
+     @comment1, @comment2, @comment3, @comment4, @comment5, @comment6, @comment7,
+     CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
   `;
   await client.query({
     query: sql,
@@ -205,6 +278,11 @@ export async function insertScheduledPost(params: {
       mainText: params.mainText,
       comment1: params.comment1,
       comment2: params.comment2,
+      comment3: params.comment3 ?? '',
+      comment4: params.comment4 ?? '',
+      comment5: params.comment5 ?? '',
+      comment6: params.comment6 ?? '',
+      comment7: params.comment7 ?? '',
     },
   });
   return getScheduledPostById(params.scheduleId);
@@ -218,9 +296,20 @@ export async function updateScheduledPost(
     mainText?: string | null;
     comment1?: string | null;
     comment2?: string | null;
+    comment3?: string | null;
+    comment4?: string | null;
+    comment5?: string | null;
+    comment6?: string | null;
+    comment7?: string | null;
     mainThreadId?: string | null;
     comment1ThreadId?: string | null;
     comment2ThreadId?: string | null;
+    comment3ThreadId?: string | null;
+    comment4ThreadId?: string | null;
+    comment5ThreadId?: string | null;
+    comment6ThreadId?: string | null;
+    comment7ThreadId?: string | null;
+    errorMessage?: string | null;
   },
 ) {
   await ensureTable();
@@ -243,30 +332,43 @@ export async function updateScheduledPost(
     queryParams.mainText = params.mainText;
     types.mainText = 'STRING';
   }
-  if (params.comment1 !== undefined) {
-    setClauses.push('comment1 = @comment1');
-    queryParams.comment1 = params.comment1;
-    types.comment1 = 'STRING';
+  const textFields: Array<[string, string | null | undefined]> = [
+    ['comment1', params.comment1],
+    ['comment2', params.comment2],
+    ['comment3', params.comment3],
+    ['comment4', params.comment4],
+    ['comment5', params.comment5],
+    ['comment6', params.comment6],
+    ['comment7', params.comment7],
+  ];
+  for (const [col, value] of textFields) {
+    if (value !== undefined) {
+      setClauses.push(`${col} = @${col}`);
+      queryParams[col] = value;
+      types[col] = 'STRING';
+    }
   }
-  if (params.comment2 !== undefined) {
-    setClauses.push('comment2 = @comment2');
-    queryParams.comment2 = params.comment2;
-    types.comment2 = 'STRING';
+  const threadFields: Array<[string, string, string | null | undefined]> = [
+    ['main_thread_id', 'mainThreadId', params.mainThreadId],
+    ['comment1_thread_id', 'comment1ThreadId', params.comment1ThreadId],
+    ['comment2_thread_id', 'comment2ThreadId', params.comment2ThreadId],
+    ['comment3_thread_id', 'comment3ThreadId', params.comment3ThreadId],
+    ['comment4_thread_id', 'comment4ThreadId', params.comment4ThreadId],
+    ['comment5_thread_id', 'comment5ThreadId', params.comment5ThreadId],
+    ['comment6_thread_id', 'comment6ThreadId', params.comment6ThreadId],
+    ['comment7_thread_id', 'comment7ThreadId', params.comment7ThreadId],
+  ];
+  for (const [col, paramName, value] of threadFields) {
+    if (value !== undefined) {
+      setClauses.push(`${col} = @${paramName}`);
+      queryParams[paramName] = value;
+      types[paramName] = 'STRING';
+    }
   }
-  if (params.mainThreadId !== undefined) {
-    setClauses.push('main_thread_id = @mainThreadId');
-    queryParams.mainThreadId = params.mainThreadId;
-    types.mainThreadId = 'STRING';
-  }
-  if (params.comment1ThreadId !== undefined) {
-    setClauses.push('comment1_thread_id = @comment1ThreadId');
-    queryParams.comment1ThreadId = params.comment1ThreadId;
-    types.comment1ThreadId = 'STRING';
-  }
-  if (params.comment2ThreadId !== undefined) {
-    setClauses.push('comment2_thread_id = @comment2ThreadId');
-    queryParams.comment2ThreadId = params.comment2ThreadId;
-    types.comment2ThreadId = 'STRING';
+  if (params.errorMessage !== undefined) {
+    setClauses.push('error_message = @errorMessage');
+    queryParams.errorMessage = params.errorMessage;
+    types.errorMessage = 'STRING';
   }
 
   const sql = `
@@ -283,7 +385,7 @@ export async function claimScheduledPost(scheduleId: string): Promise<boolean> {
   const sql = `
     UPDATE \`${projectId}.${DATASET}.${TABLE}\`
     SET status = 'processing', updated_at = CURRENT_TIMESTAMP()
-    WHERE schedule_id = @scheduleId AND status = 'scheduled'
+    WHERE schedule_id = @scheduleId AND status IN ('scheduled', 'partial')
   `;
   const [job] = await client.createQueryJob({ query: sql, params: { scheduleId } });
   await job.getQueryResults();

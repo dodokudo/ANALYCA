@@ -460,12 +460,12 @@ function DemoPageContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get('tab') as Channel | null;
 
-  // URLパラメータからチャンネルを取得（デフォルトはinstagram）
+  // URLパラメータからチャンネルを取得（デフォルトはthreads）
   const activeChannel = useMemo(() => {
     if (tabParam === 'threads' || tabParam === 'line' || tabParam === 'instagram') {
       return tabParam;
     }
-    return 'instagram';
+    return 'threads';
   }, [tabParam]);
 
   const setActiveChannel = (channel: Channel) => {

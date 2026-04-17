@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { findUserBySubscriptionId, updateSubscriptionStatusBySubId } from '@/lib/bigquery';
 import { sendAdminPaymentNotificationEmail } from '@/lib/email';
 import { PLANS } from '@/lib/univapay/plans';
@@ -13,7 +14,37 @@ function extractAmount(data: Record<string, unknown>): number | null {
   return null;
 }
 
+/**
+ * UnivaPayは webhook に Authorization ヘッダーで事前共有トークンを載せてくる。
+ * UNIVAPAY_WEBHOOK_AUTH_TOKEN が設定されていれば検証、未設定なら互換のため通す。
+ * (本番稼働中のwebhookを壊さないための段階的ロールアウト対応)
+ */
+type AuthResult = { ok: true } | { ok: false; reason: string };
+
+function verifyWebhookAuth(request: NextRequest): AuthResult {
+  const expected = process.env.UNIVAPAY_WEBHOOK_AUTH_TOKEN;
+  if (!expected) {
+    return { ok: true };
+  }
+  const received = request.headers.get('authorization') ?? '';
+  const a = Buffer.from(received);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) {
+    return { ok: false, reason: 'length_mismatch' };
+  }
+  if (!crypto.timingSafeEqual(a, b)) {
+    return { ok: false, reason: 'token_mismatch' };
+  }
+  return { ok: true };
+}
+
 export async function POST(request: NextRequest) {
+  const auth: AuthResult = verifyWebhookAuth(request);
+  if (auth.ok === false) {
+    console.warn('[WEBHOOK] auth failed:', auth.reason);
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
   let event: string | undefined;
   let body: Record<string, unknown> = {};
 

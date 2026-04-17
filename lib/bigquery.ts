@@ -1520,6 +1520,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
   subscription_created_at: Date;
   email?: string;
   trial_ends_at?: Date;
+  transaction_token_id?: string;
 }): Promise<string> {
   const query = `
     INSERT INTO \`mark-454114.analyca.users\` (
@@ -1530,6 +1531,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
       subscription_status,
       subscription_created_at,
       trial_ends_at,
+      transaction_token_id,
       created_at,
       updated_at
     ) VALUES (
@@ -1540,6 +1542,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
       @subscription_status,
       @subscription_created_at,
       @trial_ends_at,
+      @transaction_token_id,
       CURRENT_TIMESTAMP(),
       CURRENT_TIMESTAMP()
     )
@@ -1555,6 +1558,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
       subscription_status: subscriptionData.subscription_status,
       subscription_created_at: subscriptionData.subscription_created_at.toISOString(),
       trial_ends_at: subscriptionData.trial_ends_at ? subscriptionData.trial_ends_at.toISOString() : null,
+      transaction_token_id: subscriptionData.transaction_token_id || null,
     },
     types: {
       subscription_created_at: 'TIMESTAMP',
@@ -1563,6 +1567,36 @@ export async function createPendingUser(userId: string, subscriptionData: {
   });
 
   return userId;
+}
+
+/**
+ * transaction_token_id で既存ユーザーを検索（冪等性チェック用）
+ * 同じトークンで複数回サブスク作成が呼ばれるのを防ぐ。
+ */
+export async function findUserByTransactionTokenId(transactionTokenId: string): Promise<{
+  user_id: string;
+  subscription_id: string | null;
+  plan_id: string | null;
+  subscription_status: string | null;
+} | null> {
+  const query = `
+    SELECT user_id, subscription_id, plan_id, subscription_status
+    FROM \`mark-454114.analyca.users\`
+    WHERE transaction_token_id = @transaction_token_id
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+  const [rows] = await bigquery.query({
+    query,
+    params: { transaction_token_id: transactionTokenId },
+  });
+  if (rows.length === 0) return null;
+  return {
+    user_id: rows[0].user_id,
+    subscription_id: rows[0].subscription_id || null,
+    plan_id: rows[0].plan_id || null,
+    subscription_status: rows[0].subscription_status || null,
+  };
 }
 
 /**

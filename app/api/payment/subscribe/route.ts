@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/univapay/client';
 import { PLANS } from '@/lib/univapay/plans';
-import { createPendingUser, getAffiliateByCode, createReferral, recordConversionEvent } from '@/lib/bigquery';
+import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, createReferral, recordConversionEvent } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
 
@@ -31,6 +31,23 @@ export async function POST(request: NextRequest) {
     const plan = PLANS[planId];
     const isTrial = TRIAL_ENABLED;
     const isYearly = plan.yearly === true;
+
+    // 冪等性チェック: 同じ transaction_token_id で既にサブスク登録済みなら既存レスポンスを返す
+    const existing = await findUserByTransactionTokenId(transactionTokenId);
+    if (existing && existing.subscription_id) {
+      const existingPlan = existing.plan_id ? PLANS[existing.plan_id] : null;
+      console.log('[SUBSCRIBE] idempotent hit for token, returning existing:', existing.user_id);
+      return NextResponse.json({
+        success: true,
+        subscriptionId: existing.subscription_id,
+        status: existing.subscription_status,
+        userId: existing.user_id,
+        isTrial: existing.subscription_status === 'trial',
+        onboardingPath: `${existingPlan?.onboardingPath || plan.onboardingPath}?userId=${existing.user_id}`,
+        idempotent: true,
+      });
+    }
+
     const userId = uuidv4();
 
     // UnivaPayでサブスクリプション作成
@@ -71,6 +88,7 @@ export async function POST(request: NextRequest) {
       subscription_status: isTrial ? 'trial' : 'current',
       subscription_created_at: new Date(),
       email: email || undefined,
+      transaction_token_id: transactionTokenId,
       ...(isTrial ? { trial_ends_at: trialEndsAt } : {}),
     });
 

@@ -183,10 +183,23 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-5 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">サブスクリプション</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="h-3 w-10 bg-gray-100 rounded"></div>
+              <div className="h-4 w-32 bg-gray-100 rounded animate-pulse"></div>
+            </div>
+            <div className="h-5 w-16 bg-gray-100 rounded-full animate-pulse"></div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 w-14 bg-gray-100 rounded"></div>
+            <div className="h-4 w-24 bg-gray-100 rounded animate-pulse"></div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-3 w-14 bg-gray-100 rounded"></div>
+            <div className="h-4 w-28 bg-gray-100 rounded animate-pulse"></div>
+          </div>
         </div>
       </div>
     );

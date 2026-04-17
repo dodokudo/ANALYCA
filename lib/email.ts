@@ -141,6 +141,13 @@ export async function sendPaymentCompleteEmail(
         </td>
       </tr>
     </table>
+    <div style="margin:0 0 24px;padding:16px 20px;background:#f5f3ff;border-left:4px solid #7c3aed;border-radius:4px;">
+      <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#5b21b6;">7日間の無料体験中です</p>
+      <p style="margin:0;font-size:13px;color:#4b5563;line-height:1.7;">
+        体験期間中にご解約いただけば、料金は一切発生しません。<br>
+        解約は「マイページ → 設定 → サブスクリプション」からいつでも可能です。
+      </p>
+    </div>
     <p style="margin:0;font-size:13px;color:#9ca3af;">
       ご不明な点がございましたら、このメールに返信してください。
     </p>
@@ -248,10 +255,55 @@ export async function sendOnboardingCompleteEmail(
         </td>
       </tr>
     </table>
-    <p style="margin:0 0 12px;font-size:15px;color:#374151;line-height:1.7;">
+    <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;">
       データは毎日自動で更新されます。<br>
       投稿の分析結果を活用して、SNS運用を改善していきましょう。
     </p>
+
+    <div style="margin:32px 0 24px;padding:24px;background:linear-gradient(135deg,#faf5ff,#f0fdf4);border-radius:10px;border:1px solid #e9d5ff;">
+      <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#7c3aed;letter-spacing:0.5px;">🎁 期間限定プレゼント</p>
+      <h3 style="margin:0 0 12px;font-size:18px;font-weight:700;color:#1f2937;line-height:1.5;">
+        【2026年最新版】Threads 7大特典を無料配布！
+      </h3>
+      <p style="margin:0 0 16px;font-size:13px;color:#4b5563;line-height:1.7;">
+        リール不要・文章だけで、フォロワー4,200名、LINE登録1,000名をわずか5ヶ月で集客し、SNS累計売上8,000万円を達成した売れる導線を公開。
+      </p>
+      <ul style="margin:0 0 20px;padding:0 0 0 20px;font-size:13px;color:#374151;line-height:1.9;">
+        <li>AI×Threadsマスター動画講座（52分）</li>
+        <li>Threads完全攻略ガイド（13,787文字）</li>
+        <li>1撃でフォロワー1,000人増やした魔法のプロンプト</li>
+        <li>SNSマーケで活用できるプロンプト30選</li>
+        <li>売れる商品設計マニュアル（PDF49枚）</li>
+        <li>5日で700万円売り上げたLINE配信テンプレ（PDF29枚）</li>
+        <li>AI×Threads完全攻略セミナー参加券</li>
+      </ul>
+      <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
+        <tr>
+          <td style="background:#06c755;border-radius:8px;">
+            <a href="https://liff.line.me/2007350099-K9dE2l1E/landing?follow=%40118dgavc&amp;lp=W9tx5Y&amp;liff_id=2007350099-K9dE2l1E" style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;">
+              ▼ LINEで受け取る ▼
+            </a>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="margin:0 0 24px;padding:20px;background:#fff7ed;border-radius:10px;border:1px solid #fed7aa;">
+      <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#c2410c;letter-spacing:0.5px;">🎤 登録者限定セミナー</p>
+      <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:#1f2937;">
+        AI×Threads完全攻略セミナー
+      </h3>
+      <ul style="margin:0 0 12px;padding:0 0 0 20px;font-size:13px;color:#374151;line-height:1.9;">
+        <li>4月23日（木）20:00〜22:00</li>
+        <li>4月24日（金）20:00〜22:00</li>
+        <li>4月25日（土）13:00〜15:00</li>
+        <li>4月25日（土）20:00〜22:00</li>
+      </ul>
+      <p style="margin:0;font-size:12px;color:#6b7280;line-height:1.7;">
+        上記LINE登録後、セミナー参加URLをお送りします。ご都合の良い回にご参加ください。
+      </p>
+    </div>
+
     <p style="margin:0;font-size:13px;color:#9ca3af;">
       ご不明な点がございましたら、このメールに返信してください。
     </p>

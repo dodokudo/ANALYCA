@@ -1639,11 +1639,13 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
   subscription_status: string;
   subscription_created_at: string | null;
   subscription_expires_at: string | null;
+  trial_ends_at: string | null;
 }> {
   const query = `
     SELECT subscription_id, plan_id, subscription_status,
            FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_created_at) as subscription_created_at,
-           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_expires_at) as subscription_expires_at
+           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_expires_at) as subscription_expires_at,
+           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', trial_ends_at) as trial_ends_at
     FROM \`mark-454114.analyca.users\`
     WHERE user_id = @user_id
     LIMIT 1
@@ -1661,6 +1663,7 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
       subscription_status: 'none',
       subscription_created_at: null,
       subscription_expires_at: null,
+      trial_ends_at: null,
     };
   }
 
@@ -1670,6 +1673,7 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
     subscription_status: rows[0].subscription_status || 'none',
     subscription_created_at: rows[0].subscription_created_at || null,
     subscription_expires_at: rows[0].subscription_expires_at || null,
+    trial_ends_at: rows[0].trial_ends_at || null,
   };
 }
 

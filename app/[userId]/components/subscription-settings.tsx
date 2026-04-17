@@ -16,6 +16,7 @@ export interface SubscriptionStatusResponse {
   subscription_status: string;
   subscription_created_at: string | null;
   subscription_expires_at: string | null;
+  trial_ends_at: string | null;
 }
 
 interface SubscriptionData {
@@ -24,6 +25,7 @@ interface SubscriptionData {
   subscription_status: string;
   subscription_created_at: string | null;
   subscription_expires_at: string | null;
+  trial_ends_at: string | null;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -46,6 +48,8 @@ function getStatusLabel(status: string): { text: string; className: string } {
     case 'current':
     case 'active':
       return { text: 'アクティブ', className: 'bg-green-100 text-green-800' };
+    case 'trial':
+      return { text: '7日間無料体験中', className: 'bg-blue-100 text-blue-800' };
     case 'unpaid':
       return { text: '未払い', className: 'bg-yellow-100 text-yellow-800' };
     case 'canceled':
@@ -64,6 +68,7 @@ function toSubscriptionData(json: SubscriptionStatusResponse): SubscriptionData 
     subscription_status: json.subscription_status,
     subscription_created_at: json.subscription_created_at,
     subscription_expires_at: json.subscription_expires_at,
+    trial_ends_at: json.trial_ends_at,
   };
 }
 
@@ -120,14 +125,20 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
     setCanceling(true);
     setCancelResult(null);
     try {
-      const res = await fetch('/api/subscription/cancel', {
+      const endpoint = data?.subscription_status === 'trial'
+        ? '/api/trial/cancel'
+        : '/api/subscription/cancel';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
       });
       const json = await res.json();
       if (json.success) {
-        setCancelResult({ success: true, message: '解約が完了しました' });
+        const message = data?.subscription_status === 'trial'
+          ? '無料体験を解約しました。今後課金は発生しません。'
+          : '解約が完了しました';
+        setCancelResult({ success: true, message });
         setShowConfirm(false);
         await fetchStatus();
       } else {
@@ -194,6 +205,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
   const planInfo = data.plan_id ? PLANS[data.plan_id] : null;
   const statusInfo = getStatusLabel(data.subscription_status);
   const isCanceled = data.subscription_status === 'canceled';
+  const isTrial = data.subscription_status === 'trial';
   const hasSubscription = data.subscription_id && data.subscription_status !== 'none';
 
   return (
@@ -233,8 +245,21 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
             </div>
           )}
 
+          {/* 無料体験終了日（trial時） */}
+          {isTrial && data.trial_ends_at && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm font-medium text-blue-900 mb-1">7日間無料体験中</p>
+              <p className="text-sm text-blue-800">
+                {formatDate(data.trial_ends_at)}に初回課金が発生します
+              </p>
+              <p className="text-xs text-blue-600 mt-2">
+                体験期間中に解約すれば課金は発生しません
+              </p>
+            </div>
+          )}
+
           {/* 次回更新日（アクティブ時） */}
-          {!isCanceled && data.subscription_expires_at && (
+          {!isCanceled && !isTrial && data.subscription_expires_at && (
             <div>
               <p className="text-sm text-gray-500">次回更新日</p>
               <p className="text-sm text-gray-900">{formatDate(data.subscription_expires_at)}</p>
@@ -317,20 +342,22 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
             </div>
           )}
 
-          {/* 解約ボタン（アクティブ or 未払い時のみ表示） */}
-          {!isCanceled && (data.subscription_status === 'current' || data.subscription_status === 'unpaid') && (
+          {/* 解約ボタン（trial / アクティブ / 未払い時に表示） */}
+          {!isCanceled && (isTrial || data.subscription_status === 'current' || data.subscription_status === 'unpaid') && (
             <div className="pt-2">
               {!showConfirm ? (
                 <button
                   onClick={() => setShowConfirm(true)}
                   className="text-sm text-gray-500 underline hover:text-gray-700 transition-colors"
                 >
-                  サブスクリプションを解約する
+                  {isTrial ? '無料体験を解約する' : 'サブスクリプションを解約する'}
                 </button>
               ) : (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
                   <p className="text-sm text-gray-700">
-                    本当に解約しますか？解約後も次回課金日までご利用いただけます。
+                    {isTrial
+                      ? '本当に無料体験を解約しますか？解約すると今後課金は発生せず、すぐにサービスが利用できなくなります。'
+                      : '本当に解約しますか？解約後も次回課金日までご利用いただけます。'}
                   </p>
                   <div className="flex gap-3">
                     <button

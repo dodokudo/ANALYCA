@@ -248,6 +248,8 @@ function CheckoutContent() {
                   data-currency="jpy"
                   data-inline="true"
                   data-cvv-authorize="true"
+                  data-require-phone-number="false"
+                  data-phone-number="00000000000"
                   data-inline-item-style="padding: 10px 0; border-bottom: none;"
                   data-inline-item-label-style="color: #4b5563; font-size: 13px; font-weight: 600; margin-bottom: 6px;"
                   data-inline-text-field-style="border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; font-size: 15px; background: #fafafa; width: 100%; box-sizing: border-box;"

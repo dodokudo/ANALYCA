@@ -96,8 +96,10 @@ function getPlanAmount(user: AdminUser, ext?: UserExtended): number | null {
   return PLANS[planId]?.price ?? null;
 }
 
-// アクティブ判定（統計カード用）
-function isActive(user: AdminUser): boolean {
+// アクティブ判定（統計カード用）: 解約/期限切れは除外
+function isActive(user: AdminUser, ext?: UserExtended): boolean {
+  const subStatus = ext?.subscription_status;
+  if (subStatus === 'canceled' || subStatus === 'cancelled' || subStatus === 'expired') return false;
   return user.has_instagram || user.has_threads;
 }
 
@@ -106,8 +108,9 @@ type UserStatus = 'active' | 'trial' | 'cancelled' | 'inactive';
 
 function getUserStatus(user: AdminUser, ext?: UserExtended): UserStatus {
   const subStatus = ext?.subscription_status;
+  // 解約を最優先判定（BigQuery側は 'canceled' (l1個) で保存されるケースあり。両スペル対応）
+  if (subStatus === 'canceled' || subStatus === 'cancelled' || subStatus === 'expired') return 'cancelled';
   if (subStatus === 'trial') return 'trial';
-  if (subStatus === 'cancelled' || subStatus === 'expired') return 'cancelled';
   if (subStatus === 'active' || subStatus === 'current') return 'active';
   if (user.has_instagram || user.has_threads) return 'active';
   return 'inactive';
@@ -338,13 +341,14 @@ function AdminPageContent() {
     u.threads_username !== 'yoko_gemqueen' &&
     !u.user_id.includes('demo')
   );
-  const activeUsers = realUsers.filter(isActive);
-  const lightUsers = realUsers.filter(u => getPlan(u) === 'Light');
-  const standardUsers = realUsers.filter(u => getPlan(u) === 'Standard');
 
-  // ユーザー拡張情報のマップ
+  // ユーザー拡張情報のマップ（アクティブ判定で subscription_status を参照するため先に構築）
   const extendedMap = new Map<string, UserExtended>();
   (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
+
+  const activeUsers = realUsers.filter(u => isActive(u, extendedMap.get(u.user_id)));
+  const lightUsers = realUsers.filter(u => getPlan(u) === 'Light');
+  const standardUsers = realUsers.filter(u => getPlan(u) === 'Standard');
 
   // UnivaPayサブスクリプション情報
   const subMap = data.subscriptionMap || {};

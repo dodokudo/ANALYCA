@@ -14,6 +14,7 @@ type NotificationItem = {
 
 type NotificationBellProps = {
   userId: string;
+  variant?: 'icon' | 'sidebar';
 };
 
 function formatRelative(createdAt: string): string {
@@ -30,7 +31,7 @@ function formatRelative(createdAt: string): string {
   return ts.toLocaleDateString('ja-JP');
 }
 
-export function NotificationBell({ userId }: NotificationBellProps) {
+export function NotificationBell({ userId, variant = 'icon' }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,25 +109,52 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     }
   };
 
+  const bellIcon = (
+    <svg className={variant === 'sidebar' ? 'w-5 h-5' : 'h-6 w-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
+  );
+
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="relative flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]"
-        aria-label="通知"
-      >
-        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-        </svg>
-        {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
+      {variant === 'sidebar' ? (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+            open
+              ? 'bg-[color:var(--color-surface-muted)] text-[color:var(--color-text-primary)]'
+              : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+          }`}
+          aria-label="通知"
+        >
+          {bellIcon}
+          <span>通知</span>
+          {unreadCount > 0 && (
+            <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="relative flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]"
+          aria-label="通知"
+        >
+          {bellIcon}
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-1rem)] overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-xl">
+        <div className={`absolute z-50 w-80 max-w-[calc(100vw-1rem)] overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-xl ${
+          variant === 'sidebar' ? 'left-full bottom-0 ml-2' : 'right-0 top-12'
+        }`}>
           <div className="flex items-center justify-between border-b border-[color:var(--color-border)] px-3 py-2">
             <span className="text-sm font-semibold text-[color:var(--color-text-primary)]">通知</span>
             {unreadCount > 0 && (

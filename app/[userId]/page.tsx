@@ -555,7 +555,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
           })}
         </nav>
 
-        <div className="p-3 border-t border-[color:var(--color-border)]">
+        <div className="p-3 border-t border-[color:var(--color-border)] space-y-1">
+          <NotificationBell userId={userId} variant="sidebar" />
           <button
             onClick={() => setActiveChannel('settings')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
@@ -619,19 +620,17 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
       {/* メインコンテンツ */}
       <main className="flex-1 lg:ml-56 min-w-0">
-        <header className="sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
+        <header className="lg:hidden sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-[var(--radius-sm)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
+            className="p-2 rounded-[var(--radius-sm)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="lg:hidden flex items-center gap-3">
-            <AnalycaLogo size="sm" />
-            <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
-          </div>
+          <AnalycaLogo size="sm" />
+          <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
           <div className="ml-auto">
             <NotificationBell userId={userId} />
           </div>

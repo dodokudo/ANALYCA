@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, updateUserSubscription, updateUserRecurringToken } from '@/lib/bigquery';
-import { deleteRecurringToken } from '@/lib/univapay/client';
+import { cancelSubscription, deleteRecurringToken } from '@/lib/univapay/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +28,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // UnivaPayからリカーリングトークンを削除
+    // UnivaPay の subscription 自体をキャンセル（最重要: trial_ends_at 到達時の自動課金を防ぐ）
+    if (user.subscription_id) {
+      try {
+        await cancelSubscription(user.subscription_id);
+      } catch (err) {
+        console.error('[TRIAL CANCEL] Failed to cancel UnivaPay subscription:', err);
+        return NextResponse.json(
+          { success: false, error: 'UnivaPayでのキャンセルに失敗しました。時間をおいて再度お試しください。' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // 念のためリカーリングトークンも削除（残っていれば）
     if (user.recurring_token_id) {
       try {
         await deleteRecurringToken(user.recurring_token_id);

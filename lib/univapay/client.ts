@@ -279,9 +279,10 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
+  // UnivaPay仕様: statusのPATCHはFORBIDDEN_PARAMETER。DELETEメソッドでキャンセル。
   await fetchUnivaPay(
-    `/subscriptions/${subscriptionId}`,
-    { method: 'PATCH', body: { status: 'canceled' } },
+    `/stores/${storeId}/subscriptions/${subscriptionId}`,
+    { method: 'DELETE' },
   );
 }
 

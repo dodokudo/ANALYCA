@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { ScheduleTab } from './components/schedule-tab';
 import { ThreadsInsights } from './components/threads-insights';
+import { RepostButton } from './components/repost-button';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
@@ -1119,6 +1120,17 @@ function ThreadsContent({
                     <div className="flex items-center gap-3">
                       <span>閲覧 {(post.views || 0).toLocaleString()}</span>
                       <span>いいね {(post.likes || 0).toLocaleString()}</span>
+                      <RepostButton
+                        userId={userId}
+                        postId={post.id}
+                        mainText={post.text}
+                        comments={postComments.map((c) => ({
+                          id: c.id,
+                          text: c.text,
+                          views: c.views,
+                          depth: c.depth,
+                        }))}
+                      />
                     </div>
                   </div>
 

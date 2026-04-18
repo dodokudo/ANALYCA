@@ -96,20 +96,18 @@ export async function GET(request: NextRequest) {
       } catch { /* invalid state, ignore */ }
     }
     const existingUserId = pendingUserId || await findUserIdByInstagramId(igUserId);
-    if (!existingUserId) {
-      return NextResponse.redirect(new URL('/pricing?error=plan_required', request.url));
-    }
+
+    // 既存ユーザーが居る場合のみプラン制限チェック。居ない場合は新規ダッシュボードを作成する（決済は別フロー）
     if (existingUserId) {
       const existingUser = await getUserById(existingUserId);
-      if (!existingUser) {
-        return NextResponse.redirect(new URL('/pricing?error=plan_required', request.url));
-      }
-      const effectivePlanId = resolveEffectivePlanId(existingUser.plan_id, {
-        has_threads: existingUser.has_threads,
-        has_instagram: existingUser.has_instagram,
-      });
-      if (isChannelBlockedByPlan(effectivePlanId, 'instagram')) {
-        return NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
+      if (existingUser) {
+        const effectivePlanId = resolveEffectivePlanId(existingUser.plan_id, {
+          has_threads: existingUser.has_threads,
+          has_instagram: existingUser.has_instagram,
+        });
+        if (isChannelBlockedByPlan(effectivePlanId, 'instagram')) {
+          return NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
+        }
       }
     }
 

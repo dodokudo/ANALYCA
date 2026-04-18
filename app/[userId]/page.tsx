@@ -6,6 +6,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { ScheduleTab } from './components/schedule-tab';
 import { ThreadsInsights } from './components/threads-insights';
 import { RepostButton } from './components/repost-button';
+import { NotificationBell } from './components/notification-bell';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
@@ -618,17 +619,22 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
       {/* メインコンテンツ */}
       <main className="flex-1 lg:ml-56 min-w-0">
-        <header className="lg:hidden sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
+        <header className="sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-[var(--radius-sm)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
+            className="lg:hidden p-2 rounded-[var(--radius-sm)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <AnalycaLogo size="sm" />
-          <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+          <div className="lg:hidden flex items-center gap-3">
+            <AnalycaLogo size="sm" />
+            <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+          </div>
+          <div className="ml-auto">
+            <NotificationBell userId={userId} />
+          </div>
         </header>
 
         <div className="p-4 lg:p-6 min-w-0">

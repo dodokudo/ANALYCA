@@ -226,7 +226,12 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
       <h3 className="text-lg font-semibold text-gray-900 mb-4">サブスクリプション</h3>
 
       {!hasSubscription ? (
-        <p className="text-gray-500 text-sm">プランが設定されていません</p>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm font-medium text-gray-900">契約はありません</p>
+          <p className="mt-1 text-sm text-gray-600">
+            このダッシュボードは無料ログインで作成されています。カード登録・サブスクリプションがないため、解約処理は不要です。
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
           {/* プラン情報 */}

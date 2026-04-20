@@ -1556,8 +1556,8 @@ export async function createPendingUser(userId: string, subscriptionData: {
       subscription_id: subscriptionData.subscription_id,
       plan_id: subscriptionData.plan_id,
       subscription_status: subscriptionData.subscription_status,
-      subscription_created_at: subscriptionData.subscription_created_at.toISOString(),
-      trial_ends_at: subscriptionData.trial_ends_at ? subscriptionData.trial_ends_at.toISOString() : null,
+      subscription_created_at: subscriptionData.subscription_created_at,
+      trial_ends_at: subscriptionData.trial_ends_at || null,
       transaction_token_id: subscriptionData.transaction_token_id || null,
     },
     types: {
@@ -1626,11 +1626,11 @@ export async function updateUserSubscription(userId: string, data: {
   }
   if (data.subscription_created_at !== undefined) {
     updates.push('subscription_created_at = @subscription_created_at');
-    params.subscription_created_at = data.subscription_created_at.toISOString();
+    params.subscription_created_at = data.subscription_created_at;
   }
   if (data.subscription_expires_at !== undefined) {
     updates.push('subscription_expires_at = @subscription_expires_at');
-    params.subscription_expires_at = data.subscription_expires_at.toISOString();
+    params.subscription_expires_at = data.subscription_expires_at;
   }
 
   if (updates.length === 0) return;
@@ -1715,13 +1715,26 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
  * subscription_idでサブスクステータスを更新（Webhook用）
  */
 export async function updateSubscriptionStatusBySubId(subscriptionId: string, status: string): Promise<void> {
-  // status=current に遷移する時、subscription_created_at がまだ設定されていなければ CURRENT_TIMESTAMP を入れる
-  // （trial期間中は NULL のまま → 初回決済成功でwebhook発火 → 日時が入る）
+  // UnivaPay sends charge_finished for the 0 yen initial charge too.
+  // Keep trial users in trial until trial_ends_at passes; the paid charge after
+  // that can move them to current and set subscription_created_at.
   const query = `
     UPDATE \`mark-454114.analyca.users\`
     SET
-      subscription_status = @status,
+      subscription_status = CASE
+        WHEN @status = 'current'
+          AND subscription_status = 'trial'
+          AND trial_ends_at IS NOT NULL
+          AND trial_ends_at > CURRENT_TIMESTAMP()
+        THEN subscription_status
+        ELSE @status
+      END,
       subscription_created_at = CASE
+        WHEN @status = 'current'
+          AND subscription_status = 'trial'
+          AND trial_ends_at IS NOT NULL
+          AND trial_ends_at > CURRENT_TIMESTAMP()
+        THEN subscription_created_at
         WHEN @status = 'current' AND subscription_created_at IS NULL THEN CURRENT_TIMESTAMP()
         ELSE subscription_created_at
       END,
@@ -1768,7 +1781,7 @@ export async function createTrialUser(userId: string, data: {
     params: {
       user_id: userId,
       plan_id: data.plan_id,
-      trial_ends_at: data.trial_ends_at.toISOString(),
+      trial_ends_at: data.trial_ends_at,
       recurring_token_id: data.recurring_token_id || null,
     },
     types: {

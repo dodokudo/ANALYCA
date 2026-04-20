@@ -96,23 +96,22 @@ function getPlanAmount(user: AdminUser, ext?: UserExtended): number | null {
   return PLANS[planId]?.price ?? null;
 }
 
-// アクティブ判定（統計カード用）: 解約/期限切れは除外
-function isActive(user: AdminUser, ext?: UserExtended): boolean {
+// アクティブ判定（統計カード用）: 決済済みのみ。SNS連携だけでは active にしない
+function isActive(_user: AdminUser, ext?: UserExtended): boolean {
   const subStatus = ext?.subscription_status;
-  if (subStatus === 'canceled' || subStatus === 'cancelled' || subStatus === 'expired') return false;
-  return user.has_instagram || user.has_threads;
+  return subStatus === 'active' || subStatus === 'current';
 }
 
 // ステータス判定
 type UserStatus = 'active' | 'trial' | 'cancelled' | 'inactive';
 
-function getUserStatus(user: AdminUser, ext?: UserExtended): UserStatus {
+function getUserStatus(_user: AdminUser, ext?: UserExtended): UserStatus {
   const subStatus = ext?.subscription_status;
   // 解約を最優先判定（BigQuery側は 'canceled' (l1個) で保存されるケースあり。両スペル対応）
   if (subStatus === 'canceled' || subStatus === 'cancelled' || subStatus === 'expired') return 'cancelled';
   if (subStatus === 'trial') return 'trial';
   if (subStatus === 'active' || subStatus === 'current') return 'active';
-  if (user.has_instagram || user.has_threads) return 'active';
+  // SNS連携だけで決済してないユーザー (subscription_status='none' or NULL) は未契約扱い
   return 'inactive';
 }
 
@@ -334,7 +333,7 @@ function AdminPageContent() {
   }
 
   // デモアカウントを除外した実ユーザー
-  const realUsers = data.users.filter(u =>
+  const demoFiltered = data.users.filter(u =>
     u.instagram_username !== 'demo_account' &&
     u.threads_username !== 'demo_account' &&
     u.instagram_username !== 'yoko_gemqueen' &&
@@ -345,6 +344,12 @@ function AdminPageContent() {
   // ユーザー拡張情報のマップ（アクティブ判定で subscription_status を参照するため先に構築）
   const extendedMap = new Map<string, UserExtended>();
   (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
+
+  // 契約ユーザーのみ抽出（subscription_status が 'none'/NULL の「SNS連携だけ」ユーザーは契約一覧から除外）
+  const realUsers = demoFiltered.filter(u => {
+    const sub = extendedMap.get(u.user_id)?.subscription_status;
+    return sub && sub !== 'none';
+  });
 
   const activeUsers = realUsers.filter(u => isActive(u, extendedMap.get(u.user_id)));
   const lightUsers = realUsers.filter(u => getPlan(u) === 'Light');

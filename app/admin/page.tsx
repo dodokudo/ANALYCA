@@ -200,7 +200,6 @@ function AdminPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'users' | 'affiliates' | 'conversions'>('users');
   const [rewardMonth, setRewardMonth] = useState(() => {
     const now = new Date();
@@ -287,14 +286,6 @@ function AdminPageContent() {
       fetchData(password.trim());
     }
   };
-
-  const copyToClipboard = (url: string, userId: string) => {
-    navigator.clipboard.writeText(url);
-    setCopied(userId);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   // 認証前
   if (!isAuthenticated && !loading) {
@@ -400,15 +391,15 @@ function AdminPageContent() {
             statusCounts[getUserStatus(u, ext)]++;
           });
 
-          // 売上集計（subMapから。除外ユーザーのサブスクは含めない）
+          // 請求見込み集計（UnivaPayのsubscription.next_payment_dateベース。実入金額ではない）
           const excludeSubIds = new Set<string>();
           excludeUserIds.forEach(uid => {
             const ext = extendedMap.get(uid);
             if (ext?.subscription_id) excludeSubIds.add(ext.subscription_id);
           });
 
-          let confirmedRevenue = 0; // 決済済み（active/currentで今月の次回決済日が今日以前）
-          let projectedRevenue = 0; // 決済見込み（今月中に決済予定）
+          let confirmedRevenue = 0; // 請求済み推定（次回決済日が来月以降、または今月内で今日以前）
+          let projectedRevenue = 0; // 今後請求予定（今月内で今日より後）
           const now = new Date();
           const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
           const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -416,10 +407,13 @@ function AdminPageContent() {
           realUsers.forEach(u => {
             if (excludeUserIds.has(u.user_id)) return;
             const ext = extendedMap.get(u.user_id);
+            const userStatus = getUserStatus(u, ext);
+            if (userStatus === 'cancelled' || userStatus === 'inactive') return;
             const subId = ext?.subscription_id;
             if (!subId) return;
             const sub = subMap[subId];
             if (!sub) return;
+            if (sub.status === 'canceled' || sub.status === 'suspended') return;
             if (excludeSubIds.has(subId)) return;
 
             const nextDate = sub.next_payment_date ? new Date(sub.next_payment_date) : null;
@@ -444,15 +438,15 @@ function AdminPageContent() {
           return (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
               <div className="bg-white rounded-xl p-5 shadow-sm">
-                <p className="text-sm text-gray-500">今月売上</p>
+                <p className="text-sm text-gray-500">当月請求見込み</p>
                 <p className="text-2xl font-bold text-gray-800">¥{totalMonthly.toLocaleString()}</p>
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm">
-                <p className="text-sm text-gray-500">決済済み</p>
+                <p className="text-sm text-gray-500">請求済み推定</p>
                 <p className="text-2xl font-bold text-green-600">¥{confirmedRevenue.toLocaleString()}</p>
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm">
-                <p className="text-sm text-gray-500">決済見込み</p>
+                <p className="text-sm text-gray-500">今後請求予定</p>
                 <p className="text-2xl font-bold text-blue-600">¥{projectedRevenue.toLocaleString()}</p>
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm">
@@ -467,6 +461,9 @@ function AdminPageContent() {
                 <p className="text-sm text-gray-500">退会</p>
                 <p className="text-2xl font-bold text-red-600">{statusCounts.cancelled}人</p>
               </div>
+              <p className="col-span-2 text-xs text-gray-400 md:col-span-3 lg:col-span-6">
+                売上カードはUnivaPayの次回決済日から算出した請求見込みです。返金・実入金・決済失敗までは反映しません。
+              </p>
             </div>
           );
         })()}
@@ -516,27 +513,24 @@ function AdminPageContent() {
               <h2 className="text-lg font-semibold text-gray-800">契約ユーザー一覧</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1500px]">
+              <table className="w-full min-w-[1180px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="min-w-[180px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ユーザー名</th>
-                    <th className="min-w-[200px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">メール</th>
                     <th className="min-w-[90px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">プラン</th>
                     <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">連携媒体</th>
                     <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">契約開始</th>
+                    <th className="min-w-[110px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ステータス</th>
                     <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">初回決済</th>
                     <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">次回決済</th>
                     <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">決済金額</th>
                     <th className="min-w-[160px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">最終ログイン</th>
                     <th className="min-w-[110px] px-4 py-3 text-right text-xs font-medium uppercase whitespace-nowrap text-gray-500">起動回数</th>
                     <th className="min-w-[130px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">登録経路</th>
-                    <th className="min-w-[110px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ステータス</th>
-                    <th className="min-w-[280px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ダッシュボードURL</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {realUsers.map((user) => {
-                    const dashboardUrl = `${baseUrl}/${user.user_id}`;
                     const ext = extendedMap.get(user.user_id);
                     const plan = getPlanLabel(user, ext);
                     const isExcluded = excludeUserIds.has(user.user_id);
@@ -558,9 +552,6 @@ function AdminPageContent() {
                           <p className="whitespace-nowrap font-medium text-gray-800">
                             {user.instagram_username || user.threads_username || '-'}
                           </p>
-                        </td>
-                        <td className="max-w-[200px] px-4 py-4 text-sm text-gray-600 truncate whitespace-nowrap">
-                          {ext?.email || '-'}
                         </td>
                         <td className="px-4 py-4">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -586,6 +577,13 @@ function AdminPageContent() {
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                           {formatDate(ext?.created_at ?? user.created_at ?? null)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            getStatusStyle(getUserStatus(user, ext))
+                          }`}>
+                            {getStatusLabel(getUserStatus(user, ext))}
+                          </span>
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                           <div className="font-medium text-gray-800">
@@ -631,31 +629,6 @@ function AdminPageContent() {
                           }`}>
                             {source}
                           </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            getStatusStyle(getUserStatus(user, ext))
-                          }`}>
-                            {getStatusLabel(getUserStatus(user, ext))}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <a
-                              href={dashboardUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="max-w-[240px] truncate text-sm text-purple-600 hover:text-purple-800"
-                            >
-                              {dashboardUrl}
-                            </a>
-                            <button
-                              onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
-                              className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                            >
-                              {copied === user.user_id ? '✓' : 'コピー'}
-                            </button>
-                          </div>
                         </td>
                       </tr>
                     );

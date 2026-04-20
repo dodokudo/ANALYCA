@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/univapay/client';
 import { PLANS } from '@/lib/univapay/plans';
-import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, createReferral, recordConversionEvent } from '@/lib/bigquery';
+import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, createReferral, getUserById, recordConversionEvent } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
 
@@ -12,7 +12,7 @@ const TRIAL_DAYS = 7;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { transactionTokenId, planId, refCode, utm_source, utm_medium, utm_campaign, utm_content, email } = body;
+    const { transactionTokenId, planId, refCode, utm_source, utm_medium, utm_campaign, utm_content, email, userId: requestedUserId } = body;
 
     if (!transactionTokenId) {
       return NextResponse.json({
@@ -48,7 +48,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const userId = uuidv4();
+    const existingUser = typeof requestedUserId === 'string' && requestedUserId
+      ? await getUserById(requestedUserId)
+      : null;
+    if (
+      existingUser?.subscription_id &&
+      !['none', 'canceled', 'cancelled', 'expired'].includes(existingUser.subscription_status || '')
+    ) {
+      const existingPlan = existingUser.plan_id ? PLANS[existingUser.plan_id] : null;
+      return NextResponse.json({
+        success: true,
+        subscriptionId: existingUser.subscription_id,
+        status: existingUser.subscription_status,
+        userId: existingUser.user_id,
+        isTrial: existingUser.subscription_status === 'trial',
+        onboardingPath: `${existingPlan?.onboardingPath || plan.onboardingPath}?userId=${existingUser.user_id}`,
+        idempotent: true,
+      });
+    }
+    const userId = existingUser?.user_id || uuidv4();
 
     // UnivaPayでサブスクリプション作成
     const subscriptionParams: Parameters<typeof createSubscription>[0] = {
@@ -106,6 +124,8 @@ export async function POST(request: NextRequest) {
     sendAdminCardRegisteredEmail({
       userId,
       email: email || null,
+      instagramUsername: existingUser?.instagram_username || null,
+      threadsUsername: existingUser?.threads_username || null,
       planId,
       planName: `${plan.name} ${plan.subtitle}`.trim(),
       scheduledPaymentAt: isTrial ? trialEndsAt : new Date(),

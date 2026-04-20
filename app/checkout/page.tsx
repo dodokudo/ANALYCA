@@ -141,6 +141,7 @@ function CheckoutContent() {
       const utmMedium = window.localStorage.getItem('analyca_utm_medium') || '';
       const utmCampaign = window.localStorage.getItem('analyca_utm_campaign') || '';
       const utmContent = window.localStorage.getItem('analyca_utm_content') || '';
+      const existingUserId = searchParams?.get('userId') || window.localStorage.getItem('analycaUserId') || '';
 
       console.log('[CHECKOUT] Creating subscription with token:', tokenId, 'plan:', planId);
       const response = await fetch('/api/payment/subscribe', {
@@ -155,6 +156,7 @@ function CheckoutContent() {
           utm_campaign: utmCampaign || undefined,
           utm_content: utmContent || undefined,
           email: email || undefined,
+          userId: existingUserId || undefined,
         }),
       });
 

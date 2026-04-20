@@ -1523,7 +1523,29 @@ export async function createPendingUser(userId: string, subscriptionData: {
   transaction_token_id?: string;
 }): Promise<string> {
   const query = `
-    INSERT INTO \`mark-454114.analyca.users\` (
+    MERGE \`mark-454114.analyca.users\` T
+    USING (
+      SELECT
+        @user_id as user_id,
+        @email as email,
+        @subscription_id as subscription_id,
+        @plan_id as plan_id,
+        @subscription_status as subscription_status,
+        @subscription_created_at as subscription_created_at,
+        @trial_ends_at as trial_ends_at,
+        @transaction_token_id as transaction_token_id
+    ) S
+    ON T.user_id = S.user_id
+    WHEN MATCHED THEN UPDATE SET
+      email = COALESCE(S.email, T.email),
+      subscription_id = S.subscription_id,
+      plan_id = S.plan_id,
+      subscription_status = S.subscription_status,
+      subscription_created_at = S.subscription_created_at,
+      trial_ends_at = S.trial_ends_at,
+      transaction_token_id = S.transaction_token_id,
+      updated_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (
       user_id,
       email,
       subscription_id,
@@ -1535,14 +1557,14 @@ export async function createPendingUser(userId: string, subscriptionData: {
       created_at,
       updated_at
     ) VALUES (
-      @user_id,
-      @email,
-      @subscription_id,
-      @plan_id,
-      @subscription_status,
-      @subscription_created_at,
-      @trial_ends_at,
-      @transaction_token_id,
+      S.user_id,
+      S.email,
+      S.subscription_id,
+      S.plan_id,
+      S.subscription_status,
+      S.subscription_created_at,
+      S.trial_ends_at,
+      S.transaction_token_id,
       CURRENT_TIMESTAMP(),
       CURRENT_TIMESTAMP()
     )

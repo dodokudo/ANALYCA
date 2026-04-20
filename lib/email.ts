@@ -22,6 +22,45 @@ function buildDashboardUrl(userId: string): string {
   return `${getAppUrl()}/${userId}`;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function normalizeUsername(username: string): string {
+  return username.trim().replace(/^@+/, '');
+}
+
+function buildSocialProfileLinks(payload: {
+  instagramUsername?: string | null;
+  threadsUsername?: string | null;
+  username?: string | null;
+}): string {
+  const links: string[] = [];
+  const instagramUsername = payload.instagramUsername ? normalizeUsername(payload.instagramUsername) : '';
+  const threadsUsername = payload.threadsUsername ? normalizeUsername(payload.threadsUsername) : '';
+
+  if (instagramUsername) {
+    const url = `https://www.instagram.com/${encodeURIComponent(instagramUsername)}/`;
+    links.push(`Instagram: <a href="${url}" style="color:#7c3aed;text-decoration:none;">${escapeHtml(url)}</a>`);
+  }
+
+  if (threadsUsername) {
+    const url = `https://www.threads.net/@${encodeURIComponent(threadsUsername)}`;
+    links.push(`Threads: <a href="${url}" style="color:#7c3aed;text-decoration:none;">${escapeHtml(url)}</a>`);
+  }
+
+  if (links.length === 0 && payload.username) {
+    return escapeHtml(payload.username);
+  }
+
+  return links.length > 0 ? links.join('<br>') : '-';
+}
+
 function formatDateTime(value: Date | string | null | undefined): string {
   if (!value) return '-';
   const date = value instanceof Date ? value : new Date(value);
@@ -164,6 +203,8 @@ interface AdminNotificationBase {
   userId: string;
   email?: string | null;
   username?: string | null;
+  instagramUsername?: string | null;
+  threadsUsername?: string | null;
   planName?: string | null;
   planId?: string | null;
   dashboardUrl?: string | null;
@@ -177,6 +218,7 @@ export async function sendAdminCardRegisteredEmail(
   payload: AdminCardRegisteredNotification,
 ): Promise<void> {
   const dashboardUrl = payload.dashboardUrl || buildDashboardUrl(payload.userId);
+  const socialProfileLinks = buildSocialProfileLinks(payload);
   const body = `
     <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">カード登録が完了しました</h2>
     <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">
@@ -184,7 +226,7 @@ export async function sendAdminCardRegisteredEmail(
     </p>
     <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#374151;">
       <tr><td style="padding:8px 0;font-weight:600;width:140px;">ユーザーID</td><td style="padding:8px 0;">${payload.userId}</td></tr>
-      <tr><td style="padding:8px 0;font-weight:600;">ユーザー名</td><td style="padding:8px 0;">${payload.username || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">SNS URL</td><td style="padding:8px 0;">${socialProfileLinks}</td></tr>
       <tr><td style="padding:8px 0;font-weight:600;">メール</td><td style="padding:8px 0;">${payload.email || '-'}</td></tr>
       <tr><td style="padding:8px 0;font-weight:600;">プラン</td><td style="padding:8px 0;">${payload.planName || payload.planId || '-'}</td></tr>
       <tr><td style="padding:8px 0;font-weight:600;">初回決済予定</td><td style="padding:8px 0;">${formatDateTime(payload.scheduledPaymentAt)}</td></tr>
@@ -209,6 +251,7 @@ export async function sendAdminPaymentNotificationEmail(
   payload: AdminPaymentNotification,
 ): Promise<void> {
   const dashboardUrl = payload.dashboardUrl || buildDashboardUrl(payload.userId);
+  const socialProfileLinks = buildSocialProfileLinks(payload);
   const body = `
     <h2 style="margin:0 0 16px;font-size:20px;color:#1f2937;">決済が完了しました</h2>
     <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">
@@ -216,7 +259,7 @@ export async function sendAdminPaymentNotificationEmail(
     </p>
     <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#374151;">
       <tr><td style="padding:8px 0;font-weight:600;width:140px;">ユーザーID</td><td style="padding:8px 0;">${payload.userId}</td></tr>
-      <tr><td style="padding:8px 0;font-weight:600;">ユーザー名</td><td style="padding:8px 0;">${payload.username || '-'}</td></tr>
+      <tr><td style="padding:8px 0;font-weight:600;">SNS URL</td><td style="padding:8px 0;">${socialProfileLinks}</td></tr>
       <tr><td style="padding:8px 0;font-weight:600;">メール</td><td style="padding:8px 0;">${payload.email || '-'}</td></tr>
       <tr><td style="padding:8px 0;font-weight:600;">プラン</td><td style="padding:8px 0;">${payload.planName || payload.planId || '-'}</td></tr>
       <tr><td style="padding:8px 0;font-weight:600;">決済金額</td><td style="padding:8px 0;">${formatAmount(payload.amount)}</td></tr>

@@ -200,6 +200,7 @@ function AdminPageContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'users' | 'affiliates' | 'conversions'>('users');
   const [rewardMonth, setRewardMonth] = useState(() => {
     const now = new Date();
@@ -286,6 +287,14 @@ function AdminPageContent() {
       fetchData(password.trim());
     }
   };
+
+  const copyToClipboard = (url: string, userId: string) => {
+    navigator.clipboard.writeText(url);
+    setCopied(userId);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   // 認証前
   if (!isAuthenticated && !loading) {
@@ -513,7 +522,7 @@ function AdminPageContent() {
               <h2 className="text-lg font-semibold text-gray-800">契約ユーザー一覧</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1180px]">
+              <table className="w-full min-w-[1460px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="min-w-[180px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ユーザー名</th>
@@ -527,10 +536,12 @@ function AdminPageContent() {
                     <th className="min-w-[160px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">最終ログイン</th>
                     <th className="min-w-[110px] px-4 py-3 text-right text-xs font-medium uppercase whitespace-nowrap text-gray-500">起動回数</th>
                     <th className="min-w-[130px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">登録経路</th>
+                    <th className="min-w-[280px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ダッシュボードURL</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {realUsers.map((user) => {
+                    const dashboardUrl = `${baseUrl}/${user.user_id}`;
                     const ext = extendedMap.get(user.user_id);
                     const plan = getPlanLabel(user, ext);
                     const isExcluded = excludeUserIds.has(user.user_id);
@@ -629,6 +640,25 @@ function AdminPageContent() {
                           }`}>
                             {source}
                           </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={dashboardUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="max-w-[240px] truncate text-sm text-purple-600 hover:text-purple-800"
+                            >
+                              {dashboardUrl}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
+                              className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              {copied === user.user_id ? 'コピー済み' : 'コピー'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

@@ -78,6 +78,8 @@ export async function POST(request: NextRequest) {
                 userId: user.user_id,
                 email: user.email,
                 username: user.instagram_username || user.threads_username || null,
+                instagramUsername: user.instagram_username || null,
+                threadsUsername: user.threads_username || null,
                 planId: user.plan_id,
                 planName: plan ? `${plan.name} ${plan.subtitle}`.trim() : user.plan_id,
                 amount: extractAmount(data),

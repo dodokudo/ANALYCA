@@ -301,11 +301,7 @@ export default function HomePage() {
               >
                 ダッシュボード
               </Link>
-            ) : (
-              <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors">
-                ログイン
-              </Link>
-            )}
+            ) : null}
             <Link
               href="/pricing"
               className="bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all"

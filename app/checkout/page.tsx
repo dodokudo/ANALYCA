@@ -16,6 +16,32 @@ declare global {
   }
 }
 
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '[unserializable]';
+  }
+}
+
+function safeErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  try {
+    return JSON.stringify(error) || 'Unknown error';
+  } catch {
+    return 'Unknown error';
+  }
+}
+
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -90,17 +116,21 @@ function CheckoutContent() {
 
       console.log('[CHECKOUT] Submitting UnivaPay form...');
       const data = await window.UnivapayCheckout.submit(iframe);
-      console.log('[CHECKOUT] Token received:', JSON.stringify(data));
+      console.log('[CHECKOUT] Token received:', safeStringify(data));
 
       // トークンIDを取得（submit()の返り値の構造に対応）
       const d = data as Record<string, unknown>;
-      const tokenId = d?.token || d?.transactionToken || d?.id || d?.transactionTokenId;
-      const email = (d?.tokenData as Record<string, unknown>)?.email as string || '';
-      console.log('[CHECKOUT] Raw data:', JSON.stringify(data), 'Resolved tokenId:', tokenId, 'email:', email);
+      const tokenId =
+        asString(d?.token) ||
+        asString(d?.transactionToken) ||
+        asString(d?.id) ||
+        asString(d?.transactionTokenId);
+      const email = asString((d?.tokenData as Record<string, unknown> | undefined)?.email);
+      console.log('[CHECKOUT] Raw data:', safeStringify(data), 'Resolved tokenId:', tokenId, 'email:', email);
 
       if (!tokenId) {
         console.error('[CHECKOUT] No token ID found. Keys:', Object.keys(d || {}));
-        setError(`決済トークンの取得に失敗しました。返り値: ${JSON.stringify(data).substring(0, 200)}`);
+        setError(`決済トークンの取得に失敗しました。返り値: ${safeStringify(data).substring(0, 200)}`);
         setProcessing(false);
         return;
       }
@@ -130,7 +160,7 @@ function CheckoutContent() {
 
       console.log('[CHECKOUT] Subscribe API response status:', response.status);
       const result = await response.json();
-      console.log('[CHECKOUT] Subscribe API result:', JSON.stringify(result));
+      console.log('[CHECKOUT] Subscribe API result:', safeStringify(result));
 
       if (result.success) {
         // GA4: purchase イベント
@@ -145,7 +175,7 @@ function CheckoutContent() {
         setProcessing(false);
       }
     } catch (err) {
-      const errorDetail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      const errorDetail = safeErrorMessage(err);
       console.error('[CHECKOUT] Payment error:', errorDetail, err);
       setError(`決済エラー: ${errorDetail}`);
       setProcessing(false);

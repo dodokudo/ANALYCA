@@ -5,6 +5,11 @@ const ALLOWED_HOSTS = new Set([CANONICAL_HOST, 'analyca.vercel.app']);
 
 export function proxy(request: NextRequest) {
   const host = request.headers.get('host')?.split(':')[0]?.toLowerCase();
+  const pathname = request.nextUrl.pathname;
+
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
 
   if (!host || ALLOWED_HOSTS.has(host) || host === 'localhost') {
     return NextResponse.next();

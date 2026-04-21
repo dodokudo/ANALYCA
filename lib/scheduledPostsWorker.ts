@@ -14,6 +14,8 @@ const STUCK_THRESHOLD_MS = 4 * 60 * 1000; // 4分（cron3分間隔+余裕1分）
 const COMMENT_DELAY_MIN_MS = 15000; // コメント間待機の最小値: 15秒
 const COMMENT_DELAY_RANGE_MS = 30000; // 上乗せ範囲: 最大+30秒（合計15-45秒）
 const TIMEOUT_SAFE_MARGIN_MS = 240000; // 関数起動から240秒経過で安全撤退（maxDuration 300秒）
+// 予約時刻から15分超過した投稿は実行せず失敗扱いにする。cron停止時の復旧爆速連投を防ぐ
+const MAX_SCHEDULE_DELAY_MS = 15 * 60 * 1000;
 
 function getJstNow() {
   const now = new Date();
@@ -25,6 +27,12 @@ function isScheduledTimePassed(scheduledTimeIso: string): boolean {
   const scheduledTime = new Date(scheduledTimeIso);
   const now = new Date();
   return scheduledTime.getTime() <= now.getTime();
+}
+
+function isScheduledTimeTooOld(scheduledTimeIso: string): boolean {
+  const scheduledTime = new Date(scheduledTimeIso);
+  const now = new Date();
+  return now.getTime() - scheduledTime.getTime() > MAX_SCHEDULE_DELAY_MS;
 }
 
 async function postWithRetry(
@@ -57,9 +65,25 @@ async function fetchOnePendingPost(): Promise<ScheduledPostRow | undefined> {
 
   const items = await listAllPendingPosts({ startDate, endDate });
 
-  return items.find((item) => {
-    return (item.status === 'scheduled' || item.status === 'partial') && isScheduledTimePassed(item.scheduled_time);
-  });
+  for (const item of items) {
+    if (item.status !== 'scheduled' && item.status !== 'partial') continue;
+    if (!isScheduledTimePassed(item.scheduled_time)) continue;
+
+    if (isScheduledTimeTooOld(item.scheduled_time)) {
+      console.warn(
+        `[scheduledPostsWorker] Skipping stale post: ${item.schedule_id} (scheduled ${item.scheduled_time}, delay > ${MAX_SCHEDULE_DELAY_MS / 60000}min)`,
+      );
+      await updateScheduledPost(item.schedule_id, {
+        status: 'failed',
+        errorMessage: `Skipped: scheduled time exceeded ${MAX_SCHEDULE_DELAY_MS / 60000}min delay threshold (cron likely stalled)`,
+      });
+      continue;
+    }
+
+    return item;
+  }
+
+  return undefined;
 }
 
 async function recoverStuckPosts(): Promise<number> {

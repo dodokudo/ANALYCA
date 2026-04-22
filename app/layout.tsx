@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ANALYCA - SNS分析ダッシュボード",
-  description: "Threads・Instagramなどの数値分析が一目でできる！",
+  metadataBase: new URL('https://analyca.jp'),
+  title: "ANALYCA - AIでThreads運用をもっと賢く、もっと成果に。",
+  description: "AIが改善提案から投稿作成・予約投稿までサポート。Threads・Instagramの数値分析が一目でできるSNS運用ツール。",
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
@@ -26,10 +27,17 @@ export const metadata: Metadata = {
     apple: '/apple-icon.png',
   },
   openGraph: {
-    title: 'ANALYCA - SNS分析ダッシュボード',
-    description: 'Threads・Instagramなどの数値分析が一目でできる！',
+    title: 'ANALYCA - AIでThreads運用をもっと賢く、もっと成果に。',
+    description: 'AIが改善提案から投稿作成・予約投稿までサポート。Threads・Instagramの数値分析が一目でできるSNS運用ツール。',
+    url: 'https://analyca.jp',
     siteName: 'ANALYCA',
+    locale: 'ja_JP',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ANALYCA - AIでThreads運用をもっと賢く、もっと成果に。',
+    description: 'AIが改善提案から投稿作成・予約投稿までサポート。Threads・Instagramの数値分析が一目でできるSNS運用ツール。',
   },
 };
 

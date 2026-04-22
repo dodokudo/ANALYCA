@@ -1338,7 +1338,7 @@ function InstagramContent({
     return [...stories].sort((a, b) => {
       if (storySortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
       if (storySortBy === 'views') return (b.views || 0) - (a.views || 0);
-      if (storySortBy === 'viewRate') return ((b.views || 0) / followersCount) - ((a.views || 0) / followersCount);
+      if (storySortBy === 'viewRate') return ((b.reach || 0) / followersCount) - ((a.reach || 0) / followersCount);
       return 0;
     });
   }, [stories, storySortBy, followersCount]);
@@ -1595,7 +1595,7 @@ function InstagramContent({
               </div>
               <div className="flex gap-4 overflow-x-auto pb-1">
                 {sortedStories.slice(0, 5).map((story) => {
-                  const viewRate = followersCount > 0 ? (((story.views || 0) / followersCount) * 100).toFixed(1) : '0.0';
+                  const viewRate = followersCount > 0 ? (((story.reach || 0) / followersCount) * 100).toFixed(1) : '0.0';
                   return (
                     <div key={story.id} className="flex min-w-[180px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
                       <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
@@ -1702,7 +1702,7 @@ function InstagramContent({
           </div>
           <div className="space-y-4">
             {sortedStories.map((story) => {
-              const viewRate = followersCount > 0 ? ((story.views / followersCount) * 100).toFixed(1) : '0.0';
+              const viewRate = followersCount > 0 ? (((story.reach || 0) / followersCount) * 100).toFixed(1) : '0.0';
               return (
                 <div key={story.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
                   <div className="relative w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">

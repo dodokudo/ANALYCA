@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     apple: '/apple-icon.png',
   },
   openGraph: {
-    title: 'ANALYCA - AIでThreads運用をもっと賢く、もっと成果に。',
+    title: '【7日間無料】今すぐ詳細を確認する！',
     description: 'AIが改善提案から投稿作成・予約投稿までサポート。Threads・Instagramの数値分析が一目でできるSNS運用ツール。',
     url: 'https://analyca.jp',
     siteName: 'ANALYCA',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'ANALYCA - AIでThreads運用をもっと賢く、もっと成果に。',
+    title: '【7日間無料】今すぐ詳細を確認する！',
     description: 'AIが改善提案から投稿作成・予約投稿までサポート。Threads・Instagramの数値分析が一目でできるSNS運用ツール。',
   },
 };

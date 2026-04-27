@@ -10,6 +10,8 @@
  * 2. localStorage (fallback) - Cross-Origin-Opener-Policyでopenerが切れた場合
  */
 
+import { safeLocalStorage } from './safe-storage';
+
 export const OAUTH_STORAGE_KEY = 'oauth-callback-data';
 
 export interface OAuthCallbackData {
@@ -34,7 +36,7 @@ export class PopupBlockedError extends Error {
  */
 export function openOAuthPopup(url: string): Promise<OAuthCallbackData> {
   // 前回のデータが残っていたら消す
-  window.localStorage.removeItem(OAUTH_STORAGE_KEY);
+  safeLocalStorage.removeItem(OAUTH_STORAGE_KEY);
 
   return new Promise((resolve, reject) => {
     const width = 600;
@@ -57,7 +59,7 @@ export function openOAuthPopup(url: string): Promise<OAuthCallbackData> {
       if (resolved) return;
       resolved = true;
       cleanup();
-      window.localStorage.removeItem(OAUTH_STORAGE_KEY);
+      safeLocalStorage.removeItem(OAUTH_STORAGE_KEY);
       resolve(data);
     }
 
@@ -93,7 +95,7 @@ export function openOAuthPopup(url: string): Promise<OAuthCallbackData> {
       if (resolved) return;
 
       // ポップアップが閉じた直後、localStorageにデータがあるかチェック
-      const raw = window.localStorage.getItem(OAUTH_STORAGE_KEY);
+      const raw = safeLocalStorage.getItem(OAUTH_STORAGE_KEY);
       if (raw) {
         try {
           const data = JSON.parse(raw) as OAuthCallbackData;

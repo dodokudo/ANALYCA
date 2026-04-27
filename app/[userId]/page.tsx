@@ -11,6 +11,7 @@ import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
+import { safeLocalStorage } from '@/lib/safe-storage';
 import {
   ComposedChart,
   Bar,
@@ -308,8 +309,8 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
   // userIdをlocalStorageに保存（OAuth後のリダイレクト時にも対応）
   useEffect(() => {
-    if (userId && typeof window !== 'undefined') {
-      window.localStorage.setItem('analycaUserId', userId);
+    if (userId) {
+      safeLocalStorage.setItem('analycaUserId', userId);
     }
   }, [userId]);
 

@@ -7,6 +7,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import { PLANS } from '@/lib/univapay/plans';
 import * as gtag from '@/lib/gtag';
+import { safeLocalStorage } from '@/lib/safe-storage';
 
 declare global {
   interface Window {
@@ -71,7 +72,7 @@ function CheckoutContent() {
       });
 
     // localStorageから紹介コードを読み込み
-    const savedRef = window.localStorage.getItem('analyca_ref');
+    const savedRef = safeLocalStorage.getItem('analyca_ref');
     if (savedRef) {
       setRefCode(savedRef);
     }
@@ -137,11 +138,11 @@ function CheckoutContent() {
 
       // トークン取得成功 → サブスク作成
       // UTMパラメータをlocalStorageから取得して送信
-      const utmSource = window.localStorage.getItem('analyca_utm_source') || '';
-      const utmMedium = window.localStorage.getItem('analyca_utm_medium') || '';
-      const utmCampaign = window.localStorage.getItem('analyca_utm_campaign') || '';
-      const utmContent = window.localStorage.getItem('analyca_utm_content') || '';
-      const existingUserId = searchParams?.get('userId') || window.localStorage.getItem('analycaUserId') || '';
+      const utmSource = safeLocalStorage.getItem('analyca_utm_source') || '';
+      const utmMedium = safeLocalStorage.getItem('analyca_utm_medium') || '';
+      const utmCampaign = safeLocalStorage.getItem('analyca_utm_campaign') || '';
+      const utmContent = safeLocalStorage.getItem('analyca_utm_content') || '';
+      const existingUserId = searchParams?.get('userId') || safeLocalStorage.getItem('analycaUserId') || '';
 
       console.log('[CHECKOUT] Creating subscription with token:', tokenId, 'plan:', planId);
       const response = await fetch('/api/payment/subscribe', {

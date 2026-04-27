@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { openOAuthPopup, PopupBlockedError } from '@/lib/oauth-popup';
+import { safeLocalStorage } from '@/lib/safe-storage';
 
 export default function InstagramLoginPage() {
   const router = useRouter();
@@ -17,12 +18,12 @@ export default function InstagramLoginPage() {
     const error = params.get('error');
 
     if (!error) {
-      let userId = window.localStorage.getItem('analycaUserId');
+      let userId = safeLocalStorage.getItem('analycaUserId');
       if (!userId) {
         const match = document.cookie.match(/(?:^|;\s*)analycaUserId=([^;]+)/);
         if (match) {
           userId = decodeURIComponent(match[1]);
-          window.localStorage.setItem('analycaUserId', userId);
+          safeLocalStorage.setItem('analycaUserId', userId);
         }
       }
       if (userId) {
@@ -44,7 +45,7 @@ export default function InstagramLoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);
     const scope = 'instagram_business_basic,instagram_business_manage_insights';
-    const currentUserId = window.localStorage.getItem('analycaUserId');
+    const currentUserId = safeLocalStorage.getItem('analycaUserId');
     const stateParam = currentUserId
       ? `&state=${encodeURIComponent(JSON.stringify({ pendingUserId: currentUserId }))}`
       : '';
@@ -52,7 +53,7 @@ export default function InstagramLoginPage() {
 
     try {
       const { userId } = await openOAuthPopup(oauthUrl);
-      window.localStorage.setItem('analycaUserId', userId);
+      safeLocalStorage.setItem('analycaUserId', userId);
       router.push(`/${userId}?tab=instagram&syncing=true&auth=instagram_complete`);
     } catch (err) {
       if (err instanceof PopupBlockedError) {

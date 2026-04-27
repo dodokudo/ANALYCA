@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { openOAuthPopup, PopupBlockedError } from '@/lib/oauth-popup';
 import * as gtag from '@/lib/gtag';
+import { safeLocalStorage } from '@/lib/safe-storage';
 
 export default function OnboardingLight2Page() {
   return (
@@ -33,7 +34,7 @@ function OnboardingLight2Content() {
 
     try {
       const { userId: returnedUserId } = await openOAuthPopup(oauthUrl);
-      window.localStorage.setItem('analycaUserId', returnedUserId);
+      safeLocalStorage.setItem('analycaUserId', returnedUserId);
       window.location.replace(`/${returnedUserId}?tab=instagram&syncing=true&auth=instagram_complete`);
     } catch (err) {
       if (err instanceof PopupBlockedError) {

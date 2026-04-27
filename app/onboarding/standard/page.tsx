@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { openOAuthPopup, PopupBlockedError } from '@/lib/oauth-popup';
 import * as gtag from '@/lib/gtag';
+import { safeLocalStorage } from '@/lib/safe-storage';
 
 export default function OnboardingStandardPage() {
   return (
@@ -53,7 +54,7 @@ function OnboardingStandardContent() {
 
     try {
       const { userId: returnedUserId } = await openOAuthPopup(oauthUrl);
-      window.localStorage.setItem('analycaUserId', returnedUserId);
+      safeLocalStorage.setItem('analycaUserId', returnedUserId);
       setConnectedUserId(returnedUserId);
       setInstagramConnected(true);
 

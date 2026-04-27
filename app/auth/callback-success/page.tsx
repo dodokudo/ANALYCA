@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { OAUTH_STORAGE_KEY } from '@/lib/oauth-popup';
+import { safeLocalStorage } from '@/lib/safe-storage';
 
 /**
  * OAuthコールバック成功ページ
@@ -27,7 +28,7 @@ export default function CallbackSuccessPage() {
     const data = { userId, tab, syncing };
 
     // Channel 2: localStorage（COOPでopenerが切れていても確実に届く）
-    window.localStorage.setItem(OAUTH_STORAGE_KEY, JSON.stringify(data));
+    safeLocalStorage.setItem(OAUTH_STORAGE_KEY, JSON.stringify(data));
 
     // Channel 1: postMessage（openerが生きていれば即座に届く）
     if (window.opener) {

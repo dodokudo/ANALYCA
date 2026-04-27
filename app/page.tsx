@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AnalycaLogo from '@/components/AnalycaLogo';
+import { safeLocalStorage } from '@/lib/safe-storage';
 
 // ============ アイコンコンポーネント ============
 function InstagramIcon({ className = 'w-5 h-5' }: { className?: string }) {
@@ -232,12 +233,12 @@ export default function HomePage() {
   const [loggedInUserId, setLoggedInUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    let userId = window.localStorage.getItem('analycaUserId');
+    let userId = safeLocalStorage.getItem('analycaUserId');
     if (!userId) {
       const match = document.cookie.match(/(?:^|;\s*)analycaUserId=([^;]+)/);
       if (match) {
         userId = decodeURIComponent(match[1]);
-        window.localStorage.setItem('analycaUserId', userId);
+        safeLocalStorage.setItem('analycaUserId', userId);
       }
     }
     if (userId) {
@@ -248,7 +249,7 @@ export default function HomePage() {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
     if (ref) {
-      window.localStorage.setItem('analyca_ref', ref);
+      safeLocalStorage.setItem('analyca_ref', ref);
       // アフィリエイトクリックを記録
       fetch('/api/affiliate/click', {
         method: 'POST',
@@ -269,10 +270,10 @@ export default function HomePage() {
     const utmMedium = params.get('utm_medium');
     const utmCampaign = params.get('utm_campaign');
     const utmContent = params.get('utm_content');
-    if (utmSource) window.localStorage.setItem('analyca_utm_source', utmSource);
-    if (utmMedium) window.localStorage.setItem('analyca_utm_medium', utmMedium);
-    if (utmCampaign) window.localStorage.setItem('analyca_utm_campaign', utmCampaign);
-    if (utmContent) window.localStorage.setItem('analyca_utm_content', utmContent);
+    if (utmSource) safeLocalStorage.setItem('analyca_utm_source', utmSource);
+    if (utmMedium) safeLocalStorage.setItem('analyca_utm_medium', utmMedium);
+    if (utmCampaign) safeLocalStorage.setItem('analyca_utm_campaign', utmCampaign);
+    if (utmContent) safeLocalStorage.setItem('analyca_utm_content', utmContent);
   }, []);
 
   return (

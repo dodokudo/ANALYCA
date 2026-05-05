@@ -942,6 +942,7 @@ function ThreadsContent({
   const INITIAL_DISPLAY_COUNT = 20;
   const displayedPosts = showAllPosts ? sortedPosts : sortedPosts.slice(0, INITIAL_DISPLAY_COUNT);
   const hasMorePosts = sortedPosts.length > INITIAL_DISPLAY_COUNT;
+  const threadsAnnouncement = 'お知らせ: カスタム期間が使えるようになりました。トップコンテンツの再投稿では、メイン投稿とコメントをその場で編集・削除できます。';
 
   return (
     <div className="section-stack pb-20 lg:pb-6">
@@ -1014,6 +1015,10 @@ function ThreadsContent({
             )}
           </div>
         )}
+      </div>
+
+      <div className="rounded-[var(--radius-md)] border border-[#b5eed3] bg-[#e6f7ed] px-4 py-3 text-sm text-[#096c3e]">
+        {threadsAnnouncement}
       </div>
 
       {threadsTab === 'schedule' && <ScheduleTab userId={userId} />}

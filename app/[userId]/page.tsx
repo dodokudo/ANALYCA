@@ -748,7 +748,7 @@ function ThreadsContent({
 }) {
   const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>('analysis');
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<'date' | 'views' | 'likes'>('views');
+  const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
   const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
 
@@ -913,7 +913,7 @@ function ThreadsContent({
     return { transitions, overallRate };
   };
 
-  const INITIAL_DISPLAY_COUNT = 10;
+  const INITIAL_DISPLAY_COUNT = 20;
   const displayedPosts = showAllPosts ? sortedPosts : sortedPosts.slice(0, INITIAL_DISPLAY_COUNT);
   const hasMorePosts = sortedPosts.length > INITIAL_DISPLAY_COUNT;
 
@@ -1080,12 +1080,12 @@ function ThreadsContent({
             </div>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'date' | 'views' | 'likes')}
+              onChange={(e) => setSortBy(e.target.value as 'postedAt' | 'views' | 'likes')}
               className="h-9 w-40 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
             >
               <option value="views">閲覧数</option>
               <option value="likes">いいね数</option>
-              <option value="date">投稿日</option>
+              <option value="postedAt">投稿日</option>
             </select>
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

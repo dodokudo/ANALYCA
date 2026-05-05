@@ -77,6 +77,8 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
 
   const [open, setOpen] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
+  const [draftMainText, setDraftMainText] = useState('');
+  const [draftComments, setDraftComments] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -90,6 +92,8 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
     event.stopPropagation();
     if (!eligibility.eligible) return;
     setScheduledAt(getDefaultScheduledAt());
+    setDraftMainText(cleanContent(mainText));
+    setDraftComments(sortedComments.slice(0, COMMENT_SLOT_LIMIT).map((comment) => cleanContent(comment.text)));
     setSubmitError(null);
     setOpen(true);
   };
@@ -105,10 +109,10 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const commentTexts = sortedComments.slice(0, COMMENT_SLOT_LIMIT).map((c) => cleanContent(c.text));
+      const commentTexts = draftComments.map((comment) => comment.trim()).filter(Boolean);
       const body: Record<string, unknown> = {
         scheduledAt,
-        mainText: cleanContent(mainText),
+        mainText: draftMainText.trim(),
         comment1: commentTexts[0] ?? '',
         comment2: commentTexts[1] ?? '',
         comment3: commentTexts[2] ?? '',
@@ -135,9 +139,19 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
     }
   };
 
+  const updateDraftComment = (index: number, value: string) => {
+    setDraftComments((prev) => prev.map((comment, idx) => (idx === index ? value : comment)));
+  };
+
+  const removeDraftComment = (index: number) => {
+    setDraftComments((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const commentCount = draftComments.filter((comment) => comment.trim().length > 0).length;
+  const canSubmit = !submitting && scheduledAt && draftMainText.trim().length > 0 && commentCount >= 2;
+
   const usedCount = Math.min(sortedComments.length, COMMENT_SLOT_LIMIT);
   const overflow = Math.max(0, sortedComments.length - COMMENT_SLOT_LIMIT);
-  const previewComments = sortedComments.slice(0, COMMENT_SLOT_LIMIT);
 
   return (
     <>
@@ -172,9 +186,9 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
               </button>
             </header>
             <p className="mb-3 text-xs text-[color:var(--color-text-secondary)]">
-              同じ本文とコメント{usedCount}件を指定日時に再投稿します。
+              メイン投稿とコメント欄を編集して再投稿を予約できます。コメントは並び順どおりに詰めて予約されます。
               {overflow > 0 ? `元の投稿はコメント${sortedComments.length}件ですが、再投稿は先頭${COMMENT_SLOT_LIMIT}件までです。` : ''}
-              登録後は予約投稿タブで編集できます。
+              コメントは2件以上必要です。
             </p>
             <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">
               投稿日時（JST）
@@ -186,24 +200,67 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
               className="mb-3 h-10 w-full rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]"
               disabled={submitting}
             />
-            <div className="mb-3 max-h-64 overflow-y-auto text-xs text-[color:var(--color-text-primary)]">
-              <p className="whitespace-pre-wrap">{cleanContent(mainText)}</p>
-              {previewComments.length > 0 && (
-                <>
-                  <div className="my-3 border-t border-gray-200" />
-                  <p className="mb-2 text-xs font-medium text-gray-500">コメント欄</p>
-                  <div className="space-y-2">
-                    {previewComments.map((c, idx) => (
-                      <div key={c.id ?? idx} className="rounded-md bg-gray-50 p-2">
-                        <div className="mb-1 flex items-center gap-2 text-[10px] text-gray-400">
-                          <span className="font-medium text-purple-600">コメント{idx + 1}</span>
-                        </div>
-                        <p className="whitespace-pre-wrap text-gray-700">{cleanContent(c.text)}</p>
-                      </div>
-                    ))}
+            <div className="mb-3 max-h-96 overflow-y-auto space-y-3 text-xs text-[color:var(--color-text-primary)]">
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-gray-500">メイン投稿</p>
+                  <button
+                    type="button"
+                    onClick={() => setDraftMainText('')}
+                    disabled={submitting}
+                    className="rounded-full border border-rose-200 px-2.5 py-0.5 text-[11px] font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    削除
+                  </button>
+                </div>
+                <textarea
+                  value={draftMainText}
+                  onChange={(event) => setDraftMainText(event.target.value)}
+                  disabled={submitting}
+                  rows={5}
+                  className="w-full rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 py-2 text-sm text-[color:var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]"
+                />
+                <p className="mt-1 text-[10px] text-[color:var(--color-text-muted)]">
+                  {draftMainText.length}/500
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-gray-500">コメント欄</p>
+                  <span className="text-[10px] text-[color:var(--color-text-muted)]">2件以上必要</span>
+                </div>
+                {draftComments.map((comment, idx) => (
+                  <div key={`${idx}-${postId}`}>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-medium text-purple-600">コメント{idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeDraftComment(idx)}
+                        disabled={submitting}
+                        className="rounded-full border border-rose-200 px-2.5 py-0.5 text-[11px] font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        削除
+                      </button>
+                    </div>
+                    <textarea
+                      value={comment}
+                      onChange={(event) => updateDraftComment(idx, event.target.value)}
+                      disabled={submitting}
+                      rows={5}
+                      className="w-full rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 py-2 text-sm text-[color:var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-accent)]"
+                    />
+                    <p className="mt-1 text-[10px] text-[color:var(--color-text-muted)]">
+                      {comment.length}/500
+                    </p>
                   </div>
-                </>
-              )}
+                ))}
+                {draftComments.length === 0 ? (
+                  <div className="rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] px-3 py-4 text-center text-xs text-[color:var(--color-text-muted)]">
+                    コメントがありません。再投稿にはコメントを2件以上残してください。
+                  </div>
+                ) : null}
+              </div>
             </div>
             {submitError && (
               <div className="mb-3 rounded-[var(--radius-sm)] border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
@@ -222,7 +279,7 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting || !scheduledAt}
+                disabled={!canSubmit}
                 className="rounded-[var(--radius-sm)] border border-[color:var(--color-accent)] bg-[color:var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? '登録中…' : '再投稿を予約'}

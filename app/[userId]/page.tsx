@@ -77,7 +77,7 @@ function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
 // ============ 型定義 ============
 type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate';
 
-type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
+type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
 const datePresetOptions: { value: DatePreset; label: string }[] = [
   { value: '3d', label: '過去3日' },
@@ -86,7 +86,16 @@ const datePresetOptions: { value: DatePreset; label: string }[] = [
   { value: 'lastWeek', label: '先週' },
   { value: 'thisMonth', label: '今月' },
   { value: 'lastMonth', label: '先月' },
+  { value: 'custom', label: 'カスタム' },
 ];
+const standardDatePresetOptions = datePresetOptions.filter((option) => option.value !== 'custom');
+
+function formatDateForInput(date: Date): string {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, '0');
+  const d = `${date.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 // 日付範囲を計算するヘルパー関数
 function getDateRange(preset: DatePreset, options: { includeToday?: boolean } = {}): { start: Date; end: Date } {
@@ -751,6 +760,10 @@ function ThreadsContent({
   const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
   const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
+  const [customStartDate, setCustomStartDate] = useState(() => formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customEndDate, setCustomEndDate] = useState(() => formatDateForInput(new Date()));
+  const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(() => formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(() => formatDateForInput(new Date()));
 
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => {
@@ -770,7 +783,20 @@ function ThreadsContent({
   const followersCount = latestMetrics?.followers_count || 0;
 
   // 日付範囲でフィルタリング（今日のデータも含める）
-  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: true }), [datePreset]);
+  const dateRange = useMemo(() => {
+    if (datePreset === 'custom' && appliedCustomStartDate && appliedCustomEndDate) {
+      const start = new Date(appliedCustomStartDate);
+      const end = new Date(appliedCustomEndDate);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+        const normalizedStart = start <= end ? start : end;
+        const normalizedEnd = start <= end ? end : start;
+        normalizedStart.setHours(0, 0, 0, 0);
+        normalizedEnd.setHours(23, 59, 59, 999);
+        return { start: normalizedStart, end: normalizedEnd };
+      }
+    }
+    return getDateRange(datePreset, { includeToday: true });
+  }, [datePreset, appliedCustomStartDate, appliedCustomEndDate]);
 
   const posts = useMemo(() => {
     return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
@@ -940,15 +966,53 @@ function ThreadsContent({
           ))}
         </div>
         {threadsTab === 'analysis' && (
-          <select
-            value={datePreset}
-            onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-            className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
-          >
-            {datePresetOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <select
+              value={datePreset}
+              onChange={(e) => {
+                const nextPreset = e.target.value as DatePreset;
+                setDatePreset(nextPreset);
+              }}
+              className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+            >
+              {datePresetOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            {datePreset === 'custom' && (
+              <>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+                />
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!customStartDate || !customEndDate) return;
+                    const normalizedStart = customStartDate <= customEndDate ? customStartDate : customEndDate;
+                    const normalizedEnd = customStartDate <= customEndDate ? customEndDate : customStartDate;
+                    setCustomStartDate(normalizedStart);
+                    setCustomEndDate(normalizedEnd);
+                    setAppliedCustomStartDate(normalizedStart);
+                    setAppliedCustomEndDate(normalizedEnd);
+                    setDatePreset('custom');
+                  }}
+                  disabled={!customStartDate || !customEndDate}
+                  className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-accent)] bg-[color:var(--color-accent)] px-4 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  反映
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -1385,7 +1449,7 @@ function InstagramContent({
           onChange={(e) => setDatePreset(e.target.value as DatePreset)}
           className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
         >
-          {datePresetOptions.map((opt) => (
+          {standardDatePresetOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>

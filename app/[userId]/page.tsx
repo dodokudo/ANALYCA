@@ -37,6 +37,24 @@ function safeFormatDate(timestamp: string | Date | null | undefined): string {
   }
 }
 
+function safeFormatDateTime(timestamp: string | Date | null | undefined): string {
+  if (!timestamp) return '-';
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleString('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '-';
+  }
+}
+
 // 安全なタイムスタンプ取得（ソート用）
 function safeGetTime(timestamp: string | Date | null | undefined): number {
   if (!timestamp) return 0;
@@ -1149,7 +1167,7 @@ function ThreadsContent({
             >
               <option value="views">閲覧数</option>
               <option value="likes">いいね数</option>
-              <option value="postedAt">投稿日</option>
+              <option value="postedAt">投稿日時</option>
             </select>
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1180,7 +1198,7 @@ function ThreadsContent({
                           {rank}
                         </span>
                       )}
-                      <span>{safeFormatDate(post.timestamp)}</span>
+                      <span>{safeFormatDateTime(post.timestamp)}</span>
                       {postComments.length > 0 && (
                         <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
                           コメント欄{postComments.length}つ

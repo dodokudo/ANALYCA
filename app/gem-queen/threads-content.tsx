@@ -94,7 +94,14 @@ function safeFormatDate(timestamp: string | Date | null | undefined): string {
   try {
     const date = new Date(timestamp);
     if (isNaN(date.getTime())) return '-';
-    return date.toLocaleDateString('ja-JP');
+    return date.toLocaleString('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   } catch {
     return '-';
   }
@@ -474,7 +481,7 @@ export default function GemQueenThreadsContent({
             >
               <option value="views">閲覧数</option>
               <option value="likes">いいね数</option>
-              <option value="date">投稿日</option>
+              <option value="date">投稿日時</option>
             </select>
           </header>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

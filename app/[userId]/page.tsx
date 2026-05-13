@@ -1399,7 +1399,7 @@ function InstagramContent({
     const totalWebClicks = insights.reduce((sum, d) => sum + (d.website_clicks || 0), 0);
     const totalReelsViews = reels.reduce((sum, r) => sum + (r.views || 0), 0);
     const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
-    const totalStoriesViews = stories.reduce((sum, s) => sum + (s.views || 0), 0);
+    const totalStoriesViews = stories.reduce((sum, s) => sum + (s.reach || 0), 0);
     // フォロワー増減を計算（日別データから）
     const followerGrowth = insights.length > 1
       ? (insights[0]?.followers_count || 0) - (insights[insights.length - 1]?.followers_count || 0)
@@ -1420,7 +1420,7 @@ function InstagramContent({
   const sortedStories = useMemo(() => {
     return [...stories].sort((a, b) => {
       if (storySortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
-      if (storySortBy === 'views') return (b.views || 0) - (a.views || 0);
+      if (storySortBy === 'views') return (b.reach || 0) - (a.reach || 0);
       if (storySortBy === 'viewRate') return ((b.reach || 0) / followersCount) - ((a.reach || 0) / followersCount);
       return 0;
     });
@@ -1697,7 +1697,7 @@ function InstagramContent({
                         <dl className="space-y-1 text-sm text-[color:var(--color-text-secondary)]">
                           <div className="flex items-center justify-between">
                             <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧数</dt>
-                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()}</dd>
+                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd>
                           </div>
                           <div className="flex items-center justify-between">
                             <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧率</dt>
@@ -1804,9 +1804,9 @@ function InstagramContent({
                   <div className="flex-1 space-y-3">
                     <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
                     <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
-                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd></div>
                       <div><dt className="text-[color:var(--color-text-muted)]">閲覧率</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}%</dd></div>
-                      <div><dt className="text-[color:var(--color-text-muted)]">リーチ</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()}</dd></div>
                       <div><dt className="text-[color:var(--color-text-muted)]">返信</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.replies || 0)}</dd></div>
                     </dl>
                   </div>

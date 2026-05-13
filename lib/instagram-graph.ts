@@ -56,4 +56,19 @@ export async function detectGraphBase(accessToken: string, testPath: string = '/
   return FACEBOOK_GRAPH_BASE;
 }
 
+/**
+ * Refresh an Instagram Login long-lived access token.
+ * Instagramの長期トークンは graph.instagram.com/refresh_access_token で延長する。
+ * 仕様: 期限内かつ過去24h以内に使われたトークンのみ更新可。期限切れトークンは更新不可で再ログイン必須。
+ */
+export async function refreshInstagramLoginToken(accessToken: string): Promise<{ access_token: string; expires_in: number }> {
+  const url = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${accessToken}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Instagram token refresh failed (${response.status}): ${errorText}`);
+  }
+  return response.json();
+}
+
 export { INSTAGRAM_GRAPH_BASE, FACEBOOK_GRAPH_BASE };

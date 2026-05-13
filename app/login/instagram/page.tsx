@@ -10,6 +10,7 @@ export default function InstagramLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -95,7 +96,7 @@ export default function InstagramLoginPage() {
         )}
 
         <button
-          onClick={handleInstagramLogin}
+          onClick={() => setShowModal(true)}
           disabled={isLoading}
           className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50"
         >
@@ -113,6 +114,41 @@ export default function InstagramLoginPage() {
           Instagramアカウントを連携して分析を始めましょう
         </p>
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">許諾画面で必ず全項目をONにしてください</h2>
+                <p className="text-sm text-gray-600 mt-1">最重要のお願いです。必ずお読みください。</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-gray-800 space-y-2">
+              <p>次に表示されるInstagramの許諾画面で、<strong>全てのトグルをONにしてから「許可」を押してください</strong>。</p>
+              <p>特に<strong>「インサイトの取得」のトグル</strong>がOFFのままだと、リール・ストーリーの再生数やリーチ数が一切取得できず、ダッシュボードが機能しません。</p>
+              <p className="text-xs text-gray-600 pt-2 border-t border-amber-200">※ デフォルトでOFFになっている場合があります。必ず目で確認してONにしてください。</p>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowModal(false);
+                handleInstagramLogin();
+              }}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 disabled:opacity-50"
+            >
+              {isLoading ? 'リダイレクト中...' : 'ログインに進む'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

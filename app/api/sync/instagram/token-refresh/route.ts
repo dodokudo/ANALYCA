@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { InstagramAPI } from '@/lib/instagram';
+import { refreshInstagramLoginToken } from '@/lib/instagram-graph';
 import {
   getInstagramUsersNeedingTokenRefresh,
   upsertUser,
@@ -44,15 +44,15 @@ export async function GET() {
       }
 
       try {
-        const newToken = await InstagramAPI.exchangeForLongTermToken(user.access_token);
-        const newExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+        const refreshed = await refreshInstagramLoginToken(user.access_token);
+        const newExpiresAt = new Date(Date.now() + (refreshed.expires_in || 60 * 24 * 60 * 60) * 1000);
 
         await upsertUser({
           user_id: user.user_id,
           instagram_user_id: user.instagram_user_id,
           instagram_username: user.instagram_username,
           instagram_profile_picture_url: user.instagram_profile_picture_url,
-          access_token: newToken,
+          access_token: refreshed.access_token,
           token_expires_at: newExpiresAt,
           drive_folder_id: user.drive_folder_id,
           has_instagram: true,

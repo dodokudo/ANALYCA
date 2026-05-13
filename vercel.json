@@ -29,6 +29,10 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/sync/instagram/token-refresh",
+      "schedule": "0 11 * * *"
+    },
+    {
       "path": "/api/sync/profile-pictures",
       "schedule": "0 0 * * *"
     },

@@ -83,8 +83,11 @@ function getPlanId(user: AdminUser, ext?: UserExtended): string | null {
 }
 
 function getPlanLabel(user: AdminUser, ext?: UserExtended): string {
+  const sub = ext?.subscription_status;
+  const isLead = !sub || sub === 'none';
+  if (isLead) return '-';
   const planId = getPlanId(user, ext);
-  if (!planId) return getPlan(user);
+  if (!planId) return '-';
   const plan = PLANS[planId];
   if (!plan) return getPlan(user);
   return plan.yearly ? `${plan.name} 年額` : plan.name;
@@ -120,7 +123,7 @@ function getStatusLabel(status: UserStatus): string {
     case 'active': return 'アクティブ';
     case 'trial': return '無料期間';
     case 'cancelled': return '退会';
-    case 'inactive': return '未連携';
+    case 'inactive': return '未契約';
   }
 }
 
@@ -345,15 +348,18 @@ function AdminPageContent() {
   const extendedMap = new Map<string, UserExtended>();
   (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
 
-  // 契約ユーザーのみ抽出（subscription_status が 'none'/NULL の「SNS連携だけ」ユーザーは契約一覧から除外）
-  const realUsers = demoFiltered.filter(u => {
+  // 一覧表示用: 未契約リード（SNS連携だけ）も含める全ユーザー
+  const realUsers = demoFiltered;
+
+  // KPI集計用: 契約ユーザーのみ（subscription_status が 'none'/NULL を除外）
+  const paidUsers = demoFiltered.filter(u => {
     const sub = extendedMap.get(u.user_id)?.subscription_status;
     return sub && sub !== 'none';
   });
 
-  const activeUsers = realUsers.filter(u => isActive(u, extendedMap.get(u.user_id)));
-  const lightUsers = realUsers.filter(u => getPlan(u) === 'Light');
-  const standardUsers = realUsers.filter(u => getPlan(u) === 'Standard');
+  const activeUsers = paidUsers.filter(u => isActive(u, extendedMap.get(u.user_id)));
+  const lightUsers = paidUsers.filter(u => getPlan(u) === 'Light');
+  const standardUsers = paidUsers.filter(u => getPlan(u) === 'Standard');
 
   // UnivaPayサブスクリプション情報
   const subMap = data.subscriptionMap || {};
@@ -393,12 +399,13 @@ function AdminPageContent() {
 
         {/* タブ別サマリーカード */}
         {activeTab === 'users' && (() => {
-          // ステータス別集計
+          // ステータス別集計（未契約リードも含む全体）
           const statusCounts = { active: 0, trial: 0, cancelled: 0, inactive: 0 };
           realUsers.forEach(u => {
             const ext = extendedMap.get(u.user_id);
             statusCounts[getUserStatus(u, ext)]++;
           });
+          const leadCount = statusCounts.inactive;
 
           // 請求見込み集計（UnivaPayのsubscription.next_payment_dateベース。実入金額ではない）
           const excludeSubIds = new Set<string>();
@@ -413,7 +420,7 @@ function AdminPageContent() {
           const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
           const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-          realUsers.forEach(u => {
+          paidUsers.forEach(u => {
             if (excludeUserIds.has(u.user_id)) return;
             const ext = extendedMap.get(u.user_id);
             const userStatus = getUserStatus(u, ext);
@@ -445,7 +452,7 @@ function AdminPageContent() {
           const totalMonthly = confirmedRevenue + projectedRevenue;
 
           return (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
               <div className="bg-white rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-gray-500">当月請求見込み</p>
                 <p className="text-2xl font-bold text-gray-800">¥{totalMonthly.toLocaleString()}</p>
@@ -470,8 +477,12 @@ function AdminPageContent() {
                 <p className="text-sm text-gray-500">退会</p>
                 <p className="text-2xl font-bold text-red-600">{statusCounts.cancelled}人</p>
               </div>
-              <p className="col-span-2 text-xs text-gray-400 md:col-span-3 lg:col-span-6">
-                売上カードはUnivaPayの次回決済日から算出した請求見込みです。返金・実入金・決済失敗までは反映しません。
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">未契約リード</p>
+                <p className="text-2xl font-bold text-gray-500">{leadCount}人</p>
+              </div>
+              <p className="col-span-2 text-xs text-gray-400 md:col-span-3 lg:col-span-7">
+                売上カードはUnivaPayの次回決済日から算出した請求見込みです。返金・実入金・決済失敗までは反映しません。未契約リードはSNS連携のみで決済前のユーザー。
               </p>
             </div>
           );
@@ -519,7 +530,7 @@ function AdminPageContent() {
         {activeTab === 'users' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">契約ユーザー一覧</h2>
+              <h2 className="text-lg font-semibold text-gray-800">ユーザー一覧</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1460px]">
@@ -565,13 +576,17 @@ function AdminPageContent() {
                           </p>
                         </td>
                         <td className="px-4 py-4">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            plan.startsWith('Standard')
-                              ? 'bg-purple-100 text-purple-700'
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {plan}
-                          </span>
+                          {plan === '-' ? (
+                            <span className="text-gray-400 text-sm">-</span>
+                          ) : (
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              plan.startsWith('Standard')
+                                ? 'bg-purple-100 text-purple-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {plan}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex gap-1 whitespace-nowrap">

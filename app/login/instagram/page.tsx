@@ -116,25 +116,52 @@ export default function InstagramLoginPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">許諾画面で必ず全項目をONにしてください</h2>
-                <p className="text-sm text-gray-600 mt-1">最重要のお願いです。必ずお読みください。</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 my-auto">
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-purple-600 tracking-wider mb-1">STEP 1 / 1</p>
+              <h2 className="text-xl font-bold text-gray-900">Instagram連携の手順</h2>
+              <p className="text-sm text-gray-600 mt-1">次の画面でアクセスを許可します。下記の通り操作してください。</p>
+            </div>
+
+            <p className="text-sm text-gray-700 mb-3">
+              Instagramの画面でこのような項目が表示されます。<br />
+              <strong>すべてのスイッチをONにしてから「許可する」</strong>を押してください。
+            </p>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4">
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-2 bg-gray-100 text-xs text-gray-500 border-b border-gray-200">Instagramの許諾画面（例）</div>
+                <div className="divide-y divide-gray-100">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex-1 pr-3">
+                      <p className="text-sm font-medium text-gray-800">プロフィール情報を表示</p>
+                      <p className="text-xs text-gray-500">アカウント名・投稿一覧の取得</p>
+                    </div>
+                    <div className="relative w-11 h-6 rounded-full bg-emerald-500 flex-shrink-0">
+                      <div className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-purple-50">
+                    <div className="flex-1 pr-3">
+                      <p className="text-sm font-medium text-gray-800">インサイトの取得</p>
+                      <p className="text-xs text-purple-700 font-medium">← ここを必ずONに（再生数・リーチが取得できます）</p>
+                    </div>
+                    <div className="relative w-11 h-6 rounded-full bg-emerald-500 flex-shrink-0">
+                      <div className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow" />
+                    </div>
+                  </div>
+                </div>
+                <div className="px-4 py-3 bg-white border-t border-gray-200 flex justify-end gap-2">
+                  <div className="px-3 py-1.5 rounded-lg bg-gray-100 text-xs text-gray-500">キャンセル</div>
+                  <div className="px-3 py-1.5 rounded-lg bg-blue-500 text-xs text-white">許可する</div>
+                </div>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-gray-800 space-y-2">
-              <p>次に表示されるInstagramの許諾画面で、<strong>全てのトグルをONにしてから「許可」を押してください</strong>。</p>
-              <p>特に<strong>「インサイトの取得」のトグル</strong>がOFFのままだと、リール・ストーリーの再生数やリーチ数が一切取得できず、ダッシュボードが機能しません。</p>
-              <p className="text-xs text-gray-600 pt-2 border-t border-amber-200">※ デフォルトでOFFになっている場合があります。必ず目で確認してONにしてください。</p>
-            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              すべてのスイッチがONになっていることを確認してから許可をしてください。OFFのままだとダッシュボードに数値が表示されません。
+            </p>
 
             <button
               onClick={() => {

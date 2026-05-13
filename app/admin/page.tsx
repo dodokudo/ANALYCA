@@ -94,6 +94,8 @@ function getPlanLabel(user: AdminUser, ext?: UserExtended): string {
 }
 
 function getPlanAmount(user: AdminUser, ext?: UserExtended): number | null {
+  const sub = ext?.subscription_status;
+  if (!sub || sub === 'none') return null;
   const planId = getPlanId(user, ext);
   if (!planId) return null;
   return PLANS[planId]?.price ?? null;

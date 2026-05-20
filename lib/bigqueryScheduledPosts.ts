@@ -61,30 +61,6 @@ async function ensureTable() {
       const message = (error as Error)?.message || '';
       if (!message.includes('Already Exists')) throw error;
     }
-  } else {
-    // マイグレーション: 新カラムを追加（既存テーブル用）
-    const newColumns = [
-      'comment3',
-      'comment4',
-      'comment5',
-      'comment6',
-      'comment7',
-      'comment3_thread_id',
-      'comment4_thread_id',
-      'comment5_thread_id',
-      'comment6_thread_id',
-      'comment7_thread_id',
-      'error_message',
-    ];
-    for (const col of newColumns) {
-      try {
-        await client.query({
-          query: `ALTER TABLE \`${projectId}.${DATASET}.${TABLE}\` ADD COLUMN ${col} STRING`,
-        });
-      } catch {
-        // カラムが既に存在する場合は無視
-      }
-    }
   }
 }
 

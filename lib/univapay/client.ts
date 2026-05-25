@@ -86,6 +86,9 @@ function getAuthHeader(): string {
   return `Bearer ${UNIVAPAY_SECRET}.${UNIVAPAY_JWT}`;
 }
 
+const UNIVAPAY_TIMEOUT_MS = 8000;
+const UNIVAPAY_MAX_RETRIES = 2;
+
 async function fetchUnivaPay<T>(
   endpoint: string,
   options?: {
@@ -105,7 +108,7 @@ async function fetchUnivaPay<T>(
     });
   }
 
-  const fetchOptions: RequestInit = {
+  const baseFetchOptions: RequestInit = {
     method,
     headers: {
       'Authorization': getAuthHeader(),
@@ -114,22 +117,50 @@ async function fetchUnivaPay<T>(
   };
 
   if (options?.body && (method === 'POST' || method === 'PATCH')) {
-    fetchOptions.body = JSON.stringify(options.body);
+    baseFetchOptions.body = JSON.stringify(options.body);
   }
 
-  const response = await fetch(url.toString(), fetchOptions);
+  // POST/PATCHは冪等性が保証できないのでリトライしない（重複課金防止）
+  const isRetryable = method === 'GET' || method === 'DELETE';
+  const maxAttempts = isRetryable ? UNIVAPAY_MAX_RETRIES : 1;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`UnivaPay API error: ${response.status} ${errorText}`);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), UNIVAPAY_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url.toString(), {
+        ...baseFetchOptions,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`UnivaPay API error: ${response.status} ${errorText}`);
+      }
+
+      // DELETE returns 204 No Content
+      if (method === 'DELETE' || response.status === 204) {
+        return undefined as T;
+      }
+
+      return await response.json();
+    } catch (err) {
+      clearTimeout(timeoutId);
+      lastError = err;
+      const isTimeout = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
+      if (!isTimeout || attempt === maxAttempts) {
+        throw isTimeout
+          ? new Error(`UnivaPay API timeout after ${UNIVAPAY_TIMEOUT_MS}ms (${method} ${endpoint})`)
+          : err;
+      }
+      // タイムアウトかつリトライ可能 → 少し待って再試行
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+    }
   }
-
-  // DELETE returns 204 No Content
-  if (method === 'DELETE' || response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json();
+  throw lastError;
 }
 
 /**

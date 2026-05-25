@@ -5,6 +5,9 @@ import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, cr
 import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
 
+// Vercel Serverless関数のタイムアウト上限を伸ばす（デフォルト10秒→30秒）
+export const maxDuration = 30;
+
 // トライアル日数（将来トグルで切り替え可能にする想定）
 const TRIAL_ENABLED = true;
 const TRIAL_DAYS = 7;

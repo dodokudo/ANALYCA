@@ -257,6 +257,45 @@ interface DashboardData {
 }
 
 // ============ メインコンポーネント ============
+function ExportDataActions({ userId }: { userId: string }) {
+  const exportItems = [
+    {
+      href: `/api/export/${encodeURIComponent(userId)}?type=account-insights`,
+      label: 'アカウントインサイトCSV',
+      description: 'フォロワー推移・リーチ・日別集計',
+    },
+    {
+      href: `/api/export/${encodeURIComponent(userId)}?type=posts`,
+      label: '投稿データCSV',
+      description: 'Threads投稿・Instagramリール/ストーリー',
+    },
+  ];
+
+  return (
+    <div className="mb-4 grid gap-2 sm:grid-cols-2 xl:max-w-3xl">
+      {exportItems.map((item) => (
+        <a
+          key={item.href}
+          href={item.href}
+          className="group flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 text-left shadow-sm transition hover:border-[color:var(--color-accent)] hover:bg-white"
+        >
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-[color:var(--color-text-primary)]">
+              {item.label}
+            </span>
+            <span className="mt-0.5 block text-xs text-[color:var(--color-text-muted)]">
+              {item.description}
+            </span>
+          </span>
+          <svg className="h-5 w-5 shrink-0 text-[color:var(--color-text-muted)] transition group-hover:text-[color:var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v12m0 0l4-4m-4 4l-4-4M4 21h16" />
+          </svg>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function UserDashboardContent({ userId }: { userId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -666,6 +705,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
 
         <div className="p-4 lg:p-6 min-w-0">
           {/* 同期ステータスバー - PC版のみ表示 */}
+          {(channels.instagram || channels.threads) && <ExportDataActions userId={userId} />}
 
           {activeChannel === 'threads' && (
             isChannelLocked('threads') ? (

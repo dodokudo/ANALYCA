@@ -257,43 +257,73 @@ interface DashboardData {
 }
 
 // ============ メインコンポーネント ============
-function ExportDataActions({ userId }: { userId: string }) {
-  const exportItems = [
+function CsvExportMenu({
+  items,
+}: {
+  items: { href: string; label: string; description: string }[];
+}) {
+  return (
+    <details className="group relative shrink-0">
+      <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm font-medium text-[color:var(--color-text-secondary)] transition hover:bg-[color:var(--color-surface-muted)] [&::-webkit-details-marker]:hidden">
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v12m0 0l4-4m-4 4l-4-4M4 21h16" />
+        </svg>
+        <span className="hidden sm:inline">CSVダウンロード</span>
+        <span className="sm:hidden">CSV</span>
+        <svg className="h-4 w-4 transition group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-lg">
+        {items.map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className="block border-b border-[color:var(--color-border)] px-4 py-3 text-left last:border-b-0 hover:bg-[color:var(--color-surface-muted)]"
+          >
+            <span className="block text-sm font-semibold text-[color:var(--color-text-primary)]">{item.label}</span>
+            <span className="mt-0.5 block text-xs text-[color:var(--color-text-muted)]">{item.description}</span>
+          </a>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function getExportItems(userId: string, channel: 'threads' | 'instagram') {
+  const encodedUserId = encodeURIComponent(userId);
+  if (channel === 'threads') {
+    return [
+      {
+        href: `/api/export/${encodedUserId}?channel=threads&type=account-insights`,
+        label: 'アカウントインサイト',
+        description: 'フォロワー推移・日別集計',
+      },
+      {
+        href: `/api/export/${encodedUserId}?channel=threads&type=posts`,
+        label: '投稿データ',
+        description: '投稿・コメント欄・遷移率',
+      },
+    ];
+  }
+
+  return [
     {
-      href: `/api/export/${encodeURIComponent(userId)}?type=account-insights`,
-      label: 'アカウントインサイトCSV',
-      description: 'フォロワー推移・リーチ・日別集計',
+      href: `/api/export/${encodedUserId}?channel=instagram&type=account-insights`,
+      label: 'アカウントインサイト',
+      description: 'フォロワー推移・リーチ・導線',
     },
     {
-      href: `/api/export/${encodeURIComponent(userId)}?type=posts`,
-      label: '投稿データCSV',
-      description: 'Threads投稿・Instagramリール/ストーリー',
+      href: `/api/export/${encodedUserId}?channel=instagram&type=reels`,
+      label: 'リールデータ',
+      description: '再生・リーチ・保存・反応',
+    },
+    {
+      href: `/api/export/${encodedUserId}?channel=instagram&type=stories`,
+      label: 'ストーリーデータ',
+      description: '閲覧・リーチ・返信',
     },
   ];
-
-  return (
-    <div className="mb-4 grid gap-2 sm:grid-cols-2 xl:max-w-3xl">
-      {exportItems.map((item) => (
-        <a
-          key={item.href}
-          href={item.href}
-          className="group flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 text-left shadow-sm transition hover:border-[color:var(--color-accent)] hover:bg-white"
-        >
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold text-[color:var(--color-text-primary)]">
-              {item.label}
-            </span>
-            <span className="mt-0.5 block text-xs text-[color:var(--color-text-muted)]">
-              {item.description}
-            </span>
-          </span>
-          <svg className="h-5 w-5 shrink-0 text-[color:var(--color-text-muted)] transition group-hover:text-[color:var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v12m0 0l4-4m-4 4l-4-4M4 21h16" />
-          </svg>
-        </a>
-      ))}
-    </div>
-  );
 }
 
 function UserDashboardContent({ userId }: { userId: string }) {
@@ -704,9 +734,6 @@ function UserDashboardContent({ userId }: { userId: string }) {
         </header>
 
         <div className="p-4 lg:p-6 min-w-0">
-          {/* 同期ステータスバー - PC版のみ表示 */}
-          {(channels.instagram || channels.threads) && <ExportDataActions userId={userId} />}
-
           {activeChannel === 'threads' && (
             isChannelLocked('threads') ? (
               <UpgradeCard
@@ -739,6 +766,7 @@ function UserDashboardContent({ userId }: { userId: string }) {
               <ConnectCard channel="instagram" userId={userId} />
             ) : (
               <InstagramContent
+                userId={userId}
                 user={user}
                 data={data}
                 username={username}
@@ -1025,6 +1053,7 @@ function ThreadsContent({
         </div>
         {threadsTab === 'analysis' && (
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <CsvExportMenu items={getExportItems(userId, 'threads')} />
             <select
               value={datePreset}
               onChange={(e) => {
@@ -1398,10 +1427,12 @@ interface InstagramInsight {
 type IGTab = 'overview' | 'reels' | 'stories' | 'daily';
 
 function InstagramContent({
+  userId,
   data,
   username,
   profilePicture,
 }: {
+  userId: string;
   user: UserInfo | null;
   data: DashboardData | null;
   username: string;
@@ -1502,15 +1533,18 @@ function InstagramContent({
             </button>
           ))}
         </div>
-        <select
-          value={datePreset}
-          onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-          className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
-        >
-          {standardDatePresetOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <CsvExportMenu items={getExportItems(userId, 'instagram')} />
+          <select
+            value={datePreset}
+            onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+            className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+          >
+            {standardDatePresetOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* 概要タブ */}

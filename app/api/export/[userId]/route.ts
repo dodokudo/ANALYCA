@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, getUserDashboardData } from '@/lib/bigquery';
 
-type ExportType = 'account-insights' | 'posts';
+type ExportChannel = 'threads' | 'instagram';
+type ExportType = 'account-insights' | 'posts' | 'reels' | 'stories';
 
 type CsvValue = string | number | boolean | null | undefined;
+type DashboardData = Awaited<ReturnType<typeof getUserDashboardData>>;
 
 function serializeValue(value: unknown): CsvValue {
   if (value === null || value === undefined) return '';
@@ -31,64 +33,144 @@ function toCsv(headers: string[], rows: CsvValue[][]): string {
   return `\uFEFF${lines.join('\n')}`;
 }
 
-function buildAccountInsightsCsv(data: Awaited<ReturnType<typeof getUserDashboardData>>): string {
+function buildThreadsAccountInsightsCsv(data: DashboardData): string {
   const headers = [
-    'channel',
     'date',
     'followers_count',
     'follower_delta',
-    'posts_count',
     'post_count',
-    'reach',
-    'engagement',
-    'profile_views',
-    'website_clicks',
     'total_views',
     'total_likes',
     'total_replies',
   ];
 
-  const instagramRows = data.insights.map((insight) => [
-    'instagram',
+  return toCsv(headers, data.threadsDailyMetrics.map((metric) => [
+    serializeValue(metric.date),
+    metric.followers_count,
+    metric.follower_delta,
+    metric.post_count,
+    metric.total_views,
+    metric.total_likes,
+    metric.total_replies,
+  ]));
+}
+
+function buildInstagramAccountInsightsCsv(data: DashboardData): string {
+  const headers = [
+    'date',
+    'followers_count',
+    'posts_count',
+    'reach',
+    'engagement',
+    'profile_views',
+    'website_clicks',
+  ];
+
+  return toCsv(headers, data.insights.map((insight) => [
     serializeValue(insight.date),
     insight.followers_count,
-    '',
     insight.posts_count,
-    '',
     insight.reach,
     insight.engagement,
     insight.profile_views,
     insight.website_clicks,
-    '',
-    '',
-    '',
-  ]);
-
-  const threadsRows = data.threadsDailyMetrics.map((metric) => [
-    'threads',
-    serializeValue(metric.date),
-    metric.followers_count,
-    metric.follower_delta,
-    '',
-    metric.post_count,
-    '',
-    '',
-    '',
-    '',
-    metric.total_views,
-    metric.total_likes,
-    metric.total_replies,
-  ]);
-
-  return toCsv(headers, [...instagramRows, ...threadsRows]);
+  ]));
 }
 
-function buildPostsCsv(data: Awaited<ReturnType<typeof getUserDashboardData>>): string {
-  const headers = [
-    'channel',
-    'content_type',
-    'id',
+function getCommentTransitionRate(previousViews: number, currentViews: number): CsvValue {
+  if (!previousViews || previousViews <= 0) return '';
+  return Number(((currentViews / previousViews) * 100).toFixed(2));
+}
+
+function buildThreadsPostsCsv(data: DashboardData): string {
+  const commentsByPostId = new Map<string, typeof data.threadsComments>();
+
+  for (const comment of data.threadsComments) {
+    if (!commentsByPostId.has(comment.parent_post_id)) {
+      commentsByPostId.set(comment.parent_post_id, []);
+    }
+    commentsByPostId.get(comment.parent_post_id)!.push(comment);
+  }
+
+  for (const comments of commentsByPostId.values()) {
+    comments.sort((a, b) => (a.depth || 0) - (b.depth || 0));
+  }
+
+  const maxCommentCount = Math.max(
+    0,
+    ...Array.from(commentsByPostId.values()).map((comments) => comments.length)
+  );
+
+  const baseHeaders = [
+    'post_id',
     'text',
+    'timestamp',
+    'permalink',
+    'media_type',
+    'views',
+    'likes',
+    'replies',
+    'reposts',
+    'quotes',
+    'comment_count',
+    'overall_comment_transition_rate',
+  ];
+
+  const commentHeaders = Array.from({ length: maxCommentCount }).flatMap((_, index) => {
+    const number = index + 1;
+    return [
+      `comment_${number}_id`,
+      `comment_${number}_text`,
+      `comment_${number}_views`,
+      `comment_${number}_transition_rate`,
+    ];
+  });
+
+  const rows = data.threadsPosts.map((post) => {
+    const comments = commentsByPostId.get(post.threads_id) || [];
+    const lastComment = comments[comments.length - 1];
+    const baseRow: CsvValue[] = [
+      post.threads_id || post.id,
+      post.text,
+      serializeValue(post.timestamp),
+      post.permalink,
+      post.media_type,
+      post.views,
+      post.likes,
+      post.replies,
+      post.reposts,
+      post.quotes,
+      comments.length,
+      lastComment ? getCommentTransitionRate(post.views || 0, lastComment.views || 0) : '',
+    ];
+
+    const commentColumns: CsvValue[] = [];
+    for (let index = 0; index < maxCommentCount; index += 1) {
+      const comment = comments[index];
+      if (!comment) {
+        commentColumns.push('', '', '', '');
+        continue;
+      }
+
+      const previousViews = index === 0 ? post.views || 0 : comments[index - 1]?.views || 0;
+      commentColumns.push(
+        comment.comment_id || comment.id,
+        comment.text,
+        comment.views,
+        getCommentTransitionRate(previousViews, comment.views || 0)
+      );
+    }
+
+    return [...baseRow, ...commentColumns];
+  });
+
+  return toCsv([...baseHeaders, ...commentHeaders], rows);
+}
+
+function buildInstagramReelsCsv(data: DashboardData): string {
+  const headers = [
+    'reel_id',
+    'caption',
     'timestamp',
     'permalink',
     'media_type',
@@ -96,39 +178,13 @@ function buildPostsCsv(data: Awaited<ReturnType<typeof getUserDashboardData>>): 
     'reach',
     'likes',
     'comments',
-    'replies',
-    'reposts',
-    'quotes',
     'saved',
     'shares',
     'total_interactions',
     'avg_watch_time_seconds',
   ];
 
-  const threadsRows = data.threadsPosts.map((post) => [
-    'threads',
-    'post',
-    post.threads_id || post.id,
-    post.text,
-    serializeValue(post.timestamp),
-    post.permalink,
-    post.media_type,
-    post.views,
-    '',
-    post.likes,
-    '',
-    post.replies,
-    post.reposts,
-    post.quotes,
-    '',
-    '',
-    '',
-    '',
-  ]);
-
-  const reelRows = data.reels.map((reel) => [
-    'instagram',
-    'reel',
+  return toCsv(headers, data.reels.map((reel) => [
     reel.instagram_id || reel.id,
     reel.caption,
     serializeValue(reel.timestamp),
@@ -138,37 +194,46 @@ function buildPostsCsv(data: Awaited<ReturnType<typeof getUserDashboardData>>): 
     reel.reach,
     reel.like_count,
     reel.comments_count,
-    '',
-    '',
-    '',
     reel.saved,
     reel.shares,
     reel.total_interactions,
     reel.avg_watch_time_seconds,
-  ]);
+  ]));
+}
 
-  const storyRows = data.stories.map((story) => [
-    'instagram',
-    'story',
+function buildInstagramStoriesCsv(data: DashboardData): string {
+  const headers = [
+    'story_id',
+    'caption',
+    'timestamp',
+    'views',
+    'reach',
+    'replies',
+    'total_interactions',
+  ];
+
+  return toCsv(headers, data.stories.map((story) => [
     story.instagram_id || story.id,
     story.caption,
     serializeValue(story.timestamp),
-    '',
-    'STORY',
     story.views,
     story.reach,
-    '',
-    '',
     story.replies,
-    '',
-    '',
-    '',
-    '',
     story.total_interactions,
-    '',
-  ]);
+  ]));
+}
 
-  return toCsv(headers, [...threadsRows, ...reelRows, ...storyRows]);
+function getCsv(data: DashboardData, channel: ExportChannel, type: ExportType): string | null {
+  if (channel === 'threads') {
+    if (type === 'account-insights') return buildThreadsAccountInsightsCsv(data);
+    if (type === 'posts') return buildThreadsPostsCsv(data);
+    return null;
+  }
+
+  if (type === 'account-insights') return buildInstagramAccountInsightsCsv(data);
+  if (type === 'reels') return buildInstagramReelsCsv(data);
+  if (type === 'stories') return buildInstagramStoriesCsv(data);
+  return null;
 }
 
 export async function GET(
@@ -177,11 +242,19 @@ export async function GET(
 ) {
   try {
     const { userId } = await params;
+    const channel = request.nextUrl.searchParams.get('channel') as ExportChannel | null;
     const type = request.nextUrl.searchParams.get('type') as ExportType | null;
 
-    if (type !== 'account-insights' && type !== 'posts') {
+    if (channel !== 'threads' && channel !== 'instagram') {
       return NextResponse.json(
-        { success: false, error: 'type は account-insights または posts を指定してください' },
+        { success: false, error: 'channel は threads または instagram を指定してください' },
+        { status: 400 }
+      );
+    }
+
+    if (!type) {
+      return NextResponse.json(
+        { success: false, error: 'type を指定してください' },
         { status: 400 }
       );
     }
@@ -195,11 +268,17 @@ export async function GET(
     }
 
     const data = await getUserDashboardData(userId);
-    const csv = type === 'account-insights'
-      ? buildAccountInsightsCsv(data)
-      : buildPostsCsv(data);
+    const csv = getCsv(data, channel, type);
+
+    if (!csv) {
+      return NextResponse.json(
+        { success: false, error: '指定されたCSV種別はこのチャンネルでは利用できません' },
+        { status: 400 }
+      );
+    }
+
     const date = new Date().toISOString().slice(0, 10);
-    const filename = `analyca-${userId}-${type}-${date}.csv`;
+    const filename = `analyca-${userId}-${channel}-${type}-${date}.csv`;
 
     return new NextResponse(csv, {
       headers: {

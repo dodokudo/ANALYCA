@@ -129,28 +129,81 @@ function wrapHtml(title: string, body: string): string {
  * メール送信ベース関数
  * SMTPエラーは必ずSentryに送信して即検知可能にする（握り潰し禁止）
  */
-export async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  try {
-    const info = await transporter.sendMail({
-      from: FROM_ADDRESS,
-      to,
-      subject,
-      html,
+type SendEmailOptions = {
+  captureException?: boolean;
+  retries?: number;
+};
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  options: SendEmailOptions = {},
+): Promise<void> {
+  const retries = options.retries ?? 0;
+  const captureException = options.captureException ?? true;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    if (attempt > 0) {
+      await sleep(500 * attempt);
+    }
+
+    try {
+      const info = await transporter.sendMail({
+        from: FROM_ADDRESS,
+        to,
+        subject,
+        html,
+      });
+      console.log(`[EMAIL SENT] to=${to} subject="${subject.slice(0, 60)}" messageId=${info.messageId}`);
+      return;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      lastError = err;
+      console.error('[EMAIL FAILED]', {
+        to,
+        subject: subject.slice(0, 80),
+        attempt: attempt + 1,
+        attempts: retries + 1,
+        error: err.message,
+        code: (err as { code?: string }).code,
+      });
+    }
+  }
+
+  const err = lastError ?? new Error('Email send failed');
+  if (captureException) {
+    Sentry.captureException(err, {
+      tags: { feature: 'email', recipient: to },
+      extra: { subject, smtpHost: process.env.SMTP_HOST, smtpUser: process.env.SMTP_USER },
     });
-    console.log(`[EMAIL SENT] to=${to} subject="${subject.slice(0, 60)}" messageId=${info.messageId}`);
+  }
+  throw err;
+}
+
+export async function trySendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  options: SendEmailOptions = {},
+): Promise<boolean> {
+  try {
+    await sendEmail(to, subject, html, { captureException: false, ...options });
+    return true;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error('[EMAIL FAILED]', {
+    console.warn('[EMAIL SKIPPED AFTER FAILURE]', {
       to,
       subject: subject.slice(0, 80),
       error: err.message,
       code: (err as { code?: string }).code,
     });
-    Sentry.captureException(err, {
-      tags: { feature: 'email', recipient: to },
-      extra: { subject, smtpHost: process.env.SMTP_HOST, smtpUser: process.env.SMTP_USER },
-    });
-    throw err;
+    return false;
   }
 }
 
@@ -234,10 +287,11 @@ export async function sendAdminCardRegisteredEmail(
     </table>
   `;
 
-  await sendEmail(
+  await trySendEmail(
     ADMIN_NOTIFICATION_EMAIL,
     '【ANALYCA 管理通知】カード登録完了',
     wrapHtml('カード登録完了', body),
+    { retries: 2 },
   );
 }
 
@@ -268,10 +322,11 @@ export async function sendAdminPaymentNotificationEmail(
     </table>
   `;
 
-  await sendEmail(
+  await trySendEmail(
     ADMIN_NOTIFICATION_EMAIL,
     '【ANALYCA 管理通知】決済完了',
     wrapHtml('決済完了', body),
+    { retries: 2 },
   );
 }
 

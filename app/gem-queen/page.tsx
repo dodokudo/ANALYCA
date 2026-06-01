@@ -53,6 +53,85 @@ interface ApiResponse {
   error?: string;
 }
 
+type GemQueenThreadsUser = {
+  threads_username?: string | null;
+  threads_profile_picture_url?: string | null;
+};
+
+function CsvExportMenu({
+  items,
+}: {
+  items: { href: string; label: string; description: string }[];
+}) {
+  return (
+    <details className="group relative shrink-0">
+      <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v12m0 0l4-4m-4 4l-4-4M4 21h16" />
+        </svg>
+        <span className="hidden sm:inline">CSVダウンロード</span>
+        <span className="sm:hidden">CSV</span>
+        <svg className="h-4 w-4 transition group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+        {items.map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className="block border-b border-gray-100 px-4 py-3 text-left last:border-b-0 hover:bg-gray-50"
+          >
+            <span className="block text-sm font-semibold text-gray-900">{item.label}</span>
+            <span className="mt-0.5 block text-xs text-gray-500">{item.description}</span>
+          </a>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function getGemQueenExportItems(channel: 'instagram' | 'threads') {
+  if (channel === 'threads') {
+    const userId = '33833959932919231';
+    return [
+      {
+        href: `/api/export/${userId}?channel=threads&type=account-insights`,
+        label: 'アカウントインサイト',
+        description: 'フォロワー推移・日別集計',
+      },
+      {
+        href: `/api/export/${userId}?channel=threads&type=posts`,
+        label: '投稿データ',
+        description: '投稿・コメント欄・遷移率',
+      },
+    ];
+  }
+
+  return [
+    {
+      href: '/api/gem-queen/export?type=account-insights',
+      label: 'アカウントインサイト',
+      description: 'フォロワー推移・リーチ・導線',
+    },
+    {
+      href: '/api/gem-queen/export?type=reels',
+      label: 'リールデータ',
+      description: '再生・リーチ・保存・反応',
+    },
+    {
+      href: '/api/gem-queen/export?type=stories',
+      label: 'ストーリーデータ',
+      description: '閲覧・リーチ・返信',
+    },
+    {
+      href: '/api/gem-queen/export?type=daily',
+      label: 'デイリーデータ',
+      description: '日別KPI・LINE登録',
+    },
+  ];
+}
+
 // URL変換関数を追加
 const convertToGoogleUserContent = (url: string) => {
   if (!url) return '';
@@ -316,8 +395,8 @@ export default function Dashboard() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeChannel, setActiveChannel] = useState<'instagram' | 'threads'>('instagram');
-  const [threadsData, setThreadsData] = useState<any>(null);
-  const [threadsUser, setThreadsUser] = useState<any>(null);
+  const [threadsData, setThreadsData] = useState<Parameters<typeof GemQueenThreadsContent>[0]['data']>(null);
+  const [threadsUser, setThreadsUser] = useState<GemQueenThreadsUser | null>(null);
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [threadsDatePreset, setThreadsDatePreset] = useState<'3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth'>('7d');
   const [customStartDate, setCustomStartDate] = useState(() => formatDateForInput(dateRange.start));
@@ -976,6 +1055,7 @@ export default function Dashboard() {
 
           {/* 右: 期間セレクト */}
           <div className="flex items-center">
+            <CsvExportMenu items={getGemQueenExportItems(activeChannel)} />
             {activeChannel === 'instagram' && (
             <select
               value={dateRange.preset === 'yesterday' ? 'yesterday' :
@@ -994,7 +1074,7 @@ export default function Dashboard() {
                   updatePreset(value);
                 }
               }}
-              className="rounded-lg border border-gray-500 bg-white text-gray-900 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 min-w-[100px]"
+              className="ml-2 rounded-lg border border-gray-500 bg-white text-gray-900 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 min-w-[100px]"
             >
               <option value="yesterday">昨日</option>
               <option value="this-week">今週</option>
@@ -1008,7 +1088,7 @@ export default function Dashboard() {
             <select
               value={threadsDatePreset}
               onChange={(e) => setThreadsDatePreset(e.target.value as typeof threadsDatePreset)}
-              className="rounded-lg border border-gray-500 bg-white text-gray-900 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 min-w-[100px]"
+              className="ml-2 rounded-lg border border-gray-500 bg-white text-gray-900 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 min-w-[100px]"
             >
               <option value="3d">過去3日</option>
               <option value="7d">過去7日</option>
@@ -1087,6 +1167,7 @@ export default function Dashboard() {
 
           {/* 右: 期間セレクト */}
           <div className="flex items-center space-x-3 flex-shrink-0">
+            <CsvExportMenu items={getGemQueenExportItems(activeChannel)} />
             {activeChannel === 'threads' && (
             <select
               value={threadsDatePreset}

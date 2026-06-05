@@ -1388,9 +1388,9 @@ export async function getUserDashboardData(userId: string): Promise<{
     getUserStories(userId, 50),
     getUserInsights(userId, 30),
     getUserLineData(userId, 30),
-    getUserThreadsPosts(userId, 500),
-    getUserThreadsDailyMetrics(userId, 90),
-    getUserThreadsDailyPostStats(userId, 90),
+    getUserThreadsPosts(userId, 5000),
+    getUserThreadsDailyMetrics(userId, 1000),
+    getUserThreadsDailyPostStats(userId, 1000),
   ]);
 
   const threadsComments = await getThreadsCommentsForPosts(

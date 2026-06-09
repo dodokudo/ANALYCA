@@ -1,3 +1,10 @@
+export type ScheduledPostMediaItem = {
+  url: string;
+  type: 'IMAGE' | 'VIDEO';
+  altText?: string;
+  name?: string;
+};
+
 export type ScheduledPost = {
   scheduleId: string;
   scheduledAt: string;
@@ -5,6 +12,7 @@ export type ScheduledPost = {
   scheduledDate: string;
   status: string;
   mainText: string;
+  mediaItems: ScheduledPostMediaItem[];
   comment1: string;
   comment2: string;
   comment3: string;

@@ -5,6 +5,8 @@
  * Similar to Instagram Graph API structure.
  */
 
+import type { ThreadsMediaItem } from '@/lib/threadsMedia';
+
 const GRAPH_BASE = 'https://graph.threads.net/v1.0';
 
 export interface ThreadsPost {
@@ -281,46 +283,85 @@ export class ThreadsAPI {
   /**
    * Create and publish a post (3-step: createContainer → wait → publish)
    */
-  async createPost(text: string, replyToId?: string): Promise<string> {
+  async createPost(
+    input: string | { text: string; mediaItems?: ThreadsMediaItem[]; replyToId?: string },
+    legacyReplyToId?: string,
+  ): Promise<string> {
     const account = await this.getAccountInfo();
     const userId = account.id;
+    const text = typeof input === 'string' ? input : input.text;
+    const replyToId = typeof input === 'string' ? legacyReplyToId : input.replyToId;
+    const mediaItems = typeof input === 'string' ? [] : (input.mediaItems || []).slice(0, 10);
 
-    // Step 1: Create container
-    const body: Record<string, unknown> = {
-      text,
-      media_type: 'TEXT',
-    };
-    if (replyToId) {
-      body.reply_to_id = replyToId;
-    }
+    const createContainer = async (body: Record<string, unknown>) => {
+      const createRes = await fetch(`${GRAPH_BASE}/${userId}/threads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, access_token: this.accessToken }),
+      });
 
-    const createRes = await fetch(`${GRAPH_BASE}/${userId}/threads`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...body, access_token: this.accessToken }),
-    });
-
-    if (!createRes.ok) {
-      const error = await createRes.text();
-      throw new Error(`Failed to create container: ${error}`);
-    }
-
-    const { id: containerId } = await createRes.json();
-
-    // Step 2: Wait for container to be ready
-    for (let i = 0; i < 10; i++) {
-      const statusRes = await fetch(
-        `${GRAPH_BASE}/${containerId}?fields=status,error_message&access_token=${this.accessToken}`
-      );
-      const statusData = await statusRes.json();
-      if (statusData.status === 'ERROR') {
-        throw new Error(statusData.error_message ?? 'Container creation failed');
+      if (!createRes.ok) {
+        const error = await createRes.text();
+        throw new Error(`Failed to create container: ${error}`);
       }
-      if (statusData.status === 'FINISHED') break;
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const data = await createRes.json();
+      return data.id as string;
+    };
+
+    const waitForContainer = async (containerId: string) => {
+      for (let i = 0; i < 30; i++) {
+        const statusRes = await fetch(
+          `${GRAPH_BASE}/${containerId}?fields=status,error_message&access_token=${this.accessToken}`,
+        );
+        const statusData = await statusRes.json();
+        if (statusData.status === 'ERROR') {
+          throw new Error(statusData.error_message ?? 'Container creation failed');
+        }
+        if (statusData.status === 'FINISHED') return;
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    };
+
+    let containerId: string;
+    if (mediaItems.length === 0) {
+      containerId = await createContainer({
+        text,
+        media_type: 'TEXT',
+        ...(replyToId ? { reply_to_id: replyToId } : {}),
+      });
+    } else if (mediaItems.length === 1) {
+      const item = mediaItems[0];
+      containerId = await createContainer({
+        text,
+        media_type: item.type,
+        ...(item.type === 'VIDEO' ? { video_url: item.url } : { image_url: item.url }),
+        ...(item.altText ? { alt_text: item.altText } : {}),
+        ...(replyToId ? { reply_to_id: replyToId } : {}),
+      });
+    } else {
+      const childIds: string[] = [];
+      for (const item of mediaItems) {
+        const childId = await createContainer({
+          media_type: item.type,
+          ...(item.type === 'VIDEO' ? { video_url: item.url } : { image_url: item.url }),
+          is_carousel_item: true,
+          ...(item.altText ? { alt_text: item.altText } : {}),
+        });
+        await waitForContainer(childId);
+        childIds.push(childId);
+      }
+
+      containerId = await createContainer({
+        text,
+        media_type: 'CAROUSEL',
+        children: childIds.join(','),
+        ...(replyToId ? { reply_to_id: replyToId } : {}),
+      });
     }
 
-    // Step 3: Publish
+    await waitForContainer(containerId);
+
     const publishRes = await fetch(`${GRAPH_BASE}/${userId}/threads_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

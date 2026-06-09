@@ -77,6 +77,61 @@ export async function uploadImageToGCS(
   }
 }
 
+export async function uploadBufferToGCS(
+  buffer: Buffer,
+  contentType: string,
+  fileName: string,
+  folder?: string,
+): Promise<string | null> {
+  try {
+    const sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '-');
+    const fullFileName = folder ? `${folder}/${sanitizedName}` : sanitizedName;
+    const storage = getStorage();
+    const bucket = storage.bucket(BUCKET_NAME);
+    const file = bucket.file(fullFileName);
+
+    await file.save(buffer, {
+      contentType,
+      metadata: {
+        cacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    return `https://storage.googleapis.com/${BUCKET_NAME}/${fullFileName}`;
+  } catch (error) {
+    console.error('Failed to upload buffer to GCS:', error);
+    return null;
+  }
+}
+
+export async function createSignedGCSUploadUrl(
+  contentType: string,
+  fileName: string,
+  folder?: string,
+): Promise<{ uploadUrl: string; publicUrl: string } | null> {
+  try {
+    const sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '-');
+    const fullFileName = folder ? `${folder}/${sanitizedName}` : sanitizedName;
+    const storage = getStorage();
+    const bucket = storage.bucket(BUCKET_NAME);
+    const file = bucket.file(fullFileName);
+    const [uploadUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + 15 * 60 * 1000,
+      contentType,
+    });
+
+    return {
+      uploadUrl,
+      publicUrl: `https://storage.googleapis.com/${BUCKET_NAME}/${fullFileName}`,
+    };
+  } catch (error) {
+    console.error('Failed to create signed GCS upload URL:', error);
+    return null;
+  }
+}
+
 /**
  * 複数の画像をGCSにアップロード
  * @param items - アップロードする画像情報の配列

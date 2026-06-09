@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScheduleCalendar } from './schedule-calendar';
 import { ScheduleEditor } from './schedule-editor';
-import type { ScheduledPost } from './schedule-types';
+import type { ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
 
 function formatDateKey(date: Date) {
   const year = date.getFullYear();
@@ -25,6 +25,28 @@ function monthKey(value: string) {
   return value.slice(0, 7);
 }
 
+function parseJsonArray(value: unknown): string[] {
+  try {
+    const parsed = JSON.parse(String(value ?? '[]'));
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseMediaItems(raw: Record<string, unknown>): ScheduledPostMediaItem[] {
+  const urls = parseJsonArray(raw.main_media_urls);
+  const types = parseJsonArray(raw.main_media_types);
+  const altTexts = parseJsonArray(raw.main_media_alt_texts);
+  return urls
+    .map((url, index) => ({
+      url,
+      type: types[index] === 'VIDEO' ? 'VIDEO' as const : 'IMAGE' as const,
+      altText: altTexts[index] || undefined,
+    }))
+    .filter((item) => item.url);
+}
+
 function mapItem(raw: Record<string, unknown>): ScheduledPost {
   return {
     scheduleId: String(raw.schedule_id ?? ''),
@@ -33,6 +55,7 @@ function mapItem(raw: Record<string, unknown>): ScheduledPost {
     scheduledDate: String(raw.scheduled_date ?? ''),
     status: String(raw.status ?? 'scheduled'),
     mainText: String(raw.main_text ?? ''),
+    mediaItems: parseMediaItems(raw),
     comment1: String(raw.comment1 ?? ''),
     comment2: String(raw.comment2 ?? ''),
     comment3: String(raw.comment3 ?? ''),
@@ -134,6 +157,7 @@ export function ScheduleTab({ userId }: { userId: string }) {
     comment5: string;
     comment6: string;
     comment7: string;
+    mediaItems: ScheduledPostMediaItem[];
     status: 'draft' | 'scheduled';
   }) => {
     setSaving(true);
@@ -154,6 +178,7 @@ export function ScheduleTab({ userId }: { userId: string }) {
             comment5: payload.comment5,
             comment6: payload.comment6,
             comment7: payload.comment7,
+            mediaItems: payload.mediaItems,
             status: payload.status,
           }),
         },
@@ -196,6 +221,7 @@ export function ScheduleTab({ userId }: { userId: string }) {
     comment5: string;
     comment6: string;
     comment7: string;
+    mediaItems: ScheduledPostMediaItem[];
   }) => {
     if (!confirm('今すぐ投稿しますか？')) return;
     setPublishing(true);
@@ -212,6 +238,7 @@ export function ScheduleTab({ userId }: { userId: string }) {
           comment5: payload.comment5,
           comment6: payload.comment6,
           comment7: payload.comment7,
+          mediaItems: payload.mediaItems,
         }),
       });
       const data = await res.json();
@@ -248,6 +275,7 @@ export function ScheduleTab({ userId }: { userId: string }) {
         <ScheduleEditor
           selectedDate={selectedDate}
           selectedItem={selectedItem}
+          userId={userId}
           isSaving={saving}
           isPublishing={publishing}
           onSave={handleSave}

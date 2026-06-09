@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteScheduledPost, getScheduledPostById, toJstIsoString, updateScheduledPost } from '@/lib/bigqueryScheduledPosts';
+import { MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
 
 function validateTextLength(label: string, value?: string) {
   if (!value) return null;
@@ -31,6 +32,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const payload = await request.json();
     const { scheduledAt, mainText, comment1, comment2, comment3, comment4, comment5, comment6, comment7, status } = payload ?? {};
+    const hasMediaItems = Array.isArray(payload?.mediaItems);
+    if (hasMediaItems && payload.mediaItems.length > MAX_THREADS_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `メディアは最大${MAX_THREADS_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
+    const serializedMedia = hasMediaItems
+      ? serializeThreadsMediaItems(normalizeThreadsMediaItems(payload.mediaItems))
+      : null;
 
     const mainError = validateTextLength('メイン投稿', mainText);
     if (mainError) {
@@ -68,6 +76,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       scheduledTimeIso,
       status: typeof status === 'string' ? status : undefined,
       mainText: typeof mainText === 'string' ? mainText : undefined,
+      mainMediaUrls: serializedMedia?.urls,
+      mainMediaTypes: serializedMedia?.types,
+      mainMediaAltTexts: serializedMedia?.altTexts,
       comment1: typeof comment1 === 'string' ? comment1 : undefined,
       comment2: typeof comment2 === 'string' ? comment2 : undefined,
       comment3: typeof comment3 === 'string' ? comment3 : undefined,

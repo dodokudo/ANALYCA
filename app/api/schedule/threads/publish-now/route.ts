@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById } from '@/lib/bigquery';
 import { ThreadsAPI } from '@/lib/threads';
+import { MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, type ThreadsMediaItem } from '@/lib/threadsMedia';
 
 interface PublishNowRequest {
   mainText: string;
@@ -11,6 +12,7 @@ interface PublishNowRequest {
   comment5?: string;
   comment6?: string;
   comment7?: string;
+  mediaItems?: ThreadsMediaItem[];
 }
 
 function validateTextLength(text: string, fieldName: string): string | null {
@@ -39,6 +41,10 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as PublishNowRequest;
     const { mainText, comment1, comment2, comment3, comment4, comment5, comment6, comment7 } = body;
+    if (Array.isArray(body.mediaItems) && body.mediaItems.length > MAX_THREADS_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `メディアは最大${MAX_THREADS_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
+    const mediaItems = normalizeThreadsMediaItems(body.mediaItems);
 
     const mainError = validateTextLength(mainText, 'メイン投稿');
     if (mainError) {
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     // メイン投稿
     console.log('[schedule/threads/publish-now] Posting main thread...');
-    const mainThreadId = await api.createPost(mainText);
+    const mainThreadId = await api.createPost({ text: mainText, mediaItems });
     console.log('[schedule/threads/publish-now] Main thread posted:', mainThreadId);
 
     const commentIds: Record<number, string | undefined> = {};

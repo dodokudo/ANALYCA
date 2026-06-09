@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { ScheduledPost } from './schedule-types';
+import type { ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
 import { classNames } from '@/lib/classNames';
 
 const MAX_LENGTH = 500;
+const MAX_MEDIA_ITEMS = 10;
 
 function toDateTimeLocal(value: string) {
   if (!value) return '';
@@ -16,6 +17,7 @@ function toDateTimeLocal(value: string) {
 type ScheduleEditorProps = {
   selectedDate: string;
   selectedItem: ScheduledPost | null;
+  userId: string;
   isSaving?: boolean;
   isPublishing?: boolean;
   onSave: (payload: {
@@ -29,6 +31,7 @@ type ScheduleEditorProps = {
     comment5: string;
     comment6: string;
     comment7: string;
+    mediaItems: ScheduledPostMediaItem[];
     status: 'draft' | 'scheduled';
   }) => Promise<void>;
   onPublishNow: (payload: {
@@ -40,12 +43,14 @@ type ScheduleEditorProps = {
     comment5: string;
     comment6: string;
     comment7: string;
+    mediaItems: ScheduledPostMediaItem[];
   }) => Promise<void>;
 };
 
 export function ScheduleEditor({
   selectedDate,
   selectedItem,
+  userId,
   isSaving,
   isPublishing,
   onSave,
@@ -60,6 +65,8 @@ export function ScheduleEditor({
   const [comment5, setComment5] = useState('');
   const [comment6, setComment6] = useState('');
   const [comment7, setComment7] = useState('');
+  const [mediaItems, setMediaItems] = useState<ScheduledPostMediaItem[]>([]);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,6 +80,7 @@ export function ScheduleEditor({
       setComment5(selectedItem.comment5);
       setComment6(selectedItem.comment6);
       setComment7(selectedItem.comment7);
+      setMediaItems(selectedItem.mediaItems || []);
       setError(null);
       return;
     }
@@ -87,6 +95,7 @@ export function ScheduleEditor({
     setComment5('');
     setComment6('');
     setComment7('');
+    setMediaItems([]);
     setError(null);
   }, [selectedDate, selectedItem]);
 
@@ -131,6 +140,67 @@ export function ScheduleEditor({
     );
   }, [mainText, comment1, comment2, mainLength, comment1Length, comment2Length, optionalCommentsValid]);
 
+  const handleMediaUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const nextFiles = Array.from(files);
+    if (mediaItems.length + nextFiles.length > MAX_MEDIA_ITEMS) {
+      setError(`メディアは最大${MAX_MEDIA_ITEMS}件までです。`);
+      return;
+    }
+
+    setUploadingMedia(true);
+    setError(null);
+    try {
+      const uploadGroup = selectedItem?.scheduleId || `${Date.now()}`;
+      const res = await fetch(`/api/schedule/threads/media?userId=${encodeURIComponent(userId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uploadGroup,
+          files: nextFiles.map((file) => ({ name: file.name, type: file.type, size: file.size })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || 'メディアのアップロードに失敗しました');
+      }
+
+      const uploadTargets = Array.isArray(data.uploadTargets) ? data.uploadTargets : [];
+      if (uploadTargets.length !== nextFiles.length) {
+        throw new Error('アップロードURLの作成に失敗しました');
+      }
+
+      const uploaded: ScheduledPostMediaItem[] = [];
+      for (let index = 0; index < nextFiles.length; index++) {
+        const file = nextFiles[index];
+        const target = uploadTargets[index];
+        const uploadRes = await fetch(target.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': target.contentType || file.type },
+          body: file,
+        });
+        if (!uploadRes.ok) {
+          throw new Error(`${file.name}のアップロードに失敗しました`);
+        }
+        uploaded.push({
+          url: target.url,
+          type: target.type === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+          name: target.name || file.name,
+        });
+      }
+
+      setMediaItems((current) => [...current, ...uploaded].slice(0, MAX_MEDIA_ITEMS));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'メディアのアップロードに失敗しました');
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  const removeMediaItem = (index: number) => {
+    setMediaItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
   const handleSubmit = async (status: 'draft' | 'scheduled') => {
     if (!isValidForSchedule) {
       setError('未入力または文字数超過の項目があります。');
@@ -148,6 +218,7 @@ export function ScheduleEditor({
       comment5,
       comment6,
       comment7,
+      mediaItems,
       status,
     });
   };
@@ -167,6 +238,7 @@ export function ScheduleEditor({
       comment5,
       comment6,
       comment7,
+      mediaItems,
     });
   };
 
@@ -215,6 +287,57 @@ export function ScheduleEditor({
             {mainLength}/{MAX_LENGTH}
           </div>
         </label>
+
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-medium text-gray-600">画像 / 動画</div>
+              <div className="mt-1 text-[11px] text-gray-400">最大{MAX_MEDIA_ITEMS}件、投稿本文に添付</div>
+            </div>
+            <label className="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">
+              {uploadingMedia ? 'アップロード中...' : '追加'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
+                multiple
+                disabled={uploadingMedia || mediaItems.length >= MAX_MEDIA_ITEMS}
+                className="hidden"
+                onChange={(event) => {
+                  void handleMediaUpload(event.target.files);
+                  event.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+
+          {mediaItems.length > 0 ? (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {mediaItems.map((item, index) => (
+                <div key={`${item.url}-${index}`} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100 text-[10px] font-semibold text-gray-500">
+                    {item.type === 'IMAGE' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      'VIDEO'
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium text-gray-700">{item.name || `${item.type} ${index + 1}`}</div>
+                    <div className="text-[11px] text-gray-400">{item.type}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-md px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"
+                    onClick={() => removeMediaItem(index)}
+                  >
+                    削除
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
 
         <label className="block text-xs font-medium text-gray-500">
           コメント1（必須）

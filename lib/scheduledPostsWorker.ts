@@ -1,5 +1,6 @@
 import { ThreadsAPI } from '@/lib/threads';
 import { getUserById } from '@/lib/bigquery';
+import { parseThreadsMediaColumns, type ThreadsMediaItem } from '@/lib/threadsMedia';
 import {
   listAllPendingPosts,
   updateScheduledPost,
@@ -37,12 +38,14 @@ function isScheduledTimeTooOld(scheduledTimeIso: string): boolean {
 
 async function postWithRetry(
   api: ThreadsAPI,
-  text: string,
+  params: string | { text: string; mediaItems?: ThreadsMediaItem[]; replyToId?: string },
   replyToId?: string,
 ): Promise<string> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await api.createPost(text, replyToId);
+      return typeof params === 'string'
+        ? await api.createPost(params, replyToId)
+        : await api.createPost(params);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.warn(
@@ -138,8 +141,13 @@ async function executeScheduledPost(post: ScheduledPostRow): Promise<{
   let mainThreadId = post.main_thread_id || undefined;
   if (!mainThreadId) {
     try {
-      console.log('[scheduledPostsWorker] Posting main thread...');
-      mainThreadId = await postWithRetry(api, post.main_text);
+      const mediaItems = parseThreadsMediaColumns(
+        post.main_media_urls,
+        post.main_media_types,
+        post.main_media_alt_texts,
+      );
+      console.log(`[scheduledPostsWorker] Posting main thread with ${mediaItems.length} media item(s)...`);
+      mainThreadId = await postWithRetry(api, { text: post.main_text, mediaItems });
       console.log(`[scheduledPostsWorker] Main thread posted: ${mainThreadId}`);
       await updateScheduledPost(post.schedule_id, { mainThreadId });
     } catch (error) {

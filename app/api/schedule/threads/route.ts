@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertScheduledPost, listScheduledPosts, toJstIsoString } from '@/lib/bigqueryScheduledPosts';
+import { MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
 
 function validateTextLength(label: string, value?: string) {
   if (!value || value.trim().length === 0) {
@@ -47,6 +48,11 @@ export async function POST(request: NextRequest) {
 
     const payload = await request.json();
     const { scheduledAt, mainText, comment1, comment2, comment3, comment4, comment5, comment6, comment7, status } = payload ?? {};
+    if (Array.isArray(payload?.mediaItems) && payload.mediaItems.length > MAX_THREADS_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `メディアは最大${MAX_THREADS_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
+    const mediaItems = normalizeThreadsMediaItems(payload?.mediaItems);
+    const serializedMedia = serializeThreadsMediaItems(mediaItems);
 
     if (!scheduledAt || typeof scheduledAt !== 'string') {
       return NextResponse.json({ error: 'scheduledAt is required' }, { status: 400 });
@@ -90,6 +96,9 @@ export async function POST(request: NextRequest) {
       scheduledTimeIso,
       status: typeof status === 'string' ? status : 'scheduled',
       mainText: String(mainText),
+      mainMediaUrls: serializedMedia.urls,
+      mainMediaTypes: serializedMedia.types,
+      mainMediaAltTexts: serializedMedia.altTexts,
       comment1: String(comment1),
       comment2: String(comment2),
       comment3: typeof comment3 === 'string' ? comment3 : '',

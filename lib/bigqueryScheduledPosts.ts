@@ -25,6 +25,9 @@ const SCHEMA = [
   { name: 'scheduled_time', type: 'TIMESTAMP' },
   { name: 'status', type: 'STRING' },
   { name: 'main_text', type: 'STRING' },
+  { name: 'main_media_urls', type: 'STRING' },
+  { name: 'main_media_types', type: 'STRING' },
+  { name: 'main_media_alt_texts', type: 'STRING' },
   { name: 'comment1', type: 'STRING' },
   { name: 'comment2', type: 'STRING' },
   { name: 'comment3', type: 'STRING' },
@@ -83,6 +86,9 @@ export type ScheduledPostRow = {
   scheduled_date: string;
   status: string;
   main_text: string;
+  main_media_urls: string;
+  main_media_types: string;
+  main_media_alt_texts: string;
   comment1: string;
   comment2: string;
   comment3: string;
@@ -112,6 +118,9 @@ function mapRow(row: Record<string, unknown>): ScheduledPostRow {
     scheduled_date: toPlain(row.scheduled_date),
     status: toPlain(row.status) || 'scheduled',
     main_text: toPlain(row.main_text),
+    main_media_urls: toPlain(row.main_media_urls) || '[]',
+    main_media_types: toPlain(row.main_media_types) || '[]',
+    main_media_alt_texts: toPlain(row.main_media_alt_texts) || '[]',
     comment1: toPlain(row.comment1),
     comment2: toPlain(row.comment2),
     comment3: toPlain(row.comment3),
@@ -136,6 +145,9 @@ function mapRow(row: Record<string, unknown>): ScheduledPostRow {
 const SELECT_COLUMNS = `
   sp.schedule_id, sp.user_id, sp.scheduled_time, sp.status,
   sp.main_text,
+  COALESCE(sp.main_media_urls, '[]') AS main_media_urls,
+  COALESCE(sp.main_media_types, '[]') AS main_media_types,
+  COALESCE(sp.main_media_alt_texts, '[]') AS main_media_alt_texts,
   sp.comment1, sp.comment2, sp.comment3, sp.comment4, sp.comment5, sp.comment6, sp.comment7,
   sp.created_at, sp.updated_at,
   sp.main_thread_id,
@@ -226,6 +238,9 @@ export async function insertScheduledPost(params: {
   scheduledTimeIso: string;
   status: string;
   mainText: string;
+  mainMediaUrls?: string;
+  mainMediaTypes?: string;
+  mainMediaAltTexts?: string;
   comment1: string;
   comment2: string;
   comment3?: string;
@@ -238,9 +253,11 @@ export async function insertScheduledPost(params: {
   const sql = `
     INSERT INTO \`${projectId}.${DATASET}.${TABLE}\`
     (schedule_id, user_id, scheduled_time, status, main_text,
+     main_media_urls, main_media_types, main_media_alt_texts,
      comment1, comment2, comment3, comment4, comment5, comment6, comment7,
      created_at, updated_at)
     VALUES (@scheduleId, @userId, @scheduledTime, @status, @mainText,
+     @mainMediaUrls, @mainMediaTypes, @mainMediaAltTexts,
      @comment1, @comment2, @comment3, @comment4, @comment5, @comment6, @comment7,
      CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
   `;
@@ -252,6 +269,9 @@ export async function insertScheduledPost(params: {
       scheduledTime: new Date(params.scheduledTimeIso),
       status: params.status,
       mainText: params.mainText,
+      mainMediaUrls: params.mainMediaUrls ?? '[]',
+      mainMediaTypes: params.mainMediaTypes ?? '[]',
+      mainMediaAltTexts: params.mainMediaAltTexts ?? '[]',
       comment1: params.comment1,
       comment2: params.comment2,
       comment3: params.comment3 ?? '',
@@ -270,6 +290,9 @@ export async function updateScheduledPost(
     scheduledTimeIso?: string | null;
     status?: string | null;
     mainText?: string | null;
+    mainMediaUrls?: string | null;
+    mainMediaTypes?: string | null;
+    mainMediaAltTexts?: string | null;
     comment1?: string | null;
     comment2?: string | null;
     comment3?: string | null;
@@ -307,6 +330,21 @@ export async function updateScheduledPost(
     setClauses.push('main_text = @mainText');
     queryParams.mainText = params.mainText;
     types.mainText = 'STRING';
+  }
+  if (params.mainMediaUrls !== undefined) {
+    setClauses.push('main_media_urls = @mainMediaUrls');
+    queryParams.mainMediaUrls = params.mainMediaUrls;
+    types.mainMediaUrls = 'STRING';
+  }
+  if (params.mainMediaTypes !== undefined) {
+    setClauses.push('main_media_types = @mainMediaTypes');
+    queryParams.mainMediaTypes = params.mainMediaTypes;
+    types.mainMediaTypes = 'STRING';
+  }
+  if (params.mainMediaAltTexts !== undefined) {
+    setClauses.push('main_media_alt_texts = @mainMediaAltTexts');
+    queryParams.mainMediaAltTexts = params.mainMediaAltTexts;
+    types.mainMediaAltTexts = 'STRING';
   }
   const textFields: Array<[string, string | null | undefined]> = [
     ['comment1', params.comment1],

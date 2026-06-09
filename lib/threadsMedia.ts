@@ -1,4 +1,5 @@
 export const MAX_THREADS_MEDIA_ITEMS = 10;
+export const MAX_COMMENT_MEDIA_ITEMS = 2;
 
 export type ThreadsMediaType = 'IMAGE' | 'VIDEO';
 

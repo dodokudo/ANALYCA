@@ -13,6 +13,8 @@ export type ScheduledPost = {
   status: string;
   mainText: string;
   mediaItems: ScheduledPostMediaItem[];
+  comment1MediaItems: ScheduledPostMediaItem[];
+  comment2MediaItems: ScheduledPostMediaItem[];
   comment1: string;
   comment2: string;
   comment3: string;

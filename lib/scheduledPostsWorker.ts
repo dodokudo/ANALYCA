@@ -166,6 +166,7 @@ async function executeScheduledPost(post: ScheduledPostRow): Promise<{
   const comments: Array<{
     index: number;
     text: string;
+    mediaItems: ThreadsMediaItem[];
     existingThreadId?: string | null;
     updateKey:
       | 'comment1ThreadId'
@@ -176,13 +177,33 @@ async function executeScheduledPost(post: ScheduledPostRow): Promise<{
       | 'comment6ThreadId'
       | 'comment7ThreadId';
   }> = [
-    { index: 1, text: post.comment1, existingThreadId: post.comment1_thread_id, updateKey: 'comment1ThreadId' },
-    { index: 2, text: post.comment2, existingThreadId: post.comment2_thread_id, updateKey: 'comment2ThreadId' },
-    { index: 3, text: post.comment3, existingThreadId: post.comment3_thread_id, updateKey: 'comment3ThreadId' },
-    { index: 4, text: post.comment4, existingThreadId: post.comment4_thread_id, updateKey: 'comment4ThreadId' },
-    { index: 5, text: post.comment5, existingThreadId: post.comment5_thread_id, updateKey: 'comment5ThreadId' },
-    { index: 6, text: post.comment6, existingThreadId: post.comment6_thread_id, updateKey: 'comment6ThreadId' },
-    { index: 7, text: post.comment7, existingThreadId: post.comment7_thread_id, updateKey: 'comment7ThreadId' },
+    {
+      index: 1,
+      text: post.comment1,
+      mediaItems: parseThreadsMediaColumns(
+        post.comment1_media_urls,
+        post.comment1_media_types,
+        post.comment1_media_alt_texts,
+      ),
+      existingThreadId: post.comment1_thread_id,
+      updateKey: 'comment1ThreadId',
+    },
+    {
+      index: 2,
+      text: post.comment2,
+      mediaItems: parseThreadsMediaColumns(
+        post.comment2_media_urls,
+        post.comment2_media_types,
+        post.comment2_media_alt_texts,
+      ),
+      existingThreadId: post.comment2_thread_id,
+      updateKey: 'comment2ThreadId',
+    },
+    { index: 3, text: post.comment3, mediaItems: [], existingThreadId: post.comment3_thread_id, updateKey: 'comment3ThreadId' },
+    { index: 4, text: post.comment4, mediaItems: [], existingThreadId: post.comment4_thread_id, updateKey: 'comment4ThreadId' },
+    { index: 5, text: post.comment5, mediaItems: [], existingThreadId: post.comment5_thread_id, updateKey: 'comment5ThreadId' },
+    { index: 6, text: post.comment6, mediaItems: [], existingThreadId: post.comment6_thread_id, updateKey: 'comment6ThreadId' },
+    { index: 7, text: post.comment7, mediaItems: [], existingThreadId: post.comment7_thread_id, updateKey: 'comment7ThreadId' },
   ];
 
   let timedOut = false;
@@ -215,8 +236,12 @@ async function executeScheduledPost(post: ScheduledPostRow): Promise<{
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
 
-      console.log(`[scheduledPostsWorker] Posting comment${comment.index}...`);
-      const threadId = await postWithRetry(api, comment.text, replyToId);
+      console.log(`[scheduledPostsWorker] Posting comment${comment.index} with ${comment.mediaItems.length} media item(s)...`);
+      const threadId = await postWithRetry(api, {
+        text: comment.text,
+        mediaItems: comment.mediaItems,
+        replyToId,
+      });
       console.log(`[scheduledPostsWorker] Comment${comment.index} posted: ${threadId}`);
       await updateScheduledPost(post.schedule_id, { [comment.updateKey]: threadId });
       commentThreadIds[comment.index] = threadId;

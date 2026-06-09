@@ -29,7 +29,13 @@ const SCHEMA = [
   { name: 'main_media_types', type: 'STRING' },
   { name: 'main_media_alt_texts', type: 'STRING' },
   { name: 'comment1', type: 'STRING' },
+  { name: 'comment1_media_urls', type: 'STRING' },
+  { name: 'comment1_media_types', type: 'STRING' },
+  { name: 'comment1_media_alt_texts', type: 'STRING' },
   { name: 'comment2', type: 'STRING' },
+  { name: 'comment2_media_urls', type: 'STRING' },
+  { name: 'comment2_media_types', type: 'STRING' },
+  { name: 'comment2_media_alt_texts', type: 'STRING' },
   { name: 'comment3', type: 'STRING' },
   { name: 'comment4', type: 'STRING' },
   { name: 'comment5', type: 'STRING' },
@@ -90,7 +96,13 @@ export type ScheduledPostRow = {
   main_media_types: string;
   main_media_alt_texts: string;
   comment1: string;
+  comment1_media_urls: string;
+  comment1_media_types: string;
+  comment1_media_alt_texts: string;
   comment2: string;
+  comment2_media_urls: string;
+  comment2_media_types: string;
+  comment2_media_alt_texts: string;
   comment3: string;
   comment4: string;
   comment5: string;
@@ -122,7 +134,13 @@ function mapRow(row: Record<string, unknown>): ScheduledPostRow {
     main_media_types: toPlain(row.main_media_types) || '[]',
     main_media_alt_texts: toPlain(row.main_media_alt_texts) || '[]',
     comment1: toPlain(row.comment1),
+    comment1_media_urls: toPlain(row.comment1_media_urls) || '[]',
+    comment1_media_types: toPlain(row.comment1_media_types) || '[]',
+    comment1_media_alt_texts: toPlain(row.comment1_media_alt_texts) || '[]',
     comment2: toPlain(row.comment2),
+    comment2_media_urls: toPlain(row.comment2_media_urls) || '[]',
+    comment2_media_types: toPlain(row.comment2_media_types) || '[]',
+    comment2_media_alt_texts: toPlain(row.comment2_media_alt_texts) || '[]',
     comment3: toPlain(row.comment3),
     comment4: toPlain(row.comment4),
     comment5: toPlain(row.comment5),
@@ -148,7 +166,15 @@ const SELECT_COLUMNS = `
   COALESCE(sp.main_media_urls, '[]') AS main_media_urls,
   COALESCE(sp.main_media_types, '[]') AS main_media_types,
   COALESCE(sp.main_media_alt_texts, '[]') AS main_media_alt_texts,
-  sp.comment1, sp.comment2, sp.comment3, sp.comment4, sp.comment5, sp.comment6, sp.comment7,
+  sp.comment1,
+  COALESCE(sp.comment1_media_urls, '[]') AS comment1_media_urls,
+  COALESCE(sp.comment1_media_types, '[]') AS comment1_media_types,
+  COALESCE(sp.comment1_media_alt_texts, '[]') AS comment1_media_alt_texts,
+  sp.comment2,
+  COALESCE(sp.comment2_media_urls, '[]') AS comment2_media_urls,
+  COALESCE(sp.comment2_media_types, '[]') AS comment2_media_types,
+  COALESCE(sp.comment2_media_alt_texts, '[]') AS comment2_media_alt_texts,
+  sp.comment3, sp.comment4, sp.comment5, sp.comment6, sp.comment7,
   sp.created_at, sp.updated_at,
   sp.main_thread_id,
   sp.comment1_thread_id, sp.comment2_thread_id, sp.comment3_thread_id,
@@ -242,7 +268,13 @@ export async function insertScheduledPost(params: {
   mainMediaTypes?: string;
   mainMediaAltTexts?: string;
   comment1: string;
+  comment1MediaUrls?: string;
+  comment1MediaTypes?: string;
+  comment1MediaAltTexts?: string;
   comment2: string;
+  comment2MediaUrls?: string;
+  comment2MediaTypes?: string;
+  comment2MediaAltTexts?: string;
   comment3?: string;
   comment4?: string;
   comment5?: string;
@@ -254,11 +286,15 @@ export async function insertScheduledPost(params: {
     INSERT INTO \`${projectId}.${DATASET}.${TABLE}\`
     (schedule_id, user_id, scheduled_time, status, main_text,
      main_media_urls, main_media_types, main_media_alt_texts,
-     comment1, comment2, comment3, comment4, comment5, comment6, comment7,
+     comment1, comment1_media_urls, comment1_media_types, comment1_media_alt_texts,
+     comment2, comment2_media_urls, comment2_media_types, comment2_media_alt_texts,
+     comment3, comment4, comment5, comment6, comment7,
      created_at, updated_at)
     VALUES (@scheduleId, @userId, @scheduledTime, @status, @mainText,
      @mainMediaUrls, @mainMediaTypes, @mainMediaAltTexts,
-     @comment1, @comment2, @comment3, @comment4, @comment5, @comment6, @comment7,
+     @comment1, @comment1MediaUrls, @comment1MediaTypes, @comment1MediaAltTexts,
+     @comment2, @comment2MediaUrls, @comment2MediaTypes, @comment2MediaAltTexts,
+     @comment3, @comment4, @comment5, @comment6, @comment7,
      CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
   `;
   await client.query({
@@ -273,7 +309,13 @@ export async function insertScheduledPost(params: {
       mainMediaTypes: params.mainMediaTypes ?? '[]',
       mainMediaAltTexts: params.mainMediaAltTexts ?? '[]',
       comment1: params.comment1,
+      comment1MediaUrls: params.comment1MediaUrls ?? '[]',
+      comment1MediaTypes: params.comment1MediaTypes ?? '[]',
+      comment1MediaAltTexts: params.comment1MediaAltTexts ?? '[]',
       comment2: params.comment2,
+      comment2MediaUrls: params.comment2MediaUrls ?? '[]',
+      comment2MediaTypes: params.comment2MediaTypes ?? '[]',
+      comment2MediaAltTexts: params.comment2MediaAltTexts ?? '[]',
       comment3: params.comment3 ?? '',
       comment4: params.comment4 ?? '',
       comment5: params.comment5 ?? '',
@@ -294,7 +336,13 @@ export async function updateScheduledPost(
     mainMediaTypes?: string | null;
     mainMediaAltTexts?: string | null;
     comment1?: string | null;
+    comment1MediaUrls?: string | null;
+    comment1MediaTypes?: string | null;
+    comment1MediaAltTexts?: string | null;
     comment2?: string | null;
+    comment2MediaUrls?: string | null;
+    comment2MediaTypes?: string | null;
+    comment2MediaAltTexts?: string | null;
     comment3?: string | null;
     comment4?: string | null;
     comment5?: string | null;
@@ -345,6 +393,21 @@ export async function updateScheduledPost(
     setClauses.push('main_media_alt_texts = @mainMediaAltTexts');
     queryParams.mainMediaAltTexts = params.mainMediaAltTexts;
     types.mainMediaAltTexts = 'STRING';
+  }
+  const mediaFields: Array<[string, string, string | null | undefined]> = [
+    ['comment1_media_urls', 'comment1MediaUrls', params.comment1MediaUrls],
+    ['comment1_media_types', 'comment1MediaTypes', params.comment1MediaTypes],
+    ['comment1_media_alt_texts', 'comment1MediaAltTexts', params.comment1MediaAltTexts],
+    ['comment2_media_urls', 'comment2MediaUrls', params.comment2MediaUrls],
+    ['comment2_media_types', 'comment2MediaTypes', params.comment2MediaTypes],
+    ['comment2_media_alt_texts', 'comment2MediaAltTexts', params.comment2MediaAltTexts],
+  ];
+  for (const [col, paramName, value] of mediaFields) {
+    if (value !== undefined) {
+      setClauses.push(`${col} = @${paramName}`);
+      queryParams[paramName] = value;
+      types[paramName] = 'STRING';
+    }
   }
   const textFields: Array<[string, string | null | undefined]> = [
     ['comment1', params.comment1],

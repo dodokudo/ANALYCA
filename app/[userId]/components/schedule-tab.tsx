@@ -34,10 +34,10 @@ function parseJsonArray(value: unknown): string[] {
   }
 }
 
-function parseMediaItems(raw: Record<string, unknown>): ScheduledPostMediaItem[] {
-  const urls = parseJsonArray(raw.main_media_urls);
-  const types = parseJsonArray(raw.main_media_types);
-  const altTexts = parseJsonArray(raw.main_media_alt_texts);
+function parseMediaItems(raw: Record<string, unknown>, prefix = 'main'): ScheduledPostMediaItem[] {
+  const urls = parseJsonArray(raw[`${prefix}_media_urls`]);
+  const types = parseJsonArray(raw[`${prefix}_media_types`]);
+  const altTexts = parseJsonArray(raw[`${prefix}_media_alt_texts`]);
   return urls
     .map((url, index) => ({
       url,
@@ -56,6 +56,8 @@ function mapItem(raw: Record<string, unknown>): ScheduledPost {
     status: String(raw.status ?? 'scheduled'),
     mainText: String(raw.main_text ?? ''),
     mediaItems: parseMediaItems(raw),
+    comment1MediaItems: parseMediaItems(raw, 'comment1'),
+    comment2MediaItems: parseMediaItems(raw, 'comment2'),
     comment1: String(raw.comment1 ?? ''),
     comment2: String(raw.comment2 ?? ''),
     comment3: String(raw.comment3 ?? ''),
@@ -158,6 +160,8 @@ export function ScheduleTab({ userId }: { userId: string }) {
     comment6: string;
     comment7: string;
     mediaItems: ScheduledPostMediaItem[];
+    comment1MediaItems: ScheduledPostMediaItem[];
+    comment2MediaItems: ScheduledPostMediaItem[];
     status: 'draft' | 'scheduled';
   }) => {
     setSaving(true);
@@ -179,6 +183,8 @@ export function ScheduleTab({ userId }: { userId: string }) {
             comment6: payload.comment6,
             comment7: payload.comment7,
             mediaItems: payload.mediaItems,
+            comment1MediaItems: payload.comment1MediaItems,
+            comment2MediaItems: payload.comment2MediaItems,
             status: payload.status,
           }),
         },
@@ -222,6 +228,8 @@ export function ScheduleTab({ userId }: { userId: string }) {
     comment6: string;
     comment7: string;
     mediaItems: ScheduledPostMediaItem[];
+    comment1MediaItems: ScheduledPostMediaItem[];
+    comment2MediaItems: ScheduledPostMediaItem[];
   }) => {
     if (!confirm('今すぐ投稿しますか？')) return;
     setPublishing(true);
@@ -239,6 +247,8 @@ export function ScheduleTab({ userId }: { userId: string }) {
           comment6: payload.comment6,
           comment7: payload.comment7,
           mediaItems: payload.mediaItems,
+          comment1MediaItems: payload.comment1MediaItems,
+          comment2MediaItems: payload.comment2MediaItems,
         }),
       });
       const data = await res.json();

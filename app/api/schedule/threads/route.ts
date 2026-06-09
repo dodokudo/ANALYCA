@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertScheduledPost, listScheduledPosts, toJstIsoString } from '@/lib/bigqueryScheduledPosts';
-import { MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
+import { MAX_COMMENT_MEDIA_ITEMS, MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
 
 function validateTextLength(label: string, value?: string) {
   if (!value || value.trim().length === 0) {
@@ -51,8 +51,16 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(payload?.mediaItems) && payload.mediaItems.length > MAX_THREADS_MEDIA_ITEMS) {
       return NextResponse.json({ error: `メディアは最大${MAX_THREADS_MEDIA_ITEMS}件までです` }, { status: 400 });
     }
+    if (Array.isArray(payload?.comment1MediaItems) && payload.comment1MediaItems.length > MAX_COMMENT_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `コメント1のメディアは最大${MAX_COMMENT_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
+    if (Array.isArray(payload?.comment2MediaItems) && payload.comment2MediaItems.length > MAX_COMMENT_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `コメント2のメディアは最大${MAX_COMMENT_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
     const mediaItems = normalizeThreadsMediaItems(payload?.mediaItems);
     const serializedMedia = serializeThreadsMediaItems(mediaItems);
+    const serializedComment1Media = serializeThreadsMediaItems(normalizeThreadsMediaItems(payload?.comment1MediaItems));
+    const serializedComment2Media = serializeThreadsMediaItems(normalizeThreadsMediaItems(payload?.comment2MediaItems));
 
     if (!scheduledAt || typeof scheduledAt !== 'string') {
       return NextResponse.json({ error: 'scheduledAt is required' }, { status: 400 });
@@ -100,7 +108,13 @@ export async function POST(request: NextRequest) {
       mainMediaTypes: serializedMedia.types,
       mainMediaAltTexts: serializedMedia.altTexts,
       comment1: String(comment1),
+      comment1MediaUrls: serializedComment1Media.urls,
+      comment1MediaTypes: serializedComment1Media.types,
+      comment1MediaAltTexts: serializedComment1Media.altTexts,
       comment2: String(comment2),
+      comment2MediaUrls: serializedComment2Media.urls,
+      comment2MediaTypes: serializedComment2Media.types,
+      comment2MediaAltTexts: serializedComment2Media.altTexts,
       comment3: typeof comment3 === 'string' ? comment3 : '',
       comment4: typeof comment4 === 'string' ? comment4 : '',
       comment5: typeof comment5 === 'string' ? comment5 : '',

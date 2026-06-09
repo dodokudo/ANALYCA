@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
 import { classNames } from '@/lib/classNames';
 
 const MAX_LENGTH = 500;
 const MAX_MEDIA_ITEMS = 10;
+const MAX_COMMENT_MEDIA_ITEMS = 2;
 
 function toDateTimeLocal(value: string) {
   if (!value) return '';
@@ -32,6 +34,8 @@ type ScheduleEditorProps = {
     comment6: string;
     comment7: string;
     mediaItems: ScheduledPostMediaItem[];
+    comment1MediaItems: ScheduledPostMediaItem[];
+    comment2MediaItems: ScheduledPostMediaItem[];
     status: 'draft' | 'scheduled';
   }) => Promise<void>;
   onPublishNow: (payload: {
@@ -44,6 +48,8 @@ type ScheduleEditorProps = {
     comment6: string;
     comment7: string;
     mediaItems: ScheduledPostMediaItem[];
+    comment1MediaItems: ScheduledPostMediaItem[];
+    comment2MediaItems: ScheduledPostMediaItem[];
   }) => Promise<void>;
 };
 
@@ -66,6 +72,8 @@ export function ScheduleEditor({
   const [comment6, setComment6] = useState('');
   const [comment7, setComment7] = useState('');
   const [mediaItems, setMediaItems] = useState<ScheduledPostMediaItem[]>([]);
+  const [comment1MediaItems, setComment1MediaItems] = useState<ScheduledPostMediaItem[]>([]);
+  const [comment2MediaItems, setComment2MediaItems] = useState<ScheduledPostMediaItem[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,6 +89,8 @@ export function ScheduleEditor({
       setComment6(selectedItem.comment6);
       setComment7(selectedItem.comment7);
       setMediaItems(selectedItem.mediaItems || []);
+      setComment1MediaItems(selectedItem.comment1MediaItems || []);
+      setComment2MediaItems(selectedItem.comment2MediaItems || []);
       setError(null);
       return;
     }
@@ -96,6 +106,8 @@ export function ScheduleEditor({
     setComment6('');
     setComment7('');
     setMediaItems([]);
+    setComment1MediaItems([]);
+    setComment2MediaItems([]);
     setError(null);
   }, [selectedDate, selectedItem]);
 
@@ -140,18 +152,24 @@ export function ScheduleEditor({
     );
   }, [mainText, comment1, comment2, mainLength, comment1Length, comment2Length, optionalCommentsValid]);
 
-  const handleMediaUpload = async (files: FileList | null) => {
+  const handleMediaUpload = async (
+    files: FileList | null,
+    currentItems: ScheduledPostMediaItem[],
+    setItems: Dispatch<SetStateAction<ScheduledPostMediaItem[]>>,
+    maxItems: number,
+    uploadScope: string,
+  ) => {
     if (!files || files.length === 0) return;
     const nextFiles = Array.from(files);
-    if (mediaItems.length + nextFiles.length > MAX_MEDIA_ITEMS) {
-      setError(`メディアは最大${MAX_MEDIA_ITEMS}件までです。`);
+    if (currentItems.length + nextFiles.length > maxItems) {
+      setError(`メディアは最大${maxItems}件までです。`);
       return;
     }
 
     setUploadingMedia(true);
     setError(null);
     try {
-      const uploadGroup = selectedItem?.scheduleId || `${Date.now()}`;
+      const uploadGroup = `${selectedItem?.scheduleId || Date.now()}-${uploadScope}`;
       const res = await fetch(`/api/schedule/threads/media?userId=${encodeURIComponent(userId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,7 +207,7 @@ export function ScheduleEditor({
         });
       }
 
-      setMediaItems((current) => [...current, ...uploaded].slice(0, MAX_MEDIA_ITEMS));
+      setItems((current) => [...current, ...uploaded].slice(0, maxItems));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'メディアのアップロードに失敗しました');
     } finally {
@@ -197,8 +215,11 @@ export function ScheduleEditor({
     }
   };
 
-  const removeMediaItem = (index: number) => {
-    setMediaItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  const removeMediaItem = (
+    index: number,
+    setItems: Dispatch<SetStateAction<ScheduledPostMediaItem[]>>,
+  ) => {
+    setItems((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
   const handleSubmit = async (status: 'draft' | 'scheduled') => {
@@ -219,6 +240,8 @@ export function ScheduleEditor({
       comment6,
       comment7,
       mediaItems,
+      comment1MediaItems,
+      comment2MediaItems,
       status,
     });
   };
@@ -239,8 +262,70 @@ export function ScheduleEditor({
       comment6,
       comment7,
       mediaItems,
+      comment1MediaItems,
+      comment2MediaItems,
     });
   };
+
+  const renderMediaPicker = (
+    label: string,
+    items: ScheduledPostMediaItem[],
+    setItems: Dispatch<SetStateAction<ScheduledPostMediaItem[]>>,
+    maxItems: number,
+    uploadScope: string,
+    hint: string,
+  ) => (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium text-gray-600">{label}</div>
+          <div className="mt-1 text-[11px] text-gray-400">{hint}</div>
+        </div>
+        <label className="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">
+          {uploadingMedia ? 'アップロード中...' : '追加'}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
+            multiple
+            disabled={uploadingMedia || items.length >= maxItems}
+            className="hidden"
+            onChange={(event) => {
+              void handleMediaUpload(event.target.files, items, setItems, maxItems, uploadScope);
+              event.target.value = '';
+            }}
+          />
+        </label>
+      </div>
+
+      {items.length > 0 ? (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {items.map((item, index) => (
+            <div key={`${item.url}-${index}`} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100 text-[10px] font-semibold text-gray-500">
+                {item.type === 'IMAGE' ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  'VIDEO'
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-medium text-gray-700">{item.name || `${item.type} ${index + 1}`}</div>
+                <div className="text-[11px] text-gray-400">{item.type}</div>
+              </div>
+              <button
+                type="button"
+                className="rounded-md px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"
+                onClick={() => removeMediaItem(index, setItems)}
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm h-fit">
@@ -288,56 +373,14 @@ export function ScheduleEditor({
           </div>
         </label>
 
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-medium text-gray-600">画像 / 動画</div>
-              <div className="mt-1 text-[11px] text-gray-400">最大{MAX_MEDIA_ITEMS}件、投稿本文に添付</div>
-            </div>
-            <label className="cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">
-              {uploadingMedia ? 'アップロード中...' : '追加'}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
-                multiple
-                disabled={uploadingMedia || mediaItems.length >= MAX_MEDIA_ITEMS}
-                className="hidden"
-                onChange={(event) => {
-                  void handleMediaUpload(event.target.files);
-                  event.target.value = '';
-                }}
-              />
-            </label>
-          </div>
-
-          {mediaItems.length > 0 ? (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {mediaItems.map((item, index) => (
-                <div key={`${item.url}-${index}`} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-2">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100 text-[10px] font-semibold text-gray-500">
-                    {item.type === 'IMAGE' ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      'VIDEO'
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-medium text-gray-700">{item.name || `${item.type} ${index + 1}`}</div>
-                    <div className="text-[11px] text-gray-400">{item.type}</div>
-                  </div>
-                  <button
-                    type="button"
-                    className="rounded-md px-2 py-1 text-xs text-rose-600 hover:bg-rose-50"
-                    onClick={() => removeMediaItem(index)}
-                  >
-                    削除
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        {renderMediaPicker(
+          '画像 / 動画',
+          mediaItems,
+          setMediaItems,
+          MAX_MEDIA_ITEMS,
+          'main',
+          `最大${MAX_MEDIA_ITEMS}件、投稿本文に添付`,
+        )}
 
         <label className="block text-xs font-medium text-gray-500">
           コメント1（必須）
@@ -352,6 +395,15 @@ export function ScheduleEditor({
           </div>
         </label>
 
+        {renderMediaPicker(
+          'コメント1の画像 / 動画',
+          comment1MediaItems,
+          setComment1MediaItems,
+          MAX_COMMENT_MEDIA_ITEMS,
+          'comment1',
+          `最大${MAX_COMMENT_MEDIA_ITEMS}件、コメント1に添付`,
+        )}
+
         <label className="block text-xs font-medium text-gray-500">
           コメント2（必須）
           <textarea
@@ -364,6 +416,15 @@ export function ScheduleEditor({
             {comment2Length}/{MAX_LENGTH}
           </div>
         </label>
+
+        {renderMediaPicker(
+          'コメント2の画像 / 動画',
+          comment2MediaItems,
+          setComment2MediaItems,
+          MAX_COMMENT_MEDIA_ITEMS,
+          'comment2',
+          `最大${MAX_COMMENT_MEDIA_ITEMS}件、コメント2に添付`,
+        )}
 
         {([
           { index: 3, value: comment3, length: comment3Length, setter: setComment3 },

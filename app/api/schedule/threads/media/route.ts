@@ -6,8 +6,8 @@ import {
   MAX_THREADS_MEDIA_ITEMS,
 } from '@/lib/threadsMedia';
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 300 * 1024 * 1024;
 
 type UploadRequestFile = {
   name?: string;

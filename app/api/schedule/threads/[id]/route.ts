@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteScheduledPost, getScheduledPostById, toJstIsoString, updateScheduledPost } from '@/lib/bigqueryScheduledPosts';
-import { MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
+import { MAX_COMMENT_MEDIA_ITEMS, MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
 
 function validateTextLength(label: string, value?: string) {
   if (!value) return null;
@@ -36,8 +36,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (hasMediaItems && payload.mediaItems.length > MAX_THREADS_MEDIA_ITEMS) {
       return NextResponse.json({ error: `メディアは最大${MAX_THREADS_MEDIA_ITEMS}件までです` }, { status: 400 });
     }
+    const hasComment1MediaItems = Array.isArray(payload?.comment1MediaItems);
+    const hasComment2MediaItems = Array.isArray(payload?.comment2MediaItems);
+    if (hasComment1MediaItems && payload.comment1MediaItems.length > MAX_COMMENT_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `コメント1のメディアは最大${MAX_COMMENT_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
+    if (hasComment2MediaItems && payload.comment2MediaItems.length > MAX_COMMENT_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `コメント2のメディアは最大${MAX_COMMENT_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
     const serializedMedia = hasMediaItems
       ? serializeThreadsMediaItems(normalizeThreadsMediaItems(payload.mediaItems))
+      : null;
+    const serializedComment1Media = hasComment1MediaItems
+      ? serializeThreadsMediaItems(normalizeThreadsMediaItems(payload.comment1MediaItems))
+      : null;
+    const serializedComment2Media = hasComment2MediaItems
+      ? serializeThreadsMediaItems(normalizeThreadsMediaItems(payload.comment2MediaItems))
       : null;
 
     const mainError = validateTextLength('メイン投稿', mainText);
@@ -80,7 +94,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       mainMediaTypes: serializedMedia?.types,
       mainMediaAltTexts: serializedMedia?.altTexts,
       comment1: typeof comment1 === 'string' ? comment1 : undefined,
+      comment1MediaUrls: serializedComment1Media?.urls,
+      comment1MediaTypes: serializedComment1Media?.types,
+      comment1MediaAltTexts: serializedComment1Media?.altTexts,
       comment2: typeof comment2 === 'string' ? comment2 : undefined,
+      comment2MediaUrls: serializedComment2Media?.urls,
+      comment2MediaTypes: serializedComment2Media?.types,
+      comment2MediaAltTexts: serializedComment2Media?.altTexts,
       comment3: typeof comment3 === 'string' ? comment3 : undefined,
       comment4: typeof comment4 === 'string' ? comment4 : undefined,
       comment5: typeof comment5 === 'string' ? comment5 : undefined,

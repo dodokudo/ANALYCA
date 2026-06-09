@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById } from '@/lib/bigquery';
 import { ThreadsAPI } from '@/lib/threads';
-import { MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, type ThreadsMediaItem } from '@/lib/threadsMedia';
+import { MAX_COMMENT_MEDIA_ITEMS, MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, type ThreadsMediaItem } from '@/lib/threadsMedia';
 
 interface PublishNowRequest {
   mainText: string;
@@ -13,6 +13,8 @@ interface PublishNowRequest {
   comment6?: string;
   comment7?: string;
   mediaItems?: ThreadsMediaItem[];
+  comment1MediaItems?: ThreadsMediaItem[];
+  comment2MediaItems?: ThreadsMediaItem[];
 }
 
 function validateTextLength(text: string, fieldName: string): string | null {
@@ -44,7 +46,15 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(body.mediaItems) && body.mediaItems.length > MAX_THREADS_MEDIA_ITEMS) {
       return NextResponse.json({ error: `メディアは最大${MAX_THREADS_MEDIA_ITEMS}件までです` }, { status: 400 });
     }
+    if (Array.isArray(body.comment1MediaItems) && body.comment1MediaItems.length > MAX_COMMENT_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `コメント1のメディアは最大${MAX_COMMENT_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
+    if (Array.isArray(body.comment2MediaItems) && body.comment2MediaItems.length > MAX_COMMENT_MEDIA_ITEMS) {
+      return NextResponse.json({ error: `コメント2のメディアは最大${MAX_COMMENT_MEDIA_ITEMS}件までです` }, { status: 400 });
+    }
     const mediaItems = normalizeThreadsMediaItems(body.mediaItems);
+    const comment1MediaItems = normalizeThreadsMediaItems(body.comment1MediaItems);
+    const comment2MediaItems = normalizeThreadsMediaItems(body.comment2MediaItems);
 
     const mainError = validateTextLength(mainText, 'メイン投稿');
     if (mainError) {
@@ -80,9 +90,9 @@ export async function POST(request: NextRequest) {
     console.log('[schedule/threads/publish-now] Main thread posted:', mainThreadId);
 
     const commentIds: Record<number, string | undefined> = {};
-    const commentList: Array<{ index: number; text?: string }> = [
-      { index: 1, text: comment1 },
-      { index: 2, text: comment2 },
+    const commentList: Array<{ index: number; text?: string; mediaItems?: ThreadsMediaItem[] }> = [
+      { index: 1, text: comment1, mediaItems: comment1MediaItems },
+      { index: 2, text: comment2, mediaItems: comment2MediaItems },
       { index: 3, text: comment3 },
       { index: 4, text: comment4 },
       { index: 5, text: comment5 },
@@ -95,7 +105,11 @@ export async function POST(request: NextRequest) {
       if (!comment.text || !comment.text.trim()) continue;
       await new Promise((resolve) => setTimeout(resolve, 2000));
       console.log(`[schedule/threads/publish-now] Posting comment${comment.index}...`);
-      const id = await api.createPost(comment.text, replyToId);
+      const id = await api.createPost({
+        text: comment.text,
+        mediaItems: comment.mediaItems || [],
+        replyToId,
+      });
       console.log(`[schedule/threads/publish-now] Comment${comment.index} posted:`, id);
       commentIds[comment.index] = id;
       replyToId = id;

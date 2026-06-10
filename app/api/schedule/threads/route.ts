@@ -71,12 +71,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: mainError }, { status: 400 });
     }
 
-    const comment1Error = validateTextLength('コメント1', comment1);
+    const comment1Error = validateOptionalTextLength('コメント1', typeof comment1 === 'string' ? comment1 : undefined);
     if (comment1Error) {
       return NextResponse.json({ error: comment1Error }, { status: 400 });
     }
 
-    const comment2Error = validateTextLength('コメント2', comment2);
+    const comment2Error = validateOptionalTextLength('コメント2', typeof comment2 === 'string' ? comment2 : undefined);
     if (comment2Error) {
       return NextResponse.json({ error: comment2Error }, { status: 400 });
     }
@@ -107,11 +107,11 @@ export async function POST(request: NextRequest) {
       mainMediaUrls: serializedMedia.urls,
       mainMediaTypes: serializedMedia.types,
       mainMediaAltTexts: serializedMedia.altTexts,
-      comment1: String(comment1),
+      comment1: typeof comment1 === 'string' ? comment1 : '',
       comment1MediaUrls: serializedComment1Media.urls,
       comment1MediaTypes: serializedComment1Media.types,
       comment1MediaAltTexts: serializedComment1Media.altTexts,
-      comment2: String(comment2),
+      comment2: typeof comment2 === 'string' ? comment2 : '',
       comment2MediaUrls: serializedComment2Media.urls,
       comment2MediaTypes: serializedComment2Media.types,
       comment2MediaAltTexts: serializedComment2Media.altTexts,

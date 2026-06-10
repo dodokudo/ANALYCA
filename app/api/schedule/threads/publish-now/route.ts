@@ -27,6 +27,14 @@ function validateTextLength(text: string, fieldName: string): string | null {
   return null;
 }
 
+function validateOptionalTextLength(text: string | undefined, fieldName: string): string | null {
+  if (!text) return null;
+  if (text.length > 500) {
+    return `${fieldName}は500文字以内である必要があります`;
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -60,11 +68,11 @@ export async function POST(request: NextRequest) {
     if (mainError) {
       return NextResponse.json({ error: mainError }, { status: 400 });
     }
-    const comment1Error = validateTextLength(comment1, 'コメント1');
+    const comment1Error = validateOptionalTextLength(comment1, 'コメント1');
     if (comment1Error) {
       return NextResponse.json({ error: comment1Error }, { status: 400 });
     }
-    const comment2Error = validateTextLength(comment2, 'コメント2');
+    const comment2Error = validateOptionalTextLength(comment2, 'コメント2');
     if (comment2Error) {
       return NextResponse.json({ error: comment2Error }, { status: 400 });
     }

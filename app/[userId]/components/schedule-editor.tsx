@@ -131,26 +131,22 @@ export function ScheduleEditor({
     return (
       scheduledAt &&
       mainText.trim().length > 0 &&
-      comment1.trim().length > 0 &&
-      comment2.trim().length > 0 &&
       mainLength <= MAX_LENGTH &&
       comment1Length <= MAX_LENGTH &&
       comment2Length <= MAX_LENGTH &&
       optionalCommentsValid
     );
-  }, [scheduledAt, mainText, comment1, comment2, mainLength, comment1Length, comment2Length, optionalCommentsValid]);
+  }, [scheduledAt, mainText, mainLength, comment1Length, comment2Length, optionalCommentsValid]);
 
   const isValidForPublish = useMemo(() => {
     return (
       mainText.trim().length > 0 &&
-      comment1.trim().length > 0 &&
-      comment2.trim().length > 0 &&
       mainLength <= MAX_LENGTH &&
       comment1Length <= MAX_LENGTH &&
       comment2Length <= MAX_LENGTH &&
       optionalCommentsValid
     );
-  }, [mainText, comment1, comment2, mainLength, comment1Length, comment2Length, optionalCommentsValid]);
+  }, [mainText, mainLength, comment1Length, comment2Length, optionalCommentsValid]);
 
   const handleMediaUpload = async (
     files: FileList | null,
@@ -248,7 +244,7 @@ export function ScheduleEditor({
 
   const handlePublishNow = async () => {
     if (!isValidForPublish) {
-      setError('メイン投稿とコメントを入力してください。');
+      setError('メイン投稿を入力してください。');
       return;
     }
     setError(null);
@@ -383,7 +379,7 @@ export function ScheduleEditor({
         )}
 
         <label className="block text-xs font-medium text-gray-500">
-          コメント1（必須）
+          コメント1（任意）
           <textarea
             value={comment1}
             onChange={(event) => setComment1(event.target.value)}
@@ -405,7 +401,7 @@ export function ScheduleEditor({
         )}
 
         <label className="block text-xs font-medium text-gray-500">
-          コメント2（必須）
+          コメント2（任意）
           <textarea
             value={comment2}
             onChange={(event) => setComment2(event.target.value)}

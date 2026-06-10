@@ -30,7 +30,6 @@ function evaluate(mainText: string, comments: CommentData[]): Eligibility {
   const cleanedMain = cleanContent(mainText).trim();
   if (!cleanedMain) return { eligible: false, reason: '本文空' };
   if (cleanedMain.length > TEXT_LENGTH_LIMIT) return { eligible: false, reason: '本文500字超' };
-  if (comments.length < 2) return { eligible: false, reason: 'コメ<2' };
   const tooLong = comments.slice(0, COMMENT_SLOT_LIMIT).find((c) => cleanContent(c.text).length > TEXT_LENGTH_LIMIT);
   if (tooLong) return { eligible: false, reason: 'コメ500字超' };
   return { eligible: true, reason: undefined };
@@ -147,10 +146,8 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
     setDraftComments((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  const commentCount = draftComments.filter((comment) => comment.trim().length > 0).length;
-  const canSubmit = !submitting && scheduledAt && draftMainText.trim().length > 0 && commentCount >= 2;
+  const canSubmit = !submitting && scheduledAt && draftMainText.trim().length > 0;
 
-  const usedCount = Math.min(sortedComments.length, COMMENT_SLOT_LIMIT);
   const overflow = Math.max(0, sortedComments.length - COMMENT_SLOT_LIMIT);
 
   return (
@@ -188,7 +185,7 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
             <p className="mb-3 text-xs text-[color:var(--color-text-secondary)]">
               メイン投稿とコメント欄を編集して再投稿を予約できます。コメントは並び順どおりに詰めて予約されます。
               {overflow > 0 ? `元の投稿はコメント${sortedComments.length}件ですが、再投稿は先頭${COMMENT_SLOT_LIMIT}件までです。` : ''}
-              コメントは2件以上必要です。
+              コメントがある場合は並び順どおりに予約されます。
             </p>
             <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">
               投稿日時（JST）
@@ -228,7 +225,7 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-medium text-gray-500">コメント欄</p>
-                  <span className="text-[10px] text-[color:var(--color-text-muted)]">2件以上必要</span>
+                  <span className="text-[10px] text-[color:var(--color-text-muted)]">任意</span>
                 </div>
                 {draftComments.map((comment, idx) => (
                   <div key={`${idx}-${postId}`}>
@@ -257,7 +254,7 @@ export function RepostButton({ userId, postId, mainText, comments }: RepostButto
                 ))}
                 {draftComments.length === 0 ? (
                   <div className="rounded-md border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] px-3 py-4 text-center text-xs text-[color:var(--color-text-muted)]">
-                    コメントがありません。再投稿にはコメントを2件以上残してください。
+                    コメントなしで再投稿を予約できます。
                   </div>
                 ) : null}
               </div>

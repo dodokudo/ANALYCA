@@ -37,6 +37,12 @@ export interface UnivaPaySubscription {
   period: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly' | 'yearly';
   initial_amount?: number;
   next_payment_date?: string;
+  next_payment?: {
+    due_date?: string;
+    amount?: number;
+    currency?: string;
+    is_paid?: boolean;
+  };
   metadata?: Record<string, string>;
   mode: 'live' | 'test';
   created_on: string;
@@ -206,7 +212,14 @@ export async function getSubscription(subscriptionId: string): Promise<UnivaPayS
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
-  return fetchUnivaPay<UnivaPaySubscription>(`/subscriptions/${subscriptionId}`);
+  const subscription = await fetchUnivaPay<UnivaPaySubscription>(
+    `/stores/${storeId}/subscriptions/${subscriptionId}`,
+  );
+
+  return {
+    ...subscription,
+    next_payment_date: subscription.next_payment_date || subscription.next_payment?.due_date,
+  };
 }
 
 /**
@@ -221,13 +234,18 @@ export async function updateSubscription(
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
-  return fetchUnivaPay<UnivaPaySubscription>(
-    `/subscriptions/${subscriptionId}`,
+  const subscription = await fetchUnivaPay<UnivaPaySubscription>(
+    `/stores/${storeId}/subscriptions/${subscriptionId}`,
     {
       method: 'PATCH',
       body: params as Record<string, unknown>,
     },
   );
+
+  return {
+    ...subscription,
+    next_payment_date: subscription.next_payment_date || subscription.next_payment?.due_date,
+  };
 }
 
 /**
@@ -242,7 +260,7 @@ export async function listSubscriptions(
   }
 
   return fetchUnivaPay<UnivaPayListResponse<UnivaPaySubscription>>(
-    `/subscriptions`,
+    `/stores/${storeId}/subscriptions`,
     { params: params as Record<string, string | number | undefined> },
   );
 }

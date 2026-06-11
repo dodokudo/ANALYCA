@@ -69,6 +69,7 @@ export interface CreateChargeParams {
 }
 
 export interface UpdateSubscriptionParams {
+  transaction_token_id?: string;
   amount?: number;
   metadata?: Record<string, string>;
   status?: 'unpaid' | 'suspended';

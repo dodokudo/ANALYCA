@@ -1552,6 +1552,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
   email?: string;
   trial_ends_at?: Date;
   transaction_token_id?: string;
+  coupon_code?: string;
 }): Promise<string> {
   const query = `
     MERGE \`mark-454114.analyca.users\` T
@@ -1564,7 +1565,8 @@ export async function createPendingUser(userId: string, subscriptionData: {
         @subscription_status as subscription_status,
         @subscription_created_at as subscription_created_at,
         @trial_ends_at as trial_ends_at,
-        @transaction_token_id as transaction_token_id
+        @transaction_token_id as transaction_token_id,
+        @coupon_code as coupon_code
     ) S
     ON T.user_id = S.user_id
     WHEN MATCHED THEN UPDATE SET
@@ -1575,6 +1577,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
       subscription_created_at = S.subscription_created_at,
       trial_ends_at = S.trial_ends_at,
       transaction_token_id = S.transaction_token_id,
+      coupon_code = S.coupon_code,
       updated_at = CURRENT_TIMESTAMP()
     WHEN NOT MATCHED THEN INSERT (
       user_id,
@@ -1585,6 +1588,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
       subscription_created_at,
       trial_ends_at,
       transaction_token_id,
+      coupon_code,
       created_at,
       updated_at
     ) VALUES (
@@ -1596,6 +1600,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
       S.subscription_created_at,
       S.trial_ends_at,
       S.transaction_token_id,
+      S.coupon_code,
       CURRENT_TIMESTAMP(),
       CURRENT_TIMESTAMP()
     )
@@ -1612,6 +1617,7 @@ export async function createPendingUser(userId: string, subscriptionData: {
       subscription_created_at: subscriptionData.subscription_created_at,
       trial_ends_at: subscriptionData.trial_ends_at || null,
       transaction_token_id: subscriptionData.transaction_token_id || null,
+      coupon_code: subscriptionData.coupon_code || null,
     },
     types: {
       subscription_created_at: 'TIMESTAMP',
@@ -1620,6 +1626,27 @@ export async function createPendingUser(userId: string, subscriptionData: {
   });
 
   return userId;
+}
+
+export async function updateUserPaymentToken(
+  userId: string,
+  transactionTokenId: string,
+): Promise<void> {
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET transaction_token_id = @transaction_token_id,
+        recurring_token_id = @transaction_token_id,
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @user_id
+  `;
+
+  await executeDML({
+    query,
+    params: {
+      user_id: userId,
+      transaction_token_id: transactionTokenId,
+    },
+  });
 }
 
 /**

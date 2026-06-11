@@ -4,6 +4,7 @@ import { PLANS } from '@/lib/univapay/plans';
 import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, createReferral, getUserById, recordConversionEvent } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
+import { getCoupon, getTrialDays, normalizeCouponCode } from '@/lib/coupons';
 
 // Vercel Serverless関数のタイムアウト上限を伸ばす（デフォルト10秒→30秒）
 export const maxDuration = 30;
@@ -15,7 +16,7 @@ const TRIAL_DAYS = 7;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { transactionTokenId, planId, refCode, utm_source, utm_medium, utm_campaign, utm_content, email, userId: requestedUserId } = body;
+    const { transactionTokenId, planId, refCode, couponCode, utm_source, utm_medium, utm_campaign, utm_content, email, userId: requestedUserId } = body;
 
     if (!transactionTokenId) {
       return NextResponse.json({
@@ -34,6 +35,15 @@ export async function POST(request: NextRequest) {
     const plan = PLANS[planId];
     const isTrial = TRIAL_ENABLED;
     const isYearly = plan.yearly === true;
+    const normalizedCouponCode = normalizeCouponCode(couponCode);
+    const coupon = getCoupon(normalizedCouponCode);
+    if (normalizedCouponCode && !coupon) {
+      return NextResponse.json({
+        success: false,
+        error: 'クーポンコードが無効です',
+      }, { status: 400 });
+    }
+    const trialDays = isTrial ? getTrialDays(normalizedCouponCode, TRIAL_DAYS) : 0;
 
     // 冪等性チェック: 同じ transaction_token_id で既にサブスク登録済みなら既存レスポンスを返す
     const existing = await findUserByTransactionTokenId(transactionTokenId);
@@ -81,13 +91,13 @@ export async function POST(request: NextRequest) {
         analycaUserId: userId,
         planId,
         planName: plan.name,
+        ...(coupon ? { couponCode: coupon.code, trialDays: String(trialDays) } : {}),
       },
     };
 
     if (isTrial) {
-      // 7日後に初回課金開始（それまでは無料）
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() + TRIAL_DAYS);
+      startDate.setDate(startDate.getDate() + trialDays);
       const startOnStr = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
       subscriptionParams.initial_amount = 0;
       subscriptionParams.schedule_settings = {
@@ -101,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     // BigQueryに仮ユーザーを作成
     const trialEndsAt = new Date();
-    trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
+    trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
 
     await createPendingUser(userId, {
       subscription_id: subscription.id,
@@ -110,6 +120,7 @@ export async function POST(request: NextRequest) {
       subscription_created_at: new Date(),
       email: email || undefined,
       transaction_token_id: transactionTokenId,
+      coupon_code: coupon?.code,
       ...(isTrial ? { trial_ends_at: trialEndsAt } : {}),
     });
 

@@ -8,6 +8,7 @@ import AnalycaLogo from '@/components/AnalycaLogo';
 import { PLANS } from '@/lib/univapay/plans';
 import * as gtag from '@/lib/gtag';
 import { safeLocalStorage } from '@/lib/safe-storage';
+import { getCoupon, getTrialDays } from '@/lib/coupons';
 
 declare global {
   interface Window {
@@ -55,6 +56,7 @@ function CheckoutContent() {
   const [error, setError] = useState<string | null>(null);
   const [appId, setAppId] = useState<string | null>(null);
   const [refCode, setRefCode] = useState<string>('');
+  const [couponCode, setCouponCode] = useState<string>('');
   const formRef = useRef<HTMLFormElement>(null);
 
   // UnivaPay設定を取得 + refコード読み込み
@@ -76,7 +78,12 @@ function CheckoutContent() {
     if (savedRef) {
       setRefCode(savedRef);
     }
-  }, []);
+
+    const couponParam = searchParams?.get('coupon') || safeLocalStorage.getItem('analyca_coupon') || '';
+    if (couponParam) {
+      setCouponCode(couponParam.toUpperCase());
+    }
+  }, [searchParams]);
 
   // プランが見つからない場合
   if (!plan) {
@@ -96,9 +103,19 @@ function CheckoutContent() {
     );
   }
 
+  const appliedCoupon = getCoupon(couponCode);
+  const couponInput = couponCode.trim();
+  const couponError = couponInput && !appliedCoupon ? 'クーポンコードが無効です' : null;
+  const trialDays = getTrialDays(couponCode, 7);
+  const nextBillingDayLabel = `${trialDays + 1}日目`;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (couponError) {
+      setError(couponError);
+      return;
+    }
 
     const iframe = document.querySelector('#univapay-checkout iframe');
     if (!iframe || !window.UnivapayCheckout) {
@@ -152,6 +169,7 @@ function CheckoutContent() {
           transactionTokenId: tokenId,
           planId: planId,
           refCode: refCode || undefined,
+          couponCode: appliedCoupon?.code,
           utm_source: utmSource || undefined,
           utm_medium: utmMedium || undefined,
           utm_campaign: utmCampaign || undefined,
@@ -219,26 +237,26 @@ function CheckoutContent() {
             </div>
           </div>
 
-          {/* 7日間無料トライアル表示 */}
+          {/* 無料トライアル表示 */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mt-3">
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm font-medium text-emerald-800">7日間無料体験</p>
+              <p className="text-sm font-medium text-emerald-800">{trialDays}日間無料体験</p>
             </div>
             <p className="text-xs text-emerald-600 mt-1 ml-7">
-              今日から7日間は無料。期間中はいつでもキャンセルできます。
+              今日から{trialDays}日間は無料。期間中はいつでもキャンセルできます。
             </p>
           </div>
 
           {(() => {
             const trialEndDate = new Date();
-            trialEndDate.setDate(trialEndDate.getDate() + 7);
+            trialEndDate.setDate(trialEndDate.getDate() + trialDays);
             const formatted = trialEndDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
             return (
               <div className="border-t border-gray-100 pt-3 mt-3 space-y-1">
-                <p className="text-sm text-gray-600">8日目から{isYearly ? '年額' : '月額'} ¥{plan.price.toLocaleString()}（税込）・自動更新</p>
+                <p className="text-sm text-gray-600">{nextBillingDayLabel}から{isYearly ? '年額' : '月額'} ¥{plan.price.toLocaleString()}（税込）・自動更新</p>
                 <p className="text-xs text-gray-400">初回課金日: {formatted}</p>
               </div>
             );
@@ -255,6 +273,32 @@ function CheckoutContent() {
               placeholder="紹介コードがあれば入力"
               className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
             />
+          </div>
+
+          {/* クーポンコード */}
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <label htmlFor="couponCode" className="text-xs text-gray-500">クーポンコード（任意）</label>
+            <input
+              type="text"
+              id="couponCode"
+              value={couponCode}
+              onChange={(e) => {
+                const value = e.target.value.trim().toUpperCase();
+                setCouponCode(value);
+                if (value) {
+                  safeLocalStorage.setItem('analyca_coupon', value);
+                } else {
+                  safeLocalStorage.removeItem('analyca_coupon');
+                }
+              }}
+              placeholder="例: ANALYCA30"
+              className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+            />
+            {appliedCoupon ? (
+              <p className="mt-2 text-xs font-medium text-emerald-600">{appliedCoupon.label}が適用されています</p>
+            ) : couponError ? (
+              <p className="mt-2 text-xs font-medium text-red-600">{couponError}</p>
+            ) : null}
           </div>
         </div>
 
@@ -314,12 +358,12 @@ function CheckoutContent() {
                   処理中...
                 </span>
               ) : (
-                '無料で始める（7日間）'
+                `無料で始める（${trialDays}日間）`
               )}
             </button>
 
             <p className="text-center text-xs text-gray-500 mt-3">
-              7日間無料。期間中はいつでもキャンセル可能。8日目から{isYearly ? '年額' : '月額'}¥{plan.price.toLocaleString()}
+              {trialDays}日間無料。期間中はいつでもキャンセル可能。{nextBillingDayLabel}から{isYearly ? '年額' : '月額'}¥{plan.price.toLocaleString()}
             </p>
 
             <div className="flex items-center justify-center gap-2 mt-3">

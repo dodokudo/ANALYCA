@@ -227,6 +227,22 @@ interface UserInfo {
   plan_id?: string | null;
 }
 
+// ============ お問い合わせ（公式LINE） ============
+// 友だち追加URLのベース。変更時はここだけ修正する
+const CONTACT_LINE_BASE_URL = 'https://line-harness.lhx7.workers.dev/r/analyca_contact';
+
+// ログイン中ユーザーのIG/ThreadsアカウントIDを付与したお問い合わせURLを生成
+function buildContactLineUrl(user: UserInfo | null): string {
+  const params: string[] = [];
+  if (user?.instagram_username) {
+    params.push(`meta_instagram=${encodeURIComponent(user.instagram_username)}`);
+  }
+  if (user?.threads_username) {
+    params.push(`meta_threads=${encodeURIComponent(user.threads_username)}`);
+  }
+  return params.length > 0 ? `${CONTACT_LINE_BASE_URL}?${params.join('&')}` : CONTACT_LINE_BASE_URL;
+}
+
 interface DashboardData {
   threads?: {
     total: number;
@@ -668,6 +684,17 @@ function UserDashboardContent({ userId }: { userId: string }) {
             </svg>
             設定
           </button>
+          <a
+            href={buildContactLineUrl(user)}
+            target="_blank"
+            rel="noopener"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            お問い合わせ
+          </a>
           <p className="text-xs text-[color:var(--color-text-muted)] mt-3 px-3">Powered by ANALYCA</p>
         </div>
       </aside>

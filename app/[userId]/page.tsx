@@ -218,12 +218,14 @@ interface DailyPostStat {
 }
 
 interface UserInfo {
+  user_id?: string | null;
   threads_username?: string | null;
   threads_profile_picture_url?: string | null;
   instagram_username?: string | null;
   instagram_profile_picture_url?: string | null;
   subscription_status?: string | null;
   subscription_expires_at?: string | null;
+  trial_ends_at?: string | null;
   plan_id?: string | null;
 }
 
@@ -234,11 +236,27 @@ const CONTACT_LINE_BASE_URL = 'https://line-harness.lhx7.workers.dev/r/analyca_c
 // ログイン中ユーザーのIG/ThreadsアカウントIDを付与したお問い合わせURLを生成
 function buildContactLineUrl(user: UserInfo | null): string {
   const params: string[] = [];
+  if (user?.user_id) {
+    params.push(`meta_analyca_user_id=${encodeURIComponent(user.user_id)}`);
+  }
   if (user?.instagram_username) {
     params.push(`meta_instagram=${encodeURIComponent(user.instagram_username)}`);
   }
   if (user?.threads_username) {
     params.push(`meta_threads=${encodeURIComponent(user.threads_username)}`);
+  }
+  if (user?.plan_id) {
+    params.push(`meta_analyca_plan_id=${encodeURIComponent(user.plan_id)}`);
+  }
+  if (user?.subscription_status) {
+    params.push(`meta_analyca_subscription_status=${encodeURIComponent(user.subscription_status)}`);
+    params.push(`meta_analyca_is_active=${encodeURIComponent(user.subscription_status === 'current' || user.subscription_status === 'trial' ? 'true' : 'false')}`);
+  }
+  if (user?.subscription_expires_at) {
+    params.push(`meta_analyca_subscription_expires_at=${encodeURIComponent(user.subscription_expires_at)}`);
+  }
+  if (user?.trial_ends_at) {
+    params.push(`meta_analyca_trial_ends_at=${encodeURIComponent(user.trial_ends_at)}`);
   }
   return params.length > 0 ? `${CONTACT_LINE_BASE_URL}?${params.join('&')}` : CONTACT_LINE_BASE_URL;
 }

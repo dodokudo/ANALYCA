@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, getUserDashboardData, updateLastLogin } from '@/lib/bigquery';
+import { syncAnalycaUserToLineHarness } from '@/lib/line-harness-sync';
 
 /**
  * BigQueryのタイムスタンプを安全にシリアライズ
@@ -80,6 +81,20 @@ export async function GET(
       }).catch((err) => {
         console.error('Failed to update last_login_at from dashboard:', err);
       });
+
+      try {
+        await syncAnalycaUserToLineHarness({
+          userId,
+          instagramUsername: userRecord.instagram_username || null,
+          threadsUsername: userRecord.threads_username || null,
+          planId: userRecord.plan_id || null,
+          subscriptionStatus: userRecord.subscription_status || null,
+          subscriptionExpiresAt: userRecord.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null,
+          trialEndsAt: userRecord.trial_ends_at ? serializeTimestamp(userRecord.trial_ends_at) : null,
+        });
+      } catch (err) {
+        console.error('Failed to sync ANALYCA user to LINE Harness:', err);
+      }
     }
 
     // ダッシュボードデータを取得
@@ -209,6 +224,7 @@ export async function GET(
       success: true,
       data: dashboardData,
       user: {
+        user_id: userRecord?.user_id || userId,
         threads_username: userRecord?.threads_username || null,
         threads_user_id: userRecord?.threads_user_id || null,
         threads_profile_picture_url: userRecord?.threads_profile_picture_url || null,
@@ -217,6 +233,7 @@ export async function GET(
         instagram_profile_picture_url: userRecord?.instagram_profile_picture_url || null,
         subscription_status: userRecord?.subscription_status || null,
         subscription_expires_at: userRecord?.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null,
+        trial_ends_at: userRecord?.trial_ends_at ? serializeTimestamp(userRecord.trial_ends_at) : null,
         plan_id: userRecord?.plan_id || null,
       },
       channels: {

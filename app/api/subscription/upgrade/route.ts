@@ -10,6 +10,7 @@ import {
   updateSubscription,
 } from '@/lib/univapay/client';
 import { PLANS, resolveEffectivePlanId } from '@/lib/univapay/plans';
+import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 
 const UPGRADABLE_STATUSES = new Set(['current', 'active', 'trial', 'unpaid', 'suspended']);
 
@@ -148,6 +149,13 @@ export async function POST(request: NextRequest) {
         : subStatus.subscription_status,
       subscription_expires_at: undefined,
     });
+
+    try {
+      const updatedUser = await getUserById(userId);
+      if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
+    } catch (syncErr) {
+      console.error('Failed to sync upgraded subscription to LINE Harness:', syncErr);
+    }
 
     return NextResponse.json({
       success: true,

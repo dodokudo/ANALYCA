@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTrialExpiredUsersWithCard, expireTrialUsersWithoutCard, updateUserSubscription, confirmReferralByUserId } from '@/lib/bigquery';
+import { getTrialExpiredUsersWithCard, expireTrialUsersWithoutCard, updateUserSubscription, confirmReferralByUserId, getUserById, getUsersForLineHarnessSync } from '@/lib/bigquery';
 import { createSubscriptionFromToken } from '@/lib/univapay/client';
 import { PLANS } from '@/lib/univapay/plans';
+import { syncAllAnalycaUsersToLineHarness, syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 
 export const maxDuration = 60;
 
@@ -41,6 +42,13 @@ export async function GET(request: NextRequest) {
           subscription_created_at: new Date(),
         });
 
+        try {
+          const updatedUser = await getUserById(user.user_id);
+          if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
+        } catch (syncErr) {
+          console.error(`[TRIAL CONVERSION] LINE Harness sync failed for user ${user.user_id}:`, syncErr);
+        }
+
         // referralのステータスをpending→confirmedに更新
         try {
           await confirmReferralByUserId(user.user_id);
@@ -64,11 +72,14 @@ export async function GET(request: NextRequest) {
       console.log(`[TRIAL EXPIRED] ${expiredCount} users expired (no card registered)`);
     }
 
+    const lineHarnessSync = await syncAllAnalycaUsersToLineHarness(await getUsersForLineHarnessSync());
+
     return NextResponse.json({
       success: true,
       converted: results.filter(r => r.status === 'converted').length,
       failed: results.filter(r => r.status === 'failed').length,
       expired: expiredCount,
+      lineHarnessSync,
       details: results,
     });
   } catch (error) {

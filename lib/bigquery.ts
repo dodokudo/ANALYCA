@@ -1480,6 +1480,47 @@ export async function getAllUsersWithStats(): Promise<AdminUserSummary[]> {
   return rows as AdminUserSummary[];
 }
 
+export async function getUsersForLineHarnessSync(): Promise<Array<{
+  user_id: string;
+  instagram_username: string | null;
+  threads_username: string | null;
+  plan_id: string | null;
+  subscription_status: string | null;
+  subscription_expires_at: string | null;
+  trial_ends_at: string | null;
+}>> {
+  const query = `
+    SELECT
+      user_id,
+      instagram_username,
+      threads_username,
+      plan_id,
+      COALESCE(subscription_status, 'none') AS subscription_status,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_expires_at) AS subscription_expires_at,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', trial_ends_at) AS trial_ends_at
+    FROM \`${projectId}.analyca.users\`
+    WHERE user_id IS NOT NULL
+      AND (
+        instagram_username IS NOT NULL
+        OR threads_username IS NOT NULL
+        OR subscription_status IS NOT NULL
+        OR plan_id IS NOT NULL
+      )
+    ORDER BY updated_at DESC
+  `;
+
+  const [rows] = await bigquery.query({ query });
+  return rows.map((row: Record<string, unknown>) => ({
+    user_id: row.user_id as string,
+    instagram_username: (row.instagram_username as string | null) || null,
+    threads_username: (row.threads_username as string | null) || null,
+    plan_id: (row.plan_id as string | null) || null,
+    subscription_status: (row.subscription_status as string | null) || 'none',
+    subscription_expires_at: (row.subscription_expires_at as string | null) || null,
+    trial_ends_at: (row.trial_ends_at as string | null) || null,
+  }));
+}
+
 // 管理者用: 全体統計取得
 export interface AdminOverallStats {
   total_users: number;

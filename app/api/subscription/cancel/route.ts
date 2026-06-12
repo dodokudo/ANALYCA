@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserSubscriptionStatus, updateUserSubscription, getUserById } from '@/lib/bigquery';
 import { sendCancellationEmail } from '@/lib/email';
 import { cancelSubscription, getSubscription } from '@/lib/univapay/client';
+import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +42,13 @@ export async function POST(request: NextRequest) {
       subscription_status: 'canceled',
       subscription_expires_at: expiresAt,
     });
+
+    try {
+      const updatedUser = await getUserById(userId);
+      if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
+    } catch (syncErr) {
+      console.error('Failed to sync canceled subscription to LINE Harness:', syncErr);
+    }
 
     // 解約完了メール送信（非ブロッキング）
     getUserById(userId).then((user) => {

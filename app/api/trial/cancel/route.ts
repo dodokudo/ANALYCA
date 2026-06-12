@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, updateUserSubscription, updateUserRecurringToken } from '@/lib/bigquery';
 import { cancelSubscription, deleteRecurringToken } from '@/lib/univapay/client';
+import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +56,13 @@ export async function POST(request: NextRequest) {
       subscription_status: 'canceled',
     });
     await updateUserRecurringToken(userId, '');
+
+    try {
+      const updatedUser = await getUserById(userId);
+      if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
+    } catch (syncErr) {
+      console.error('Failed to sync trial cancellation to LINE Harness:', syncErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

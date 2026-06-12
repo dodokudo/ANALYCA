@@ -5,6 +5,7 @@ import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, cr
 import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
 import { getCoupon, getTrialDays, normalizeCouponCode } from '@/lib/coupons';
+import { syncAnalycaUserToLineHarness } from '@/lib/line-harness-sync';
 
 // Vercel Serverless関数のタイムアウト上限を伸ばす（デフォルト10秒→30秒）
 export const maxDuration = 30;
@@ -125,6 +126,19 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('Pending user created:', userId, isTrial ? `(trial until ${trialEndsAt.toISOString()})` : '');
+
+    try {
+      await syncAnalycaUserToLineHarness({
+        userId,
+        instagramUsername: existingUser?.instagram_username || null,
+        threadsUsername: existingUser?.threads_username || null,
+        planId,
+        subscriptionStatus: isTrial ? 'trial' : 'current',
+        trialEndsAt: isTrial ? trialEndsAt : null,
+      });
+    } catch (syncErr) {
+      console.error('Failed to sync new subscription to LINE Harness:', syncErr);
+    }
 
     // 決済完了メール送信（非ブロッキング）
     if (email) {

@@ -11,7 +11,7 @@ import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
-import { safeLocalStorage } from '@/lib/safe-storage';
+import { safeLocalStorage, safeSessionStorage } from '@/lib/safe-storage';
 import {
   ComposedChart,
   Bar,
@@ -227,6 +227,7 @@ interface UserInfo {
   subscription_expires_at?: string | null;
   trial_ends_at?: string | null;
   plan_id?: string | null;
+  line_linked?: boolean | null;
 }
 
 // ============ お問い合わせ（公式LINE） ============
@@ -378,6 +379,39 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [showLineModal, setShowLineModal] = useState(false);
+
+  // LINE登録促進モーダル: 有料会員(current/trial)かつLINE未紐付けの場合のみ、
+  // 初回起動なら1分経過後・2回目以降の起動なら即時に表示する。
+  // 閉じたら同セッション中は再表示しない。
+  useEffect(() => {
+    if (!user || user.line_linked !== false) return; // null(判定不能)時は出さない
+    const isPaid = user.subscription_status === 'current' || user.subscription_status === 'trial';
+    if (!isPaid) return;
+    if (safeSessionStorage.getItem('analycaLineModalDismissed') === '1') return;
+
+    const visitKey = `analycaVisitCount_${userId}`;
+    const counted = safeSessionStorage.getItem(`analycaVisitCounted_${userId}`) === '1';
+    let visits = parseInt(safeLocalStorage.getItem(visitKey) || '0', 10) || 0;
+    if (!counted) {
+      visits += 1;
+      safeLocalStorage.setItem(visitKey, String(visits));
+      safeSessionStorage.setItem(`analycaVisitCounted_${userId}`, '1');
+    }
+
+    if (visits >= 2) {
+      setShowLineModal(true);
+      return;
+    }
+    const timer = setTimeout(() => setShowLineModal(true), 60_000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userId]);
+
+  const dismissLineModal = () => {
+    setShowLineModal(false);
+    safeSessionStorage.setItem('analycaLineModalDismissed', '1');
+  };
 
   // データ取得関数
   const fetchData = async (showLoadingState = true) => {
@@ -716,6 +750,45 @@ function UserDashboardContent({ userId }: { userId: string }) {
           <p className="text-xs text-[color:var(--color-text-muted)] mt-3 px-3">Powered by ANALYCA</p>
         </div>
       </aside>
+
+      {/* LINE登録促進モーダル(有料会員・LINE未紐付けのみ) */}
+      {showLineModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={dismissLineModal} />
+          <div className="relative bg-[color:var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full p-6 text-center">
+            <button
+              onClick={dismissLineModal}
+              aria-label="閉じる"
+              className="absolute top-3 right-3 p-2 text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)]"
+            >
+              ✕
+            </button>
+            <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-[#06C755]/10 flex items-center justify-center">
+              <svg className="w-7 h-7 text-[#06C755]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 5.64 2 10.13c0 2.59 1.5 4.9 3.84 6.39-.17.62-.62 2.25-.71 2.6-.11.43.16.43.33.31.14-.09 2.18-1.48 3.07-2.08.47.07.96.1 1.47.1 5.52 0 10-3.64 10-8.13S17.52 2 12 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-[color:var(--color-text-primary)] mb-3">
+              公式LINEのご案内
+            </h3>
+            <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed mb-2">
+              お問い合わせはこちらの公式LINEからお願いします。
+            </p>
+            <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed mb-5">
+              お得なThreads攻略やInstagram攻略の情報も配信していますので、今すぐ受け取ってください。
+            </p>
+            <a
+              href={buildContactLineUrl(user)}
+              target="_blank"
+              rel="noopener"
+              onClick={dismissLineModal}
+              className="block w-full py-3 rounded-xl bg-[#06C755] text-white font-bold text-sm hover:opacity-90 transition-opacity"
+            >
+              LINEで受け取る
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* モバイルサイドバー */}
       {sidebarOpen && (

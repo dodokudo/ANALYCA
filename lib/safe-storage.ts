@@ -12,6 +12,37 @@ function getStore(): Storage | null {
   }
 }
 
+function getSessionStore(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export const safeSessionStorage = {
+  getItem(key: string): string | null {
+    const store = getSessionStore();
+    if (!store) return null;
+    try {
+      return store.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+
+  setItem(key: string, value: string): void {
+    const store = getSessionStore();
+    if (!store) return;
+    try {
+      store.setItem(key, value);
+    } catch {
+      // ignore
+    }
+  },
+};
+
 export const safeLocalStorage = {
   getItem(key: string): string | null {
     const store = getStore();

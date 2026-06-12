@@ -74,6 +74,8 @@ export async function GET(
 
     // ユーザーデータを取得
     const userRecord = await getUserById(userId);
+    // LINE Harness側に紐付け済みの友だちがいるか(null=同期不可で判定不能)
+    let lineLinked: boolean | null = null;
     if (userRecord) {
       updateLastLogin(userId, {
         accessPath: `/${userId}`,
@@ -83,7 +85,7 @@ export async function GET(
       });
 
       try {
-        await syncAnalycaUserToLineHarness({
+        const syncResult = await syncAnalycaUserToLineHarness({
           userId,
           instagramUsername: userRecord.instagram_username || null,
           threadsUsername: userRecord.threads_username || null,
@@ -92,6 +94,8 @@ export async function GET(
           subscriptionExpiresAt: userRecord.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null,
           trialEndsAt: userRecord.trial_ends_at ? serializeTimestamp(userRecord.trial_ends_at) : null,
         });
+        // matchedCount >= 1 ならLINE友だちに紐付け済み。nullは同期不可(判定不能)
+        lineLinked = syncResult ? syncResult.matchedCount > 0 : null;
       } catch (err) {
         console.error('Failed to sync ANALYCA user to LINE Harness:', err);
       }
@@ -235,6 +239,7 @@ export async function GET(
         subscription_expires_at: userRecord?.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null,
         trial_ends_at: userRecord?.trial_ends_at ? serializeTimestamp(userRecord.trial_ends_at) : null,
         plan_id: userRecord?.plan_id || null,
+        line_linked: lineLinked,
       },
       channels: {
         instagram: !!userRecord?.has_instagram,

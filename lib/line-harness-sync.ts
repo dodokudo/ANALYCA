@@ -24,7 +24,7 @@ type SyncAllAnalycaUsersResult = {
 const DEFAULT_SYNC_URL = 'https://line-harness.lhx7.workers.dev/api/integrations/analyca/sync-user';
 
 function isActiveSubscription(status?: string | null): boolean {
-  return status === 'current' || status === 'trial';
+  return status === 'current' || status === 'trial' || status === 'active';
 }
 
 function serializeDate(value?: string | Date | null): string | null {

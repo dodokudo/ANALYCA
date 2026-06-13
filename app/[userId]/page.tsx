@@ -251,7 +251,7 @@ function buildContactLineUrl(user: UserInfo | null): string {
   }
   if (user?.subscription_status) {
     params.push(`meta_analyca_subscription_status=${encodeURIComponent(user.subscription_status)}`);
-    params.push(`meta_analyca_is_active=${encodeURIComponent(user.subscription_status === 'current' || user.subscription_status === 'trial' ? 'true' : 'false')}`);
+    params.push(`meta_analyca_is_active=${encodeURIComponent(user.subscription_status === 'current' || user.subscription_status === 'trial' || user.subscription_status === 'active' ? 'true' : 'false')}`);
   }
   if (user?.subscription_expires_at) {
     params.push(`meta_analyca_subscription_expires_at=${encodeURIComponent(user.subscription_expires_at)}`);
@@ -381,12 +381,12 @@ function UserDashboardContent({ userId }: { userId: string }) {
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [showLineModal, setShowLineModal] = useState(false);
 
-  // LINE登録促進モーダル: 有料会員(current/trial)かつLINE未紐付けの場合のみ、
+  // LINE登録促進モーダル: 有料会員(current/trial/active)かつLINE未紐付けの場合のみ、
   // 初回起動なら1分経過後・2回目以降の起動なら即時に表示する。
   // 閉じたら同セッション中は再表示しない。
   useEffect(() => {
     if (!user || user.line_linked !== false) return; // null(判定不能)時は出さない
-    const isPaid = user.subscription_status === 'current' || user.subscription_status === 'trial';
+    const isPaid = user.subscription_status === 'current' || user.subscription_status === 'trial' || user.subscription_status === 'active';
     if (!isPaid) return;
     if (safeSessionStorage.getItem('analycaLineModalDismissed') === '1') return;
 

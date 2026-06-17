@@ -192,7 +192,7 @@ async function syncUserPosts(
   userId: string,
   accessToken: string,
   threadsUserId: string,
-  postLimit: number = 50
+  postLimit: number = 30
 ): Promise<{
   success: boolean;
   postsCount: number;
@@ -302,13 +302,29 @@ async function syncUserPosts(
  *   個別のHTTPリクエストを発行して並列同期。1関数で全ユーザーを処理しないため、
  *   ユーザーが500人でも1000人でもタイムアウトしない。
  */
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit);
+    const batchResults = await Promise.all(batch.map(worker));
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
     const limitParam = searchParams.get('limit');
     const rawLimit = limitParam ? parseInt(limitParam, 10) : NaN;
-    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 50;
+    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 30) : 30;
 
     // ── 単一ユーザー同期モード ──
     if (targetUserId) {
@@ -339,7 +355,7 @@ export async function GET(request: Request) {
     }
 
     // ── ディスパッチャーモード（cron用） ──
-    // 全ユーザーを取得して、各ユーザーに個別リクエストを並列発行
+    // BigQueryの同時MERGE競合を避けるため、全ユーザー同時ではなく小さなバッチで同期する。
     const users = await getActiveThreadsUsers();
     const validUsers = users.filter(u => u.threads_access_token && u.threads_user_id);
 
@@ -352,9 +368,9 @@ export async function GET(request: Request) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+    const CONCURRENCY = 3;
 
-    // 全ユーザーを並列で同期（各ユーザーが独立したサーバーレス関数で実行される）
-    const syncPromises = validUsers.map(async (user) => {
+    const results = await runWithConcurrency(validUsers, CONCURRENCY, async (user) => {
       try {
         const res = await fetch(
           `${appUrl}/api/sync/threads/posts?userId=${encodeURIComponent(user.user_id)}&limit=${postLimit}`,
@@ -379,12 +395,11 @@ export async function GET(request: Request) {
       }
     });
 
-    const results = await Promise.all(syncPromises);
     const successCount = results.filter(r => r.success).length;
 
     return NextResponse.json({
       success: true,
-      message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
+      message: `Dispatched sync for ${successCount}/${validUsers.length} users with concurrency ${CONCURRENCY}`,
       results,
     });
   } catch (error) {

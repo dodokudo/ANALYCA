@@ -20,31 +20,31 @@ interface ThreadsUserInsights {
  * Threadsユーザーのフォロワー数を取得
  */
 async function getThreadsUserInsights(accessToken: string, threadsUserId: string): Promise<ThreadsUserInsights> {
-  try {
-    const response = await fetch(
-      `${GRAPH_BASE}/${threadsUserId}/threads_insights?metric=followers_count&access_token=${accessToken}`
-    );
+  const response = await fetch(
+    `${GRAPH_BASE}/${threadsUserId}/threads_insights?metric=followers_count&access_token=${accessToken}`
+  );
 
-    if (!response.ok) {
-      console.warn('Failed to get Threads user insights');
-      return {};
-    }
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get Threads user insights (${response.status}): ${errorText}`);
+  }
 
-    const data = await response.json();
-    const insights: ThreadsUserInsights = {};
+  const data = await response.json();
+  const insights: ThreadsUserInsights = {};
 
-    if (data.data && Array.isArray(data.data)) {
-      for (const metric of data.data) {
-        if (metric.name === 'followers_count') {
-          insights.followers_count = metric.total_value?.value || 0;
-        }
+  if (data.data && Array.isArray(data.data)) {
+    for (const metric of data.data) {
+      if (metric.name === 'followers_count') {
+        insights.followers_count = metric.total_value?.value;
       }
     }
-
-    return insights;
-  } catch {
-    return {};
   }
+
+  if (insights.followers_count === undefined) {
+    throw new Error('Threads followers_count metric missing from response');
+  }
+
+  return insights;
 }
 
 /**
@@ -56,9 +56,9 @@ async function syncUserInsights(
   threadsUserId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // フォロワー数を取得
+    // フォロワー数を取得。取得失敗時は0で上書きせず、このユーザーの同期を失敗扱いにする。
     const userInsights = await getThreadsUserInsights(accessToken, threadsUserId);
-    const followersCount = userInsights.followers_count || 0;
+    const followersCount = userInsights.followers_count;
 
     // 今日の日付
     const today = new Date().toISOString().split('T')[0];

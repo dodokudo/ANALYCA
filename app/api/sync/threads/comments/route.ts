@@ -138,7 +138,7 @@ async function getAllMyComments(
 async function syncUserComments(
   userId: string,
   accessToken: string,
-  postLimit: number = 100
+  postLimit: number = 30
 ): Promise<{
   success: boolean;
   commentsCount: number;
@@ -212,12 +212,28 @@ async function syncUserComments(
  * - userId指定あり: そのユーザーのみ同期（独立実行）
  * - userId指定なし: ディスパッチャー。各ユーザーに個別リクエストを並列発行
  */
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit);
+    const batchResults = await Promise.all(batch.map(worker));
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId');
-    const rawLimit = parseInt(searchParams.get('limit') || '100', 10);
-    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 100;
+    const rawLimit = parseInt(searchParams.get('limit') || '30', 10);
+    const postLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 30) : 30;
 
     // ── 単一ユーザー同期モード ──
     if (targetUserId) {
@@ -239,6 +255,7 @@ export async function GET(request: Request) {
     }
 
     // ── ディスパッチャーモード（cron用） ──
+    // コメント同期はAPI・再帰・BigQuery MERGEが重いため、投稿同期よりさらに並列数を絞る。
     const users = await getActiveThreadsUsers();
     const validUsers = users.filter(u => u.threads_access_token);
 
@@ -251,8 +268,9 @@ export async function GET(request: Request) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+    const CONCURRENCY = 2;
 
-    const syncPromises = validUsers.map(async (user) => {
+    const results = await runWithConcurrency(validUsers, CONCURRENCY, async (user) => {
       try {
         const res = await fetch(
           `${appUrl}/api/sync/threads/comments?userId=${encodeURIComponent(user.user_id)}&limit=${postLimit}`,
@@ -277,12 +295,11 @@ export async function GET(request: Request) {
       }
     });
 
-    const results = await Promise.all(syncPromises);
     const successCount = results.filter(r => r.success).length;
 
     return NextResponse.json({
       success: true,
-      message: `Dispatched comment sync for ${successCount}/${validUsers.length} users`,
+      message: `Dispatched comment sync for ${successCount}/${validUsers.length} users with concurrency ${CONCURRENCY}`,
       results,
     });
   } catch (error) {

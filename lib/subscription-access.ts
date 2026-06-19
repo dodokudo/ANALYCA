@@ -33,14 +33,7 @@ function asDate(value: Date | string | null | undefined): Date | null {
 function inferPaidThrough(user: User): Date | null {
   const explicitExpiresAt = asDate(user.subscription_expires_at);
   if (explicitExpiresAt) return explicitExpiresAt;
-
-  const createdAt = asDate(user.subscription_created_at);
-  if (!createdAt) return null;
-
-  const inferred = new Date(createdAt);
-  const planId = user.plan_id || '';
-  inferred.setDate(inferred.getDate() + (planId.includes('yearly') ? 366 : 31));
-  return inferred;
+  return null;
 }
 
 export function evaluateDashboardAccess(

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserById, getUserDashboardData, updateLastLogin } from '@/lib/bigquery';
+import { getUserById, getUserDashboardData, updateLastLogin, updateUserSubscription, type User } from '@/lib/bigquery';
 import { syncAnalycaUserToLineHarness } from '@/lib/line-harness-sync';
 import {
   getYamazakiAgencyMetrics,
@@ -7,6 +7,7 @@ import {
   YAMAZAKI_THREADS_USERNAME,
 } from '@/lib/yamazaki-agency-metrics';
 import { evaluateDashboardAccess } from '@/lib/subscription-access';
+import { getSubscription } from '@/lib/univapay/client';
 
 /**
  * BigQueryのタイムスタンプを安全にシリアライズ
@@ -71,6 +72,49 @@ function serializeRecord<T extends Record<string, unknown>>(record: T): T {
   }
 }
 
+function parseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function shouldRefreshSubscriptionForAccess(user: User | null): user is User {
+  if (!user?.subscription_id) return false;
+  const status = (user.subscription_status || '').toLowerCase();
+  return ['expired', 'canceled', 'cancelled', 'unpaid', 'unconfirmed', 'suspended'].includes(status);
+}
+
+async function refreshSubscriptionForAccess(user: User | null): Promise<User | null> {
+  if (!shouldRefreshSubscriptionForAccess(user)) return user;
+
+  try {
+    const subscription = await getSubscription(user.subscription_id);
+    const nextPaymentDate = parseDate(subscription.next_payment_date);
+    const refreshedUser: User = {
+      ...user,
+      subscription_status: subscription.status || user.subscription_status,
+      subscription_expires_at: nextPaymentDate || user.subscription_expires_at || null,
+    };
+
+    if (
+      refreshedUser.subscription_status !== user.subscription_status ||
+      refreshedUser.subscription_expires_at?.getTime() !== user.subscription_expires_at?.getTime()
+    ) {
+      updateUserSubscription(user.user_id, {
+        subscription_status: refreshedUser.subscription_status || undefined,
+        subscription_expires_at: refreshedUser.subscription_expires_at,
+      }).catch((err) => {
+        console.error('Failed to persist refreshed subscription status:', err);
+      });
+    }
+
+    return refreshedUser;
+  } catch (err) {
+    console.error('Failed to refresh subscription for access:', err);
+    return user;
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -80,7 +124,8 @@ export async function GET(
     const isAdminAccess = request.nextUrl.searchParams.get('admin') === '1';
 
     // ユーザーデータを取得
-    const userRecord = await getUserById(userId);
+    let userRecord = await getUserById(userId);
+    userRecord = await refreshSubscriptionForAccess(userRecord);
     // LINE Harness側に紐付け済みの友だちがいるか(null=同期不可で判定不能)
     let lineLinked: boolean | null = null;
     if (userRecord) {

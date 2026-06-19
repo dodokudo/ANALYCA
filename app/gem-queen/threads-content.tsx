@@ -422,7 +422,7 @@ export default function GemQueenThreadsContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {dailyMetrics.slice().reverse().map((m, idx) => (
+                {dailyMetrics.map((m, idx) => (
                   <tr key={m.date || idx} className="hover:bg-gray-50">
                     <td className="px-3 py-2 font-medium text-gray-900">{m.date || '-'}</td>
                     <td className="px-3 py-2 text-right text-gray-900">{(m.followers_count || 0).toLocaleString()}</td>

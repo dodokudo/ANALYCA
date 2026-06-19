@@ -1443,7 +1443,7 @@ function ThreadsContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[color:var(--color-border)]">
-                {dailyMetrics.slice().reverse().map((m, idx) => {
+                {dailyMetrics.map((m, idx) => {
                   const linkClicks = m.link_clicks || 0;
                   const lineRegistrations = m.line_registrations || 0;
                   const cvr = linkClicks > 0 ? `${((lineRegistrations / linkClicks) * 100).toFixed(1)}%` : '-';

@@ -342,6 +342,8 @@ function AccessRestrictedScreen({
   const [reactivateMessage, setReactivateMessage] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(access.actionType === 'payment_method');
   const planId = user?.plan_id || subscriptionStatus?.plan_id || 'light-threads';
+  const displayName = user?.threads_username || user?.instagram_username || userId;
+  const primaryActionLabel = access.actionType === 'payment_method' ? (access.actionLabel || 'カード情報を変更する') : '課金して再開する';
 
   const handleReactivate = async () => {
     setReactivating(true);
@@ -370,62 +372,152 @@ function AccessRestrictedScreen({
     }
   };
 
+  const lockedKpis = [
+    ['投稿数', '61'],
+    ['閲覧数', '333,591'],
+    ['いいね', '1,064'],
+    ['エンゲージメント', '0.37%'],
+  ];
+  const lockedRows = ['2026-06-19', '2026-06-18', '2026-06-17', '2026-06-16', '2026-06-15', '2026-06-14'];
+
   return (
-    <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 p-6 md:p-10">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center gap-3">
-          <AnalycaLogo size="md" />
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">ANALYCA</h1>
-            <p className="text-sm text-gray-500">@{user?.threads_username || user?.instagram_username || userId}</p>
+    <div className="min-h-screen max-w-full bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
+      <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40">
+        <div className="p-4 border-b border-[color:var(--color-border)]">
+          <div className="flex items-center gap-3">
+            <AnalycaLogo size="md" />
+            <div>
+              <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+              <p className="text-xs text-[color:var(--color-text-muted)]">@{displayName}</p>
+            </div>
           </div>
         </div>
+        <nav className="flex-1 p-3 space-y-1">
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium bg-[color:var(--color-accent)] text-white">
+            <ThreadsIcon className="w-5 h-5" />
+            Threads
+          </button>
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium text-[color:var(--color-text-secondary)]">
+            <InstagramIcon className="w-5 h-5" />
+            Instagram
+          </button>
+          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium text-[color:var(--color-text-secondary)]">
+            <AffiliateIcon className="w-5 h-5" />
+            アフィリエイト
+          </button>
+        </nav>
+        <div className="p-3 border-t border-[color:var(--color-border)] space-y-2 text-sm text-[color:var(--color-text-secondary)]">
+          <div className="px-3 py-2">通知</div>
+          <div className="px-3 py-2">設定</div>
+          <div className="px-3 py-2">お問い合わせ</div>
+        </div>
+      </aside>
 
-        <div className="rounded-xl border border-gray-200 bg-white/90 p-8 shadow-xl">
-          <div className="mb-6 inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
-            {access.status || '契約状態を確認中'}
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900">{access.title || 'ダッシュボードを表示できません'}</h2>
-          <p className="mt-3 text-gray-600">{access.message || '契約状態を確認してください。'}</p>
-          {access.expiresAt && (
-            <p className="mt-3 text-sm text-gray-500">利用期限: {safeFormatDate(access.expiresAt)}</p>
-          )}
-
-          {access.actionType === 'reactivate' && (
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={handleReactivate}
-                disabled={reactivating}
-                className="rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {reactivating ? '確認中...' : access.actionLabel || '再契約する'}
-              </button>
-              {reactivateMessage && (
-                <p className="mt-3 text-sm font-medium text-red-600">{reactivateMessage}</p>
-              )}
+      <main className="flex-1 lg:ml-56 min-w-0">
+        <div className="p-4 md:p-6 lg:p-8 space-y-6">
+          <div className="flex justify-between gap-3">
+            <div className="inline-flex rounded-[var(--radius-lg)] border border-[color:var(--color-border)] bg-white p-1 shadow-sm">
+              <button className="rounded-[var(--radius-sm)] bg-gradient-to-r from-purple-500 to-emerald-400 px-8 py-3 text-sm font-semibold text-white">分析</button>
+              <button className="px-8 py-3 text-sm font-semibold text-[color:var(--color-text-secondary)]">予約投稿</button>
             </div>
-          )}
+            <button className="hidden md:flex h-10 items-center rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-4 text-sm font-medium text-[color:var(--color-text-secondary)]">
+              CSVダウンロード
+            </button>
+          </div>
 
-          {access.actionType === 'payment_method' && (
-            <div className="mt-6">
-              {!showPaymentForm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentForm(true)}
-                  className="rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-                >
-                  {access.actionLabel || 'カード情報を変更する'}
-                </button>
-              ) : (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <SubscriptionSettings userId={userId} initialData={subscriptionStatus || undefined} />
+          <section className="grid grid-cols-1 xl:grid-cols-[minmax(260px,360px)_1fr] gap-5">
+            <div className="bg-white rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-card)] min-h-[170px] flex items-center gap-5">
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-200 to-emerald-200" />
+              <div>
+                <h2 className="text-xl font-bold text-[color:var(--color-text-primary)]">{displayName}</h2>
+                <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">フォロワー <span className="text-xl font-bold text-[color:var(--color-text-primary)]">1,627</span></p>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-[var(--radius-lg)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <div className="pointer-events-none select-none blur-[6px] opacity-60">
+                <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">パフォーマンス指標</h2>
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                  {lockedKpis.map(([label, value]) => (
+                    <div key={label} className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-5">
+                      <p className="text-sm text-[color:var(--color-text-secondary)]">{label}</p>
+                      <p className="mt-4 text-3xl font-bold text-[color:var(--color-text-primary)]">{value}</p>
+                      <p className="mt-4 text-sm font-semibold text-red-500">-4,114</p>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center bg-white/25 px-4">
+                <div className="max-w-md rounded-xl border border-gray-200 bg-white/95 p-6 text-center shadow-xl">
+                  <p className="text-sm font-semibold text-gray-500">{access.status || '契約確認'}</p>
+                  <h2 className="mt-2 text-xl font-bold text-gray-900">{access.title || 'ダッシュボードを表示できません'}</h2>
+                  <p className="mt-2 text-sm text-gray-600">{access.message || '契約状態を確認してください。'}</p>
+                  {access.expiresAt && <p className="mt-2 text-xs text-gray-500">利用期限: {safeFormatDate(access.expiresAt)}</p>}
+                  {access.actionType === 'reactivate' && (
+                    <button
+                      type="button"
+                      onClick={handleReactivate}
+                      disabled={reactivating}
+                      className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {reactivating ? '確認中...' : primaryActionLabel}
+                    </button>
+                  )}
+                  {access.actionType === 'payment_method' && !showPaymentForm && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentForm(true)}
+                      className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+                    >
+                      {primaryActionLabel}
+                    </button>
+                  )}
+                  {reactivateMessage && <p className="mt-3 text-sm font-medium text-red-600">{reactivateMessage}</p>}
+                </div>
+              </div>
             </div>
+          </section>
+
+          {showPaymentForm ? (
+            <section className="rounded-[var(--radius-lg)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <SubscriptionSettings userId={userId} initialData={subscriptionStatus || undefined} />
+            </section>
+          ) : (
+            <section className="relative overflow-hidden rounded-[var(--radius-lg)] bg-white p-6 shadow-[var(--shadow-card)]">
+              <div className="pointer-events-none select-none blur-[6px] opacity-60">
+                <h2 className="text-xl font-bold text-[color:var(--color-text-primary)]">インプレッション & フォロワー推移</h2>
+                <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">日別のパフォーマンス</p>
+                <div className="mt-6 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-[color:var(--color-text-secondary)]">
+                      <tr>
+                        <th className="px-4 py-3 text-left">日付</th>
+                        <th className="px-4 py-3 text-right">フォロワー</th>
+                        <th className="px-4 py-3 text-right">増減</th>
+                        <th className="px-4 py-3 text-right">投稿</th>
+                        <th className="px-4 py-3 text-right">閲覧数</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[color:var(--color-border)]">
+                      {lockedRows.map((date, index) => (
+                        <tr key={date}>
+                          <td className="px-4 py-3 font-medium">{date}</td>
+                          <td className="px-4 py-3 text-right">1,62{index}</td>
+                          <td className="px-4 py-3 text-right text-green-600">+{index + 1}</td>
+                          <td className="px-4 py-3 text-right">{index + 2}</td>
+                          <td className="px-4 py-3 text-right">{(2400 + index * 1380).toLocaleString('ja-JP')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-8 h-64 rounded-[var(--radius-md)] border border-dashed border-gray-300 bg-gradient-to-r from-purple-100 via-blue-100 to-emerald-100" />
+              </div>
+              <div className="absolute inset-0 bg-white/20" />
+            </section>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

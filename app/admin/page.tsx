@@ -483,9 +483,6 @@ function AdminPageContent() {
                 <p className="text-sm text-gray-500">未契約リード</p>
                 <p className="text-2xl font-bold text-gray-500">{leadCount}人</p>
               </div>
-              <p className="col-span-2 text-xs text-gray-400 md:col-span-3 lg:col-span-7">
-                売上カードはUnivaPayの次回決済日から算出した請求見込みです。返金・実入金・決済失敗までは反映しません。未契約リードはSNS連携のみで決済前のユーザー。
-              </p>
             </div>
           );
         })()}

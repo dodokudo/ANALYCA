@@ -269,10 +269,10 @@ export async function GET(request: Request) {
       });
     }
 
-    const rawBatchSize = parseInt(searchParams.get('batchSize') || '2', 10);
+    const rawBatchSize = parseInt(searchParams.get('batchSize') || '1', 10);
     const batchSize = Number.isFinite(rawBatchSize) && rawBatchSize > 0
       ? Math.min(rawBatchSize, 2)
-      : 2;
+      : 1;
     const rawCursor = parseInt(searchParams.get('cursor') || '', 10);
     const timeSlot = Math.floor(Date.now() / (30 * 60 * 1000));
     const startIndex = Number.isFinite(rawCursor)

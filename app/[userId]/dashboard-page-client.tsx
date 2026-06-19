@@ -343,6 +343,7 @@ function AccessRestrictedScreen({
   const [showPaymentForm, setShowPaymentForm] = useState(access.actionType === 'payment_method');
   const planId = user?.plan_id || subscriptionStatus?.plan_id || 'light-threads';
   const displayName = user?.threads_username || user?.instagram_username || userId;
+  const profilePicture = user?.threads_profile_picture_url || user?.instagram_profile_picture_url || null;
   const primaryActionLabel = access.actionType === 'payment_method' ? (access.actionLabel || 'カード情報を変更する') : '課金して再開する';
 
   const handleReactivate = async () => {
@@ -427,7 +428,15 @@ function AccessRestrictedScreen({
 
           <section className="grid grid-cols-1 xl:grid-cols-[minmax(260px,360px)_1fr] gap-5">
             <div className="bg-white rounded-[var(--radius-lg)] p-6 shadow-[var(--shadow-card)] min-h-[170px] flex items-center gap-5">
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-200 to-emerald-200" />
+              {profilePicture ? (
+                <img
+                  src={profilePicture}
+                  alt={displayName}
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-200 to-emerald-200" />
+              )}
               <div>
                 <h2 className="text-xl font-bold text-[color:var(--color-text-primary)]">{displayName}</h2>
                 <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">フォロワー <span className="text-xl font-bold text-[color:var(--color-text-primary)]">1,627</span></p>
@@ -445,34 +454,6 @@ function AccessRestrictedScreen({
                       <p className="mt-4 text-sm font-semibold text-red-500">-4,114</p>
                     </div>
                   ))}
-                </div>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center bg-white/25 px-4">
-                <div className="max-w-md rounded-xl border border-gray-200 bg-white/95 p-6 text-center shadow-xl">
-                  <p className="text-sm font-semibold text-gray-500">{access.status || '契約確認'}</p>
-                  <h2 className="mt-2 text-xl font-bold text-gray-900">{access.title || 'ダッシュボードを表示できません'}</h2>
-                  <p className="mt-2 text-sm text-gray-600">{access.message || '契約状態を確認してください。'}</p>
-                  {access.expiresAt && <p className="mt-2 text-xs text-gray-500">利用期限: {safeFormatDate(access.expiresAt)}</p>}
-                  {access.actionType === 'reactivate' && (
-                    <button
-                      type="button"
-                      onClick={handleReactivate}
-                      disabled={reactivating}
-                      className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {reactivating ? '確認中...' : primaryActionLabel}
-                    </button>
-                  )}
-                  {access.actionType === 'payment_method' && !showPaymentForm && (
-                    <button
-                      type="button"
-                      onClick={() => setShowPaymentForm(true)}
-                      className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-                    >
-                      {primaryActionLabel}
-                    </button>
-                  )}
-                  {reactivateMessage && <p className="mt-3 text-sm font-medium text-red-600">{reactivateMessage}</p>}
                 </div>
               </div>
             </div>
@@ -518,6 +499,35 @@ function AccessRestrictedScreen({
           )}
         </div>
       </main>
+
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
+        <div className="pointer-events-auto w-full max-w-md rounded-xl border border-gray-200 bg-white/95 p-6 text-center shadow-xl">
+          <p className="text-sm font-semibold text-gray-500">{access.status || '契約確認'}</p>
+          <h2 className="mt-2 text-xl font-bold text-gray-900">{access.title || 'ダッシュボードを表示できません'}</h2>
+          <p className="mt-2 text-sm text-gray-600">{access.message || '契約状態を確認してください。'}</p>
+          {access.expiresAt && <p className="mt-2 text-xs text-gray-500">利用期限: {safeFormatDate(access.expiresAt)}</p>}
+          {access.actionType === 'reactivate' && (
+            <button
+              type="button"
+              onClick={handleReactivate}
+              disabled={reactivating}
+              className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {reactivating ? '確認中...' : primaryActionLabel}
+            </button>
+          )}
+          {access.actionType === 'payment_method' && !showPaymentForm && (
+            <button
+              type="button"
+              onClick={() => setShowPaymentForm(true)}
+              className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+            >
+              {primaryActionLabel}
+            </button>
+          )}
+          {reactivateMessage && <p className="mt-3 text-sm font-medium text-red-600">{reactivateMessage}</p>}
+        </div>
+      </div>
     </div>
   );
 }

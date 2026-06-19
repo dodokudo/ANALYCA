@@ -531,11 +531,8 @@ function AdminPageContent() {
         {/* ユーザー一覧タブ */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">ユーザー一覧</h2>
-            </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1460px]">
+              <table className="w-full min-w-[1660px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="min-w-[180px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ユーザー名</th>
@@ -549,7 +546,8 @@ function AdminPageContent() {
                     <th className="min-w-[160px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">最終ログイン</th>
                     <th className="min-w-[110px] px-4 py-3 text-right text-xs font-medium uppercase whitespace-nowrap text-gray-500">起動回数</th>
                     <th className="min-w-[130px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">登録経路</th>
-                    <th className="min-w-[280px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ダッシュボードURL</th>
+                    <th className="min-w-[300px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">通常URL</th>
+                    <th className="min-w-[300px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">管理URL</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -660,43 +658,41 @@ function AdminPageContent() {
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <span className="w-10 shrink-0 text-xs font-medium text-gray-500">通常</span>
-                              <a
-                                href={dashboardUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="max-w-[220px] truncate text-sm text-purple-600 hover:text-purple-800"
-                              >
-                                {dashboardUrl}
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
-                                className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                              >
-                                {copied === user.user_id ? 'コピー済み' : 'コピー'}
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-10 shrink-0 text-xs font-medium text-gray-500">管理</span>
-                              <a
-                                href={adminDashboardUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="max-w-[220px] truncate text-sm text-emerald-700 hover:text-emerald-900"
-                              >
-                                {adminDashboardUrl}
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(adminDashboardUrl, `${user.user_id}-admin`)}
-                                className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                              >
-                                {copied === `${user.user_id}-admin` ? 'コピー済み' : 'コピー'}
-                              </button>
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={dashboardUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="max-w-[220px] truncate text-sm text-purple-600 hover:text-purple-800"
+                            >
+                              {dashboardUrl}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
+                              className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              {copied === user.user_id ? 'コピー済み' : 'コピー'}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={adminDashboardUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="max-w-[220px] truncate text-sm text-emerald-700 hover:text-emerald-900"
+                            >
+                              {adminDashboardUrl}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(adminDashboardUrl, `${user.user_id}-admin`)}
+                              className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              {copied === `${user.user_id}-admin` ? 'コピー済み' : 'コピー'}
+                            </button>
                           </div>
                         </td>
                       </tr>

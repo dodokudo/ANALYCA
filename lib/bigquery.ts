@@ -1728,7 +1728,7 @@ export async function updateUserSubscription(userId: string, data: {
   plan_id?: string;
   subscription_status?: string;
   subscription_created_at?: Date;
-  subscription_expires_at?: Date;
+  subscription_expires_at?: Date | null;
 }): Promise<void> {
   const updates: string[] = [];
   const params: Record<string, unknown> = { user_id: userId };

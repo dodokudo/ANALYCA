@@ -6,6 +6,7 @@ import {
   YAMAZAKI_ANALYCA_USER_ID,
   YAMAZAKI_THREADS_USERNAME,
 } from '@/lib/yamazaki-agency-metrics';
+import { evaluateDashboardAccess } from '@/lib/subscription-access';
 
 /**
  * BigQueryのタイムスタンプを安全にシリアライズ
@@ -76,6 +77,7 @@ export async function GET(
 ) {
   try {
     const { userId } = await params;
+    const isAdminAccess = request.nextUrl.searchParams.get('admin') === '1';
 
     // ユーザーデータを取得
     const userRecord = await getUserById(userId);
@@ -83,7 +85,7 @@ export async function GET(
     let lineLinked: boolean | null = null;
     if (userRecord) {
       updateLastLogin(userId, {
-        accessPath: `/${userId}`,
+        accessPath: isAdminAccess ? `/${userId}/admin` : `/${userId}`,
         userAgent: request.headers.get('user-agent') || undefined,
       }).catch((err) => {
         console.error('Failed to update last_login_at from dashboard:', err);
@@ -104,6 +106,36 @@ export async function GET(
       } catch (err) {
         console.error('Failed to sync ANALYCA user to LINE Harness:', err);
       }
+    }
+
+    const access = evaluateDashboardAccess(userRecord, { isAdmin: isAdminAccess });
+    const userPayload = {
+      user_id: userRecord?.user_id || userId,
+      threads_username: userRecord?.threads_username || null,
+      threads_user_id: userRecord?.threads_user_id || null,
+      threads_profile_picture_url: userRecord?.threads_profile_picture_url || null,
+      instagram_username: userRecord?.instagram_username || null,
+      instagram_user_id: userRecord?.instagram_user_id || null,
+      instagram_profile_picture_url: userRecord?.instagram_profile_picture_url || null,
+      subscription_status: userRecord?.subscription_status || null,
+      subscription_expires_at: access.expiresAt || (userRecord?.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null),
+      trial_ends_at: userRecord?.trial_ends_at ? serializeTimestamp(userRecord.trial_ends_at) : null,
+      plan_id: userRecord?.plan_id || null,
+      line_linked: lineLinked,
+    };
+    const channelPayload = {
+      instagram: !!userRecord?.has_instagram,
+      threads: !!userRecord?.has_threads,
+    };
+
+    if (!access.allowed) {
+      return NextResponse.json({
+        success: true,
+        data: null,
+        user: userPayload,
+        channels: channelPayload,
+        access,
+      });
     }
 
     // ダッシュボードデータを取得
@@ -237,24 +269,9 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: dashboardData,
-      user: {
-        user_id: userRecord?.user_id || userId,
-        threads_username: userRecord?.threads_username || null,
-        threads_user_id: userRecord?.threads_user_id || null,
-        threads_profile_picture_url: userRecord?.threads_profile_picture_url || null,
-        instagram_username: userRecord?.instagram_username || null,
-        instagram_user_id: userRecord?.instagram_user_id || null,
-        instagram_profile_picture_url: userRecord?.instagram_profile_picture_url || null,
-        subscription_status: userRecord?.subscription_status || null,
-        subscription_expires_at: userRecord?.subscription_expires_at ? serializeTimestamp(userRecord.subscription_expires_at) : null,
-        trial_ends_at: userRecord?.trial_ends_at ? serializeTimestamp(userRecord.trial_ends_at) : null,
-        plan_id: userRecord?.plan_id || null,
-        line_linked: lineLinked,
-      },
-      channels: {
-        instagram: !!userRecord?.has_instagram,
-        threads: !!userRecord?.has_threads,
-      },
+      user: userPayload,
+      channels: channelPayload,
+      access,
     });
 
   } catch (error) {

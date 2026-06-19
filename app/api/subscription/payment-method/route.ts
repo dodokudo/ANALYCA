@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserById, updateUserPaymentToken } from '@/lib/bigquery';
+import { getUserById, updateUserPaymentToken, updateUserSubscription } from '@/lib/bigquery';
 import { getSubscription, updateSubscription } from '@/lib/univapay/client';
 
-const UPDATABLE_STATUSES = new Set(['trial', 'current', 'active', 'unpaid', 'suspended']);
+const UPDATABLE_STATUSES = new Set(['trial', 'current', 'active', 'unpaid', 'unconfirmed', 'suspended']);
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +28,9 @@ export async function POST(request: NextRequest) {
     const subscription = await getSubscription(user.subscription_id);
     const updated = await updateSubscription(user.subscription_id, {
       transaction_token_id: transactionTokenId,
+      ...(user.subscription_status === 'suspended'
+        ? { status: 'unpaid' as const, next_payment: { terminate_with_status: '' as const } }
+        : {}),
       metadata: {
         ...(subscription.metadata || {}),
         analycaUserId: userId,
@@ -36,6 +39,12 @@ export async function POST(request: NextRequest) {
     });
 
     await updateUserPaymentToken(userId, transactionTokenId);
+    if (user.subscription_status === 'suspended' || user.subscription_status === 'unconfirmed') {
+      await updateUserSubscription(userId, {
+        subscription_status: updated.status || 'unpaid',
+        subscription_expires_at: updated.next_payment_date ? new Date(updated.next_payment_date) : null,
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -86,6 +86,7 @@ export interface UpdateSubscriptionParams {
   next_payment?: {
     amount?: number;
     due_date?: string;
+    terminate_with_status?: '' | 'suspended' | 'canceled';
   };
 }
 
@@ -369,7 +370,7 @@ export async function createSubscriptionFromToken(params: {
   recurringTokenId: string;
   amount: number;
   currency?: string;
-  period?: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly';
+  period?: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly' | 'yearly';
   metadata?: Record<string, string>;
 }): Promise<UnivaPaySubscription> {
   const storeId = UNIVAPAY_STORE_ID;
@@ -377,7 +378,7 @@ export async function createSubscriptionFromToken(params: {
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
-  return fetchUnivaPay<UnivaPaySubscription>(
+  const subscription = await fetchUnivaPay<UnivaPaySubscription>(
     `/subscriptions`,
     {
       method: 'POST',
@@ -390,4 +391,9 @@ export async function createSubscriptionFromToken(params: {
       },
     },
   );
+
+  return {
+    ...subscription,
+    next_payment_date: subscription.next_payment_date || subscription.next_payment?.due_date,
+  };
 }

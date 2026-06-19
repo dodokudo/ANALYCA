@@ -1,0 +1,2565 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import LoadingScreen from '@/components/LoadingScreen';
+import { ScheduleTab } from './components/schedule-tab';
+import { ThreadsInsights } from './components/threads-insights';
+import { RepostButton } from './components/repost-button';
+import { NotificationBell } from './components/notification-bell';
+import AnalycaLogo from '@/components/AnalycaLogo';
+import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
+import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
+import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
+import { safeLocalStorage, safeSessionStorage } from '@/lib/safe-storage';
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+
+// ============ ユーティリティ関数 ============
+// 安全な日付フォーマット（nullやundefinedでもエラーにならない）
+function safeFormatDate(timestamp: string | Date | null | undefined): string {
+  if (!timestamp) return '-';
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('ja-JP');
+  } catch {
+    return '-';
+  }
+}
+
+function safeFormatDateTime(timestamp: string | Date | null | undefined): string {
+  if (!timestamp) return '-';
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleString('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '-';
+  }
+}
+
+// 安全なタイムスタンプ取得（ソート用）
+function safeGetTime(timestamp: string | Date | null | undefined): number {
+  if (!timestamp) return 0;
+  try {
+    const date = new Date(timestamp);
+    return isNaN(date.getTime()) ? 0 : date.getTime();
+  } catch {
+    return 0;
+  }
+}
+
+// ============ アイコンコンポーネント ============
+function InstagramIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+  );
+}
+
+function AffiliateIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+    </svg>
+  );
+}
+
+function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/>
+    </svg>
+  );
+}
+
+// ============ 型定義 ============
+type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate';
+
+type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
+
+const YAMAZAKI_ANALYCA_USER_ID = '26743384212021461';
+const YAMAZAKI_THREADS_USERNAME = 'zakiyamadesu_0608';
+const YAMAZAKI_METRICS_START_DATE = '2026-06-17';
+
+const datePresetOptions: { value: DatePreset; label: string }[] = [
+  { value: '3d', label: '過去3日' },
+  { value: '7d', label: '過去7日' },
+  { value: 'thisWeek', label: '今週' },
+  { value: 'lastWeek', label: '先週' },
+  { value: 'thisMonth', label: '今月' },
+  { value: 'lastMonth', label: '先月' },
+  { value: 'custom', label: 'カスタム' },
+];
+const standardDatePresetOptions = datePresetOptions.filter((option) => option.value !== 'custom');
+
+function formatDateForInput(date: Date): string {
+  const y = date.getFullYear();
+  const m = `${date.getMonth() + 1}`.padStart(2, '0');
+  const d = `${date.getDate()}`.padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatRate(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? '-' : `${value.toFixed(2)}%`;
+}
+
+function formatSigned(value: number): string {
+  return value > 0 ? `+${value.toLocaleString()}` : value.toLocaleString();
+}
+
+// 日付範囲を計算するヘルパー関数
+function getDateRange(preset: DatePreset, options: { includeToday?: boolean } = {}): { start: Date; end: Date } {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const includeToday = options.includeToday !== false;
+  const baseDate = new Date(today);
+  if (!includeToday) {
+    baseDate.setDate(baseDate.getDate() - 1);
+  }
+  const end = new Date(baseDate);
+  end.setHours(23, 59, 59, 999);
+
+  switch (preset) {
+    case '3d': {
+      const start = new Date(baseDate);
+      start.setDate(start.getDate() - 2);
+      return { start, end };
+    }
+    case '7d': {
+      const start = new Date(baseDate);
+      start.setDate(start.getDate() - 6);
+      return { start, end };
+    }
+    case 'thisWeek': {
+      // 今週（日曜日始まり）
+      const dayOfWeek = baseDate.getDay();
+      const start = new Date(baseDate);
+      start.setDate(start.getDate() - dayOfWeek);
+      return { start, end };
+    }
+    case 'lastWeek': {
+      // 先週（日曜日〜土曜日）
+      const dayOfWeek = baseDate.getDay();
+      const start = new Date(baseDate);
+      start.setDate(start.getDate() - dayOfWeek - 7);
+      const endOfLastWeek = new Date(start);
+      endOfLastWeek.setDate(endOfLastWeek.getDate() + 6);
+      endOfLastWeek.setHours(23, 59, 59, 999);
+      return { start, end: endOfLastWeek };
+    }
+    case 'thisMonth': {
+      const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+      return { start, end };
+    }
+    case 'lastMonth': {
+      const start = new Date(baseDate.getFullYear(), baseDate.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(baseDate.getFullYear(), baseDate.getMonth(), 0);
+      endOfLastMonth.setHours(23, 59, 59, 999);
+      return { start, end: endOfLastMonth };
+    }
+    default:
+      return { start: new Date(0), end };
+  }
+}
+
+// 日付が範囲内かチェック
+function isDateInRange(dateStr: string | Date | null | undefined, range: { start: Date; end: Date }): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+  return date >= range.start && date <= range.end;
+}
+
+interface ThreadsPost {
+  id: string;
+  threads_id: string;
+  text: string;
+  timestamp: string;
+  permalink?: string;
+  views: number;
+  likes: number;
+  replies: number;
+  reposts?: number;
+  quotes?: number;
+}
+
+interface ThreadsComment {
+  id: string;
+  parent_post_id: string;
+  text: string;
+  views: number;
+  depth: number;
+}
+
+interface DailyMetric {
+  date: string;
+  followers_count: number;
+  follower_delta: number;
+  total_views: number;
+  total_likes: number;
+  total_replies: number;
+  post_count: number;
+  link_clicks?: number;
+  line_registrations?: number;
+}
+
+interface DailyPostStat {
+  date: string;
+  post_count: number;
+  total_views: number;
+  total_likes: number;
+  total_replies: number;
+}
+
+interface UserInfo {
+  user_id?: string | null;
+  threads_username?: string | null;
+  threads_profile_picture_url?: string | null;
+  instagram_username?: string | null;
+  instagram_profile_picture_url?: string | null;
+  subscription_status?: string | null;
+  subscription_expires_at?: string | null;
+  trial_ends_at?: string | null;
+  plan_id?: string | null;
+  line_linked?: boolean | null;
+}
+
+interface DashboardAccess {
+  allowed: boolean;
+  state: 'allowed' | 'admin_allowed' | 'payment_failed' | 'expired' | 'canceled_expired' | 'suspended' | 'unknown_allowed';
+  title?: string;
+  message?: string;
+  actionLabel?: string;
+  actionType?: 'payment_method' | 'reactivate';
+  status?: string | null;
+  expiresAt?: string | null;
+}
+
+// ============ お問い合わせ（公式LINE） ============
+// 友だち追加URLのベース。変更時はここだけ修正する
+const CONTACT_LINE_BASE_URL = 'https://line-harness.lhx7.workers.dev/r/analyca_contact';
+
+// ログイン中ユーザーのIG/ThreadsアカウントIDを付与したお問い合わせURLを生成
+function buildContactLineUrl(user: UserInfo | null): string {
+  const params: string[] = [];
+  if (user?.user_id) {
+    params.push(`meta_analyca_user_id=${encodeURIComponent(user.user_id)}`);
+  }
+  if (user?.instagram_username) {
+    params.push(`meta_instagram=${encodeURIComponent(user.instagram_username)}`);
+  }
+  if (user?.threads_username) {
+    params.push(`meta_threads=${encodeURIComponent(user.threads_username)}`);
+  }
+  if (user?.plan_id) {
+    params.push(`meta_analyca_plan_id=${encodeURIComponent(user.plan_id)}`);
+  }
+  if (user?.subscription_status) {
+    params.push(`meta_analyca_subscription_status=${encodeURIComponent(user.subscription_status)}`);
+    params.push(`meta_analyca_is_active=${encodeURIComponent(user.subscription_status === 'current' || user.subscription_status === 'trial' || user.subscription_status === 'active' ? 'true' : 'false')}`);
+  }
+  if (user?.subscription_expires_at) {
+    params.push(`meta_analyca_subscription_expires_at=${encodeURIComponent(user.subscription_expires_at)}`);
+  }
+  if (user?.trial_ends_at) {
+    params.push(`meta_analyca_trial_ends_at=${encodeURIComponent(user.trial_ends_at)}`);
+  }
+  return params.length > 0 ? `${CONTACT_LINE_BASE_URL}?${params.join('&')}` : CONTACT_LINE_BASE_URL;
+}
+
+interface DashboardData {
+  threads?: {
+    total: number;
+    totalViews: number;
+    totalLikes: number;
+    totalReplies: number;
+    totalReposts?: number;
+    totalQuotes?: number;
+    data: ThreadsPost[];
+  };
+  threadsComments?: {
+    data: ThreadsComment[];
+  };
+  threadsDailyMetrics?: {
+    data: DailyMetric[];
+    latest: { followers_count: number; follower_delta: number } | null;
+  };
+  threadsDailyPostStats?: {
+    data: DailyPostStat[];
+    latest: DailyPostStat | null;
+  };
+  reels?: { total: number; data: unknown[] };
+  stories?: { total: number; data: unknown[] };
+  insights?: {
+    latest: { followers_count: number; reach?: number; profile_views?: number; website_clicks?: number } | null;
+    data: unknown[];
+  };
+  yamazakiAgency?: {
+    startDate: string;
+    endDate: string;
+    linkClicks: number;
+    lineRegistrations: number;
+    daily: Array<{
+      date: string;
+      linkClicks: number;
+      lineRegistrations: number;
+    }>;
+  } | null;
+}
+
+function AccessRestrictedScreen({
+  access,
+  user,
+  userId,
+  subscriptionStatus,
+}: {
+  access: DashboardAccess;
+  user: UserInfo | null;
+  userId: string;
+  subscriptionStatus: SubscriptionStatusResponse | null;
+}) {
+  const [reactivating, setReactivating] = useState(false);
+  const [reactivateMessage, setReactivateMessage] = useState<string | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(access.actionType === 'payment_method');
+  const planId = user?.plan_id || subscriptionStatus?.plan_id || 'light-threads';
+
+  const handleReactivate = async () => {
+    setReactivating(true);
+    setReactivateMessage(null);
+    try {
+      const res = await fetch('/api/subscription/reactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        window.location.reload();
+        return;
+      }
+      if (json.requiresPaymentMethod) {
+        setReactivateMessage(json.error || 'カード情報の登録が必要です。');
+        window.location.href = `/checkout?plan=${encodeURIComponent(planId)}&userId=${encodeURIComponent(userId)}`;
+        return;
+      }
+      setReactivateMessage(json.error || '再契約に失敗しました。カード情報を確認してください。');
+    } catch (err) {
+      setReactivateMessage(err instanceof Error ? err.message : '再契約に失敗しました。');
+    } finally {
+      setReactivating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 p-6 md:p-10">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-6 flex items-center gap-3">
+          <AnalycaLogo size="md" />
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">ANALYCA</h1>
+            <p className="text-sm text-gray-500">@{user?.threads_username || user?.instagram_username || userId}</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white/90 p-8 shadow-xl">
+          <div className="mb-6 inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
+            {access.status || '契約状態を確認中'}
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">{access.title || 'ダッシュボードを表示できません'}</h2>
+          <p className="mt-3 text-gray-600">{access.message || '契約状態を確認してください。'}</p>
+          {access.expiresAt && (
+            <p className="mt-3 text-sm text-gray-500">利用期限: {safeFormatDate(access.expiresAt)}</p>
+          )}
+
+          {access.actionType === 'reactivate' && (
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={handleReactivate}
+                disabled={reactivating}
+                className="rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {reactivating ? '確認中...' : access.actionLabel || '再契約する'}
+              </button>
+              {reactivateMessage && (
+                <p className="mt-3 text-sm font-medium text-red-600">{reactivateMessage}</p>
+              )}
+            </div>
+          )}
+
+          {access.actionType === 'payment_method' && (
+            <div className="mt-6">
+              {!showPaymentForm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentForm(true)}
+                  className="rounded-lg bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+                >
+                  {access.actionLabel || 'カード情報を変更する'}
+                </button>
+              ) : (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <SubscriptionSettings userId={userId} initialData={subscriptionStatus || undefined} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ メインコンポーネント ============
+function CsvExportMenu({
+  items,
+}: {
+  items: { href: string; label: string; description: string }[];
+}) {
+  return (
+    <details className="group relative shrink-0">
+      <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm font-medium text-[color:var(--color-text-secondary)] transition hover:bg-[color:var(--color-surface-muted)] [&::-webkit-details-marker]:hidden">
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v12m0 0l4-4m-4 4l-4-4M4 21h16" />
+        </svg>
+        <span className="hidden sm:inline">CSVダウンロード</span>
+        <span className="sm:hidden">CSV</span>
+        <svg className="h-4 w-4 transition group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <div className="absolute right-0 z-30 mt-2 w-64 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-lg">
+        {items.map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className="block border-b border-[color:var(--color-border)] px-4 py-3 text-left last:border-b-0 hover:bg-[color:var(--color-surface-muted)]"
+          >
+            <span className="block text-sm font-semibold text-[color:var(--color-text-primary)]">{item.label}</span>
+            <span className="mt-0.5 block text-xs text-[color:var(--color-text-muted)]">{item.description}</span>
+          </a>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function getExportItems(userId: string, channel: 'threads' | 'instagram') {
+  const encodedUserId = encodeURIComponent(userId);
+  if (channel === 'threads') {
+    return [
+      {
+        href: `/api/export/${encodedUserId}?channel=threads&type=account-insights`,
+        label: 'アカウントインサイト',
+        description: 'フォロワー推移・日別集計',
+      },
+      {
+        href: `/api/export/${encodedUserId}?channel=threads&type=posts`,
+        label: '投稿データ',
+        description: '投稿・コメント欄・遷移率',
+      },
+    ];
+  }
+
+  return [
+    {
+      href: `/api/export/${encodedUserId}?channel=instagram&type=account-insights`,
+      label: 'アカウントインサイト',
+      description: 'フォロワー推移・リーチ・導線',
+    },
+    {
+      href: `/api/export/${encodedUserId}?channel=instagram&type=reels`,
+      label: 'リールデータ',
+      description: '再生・リーチ・保存・反応',
+    },
+    {
+      href: `/api/export/${encodedUserId}?channel=instagram&type=stories`,
+      label: 'ストーリーデータ',
+      description: '閲覧・リーチ・返信',
+    },
+  ];
+}
+
+export function UserDashboardContent({ userId, adminAccess = false }: { userId: string; adminAccess?: boolean }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get('tab') as Channel | null;
+  const isSyncing = searchParams?.get('syncing') === 'true';
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [access, setAccess] = useState<DashboardAccess | null>(null);
+  const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
+  const [prefetchedSubscriptionStatus, setPrefetchedSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
+  const [affiliateDashboardData, setAffiliateDashboardData] = useState<AffiliateDashboardResponse | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isInitialSetup = searchParams?.get('auth')?.includes('complete') || false;
+  const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [showLineModal, setShowLineModal] = useState(false);
+
+  // LINE登録促進モーダル: 有料会員(current/trial/active)かつLINE未紐付けの場合のみ、
+  // 初回起動なら1分経過後・2回目以降の起動なら即時に表示する。
+  // 閉じたら同セッション中は再表示しない。
+  useEffect(() => {
+    if (!user || user.line_linked !== false) return; // null(判定不能)時は出さない
+    const isPaid = user.subscription_status === 'current' || user.subscription_status === 'trial' || user.subscription_status === 'active';
+    if (!isPaid) return;
+    if (safeSessionStorage.getItem('analycaLineModalDismissed') === '1') return;
+
+    const visitKey = `analycaVisitCount_${userId}`;
+    const counted = safeSessionStorage.getItem(`analycaVisitCounted_${userId}`) === '1';
+    let visits = parseInt(safeLocalStorage.getItem(visitKey) || '0', 10) || 0;
+    if (!counted) {
+      visits += 1;
+      safeLocalStorage.setItem(visitKey, String(visits));
+      safeSessionStorage.setItem(`analycaVisitCounted_${userId}`, '1');
+    }
+
+    if (visits >= 2) {
+      setShowLineModal(true);
+      return;
+    }
+    const timer = setTimeout(() => setShowLineModal(true), 60_000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userId]);
+
+  const dismissLineModal = () => {
+    setShowLineModal(false);
+    safeSessionStorage.setItem('analycaLineModalDismissed', '1');
+  };
+
+  // データ取得関数
+  const fetchData = async (showLoadingState = true) => {
+    try {
+      if (showLoadingState) setLoading(true);
+      const response = await fetch(`/api/dashboard/${userId}${adminAccess ? '?admin=1' : ''}`);
+      const result = await response.json();
+      if (!result.success) {
+        setError(result.error || 'データの取得に失敗しました');
+      } else {
+        setUser(result.user || null);
+        setData(result.data || null);
+        setAccess(result.access || null);
+        setChannels(result.channels || { instagram: false, threads: false });
+        setLastUpdated(new Date());
+        void Promise.all([
+          fetch(`/api/subscription/status?userId=${encodeURIComponent(userId)}`)
+            .then((res) => res.json())
+            .then((json) => setPrefetchedSubscriptionStatus(json as SubscriptionStatusResponse))
+            .catch(() => {}),
+          fetch(`/api/affiliate/dashboard?userId=${encodeURIComponent(userId)}`)
+            .then((res) => res.json())
+            .then((json) => setAffiliateDashboardData(json as AffiliateDashboardResponse))
+            .catch(() => {}),
+        ]);
+      }
+    } catch {
+      setError('データの取得に失敗しました');
+    } finally {
+      if (showLoadingState) setLoading(false);
+    }
+  };
+
+  // 手動同期関数（現在のユーザーのみ同期）
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    try {
+      // 連携しているチャンネルに応じて同期APIを呼び出し（userIdを指定）
+      const syncPromises: Promise<Response>[] = [];
+      if (channels.instagram) {
+        syncPromises.push(fetch(`/api/sync/instagram/reels?userId=${userId}`, { method: 'GET' }));
+        syncPromises.push(fetch(`/api/sync/instagram/stories?userId=${userId}`, { method: 'GET' }));
+        syncPromises.push(fetch(`/api/sync/instagram/insights?userId=${userId}`, { method: 'GET' }));
+      }
+      if (channels.threads) {
+        syncPromises.push(fetch(`/api/sync/threads/posts?userId=${userId}`, { method: 'GET' }));
+        syncPromises.push(fetch(`/api/sync/threads/insights?userId=${userId}`, { method: 'GET' }));
+        syncPromises.push(fetch(`/api/sync/threads/comments?userId=${userId}`, { method: 'GET' }));
+      }
+      syncPromises.push(fetch(`/api/sync/profile-pictures?userId=${userId}`, { method: 'GET' }));
+      await Promise.all(syncPromises);
+      // 同期完了後にデータ再取得
+      await fetchData(false);
+    } catch (err) {
+      console.error('Manual sync failed:', err);
+    } finally {
+      setIsManualSyncing(false);
+    }
+  };
+
+  // userIdをlocalStorageに保存（OAuth後のリダイレクト時にも対応）
+  useEffect(() => {
+    if (userId) {
+      safeLocalStorage.setItem('analycaUserId', userId);
+    }
+  }, [userId, adminAccess]);
+
+  // 初回データ取得
+  useEffect(() => {
+    fetchData();
+  }, [userId]);
+
+  // OAuth完了時にフルsyncを自動実行
+  useEffect(() => {
+    const authParam = searchParams?.get('auth');
+    if (!authParam || !authParam.includes('complete')) return;
+
+    const runFullSync = async () => {
+      try {
+        const syncPromises: Promise<Response>[] = [];
+
+        if (authParam === 'threads_complete') {
+          syncPromises.push(fetch(`/api/sync/threads/posts?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/threads/insights?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/threads/comments?userId=${userId}`, { method: 'GET' }));
+        }
+        if (authParam === 'instagram_complete') {
+          syncPromises.push(fetch(`/api/sync/instagram/reels?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/instagram/stories?userId=${userId}`, { method: 'GET' }));
+          syncPromises.push(fetch(`/api/sync/instagram/insights?userId=${userId}`, { method: 'GET' }));
+        }
+        syncPromises.push(fetch(`/api/sync/profile-pictures?userId=${userId}`, { method: 'GET' }));
+
+        await Promise.all(syncPromises);
+        // sync完了後にデータ再取得
+        await fetchData(false);
+      } catch (err) {
+        console.error('Auto sync after login failed:', err);
+      } finally {
+        setShowSyncBanner(false);
+        // URLからauth/syncingパラメータを削除
+        const url = new URL(window.location.href);
+        url.searchParams.delete('auth');
+        url.searchParams.delete('syncing');
+        window.history.replaceState({}, '', url.toString());
+      }
+    };
+
+    runFullSync();
+  }, [userId, searchParams]);
+
+  // 同期中の場合、30秒後に再取得し、60秒後にバナーを非表示
+  useEffect(() => {
+    if (!showSyncBanner) return;
+
+    // 30秒後にデータ再取得
+    const refreshTimer = setTimeout(() => {
+      fetchData(false);
+    }, 30000);
+
+    // 60秒後にバナー非表示
+    const hideTimer = setTimeout(() => {
+      setShowSyncBanner(false);
+      // URLからsyncingパラメータを削除
+      const url = new URL(window.location.href);
+      url.searchParams.delete('syncing');
+      window.history.replaceState({}, '', url.toString());
+    }, 60000);
+
+    return () => {
+      clearTimeout(refreshTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [showSyncBanner]);
+
+  // プランに基づいてチャンネルタブを表示（未連携でもタブ表示してアップグレード誘導）
+  const planId = resolveEffectivePlanId(user?.plan_id, {
+    has_threads: channels.threads,
+    has_instagram: channels.instagram,
+  });
+  const channelItems = useMemo(() => {
+    const items: { value: Channel; label: string; Icon: React.ComponentType<{ className?: string }>; locked: boolean }[] = [];
+    // プラン未対応チャンネルはロック状態で表示し、アップグレード導線を優先する
+    items.push({
+      value: 'threads',
+      label: 'Threads',
+      Icon: ThreadsIcon,
+      locked: isChannelBlockedByPlan(planId, 'threads'),
+    });
+    items.push({
+      value: 'instagram',
+      label: 'Instagram',
+      Icon: InstagramIcon,
+      locked: isChannelBlockedByPlan(planId, 'instagram'),
+    });
+    items.push({
+      value: 'affiliate',
+      label: 'アフィリエイト',
+      Icon: AffiliateIcon,
+      locked: false,
+    });
+    return items;
+  }, [planId]);
+
+  // プランで制限されているチャンネルかどうか
+  const isChannelLocked = (channel: Channel): boolean => {
+    if (channel === 'instagram' || channel === 'threads') {
+      return isChannelBlockedByPlan(planId, channel);
+    }
+    return false;
+  };
+
+  const currentPlanLabel = useMemo(() => {
+    if (!planId) return '未契約';
+    if (planId === 'light-threads' || planId === 'light-threads-yearly') return 'Light (Threads)';
+    if (planId === 'light-instagram' || planId === 'light-instagram-yearly') return 'Light (Instagram)';
+    if (planId === 'standard' || planId === 'standard-yearly') return 'Standard';
+    if (planId === 'pro' || planId === 'pro-yearly') return 'Pro';
+    return planId;
+  }, [planId]);
+
+  // アクティブチャンネル（Threadsのみの場合はThreadsがデフォルト）
+  const activeChannel = useMemo((): Channel => {
+    if (tabParam === 'settings') return 'settings';
+    if (tabParam === 'threads') return 'threads';
+    if (tabParam === 'instagram') return 'instagram';
+    if (tabParam === 'affiliate') return 'affiliate';
+    if (!tabParam) {
+      if (planId === 'light-threads' || (channels.threads && !channels.instagram)) return 'threads';
+      if (planId === 'light-instagram' || channels.instagram) return 'instagram';
+      if (channels.threads) return 'threads';
+    }
+    return 'threads';
+  }, [tabParam, channels, planId]);
+
+  const setActiveChannel = (channel: Channel) => {
+    // 履歴を汚さないようタブ変更は置き換え
+    router.replace(`/${userId}${adminAccess ? '/admin' : ''}?tab=${channel}`, { scroll: false });
+  };
+
+  // ユーザー名
+  const username = useMemo(() => {
+    if (activeChannel === 'instagram') {
+      return user?.instagram_username || user?.threads_username || 'User';
+    }
+    return user?.threads_username || user?.instagram_username || 'User';
+  }, [activeChannel, user]);
+
+  // プロフィール画像
+  const profilePicture = useMemo(() => {
+    if (activeChannel === 'instagram') {
+      return user?.instagram_profile_picture_url || user?.threads_profile_picture_url;
+    }
+    return user?.threads_profile_picture_url || user?.instagram_profile_picture_url;
+  }, [activeChannel, user]);
+
+  if (loading) {
+    return <LoadingScreen message="データ読み込み中" />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center p-8">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <h2 className="text-xl font-bold text-red-600 mb-4">エラー</h2>
+          <p className="text-gray-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (access && !access.allowed) {
+    return (
+      <AccessRestrictedScreen
+        access={access}
+        user={user}
+        userId={userId}
+        subscriptionStatus={prefetchedSubscriptionStatus}
+      />
+    );
+  }
+
+  if (!channels.instagram && !channels.threads) {
+    return (
+      <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center p-8">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+          <AnalycaLogo size="lg" />
+          <h2 className="text-xl font-bold text-gray-800 mt-4">データがありません</h2>
+          <p className="text-gray-600 mt-2">Instagram または Threads を連携してください。</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen max-w-full bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
+      {/* 同期中バナー */}
+      {showSyncBanner && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-blue-500 text-white px-4 py-3 flex items-center justify-center gap-3">
+          <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-sm font-medium">
+            {isInitialSetup
+              ? '初期設定実施中です...30秒ほどお待ちください'
+              : 'データを同期中です...しばらくお待ちください'}
+          </span>
+          <button
+            onClick={() => {
+              setShowSyncBanner(false);
+              // URLからsyncingパラメータを削除
+              const url = new URL(window.location.href);
+              url.searchParams.delete('syncing');
+              window.history.replaceState({}, '', url.toString());
+            }}
+            className="ml-4 text-white/80 hover:text-white"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* サイドバー（PC） */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40">
+        <div className="p-4 border-b border-[color:var(--color-border)]">
+          <div className="flex items-center gap-3">
+            <AnalycaLogo size="md" />
+            <div>
+              <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+              <p className="text-xs text-[color:var(--color-text-muted)]">@{username}</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-3 space-y-1">
+          {channelItems.map((channel) => {
+            const Icon = channel.Icon;
+            return (
+              <button
+                key={channel.value}
+                onClick={() => setActiveChannel(channel.value)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                  activeChannel === channel.value
+                    ? 'bg-[color:var(--color-accent)] text-white'
+                    : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {channel.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-3 border-t border-[color:var(--color-border)] space-y-1">
+          <NotificationBell userId={userId} variant="sidebar" />
+          <button
+            onClick={() => setActiveChannel('settings')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+              activeChannel === 'settings'
+                ? 'bg-[color:var(--color-accent)] text-white'
+                : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            設定
+          </button>
+          <a
+            href={buildContactLineUrl(user)}
+            target="_blank"
+            rel="noopener"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            お問い合わせ
+          </a>
+          <p className="text-xs text-[color:var(--color-text-muted)] mt-3 px-3">Powered by ANALYCA</p>
+        </div>
+      </aside>
+
+      {/* LINE登録促進モーダル(有料会員・LINE未紐付けのみ) */}
+      {showLineModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={dismissLineModal} />
+          <div className="relative bg-[color:var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full p-6 text-center">
+            <button
+              onClick={dismissLineModal}
+              aria-label="閉じる"
+              className="absolute top-3 right-3 p-2 text-[color:var(--color-text-muted)] hover:text-[color:var(--color-text-primary)]"
+            >
+              ✕
+            </button>
+            <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-[#06C755]/10 flex items-center justify-center">
+              <svg className="w-7 h-7 text-[#06C755]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 5.64 2 10.13c0 2.59 1.5 4.9 3.84 6.39-.17.62-.62 2.25-.71 2.6-.11.43.16.43.33.31.14-.09 2.18-1.48 3.07-2.08.47.07.96.1 1.47.1 5.52 0 10-3.64 10-8.13S17.52 2 12 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-[color:var(--color-text-primary)] mb-3">
+              公式LINEのご案内
+            </h3>
+            <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed mb-2">
+              お問い合わせはこちらの公式LINEからお願いします。
+            </p>
+            <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed mb-5">
+              お得なThreads攻略やInstagram攻略の情報も配信していますので、今すぐ受け取ってください。
+            </p>
+            <a
+              href={buildContactLineUrl(user)}
+              target="_blank"
+              rel="noopener"
+              onClick={dismissLineModal}
+              className="block w-full py-3 rounded-xl bg-[#06C755] text-white font-bold text-sm hover:opacity-90 transition-opacity"
+            >
+              LINEで受け取る
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* モバイルサイドバー */}
+      {sidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-64 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)]">
+            <div className="p-4 border-b border-[color:var(--color-border)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AnalycaLogo size="sm" />
+                <div>
+                  <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+                  <p className="text-xs text-[color:var(--color-text-muted)]">@{username}</p>
+                </div>
+              </div>
+              <button onClick={() => setSidebarOpen(false)} className="p-2 text-[color:var(--color-text-secondary)]">
+                ✕
+              </button>
+            </div>
+            <nav className="p-3 space-y-1">
+              {channelItems.map((channel) => {
+                const Icon = channel.Icon;
+                return (
+                  <button
+                    key={channel.value}
+                    onClick={() => {
+                      setActiveChannel(channel.value);
+                      setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                      activeChannel === channel.value
+                        ? 'bg-[color:var(--color-accent)] text-white'
+                        : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {channel.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </aside>
+        </div>
+      )}
+
+      {/* メインコンテンツ */}
+      <main className="flex-1 lg:ml-56 min-w-0">
+        <header className="lg:hidden sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-[var(--radius-sm)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <AnalycaLogo size="sm" />
+          <h1 className="text-lg font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+          <div className="ml-auto">
+            <NotificationBell userId={userId} />
+          </div>
+        </header>
+
+        <div className="p-4 lg:p-6 min-w-0">
+          {activeChannel === 'threads' && (
+            isChannelLocked('threads') ? (
+              <UpgradeCard
+                userId={userId}
+                currentPlan={currentPlanLabel}
+                targetChannel="Threads"
+                features={['Threads投稿分析', 'フォロワー推移', 'コメント欄遷移分析']}
+              />
+            ) : !channels.threads ? (
+              <ConnectCard channel="threads" userId={userId} />
+            ) : (
+              <ThreadsContent
+                userId={userId}
+                user={user}
+                data={data}
+                username={username}
+                profilePicture={profilePicture}
+              />
+            )
+          )}
+          {activeChannel === 'instagram' && (
+            isChannelLocked('instagram') ? (
+              <UpgradeCard
+                userId={userId}
+                currentPlan={currentPlanLabel}
+                targetChannel="Instagram"
+                features={['リール・ストーリー分析', 'フォロワー推移', 'エンゲージメント分析']}
+              />
+            ) : !channels.instagram ? (
+              <ConnectCard channel="instagram" userId={userId} />
+            ) : (
+              <InstagramContent
+                userId={userId}
+                user={user}
+                data={data}
+                username={username}
+                profilePicture={profilePicture}
+              />
+            )
+          )}
+          {activeChannel === 'settings' && (
+            <div className="max-w-2xl mx-auto py-6 px-4">
+              <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-6">設定</h2>
+              <SubscriptionSettings userId={userId} initialData={prefetchedSubscriptionStatus} />
+            </div>
+          )}
+          {activeChannel === 'affiliate' && (
+            <AffiliateDashboard userId={userId} initialData={affiliateDashboardData} />
+          )}
+        </div>
+      </main>
+
+      {/* モバイルボトムナビ */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)] safe-area-bottom z-40">
+        <div className="flex py-2.5">
+          {channelItems.map((channel) => {
+            const Icon = channel.Icon;
+            return (
+              <button
+                key={channel.value}
+                onClick={() => setActiveChannel(channel.value)}
+                className={`flex flex-col items-center justify-center flex-1 py-1.5 ${
+                  activeChannel === channel.value
+                    ? 'text-[color:var(--color-accent)]'
+                    : 'text-[color:var(--color-text-muted)]'
+                }`}
+              >
+                <Icon className="w-[22px] h-[22px]" />
+                <span className="text-[11px] leading-none mt-1 font-medium">{channel.label}</span>
+              </button>
+            );
+          })}
+          {/* 設定タブ */}
+          <button
+            onClick={() => setActiveChannel('settings')}
+            className={`flex flex-col items-center justify-center flex-1 py-1.5 ${
+              activeChannel === 'settings'
+                ? 'text-[color:var(--color-accent)]'
+                : 'text-[color:var(--color-text-muted)]'
+            }`}
+          >
+            <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-[11px] leading-none mt-1 font-medium">設定</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+// ============ Threads コンテンツ（デモと同じUI） ============
+function ThreadsContent({
+  userId,
+  user,
+  data,
+  username,
+  profilePicture,
+}: {
+  userId: string;
+  user: UserInfo | null;
+  data: DashboardData | null;
+  username: string;
+  profilePicture: string | undefined;
+}) {
+  const isYamazakiDashboard = userId === YAMAZAKI_ANALYCA_USER_ID || username === YAMAZAKI_THREADS_USERNAME;
+  const defaultStartDate = isYamazakiDashboard
+    ? YAMAZAKI_METRICS_START_DATE
+    : formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const defaultEndDate = formatDateForInput(new Date());
+
+  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>('analysis');
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
+  const [showAllPosts, setShowAllPosts] = useState(false);
+  const [datePreset, setDatePreset] = useState<DatePreset>(isYamazakiDashboard ? 'custom' : 'thisMonth');
+  const [customStartDate, setCustomStartDate] = useState(defaultStartDate);
+  const [customEndDate, setCustomEndDate] = useState(defaultEndDate);
+  const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(defaultStartDate);
+  const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(defaultEndDate);
+
+  const toggleExpand = (postId: string) => {
+    setExpandedPosts((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+  };
+
+  // データ取得
+  const allPosts = data?.threads?.data || [];
+  const comments = data?.threadsComments?.data || [];
+  const allDailyMetrics = data?.threadsDailyMetrics?.data || [];
+  const allDailyPostStats = data?.threadsDailyPostStats?.data || [];
+  const latestMetrics = data?.threadsDailyMetrics?.latest;
+  const followersCount = latestMetrics?.followers_count || 0;
+
+  // 日付範囲でフィルタリング（今日のデータも含める）
+  const dateRange = useMemo(() => {
+    if (datePreset === 'custom' && appliedCustomStartDate && appliedCustomEndDate) {
+      const start = new Date(appliedCustomStartDate);
+      const end = new Date(appliedCustomEndDate);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+        const normalizedStart = start <= end ? start : end;
+        const normalizedEnd = start <= end ? end : start;
+        normalizedStart.setHours(0, 0, 0, 0);
+        normalizedEnd.setHours(23, 59, 59, 999);
+        return { start: normalizedStart, end: normalizedEnd };
+      }
+    }
+    return getDateRange(datePreset, { includeToday: true });
+  }, [datePreset, appliedCustomStartDate, appliedCustomEndDate]);
+
+  const previousDateRange = useMemo(() => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const dayCount = Math.max(1, Math.round((dateRange.end.getTime() - dateRange.start.getTime()) / dayMs) + 1);
+    const end = new Date(dateRange.start);
+    end.setDate(end.getDate() - 1);
+    end.setHours(23, 59, 59, 999);
+    const start = new Date(end);
+    start.setDate(start.getDate() - dayCount + 1);
+    start.setHours(0, 0, 0, 0);
+    return { start, end };
+  }, [dateRange]);
+
+  const posts = useMemo(() => {
+    return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
+  }, [allPosts, dateRange]);
+
+  const previousPosts = useMemo(() => {
+    return allPosts.filter(p => isDateInRange(p.timestamp, previousDateRange));
+  }, [allPosts, previousDateRange]);
+
+  const dailyFollowerMetrics = useMemo(() => {
+    return allDailyMetrics.filter(d => isDateInRange(d.date, dateRange));
+  }, [allDailyMetrics, dateRange]);
+
+  const dailyPostStats = useMemo(() => {
+    return allDailyPostStats.filter(d => isDateInRange(d.date, dateRange));
+  }, [allDailyPostStats, dateRange]);
+
+  const yamazakiAgencyMetrics = useMemo(() => {
+    const daily = data?.yamazakiAgency?.daily || [];
+    return daily
+      .filter((row) => isDateInRange(row.date, dateRange))
+      .reduce(
+        (acc, row) => ({
+          linkClicks: acc.linkClicks + (row.linkClicks || 0),
+          lineRegistrations: acc.lineRegistrations + (row.lineRegistrations || 0),
+        }),
+        { linkClicks: 0, lineRegistrations: 0 },
+      );
+  }, [data?.yamazakiAgency?.daily, dateRange]);
+
+  const previousYamazakiAgencyMetrics = useMemo(() => {
+    const daily = data?.yamazakiAgency?.daily || [];
+    return daily
+      .filter((row) => isDateInRange(row.date, previousDateRange))
+      .reduce(
+        (acc, row) => ({
+          linkClicks: acc.linkClicks + (row.linkClicks || 0),
+          lineRegistrations: acc.lineRegistrations + (row.lineRegistrations || 0),
+        }),
+        { linkClicks: 0, lineRegistrations: 0 },
+      );
+  }, [data?.yamazakiAgency?.daily, previousDateRange]);
+
+  const yamazakiDailyByDate = useMemo(() => {
+    const map = new Map<string, { linkClicks: number; lineRegistrations: number }>();
+    for (const row of data?.yamazakiAgency?.daily || []) {
+      map.set(row.date, {
+        linkClicks: row.linkClicks || 0,
+        lineRegistrations: row.lineRegistrations || 0,
+      });
+    }
+    return map;
+  }, [data?.yamazakiAgency?.daily]);
+
+  // フィルタ後の合計を計算（期間内の投稿データから直接集計）
+  const totalPosts = posts.length;
+  const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
+  const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
+  const previousTotalPosts = previousPosts.length;
+  const previousTotalViews = previousPosts.reduce((sum, p) => sum + (p.views || 0), 0);
+  const postDelta = totalPosts - previousTotalPosts;
+  const viewDelta = totalViews - previousTotalViews;
+  const linkClickDelta = yamazakiAgencyMetrics.linkClicks - previousYamazakiAgencyMetrics.linkClicks;
+  const lineRegistrationDelta = yamazakiAgencyMetrics.lineRegistrations - previousYamazakiAgencyMetrics.lineRegistrations;
+  const linkCtr = totalViews > 0 ? (yamazakiAgencyMetrics.linkClicks / totalViews) * 100 : null;
+  const lineCvr = yamazakiAgencyMetrics.linkClicks > 0 ? (yamazakiAgencyMetrics.lineRegistrations / yamazakiAgencyMetrics.linkClicks) * 100 : null;
+
+  // コメント紐付け
+  const commentsByPostId = useMemo(() => {
+    const map = new Map<string, ThreadsComment[]>();
+    comments.forEach((c) => {
+      if (!map.has(c.parent_post_id)) map.set(c.parent_post_id, []);
+      map.get(c.parent_post_id)!.push(c);
+    });
+    return map;
+  }, [comments]);
+
+  // サマリー計算
+  const summary = useMemo(() => {
+    const engagementRate = totalViews > 0 ? ((totalLikes + totalReplies) / totalViews * 100).toFixed(2) : '0.00';
+    const followerGrowth = dailyFollowerMetrics.reduce((sum, d) => sum + d.follower_delta, 0);
+    return { totalViews, totalLikes, totalReplies, engagementRate, followerGrowth };
+  }, [totalViews, totalLikes, totalReplies, dailyFollowerMetrics]);
+
+  const dailyMetrics = useMemo(() => {
+    const merged = new Map<string, DailyMetric>();
+    // dailyFollowerMetricsからはフォロワー情報のみ使用（total_views等は累計スナップショットなので日別テーブルには使わない）
+    for (const metric of dailyFollowerMetrics) {
+      merged.set(metric.date, {
+        date: metric.date,
+        followers_count: metric.followers_count || 0,
+        follower_delta: metric.follower_delta || 0,
+        total_views: 0,
+        total_likes: 0,
+        total_replies: 0,
+        post_count: 0,
+      });
+    }
+    // dailyPostStatsからその日の投稿ベースの閲覧数・いいね数等をマージ
+    for (const stat of dailyPostStats) {
+      const existing = merged.get(stat.date);
+      if (existing) {
+        merged.set(stat.date, {
+          ...existing,
+          total_views: stat.total_views || 0,
+          total_likes: stat.total_likes || 0,
+          total_replies: stat.total_replies || 0,
+          post_count: stat.post_count || existing.post_count,
+        });
+      } else {
+        merged.set(stat.date, {
+          date: stat.date,
+          followers_count: 0,
+          follower_delta: 0,
+          total_views: stat.total_views || 0,
+          total_likes: stat.total_likes || 0,
+          total_replies: stat.total_replies || 0,
+          post_count: stat.post_count || 0,
+        });
+      }
+    }
+    for (const [date, metric] of yamazakiDailyByDate.entries()) {
+      if (!isDateInRange(date, dateRange)) {
+        continue;
+      }
+      const existing = merged.get(date);
+      if (existing) {
+        merged.set(date, {
+          ...existing,
+          link_clicks: metric.linkClicks,
+          line_registrations: metric.lineRegistrations,
+        });
+      } else {
+        merged.set(date, {
+          date,
+          followers_count: 0,
+          follower_delta: 0,
+          total_views: 0,
+          total_likes: 0,
+          total_replies: 0,
+          post_count: 0,
+          link_clicks: metric.linkClicks,
+          line_registrations: metric.lineRegistrations,
+        });
+      }
+    }
+    // フォロワー数が0の日を、最も近い既知のフォロワー数で埋める
+    const sorted = Array.from(merged.values())
+      .filter((metric) => metric.date)
+      .sort((a, b) => safeGetTime(a.date) - safeGetTime(b.date));
+    // 最新のフォロワー数（latestMetricsから取得）をフォールバックとして使用
+    const fallbackFollowers = followersCount || 0;
+    let lastKnownFollowers = fallbackFollowers;
+    for (const metric of sorted) {
+      if (metric.followers_count > 0) {
+        lastKnownFollowers = metric.followers_count;
+      } else {
+        metric.followers_count = lastKnownFollowers;
+      }
+    }
+    return sorted.reverse();
+  }, [dailyFollowerMetrics, dailyPostStats, followersCount, yamazakiDailyByDate, dateRange]);
+
+  // ソート
+  const sortedPosts = useMemo(() => {
+    return [...posts].sort((a, b) => {
+      if (sortBy === 'views') return (b.views || 0) - (a.views || 0);
+      if (sortBy === 'likes') return (b.likes || 0) - (a.likes || 0);
+      return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
+    });
+  }, [posts, sortBy]);
+
+  // 遷移率計算（depth毎に最もviewsが多いコメントでファネルを構成）
+  const getTransitionRates = (post: ThreadsPost) => {
+    const postComments = commentsByPostId.get(post.threads_id) || [];
+    const postViews = post.views || 0;
+    if (!postComments.length || postViews === 0) return { transitions: [], overallRate: null };
+
+    // depth毎に最もviewsが多いコメントを選出
+    const byDepth = new Map<number, ThreadsComment>();
+    for (const c of postComments) {
+      const d = c.depth || 0;
+      const existing = byDepth.get(d);
+      if (!existing || (c.views || 0) > (existing.views || 0)) {
+        byDepth.set(d, c);
+      }
+    }
+    const depthKeys = [...byDepth.keys()].sort((a, b) => a - b);
+    if (depthKeys.length === 0) return { transitions: [], overallRate: null };
+
+    const transitions: { from: string; to: string; rate: number; views: number }[] = [];
+    const firstComment = byDepth.get(depthKeys[0])!;
+    const firstViews = firstComment.views || 0;
+    transitions.push({ from: 'メイン', to: 'コメント欄1', rate: postViews > 0 ? (firstViews / postViews) * 100 : 0, views: firstViews });
+
+    for (let i = 1; i < depthKeys.length; i++) {
+      const prevComment = byDepth.get(depthKeys[i - 1])!;
+      const currComment = byDepth.get(depthKeys[i])!;
+      const prevViews = prevComment.views || 0;
+      const currViews = currComment.views || 0;
+      if (prevViews > 0) {
+        transitions.push({
+          from: `コメント欄${i}`,
+          to: `コメント欄${i + 1}`,
+          rate: (currViews / prevViews) * 100,
+          views: currViews,
+        });
+      }
+    }
+    const lastComment = byDepth.get(depthKeys[depthKeys.length - 1])!;
+    const lastViews = lastComment.views || 0;
+    const overallRate = postViews > 0 ? (lastViews / postViews) * 100 : null;
+    return { transitions, overallRate };
+  };
+
+  const INITIAL_DISPLAY_COUNT = 20;
+  const displayedPosts = showAllPosts ? sortedPosts : sortedPosts.slice(0, INITIAL_DISPLAY_COUNT);
+  const hasMorePosts = sortedPosts.length > INITIAL_DISPLAY_COUNT;
+
+  return (
+    <div className="section-stack pb-20 lg:pb-6">
+      {/* ヘッダー: タブ + 日付選択 */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
+          {([
+            { key: 'analysis', label: '分析' },
+            { key: 'schedule', label: '予約投稿' },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setThreadsTab(key)}
+              className={`h-10 flex-1 rounded-[var(--radius-sm)] px-6 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] ${
+                threadsTab === key
+                  ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white shadow-sm'
+                  : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {threadsTab === 'analysis' && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <CsvExportMenu items={getExportItems(userId, 'threads')} />
+            <select
+              value={datePreset}
+              onChange={(e) => {
+                const nextPreset = e.target.value as DatePreset;
+                setDatePreset(nextPreset);
+              }}
+              className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+            >
+              {datePresetOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            {datePreset === 'custom' && (
+              <>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+                />
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!customStartDate || !customEndDate) return;
+                    const normalizedStart = customStartDate <= customEndDate ? customStartDate : customEndDate;
+                    const normalizedEnd = customStartDate <= customEndDate ? customEndDate : customStartDate;
+                    setCustomStartDate(normalizedStart);
+                    setCustomEndDate(normalizedEnd);
+                    setAppliedCustomStartDate(normalizedStart);
+                    setAppliedCustomEndDate(normalizedEnd);
+                    setDatePreset('custom');
+                  }}
+                  disabled={!customStartDate || !customEndDate}
+                  className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-accent)] bg-[color:var(--color-accent)] px-4 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  反映
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {threadsTab === 'schedule' && <ScheduleTab userId={userId} />}
+
+      {threadsTab === 'analysis' && <>
+      {/* アカウント + KPI */}
+      <div className="grid min-w-0 lg:grid-cols-12 gap-4">
+        {/* 左側：アカウント情報 */}
+        <div className="min-w-0 lg:col-span-3">
+          <div className="ui-card p-4 md:p-6 h-full">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)]">
+                {profilePicture ? (
+                  <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-xl font-bold">
+                    {username.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="truncate text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
+                  <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
+                  <span className={`text-xs font-medium ${summary.followerGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* 右側：KPI */}
+        <div className="min-w-0 lg:col-span-9">
+          <div className="ui-card p-4 md:p-6">
+            <h2 className="text-base md:text-lg font-semibold text-[color:var(--color-text-primary)] mb-3 md:mb-6">パフォーマンス指標</h2>
+            <dl className="grid min-w-0 grid-cols-4 gap-1.5 md:gap-4">
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">投稿数</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{totalPosts}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {formatSigned(postDelta)}投稿 / {previousTotalPosts.toLocaleString()}件
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {postDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
+              </div>
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">閲覧数</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {formatSigned(viewDelta)}
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {viewDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
+              </div>
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                {isYamazakiDashboard ? (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LPクリック</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
+                    <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
+                    </p>
+                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                      {linkClickDelta >= 0 ? '増加傾向' : '減少傾向'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">いいね</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
+                  </>
+                )}
+              </div>
+              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+                {isYamazakiDashboard ? (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
+                    <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      CVR: {formatRate(lineCvr)} / {formatSigned(lineRegistrationDelta)}
+                    </p>
+                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                      {lineRegistrationDelta >= 0 ? '増加傾向' : '減少傾向'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">エンゲージメント</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
+                  </>
+                )}
+              </div>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      {/* 日別メトリクス */}
+      {dailyMetrics.length > 0 && (
+        <div className="ui-card">
+          <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">インプレッション & フォロワー推移</h2>
+          <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別のパフォーマンス</p>
+          <div className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                  <th className="px-3 py-2">日付</th>
+                  <th className="px-3 py-2 text-right">フォロワー</th>
+                  <th className="px-3 py-2 text-right">増減</th>
+                  <th className="px-3 py-2 text-right">投稿</th>
+                  <th className="px-3 py-2 text-right">閲覧数</th>
+                  {data?.yamazakiAgency && (
+                    <>
+                      <th className="px-3 py-2 text-right">LPクリック</th>
+                      <th className="px-3 py-2 text-right">LINE</th>
+                      <th className="px-3 py-2 text-right">CVR</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[color:var(--color-border)]">
+                {dailyMetrics.map((m, idx) => {
+                  const linkClicks = m.link_clicks || 0;
+                  const lineRegistrations = m.line_registrations || 0;
+                  const cvr = linkClicks > 0 ? `${((lineRegistrations / linkClicks) * 100).toFixed(1)}%` : '-';
+
+                  return (
+                    <tr key={m.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
+                      <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{m.date || '-'}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.followers_count || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">
+                        <span className={(m.follower_delta || 0) > 0 ? 'text-green-600' : (m.follower_delta || 0) < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
+                          {(m.follower_delta || 0) > 0 ? `+${m.follower_delta}` : m.follower_delta || '0'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.post_count || 0}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.total_views || 0).toLocaleString()}</td>
+                      {data?.yamazakiAgency && (
+                        <>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{linkClicks.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-orange-500">{lineRegistrations > 0 ? `+${lineRegistrations}` : '0'}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{cvr}</td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-6 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={[...dailyMetrics].reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#475569' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tick={{ fontSize: 12, fill: '#475569' }}
+                  domain={[
+                    (dataMin: number) => Math.floor(dataMin * 0.99),
+                    (dataMax: number) => Math.ceil(dataMax * 1.01)
+                  ]}
+                />
+                <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
+                <Legend />
+                <Bar yAxisId="left" dataKey="total_views" name="閲覧数" fill="#6366f1" opacity={0.7} />
+                <Line yAxisId="right" type="monotone" dataKey="followers_count" name="フォロワー" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* インサイト分析 */}
+      <ThreadsInsights posts={posts} />
+
+      {/* トップコンテンツ */}
+      {displayedPosts.length > 0 && (
+        <div className="ui-card">
+          <header className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">トップコンテンツ</h2>
+              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">反応が高かった投稿 ({displayedPosts.length}/{sortedPosts.length}件)</p>
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'postedAt' | 'views' | 'likes')}
+              className="h-9 w-40 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+            >
+              <option value="views">閲覧数</option>
+              <option value="likes">いいね数</option>
+              <option value="postedAt">投稿日時</option>
+            </select>
+          </header>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {displayedPosts.map((post, idx) => {
+              const isExpanded = expandedPosts.has(post.id);
+              const { transitions, overallRate } = getTransitionRates(post);
+              const isTop10 = idx < 10;
+              const rank = idx + 1;
+              const postComments = commentsByPostId.get(post.threads_id) || [];
+
+              return (
+                <div
+                  key={post.id}
+                  className={`rounded-[var(--radius-md)] border bg-white p-3 shadow-[var(--shadow-soft)] cursor-pointer ${
+                    isTop10 ? 'border-amber-300 bg-amber-50/30' : 'border-[color:var(--color-border)]'
+                  }`}
+                  onClick={() => toggleExpand(post.id)}
+                >
+                  <div className="flex items-center justify-between text-xs text-[color:var(--color-text-muted)]">
+                    <div className="flex items-center gap-2">
+                      {isTop10 && (
+                        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
+                          rank === 1 ? 'bg-yellow-400 text-yellow-900' :
+                          rank === 2 ? 'bg-gray-300 text-gray-700' :
+                          rank === 3 ? 'bg-amber-600 text-white' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {rank}
+                        </span>
+                      )}
+                      <span>{safeFormatDateTime(post.timestamp)}</span>
+                      {postComments.length > 0 && (
+                        <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
+                          コメント欄{postComments.length}つ
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span>閲覧 {(post.views || 0).toLocaleString()}</span>
+                      <span>いいね {(post.likes || 0).toLocaleString()}</span>
+                      <RepostButton
+                        userId={userId}
+                        postId={post.id}
+                        mainText={post.text}
+                        comments={postComments.map((c) => ({
+                          id: c.id,
+                          text: c.text,
+                          views: c.views,
+                          depth: c.depth,
+                        }))}
+                      />
+                    </div>
+                  </div>
+
+                  {transitions.length > 0 && (
+                    <div className="mt-2 rounded-md bg-gradient-to-r from-purple-50 to-indigo-50 p-2 border border-purple-100">
+                      <div className="flex items-center gap-1 flex-wrap text-[10px]">
+                        <div className="flex flex-col items-center">
+                          <span className="text-gray-500">メイン</span>
+                          <span className="font-bold text-gray-700">{(post.views || 0).toLocaleString()}</span>
+                        </div>
+                        {transitions.map((t, tIdx) => {
+                          const isFirst = tIdx === 0;
+                          const rate = t.rate || 0;
+                          const colorClass = isFirst
+                            ? rate >= 10 ? 'text-green-600' : 'text-red-500'
+                            : rate >= 80 ? 'text-green-600' : rate >= 50 ? 'text-yellow-600' : 'text-red-500';
+                          return (
+                            <div key={tIdx} className="flex items-center gap-1">
+                              <div className="flex flex-col items-center px-1">
+                                <span className="text-gray-400">→</span>
+                                <span className={`font-bold ${colorClass}`}>{rate.toFixed(1)}%</span>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-500">{t.to}</span>
+                                <span className="font-bold text-gray-700">{(t.views || 0).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {overallRate !== null && transitions.length > 1 && (
+                        <div className="mt-1 pt-1 border-t border-purple-200 flex items-center gap-1 text-[10px]">
+                          <span className="text-gray-500">全体遷移率:</span>
+                          <span className={`font-bold ${overallRate >= 1 ? 'text-blue-600' : 'text-gray-500'}`}>{overallRate.toFixed(2)}%</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-sm text-[color:var(--color-text-primary)] whitespace-pre-wrap">
+                    {isExpanded ? post.text : (post.text && post.text.length > 80 ? post.text.slice(0, 80) + '…' : post.text || '(テキストなし)')}
+                  </p>
+
+                  {isExpanded && postComments.length > 0 && (
+                    <div className="mt-3 space-y-2 border-t border-gray-200 pt-3">
+                      <p className="text-xs font-medium text-gray-500">コメント欄</p>
+                      {postComments
+                        .sort((a, b) => a.depth - b.depth)
+                        .map((comment, cidx) => (
+                        <div
+                          key={comment.id}
+                          className="rounded-md bg-gray-50 p-2 text-xs"
+                        >
+                          <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-1">
+                            <span className="font-medium text-purple-600">コメント{cidx + 1}</span>
+                            <span>閲覧 {comment.views.toLocaleString()}</span>
+                          </div>
+                          <p className="text-gray-700 whitespace-pre-wrap">{comment.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {post.permalink && (
+                    <a
+                      href={post.permalink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2 text-xs text-[color:var(--color-accent)] hover:underline inline-block"
+                    >
+                      Threadsで見る →
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {hasMorePosts && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => setShowAllPosts(!showAllPosts)}
+                className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white px-6 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]"
+              >
+                {showAllPosts ? '閉じる' : `続きを見る (残り${sortedPosts.length - INITIAL_DISPLAY_COUNT}件)`}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      </>}
+    </div>
+  );
+}
+
+// ============ Instagram コンテンツ（デモと同じUI） ============
+interface InstagramReel {
+  id: string;
+  caption?: string;
+  media_type?: string;
+  permalink?: string;
+  timestamp: string;
+  views: number;
+  reach?: number;
+  like_count: number;
+  comments_count: number;
+  saved?: number;
+  shares?: number;
+  total_interactions?: number;
+  avg_watch_time_seconds?: number;
+  thumbnail_url?: string;
+}
+
+interface InstagramStory {
+  id: string;
+  timestamp: string;
+  views: number;
+  reach?: number;
+  replies?: number;
+  total_interactions?: number;
+  follows?: number;
+  profile_visits?: number;
+  navigation?: number;
+  thumbnail_url?: string;
+}
+
+interface InstagramInsight {
+  date: string;
+  followers_count: number;
+  posts_count?: number;
+  reach?: number;
+  engagement?: number;
+  profile_views?: number;
+  website_clicks?: number;
+}
+
+type IGTab = 'overview' | 'reels' | 'stories' | 'daily';
+
+function InstagramContent({
+  userId,
+  data,
+  username,
+  profilePicture,
+}: {
+  userId: string;
+  user: UserInfo | null;
+  data: DashboardData | null;
+  username: string;
+  profilePicture: string | undefined;
+}) {
+  const [activeTab, setActiveTab] = useState<IGTab>('overview');
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
+  const [reelSortBy, setReelSortBy] = useState('views');
+  const [storySortBy, setStorySortBy] = useState('views');
+
+  const allReels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
+  const allStories: InstagramStory[] = (data?.stories?.data || []) as InstagramStory[];
+  const allInsights: InstagramInsight[] = ((data?.insights as { data?: InstagramInsight[] })?.data || []) as InstagramInsight[];
+  const latestInsight = allInsights[0] || null;
+  const followersCount = latestInsight?.followers_count || 0;
+
+  // 日付範囲でフィルタリング（今日のデータも含める）
+  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: true }), [datePreset]);
+
+  const reels = useMemo(() => {
+    return allReels.filter(r => isDateInRange(r.timestamp, dateRange));
+  }, [allReels, dateRange]);
+
+  const stories = useMemo(() => {
+    return allStories.filter(s => isDateInRange(s.timestamp, dateRange));
+  }, [allStories, dateRange]);
+
+  const insights = useMemo(() => {
+    return allInsights.filter(i => isDateInRange(i.date, dateRange));
+  }, [allInsights, dateRange]);
+
+  const summary = useMemo(() => {
+    const totalReach = insights.reduce((sum, d) => sum + (d.reach || 0), 0);
+    const totalProfileViews = insights.reduce((sum, d) => sum + (d.profile_views || 0), 0);
+    const totalWebClicks = insights.reduce((sum, d) => sum + (d.website_clicks || 0), 0);
+    const totalReelsViews = reels.reduce((sum, r) => sum + (r.views || 0), 0);
+    const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
+    const totalStoriesViews = stories.reduce((sum, s) => sum + (s.reach || 0), 0);
+    // フォロワー増減を計算（日別データから）
+    const followerGrowth = insights.length > 1
+      ? (insights[0]?.followers_count || 0) - (insights[insights.length - 1]?.followers_count || 0)
+      : 0;
+    return { totalReach, totalProfileViews, totalWebClicks, totalReelsViews, totalReelsLikes, totalStoriesViews, followerGrowth };
+  }, [insights, reels, stories]);
+
+  const sortedReels = useMemo(() => {
+    return [...reels].sort((a, b) => {
+      if (reelSortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
+      if (reelSortBy === 'views') return (b.views || 0) - (a.views || 0);
+      if (reelSortBy === 'likes') return (b.like_count || 0) - (a.like_count || 0);
+      if (reelSortBy === 'saves') return (b.saved || 0) - (a.saved || 0);
+      return 0;
+    });
+  }, [reels, reelSortBy]);
+
+  const sortedStories = useMemo(() => {
+    return [...stories].sort((a, b) => {
+      if (storySortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
+      if (storySortBy === 'views') return (b.reach || 0) - (a.reach || 0);
+      if (storySortBy === 'viewRate') return ((b.reach || 0) / followersCount) - ((a.reach || 0) / followersCount);
+      return 0;
+    });
+  }, [stories, storySortBy, followersCount]);
+
+  const tabItems: { value: IGTab; label: string }[] = [
+    { value: 'overview', label: '概要' },
+    { value: 'reels', label: 'リール' },
+    { value: 'stories', label: 'ストーリー' },
+    { value: 'daily', label: 'デイリー' },
+  ];
+
+  // フィルタ前のデータで判定（新規登録直後でもデータがあれば表示する）
+  if (!allReels.length && !allStories.length && !allInsights.length) {
+    return (
+      <div className="ui-card p-6 text-center">
+        <h2 className="text-xl font-bold text-[color:var(--color-text-primary)] mb-4">Instagramデータがありません</h2>
+        <p className="text-[color:var(--color-text-secondary)]">データの同期を待っています...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="section-stack pb-20 lg:pb-6">
+      {/* ヘッダー: タブ + 日付選択 */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
+          {tabItems.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`h-10 flex-1 rounded-[var(--radius-sm)] px-5 text-sm font-semibold transition-all md:flex-none md:min-w-[92px] ${
+                activeTab === tab.value
+                  ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white shadow-sm'
+                  : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <CsvExportMenu items={getExportItems(userId, 'instagram')} />
+          <select
+            value={datePreset}
+            onChange={(e) => setDatePreset(e.target.value as DatePreset)}
+            className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
+          >
+            {standardDatePresetOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* 概要タブ */}
+      {activeTab === 'overview' && (
+        <>
+          {/* アカウント情報 + ファネル分析 */}
+          <div className="grid lg:grid-cols-12 gap-4">
+            {/* アカウント情報 */}
+            <div className="lg:col-span-3">
+              <div className="ui-card p-4 md:p-6 h-full">
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)]">
+                    {profilePicture ? (
+                      <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">
+                        {username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
+                    <div className="mt-1 flex items-baseline gap-2">
+                      <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
+                      <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
+                      {summary.followerGrowth !== 0 && (
+                        <span className={`text-xs font-medium ${summary.followerGrowth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ファネル分析 */}
+            <div className="lg:col-span-9">
+              <div className="ui-card p-6">
+                <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">ファネル分析</h2>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">リーチ</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalReach.toLocaleString()}</span>
+                  </div>
+                  <div className="flex flex-col items-center mx-2">
+                    <div className="text-lg text-emerald-500">→</div>
+                    <span className="text-xs font-medium text-emerald-500">{summary.totalReach > 0 ? ((summary.totalProfileViews / summary.totalReach) * 100).toFixed(1) : '0'}%</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">プロフ表示</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalProfileViews.toLocaleString()}</span>
+                  </div>
+                  <div className="flex flex-col items-center mx-2">
+                    <div className="text-lg text-emerald-500">→</div>
+                    <span className="text-xs font-medium text-emerald-500">{summary.totalProfileViews > 0 ? ((summary.totalWebClicks / summary.totalProfileViews) * 100).toFixed(1) : '0'}%</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">リンククリック</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalWebClicks.toLocaleString()}</span>
+                  </div>
+                  <div className="flex flex-col items-center mx-2">
+                    <div className="text-lg text-emerald-500">→</div>
+                    <span className="text-xs font-medium text-emerald-500">{summary.totalWebClicks > 0 ? ((summary.followerGrowth / summary.totalWebClicks) * 100).toFixed(1) : '0'}%</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">フォロワー増加</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.followerGrowth.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* パフォーマンス推移（テーブル + グラフ） */}
+          {insights.length > 0 && (
+            <div className="ui-card p-6">
+              <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">パフォーマンス推移</h3>
+              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)] mb-4">日別のパフォーマンス</p>
+              {/* デイリーテーブル */}
+              <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)] mb-6">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                      <th className="px-3 py-2">日付</th>
+                      <th className="px-3 py-2 text-right">フォロワー</th>
+                      <th className="px-3 py-2 text-right">増減</th>
+                      <th className="px-3 py-2 text-right">リーチ</th>
+                      <th className="px-3 py-2 text-right">プロフ表示</th>
+                      <th className="px-3 py-2 text-right">クリック</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[color:var(--color-border)]">
+                    {[...insights].reverse().map((row, idx, arr) => {
+                      // 増減を計算（前日との差分）
+                      const prevRow = arr[idx + 1];
+                      const growth = prevRow ? (row.followers_count || 0) - (prevRow.followers_count || 0) : 0;
+                      return (
+                        <tr key={row.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
+                          <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{row.date || '-'}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.followers_count || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right">
+                            <span className={growth > 0 ? 'text-green-600' : growth < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
+                              {growth > 0 ? `+${growth}` : growth}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.reach || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.profile_views || 0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.website_clicks || 0).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* 最大・最小値表示 */}
+              <div className="flex gap-6 mb-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">フォロワー:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.followers_count || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.followers_count).map(i => i.followers_count || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">リーチ:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.reach).map(i => i.reach || 0)).toLocaleString()}</span>
+                </div>
+              </div>
+              {/* グラフ */}
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={['dataMin', 'dataMax']} allowDataOverflow={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} domain={['dataMin', 'dataMax']} allowDataOverflow={false} />
+                    <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="followers_count" name="フォロワー数" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
+                    <Bar yAxisId="right" dataKey="reach" name="リーチ" fill="#8B5CF6" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* リールTOP5 */}
+          {sortedReels.length > 0 && (
+            <div className="ui-card p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">リールTOP5</h3>
+                  <p className="text-xs text-[color:var(--color-text-muted)]">期間内の上位コンテンツ</p>
+                </div>
+                <button onClick={() => setActiveTab('reels')} className="h-9 px-3 text-sm font-medium rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]">
+                  詳細
+                </button>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-1">
+                {sortedReels.slice(0, 5).map((reel) => (
+                  <div key={reel.id} className="flex min-w-[180px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
+                    <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
+                      {reel.thumbnail_url ? (
+                        <img src={reel.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-[color:var(--color-text-muted)]">
+                          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 p-3">
+                      <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(reel.timestamp)}</p>
+                      <dl className="space-y-1 text-sm text-[color:var(--color-text-secondary)]">
+                        <div className="flex items-center justify-between">
+                          <dt className="font-medium text-[color:var(--color-text-muted)]">再生数</dt>
+                          <dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.views || 0).toLocaleString()}</dd>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <dt className="font-medium text-[color:var(--color-text-muted)]">いいね</dt>
+                          <dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.like_count || 0).toLocaleString()}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ストーリーTOP5 */}
+          {sortedStories.length > 0 && (
+            <div className="ui-card p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">ストーリーTOP5</h3>
+                  <p className="text-xs text-[color:var(--color-text-muted)]">期間内の上位コンテンツ</p>
+                </div>
+                <button onClick={() => setActiveTab('stories')} className="h-9 px-3 text-sm font-medium rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]">
+                  詳細
+                </button>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-1">
+                {sortedStories.slice(0, 5).map((story) => {
+                  const viewRate = followersCount > 0 ? (((story.reach || 0) / followersCount) * 100).toFixed(1) : '0.0';
+                  return (
+                    <div key={story.id} className="flex min-w-[180px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
+                      <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
+                        {story.thumbnail_url ? (
+                          <img src={story.thumbnail_url} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-[color:var(--color-text-muted)]">
+                            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2 p-3">
+                        <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
+                        <dl className="space-y-1 text-sm text-[color:var(--color-text-secondary)]">
+                          <div className="flex items-center justify-between">
+                            <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧数</dt>
+                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧率</dt>
+                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}%</dd>
+                          </div>
+                        </dl>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* リールタブ */}
+      {activeTab === 'reels' && (
+        <div className="ui-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">リール一覧</h2>
+              <p className="text-xs text-[color:var(--color-text-muted)]">表示件数 {sortedReels.length}</p>
+            </div>
+            <select value={reelSortBy} onChange={(e) => setReelSortBy(e.target.value)} className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]">
+              <option value="date">日付</option>
+              <option value="views">再生数</option>
+              <option value="likes">いいね</option>
+              <option value="saves">保存</option>
+            </select>
+          </div>
+          <div className="space-y-4">
+            {sortedReels.map((reel) => (
+              <div key={reel.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
+                <div className="relative w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">
+                  <div className="aspect-[9/16]">
+                    {reel.thumbnail_url ? (
+                      <img src={reel.thumbnail_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-[color:var(--color-text-muted)]">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(reel.timestamp)}</p>
+                  {reel.caption && <p className="text-sm text-[color:var(--color-text-primary)] line-clamp-2">{reel.caption}</p>}
+                  <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
+                    <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.views || 0).toLocaleString()}</dd></div>
+                    <div><dt className="text-[color:var(--color-text-muted)]">いいね</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.like_count || 0).toLocaleString()}</dd></div>
+                    <div><dt className="text-[color:var(--color-text-muted)]">コメント</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.comments_count || 0).toLocaleString()}</dd></div>
+                    <div><dt className="text-[color:var(--color-text-muted)]">保存</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.saved || 0).toLocaleString()}</dd></div>
+                  </dl>
+                  {reel.permalink && (
+                    <a href={reel.permalink} target="_blank" rel="noopener noreferrer" className="text-xs text-[color:var(--color-accent)] hover:underline">
+                      Instagramで見る →
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+            {sortedReels.length === 0 && (
+              <p className="text-center text-[color:var(--color-text-muted)] py-8">リールがありません</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ストーリータブ */}
+      {activeTab === 'stories' && (
+        <div className="ui-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">ストーリー一覧</h2>
+              <p className="text-xs text-[color:var(--color-text-muted)]">表示件数 {sortedStories.length}</p>
+            </div>
+            <select value={storySortBy} onChange={(e) => setStorySortBy(e.target.value)} className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]">
+              <option value="date">日付</option>
+              <option value="views">閲覧数</option>
+              <option value="viewRate">閲覧率</option>
+            </select>
+          </div>
+          <div className="space-y-4">
+            {sortedStories.map((story) => {
+              const viewRate = followersCount > 0 ? (((story.reach || 0) / followersCount) * 100).toFixed(1) : '0.0';
+              return (
+                <div key={story.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
+                  <div className="relative w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">
+                    <div className="aspect-[9/16]">
+                      {story.thumbnail_url ? (
+                        <img src={story.thumbnail_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-[color:var(--color-text-muted)]">
+                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
+                    <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧率</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}%</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">返信</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.replies || 0)}</dd></div>
+                    </dl>
+                  </div>
+                </div>
+              );
+            })}
+            {sortedStories.length === 0 && (
+              <p className="text-center text-[color:var(--color-text-muted)] py-8">ストーリーがありません</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* デイリータブ */}
+      {activeTab === 'daily' && (
+        <>
+          {/* デイリーグラフ */}
+          {insights.length > 0 && (
+            <div className="ui-card p-6">
+              <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">デイリー推移</h2>
+              {/* 最大・最小値表示 */}
+              <div className="flex flex-wrap gap-4 mb-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">リーチ:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.reach).map(i => i.reach || 0)).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[color:var(--color-text-muted)]">プロフ表示:</span>
+                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.profile_views || 0)).toLocaleString()}</span>
+                  <span className="text-gray-400">/</span>
+                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.profile_views).map(i => i.profile_views || 0)).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
+                    <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={['dataMin', 'dataMax']} allowDataOverflow={false} />
+                    <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
+                    <Legend />
+                    <Bar dataKey="reach" name="リーチ" fill="#10B981" />
+                    <Bar dataKey="profile_views" name="プロフ表示" fill="#3B82F6" />
+                    <Bar dataKey="website_clicks" name="リンククリック" fill="#6366F1" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {/* デイリーテーブル */}
+          <div className="ui-card p-6">
+            <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">デイリーデータ</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[color:var(--color-border)] text-left">
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] whitespace-nowrap">日付</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">フォロワー</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">リーチ</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">プロフ表示</th>
+                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">リンククリック</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--color-border)]">
+                  {insights.map((row, idx) => (
+                    <tr key={row.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] whitespace-nowrap">{row.date || '-'}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.followers_count || 0).toLocaleString()}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.reach || 0).toLocaleString()}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.profile_views || 0).toLocaleString()}</td>
+                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.website_clicks || 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {insights.length === 0 && (
+                <p className="text-center text-[color:var(--color-text-muted)] py-8">デイリーデータがありません</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============ アップグレード案内カード ============
+function ConnectCard({ channel, userId }: { channel: 'threads' | 'instagram'; userId: string }) {
+  const isThreads = channel === 'threads';
+  const label = isThreads ? 'Threads' : 'Instagram';
+  const icon = isThreads ? (
+    <svg className="w-8 h-8 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a13.853 13.853 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32L7.734 7.847c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388.108.046.216.094.321.142 1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69c-.242 0-.487.007-.739.021-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221z"/>
+    </svg>
+  ) : (
+    <svg className="w-8 h-8 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+  );
+
+  const handleConnect = () => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+    const state = encodeURIComponent(JSON.stringify({ pendingUserId: userId }));
+
+    if (isThreads) {
+      const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
+      const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
+      const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
+      window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
+    } else {
+      const clientId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID || '1238454094361851';
+      const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);
+      const scope = 'instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish';
+      window.location.href = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
+    }
+  };
+
+  return (
+    <div className="max-w-lg mx-auto py-12 px-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+          {icon}
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{label}アカウントを連携</h3>
+        <p className="text-gray-500 text-sm mb-6">
+          {label}アカウントを連携して、分析データの取得を開始しましょう。
+        </p>
+        <button
+          onClick={handleConnect}
+          className={`w-full py-3 px-6 rounded-xl font-semibold text-white transition-all ${
+            isThreads
+              ? 'bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black'
+              : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600'
+          }`}
+        >
+          {label}アカウントで連携
+        </button>
+        <p className="text-xs text-gray-400 mt-4">
+          連携後、自動的にデータの同期が開始されます。
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function UpgradeCard({
+  userId,
+  targetChannel,
+  features,
+}: {
+  userId: string;
+  currentPlan: string;
+  targetChannel: string;
+  features: string[];
+}) {
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    setUpgradeError(null);
+
+    try {
+      const res = await fetch('/api/subscription/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, targetPlanId: 'standard' }),
+      });
+      const json = await res.json();
+
+      if (!json.success) {
+        setUpgradeError(json.error || 'アップグレードに失敗しました');
+        return;
+      }
+
+      window.location.reload();
+    } catch {
+      setUpgradeError('通信エラーが発生しました');
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-lg mx-auto py-12 px-4">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+        <div className="w-16 h-16 bg-gradient-to-r from-purple-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          {targetChannel}分析を利用する
+        </h3>
+        <p className="text-gray-600 mb-6 leading-relaxed whitespace-pre-line">
+          {`現在のプランでは
+${targetChannel}分析はご利用いただけません。
+
+Standardプランにアップグレードすると
+以下の機能が解放されます。`}
+        </p>
+        <ul className="text-left space-y-2 mb-6 max-w-xs mx-auto">
+          {features.map((f, i) => (
+            <li key={i} className="flex items-center gap-2 text-sm text-gray-700">
+              <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {f}
+            </li>
+          ))}
+        </ul>
+        {upgradeError && (
+          <p className="mb-4 text-sm font-medium text-red-600">{upgradeError}</p>
+        )}
+        {!showUpgradeConfirm ? (
+          <button
+            type="button"
+            onClick={() => {
+              setUpgradeError(null);
+              setShowUpgradeConfirm(true);
+            }}
+            className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+          >
+            Standardプランにアップグレード
+          </button>
+        ) : (
+          <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-left">
+            <p className="text-sm font-semibold text-gray-900">この内容でアップグレードしますか？</p>
+            <p className="mt-2 text-xs leading-relaxed text-gray-700">
+              差額分を今すぐ決済し、現在の契約をStandardプランへ変更します。
+              アップグレード時に7日間無料体験は付きません。
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={handleUpgrade}
+                disabled={isUpgrading}
+                className="flex-1 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-purple-600 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isUpgrading ? '変更中...' : '確定する'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeConfirm(false)}
+                disabled={isUpgrading}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
+              >
+                戻る
+              </button>
+            </div>
+          </div>
+        )}
+        <p className="text-xs text-gray-500 mt-3">月額 ¥9,800 / Instagram + Threads 両方</p>
+      </div>
+    </div>
+  );
+}

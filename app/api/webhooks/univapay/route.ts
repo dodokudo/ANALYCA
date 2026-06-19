@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { findUserBySubscriptionId, getUserById, updateSubscriptionStatusBySubId } from '@/lib/bigquery';
+import { findUserBySubscriptionId, getUserById, updateSubscriptionStatusBySubId, updateUserSubscription } from '@/lib/bigquery';
 import { sendAdminPaymentNotificationEmail } from '@/lib/email';
 import { PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
+import { getSubscription } from '@/lib/univapay/client';
 
 function extractAmount(data: Record<string, unknown>): number | null {
   const raw = data.amount ?? data.charged_amount ?? data.requested_amount;
@@ -39,10 +40,30 @@ function verifyWebhookAuth(request: NextRequest): AuthResult {
   return { ok: true };
 }
 
-async function updateStatusAndSync(subscriptionId: string, status: string): Promise<void> {
+function getNextPaymentDate(subscription: { next_payment_date?: string | null; next_payment?: { due_date?: string | null } }): Date | null {
+  const value = subscription.next_payment_date || subscription.next_payment?.due_date || null;
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+async function updateStatusAndSync(subscriptionId: string, status: string, hydrateSubscription = false): Promise<void> {
   await updateSubscriptionStatusBySubId(subscriptionId, status);
   const user = await findUserBySubscriptionId(subscriptionId);
   if (!user) return;
+
+  if (hydrateSubscription) {
+    try {
+      const subscription = await getSubscription(subscriptionId);
+      await updateUserSubscription(user.user_id, {
+        subscription_status: subscription.status || status,
+        subscription_expires_at: getNextPaymentDate(subscription),
+      });
+    } catch (err) {
+      console.error('[WEBHOOK] Failed to hydrate subscription status:', err);
+    }
+  }
+
   const updatedUser = await getUserById(user.user_id);
   if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
 }
@@ -115,11 +136,25 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'subscription_failure':
+      case 'subscription.failed': {
+        const data = (body.data as Record<string, unknown>) || {};
+        const subId = data.id as string || data.subscription_id as string;
+        const nextStatus = typeof data.status === 'string' ? data.status : 'unpaid';
+        if (subId) {
+          updateStatusAndSync(subId, nextStatus, true).catch(err =>
+            console.error('[WEBHOOK] Failed to update/sync subscription failure:', err)
+          );
+          console.log(`[SUBSCRIPTION FAILURE] SubID: ${subId}, Status: ${nextStatus}`);
+        }
+        break;
+      }
+
       case 'subscription_payment': {
         // 定期課金の支払い完了通知 → ステータスをcurrentに維持
         const subIdPayment = (body.data as Record<string, unknown>)?.id as string;
         if (subIdPayment) {
-          updateStatusAndSync(subIdPayment, 'current').catch(err =>
+          updateStatusAndSync(subIdPayment, 'current', true).catch(err =>
             console.error('[WEBHOOK] Failed to update/sync status to current (payment):', err)
           );
           console.log(`[SUBSCRIPTION PAYMENT] SubID: ${subIdPayment}`);
@@ -131,7 +166,7 @@ export async function POST(request: NextRequest) {
       case 'subscription_suspended': {
         const subId = (body.data as Record<string, unknown>)?.id as string;
         if (subId) {
-          updateStatusAndSync(subId, 'suspended').catch(err =>
+          updateStatusAndSync(subId, 'suspended', true).catch(err =>
             console.error('[WEBHOOK] Failed to update/sync status to suspended:', err)
           );
           console.log(`[SUBSCRIPTION SUSPENDED] SubID: ${subId}`);
@@ -143,7 +178,7 @@ export async function POST(request: NextRequest) {
       case 'subscription.canceled': {
         const subId = (body.data as Record<string, unknown>)?.id as string;
         if (subId) {
-          updateStatusAndSync(subId, 'canceled').catch(err =>
+          updateStatusAndSync(subId, 'canceled', true).catch(err =>
             console.error('[WEBHOOK] Failed to update/sync status to canceled:', err)
           );
           console.log(`[SUBSCRIPTION CANCELED] SubID: ${subId}`);

@@ -555,6 +555,7 @@ function AdminPageContent() {
                 <tbody className="divide-y divide-gray-100">
                   {realUsers.map((user) => {
                     const dashboardUrl = `${baseUrl}/${user.user_id}`;
+                    const adminDashboardUrl = `${dashboardUrl}/admin`;
                     const ext = extendedMap.get(user.user_id);
                     const plan = getPlanLabel(user, ext);
                     const isExcluded = excludeUserIds.has(user.user_id);
@@ -659,22 +660,43 @@ function AdminPageContent() {
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <a
-                              href={dashboardUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="max-w-[240px] truncate text-sm text-purple-600 hover:text-purple-800"
-                            >
-                              {dashboardUrl}
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
-                              className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                            >
-                              {copied === user.user_id ? 'コピー済み' : 'コピー'}
-                            </button>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-10 shrink-0 text-xs font-medium text-gray-500">通常</span>
+                              <a
+                                href={dashboardUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="max-w-[220px] truncate text-sm text-purple-600 hover:text-purple-800"
+                              >
+                                {dashboardUrl}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(dashboardUrl, user.user_id)}
+                                className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                              >
+                                {copied === user.user_id ? 'コピー済み' : 'コピー'}
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-10 shrink-0 text-xs font-medium text-gray-500">管理</span>
+                              <a
+                                href={adminDashboardUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="max-w-[220px] truncate text-sm text-emerald-700 hover:text-emerald-900"
+                              >
+                                {adminDashboardUrl}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(adminDashboardUrl, `${user.user_id}-admin`)}
+                                className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                              >
+                                {copied === `${user.user_id}-admin` ? 'コピー済み' : 'コピー'}
+                              </button>
+                            </div>
                           </div>
                         </td>
                       </tr>

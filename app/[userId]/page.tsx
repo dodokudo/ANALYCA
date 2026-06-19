@@ -1049,6 +1049,10 @@ function ThreadsContent({
     return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
   }, [allPosts, dateRange]);
 
+  const previousPosts = useMemo(() => {
+    return allPosts.filter(p => isDateInRange(p.timestamp, previousDateRange));
+  }, [allPosts, previousDateRange]);
+
   const dailyFollowerMetrics = useMemo(() => {
     return allDailyMetrics.filter(d => isDateInRange(d.date, dateRange));
   }, [allDailyMetrics, dateRange]);
@@ -1099,6 +1103,10 @@ function ThreadsContent({
   const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
   const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
   const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
+  const previousTotalPosts = previousPosts.length;
+  const previousTotalViews = previousPosts.reduce((sum, p) => sum + (p.views || 0), 0);
+  const postDelta = totalPosts - previousTotalPosts;
+  const viewDelta = totalViews - previousTotalViews;
   const linkClickDelta = yamazakiAgencyMetrics.linkClicks - previousYamazakiAgencyMetrics.linkClicks;
   const lineRegistrationDelta = yamazakiAgencyMetrics.lineRegistrations - previousYamazakiAgencyMetrics.lineRegistrations;
   const linkCtr = totalViews > 0 ? (yamazakiAgencyMetrics.linkClicks / totalViews) * 100 : null;
@@ -1369,10 +1377,22 @@ function ThreadsContent({
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
                 <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">投稿数</dt>
                 <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{totalPosts}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {formatSigned(postDelta)}投稿 / {previousTotalPosts.toLocaleString()}件
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {postDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
               </div>
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
                 <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">閲覧数</dt>
                 <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {formatSigned(viewDelta)}
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {viewDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
               </div>
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
                 <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">リンククリック数</dt>

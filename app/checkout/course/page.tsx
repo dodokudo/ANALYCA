@@ -124,6 +124,8 @@ function CourseCheckoutContent() {
                 data-inline="true"
                 data-allow-card-installments={isInstallment ? 'true' : 'false'}
                 data-card-installment-options={isInstallment ? '3,6,12,24' : undefined}
+                data-require-phone-number="false"
+                data-phone-number="00000000000"
                 data-success-redirect-url={successRedirectUrl}
                 data-metadata={JSON.stringify({
                   courseName: COURSE.name,

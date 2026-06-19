@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/sync/threads/comments",
-      "schedule": "30 3,9,15,21 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/sync/threads/token-refresh",

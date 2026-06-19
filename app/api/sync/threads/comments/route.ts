@@ -255,9 +255,11 @@ export async function GET(request: Request) {
     }
 
     // ── ディスパッチャーモード（cron用） ──
-    // コメント同期はAPI・再帰・BigQuery MERGEが重いため、投稿同期よりさらに並列数を絞る。
+    // 全ユーザー完了待ちはVercelのタイムアウトに当たりやすいため、少人数ずつ巡回する。
     const users = await getActiveThreadsUsers();
-    const validUsers = users.filter(u => u.threads_access_token);
+    const validUsers = users
+      .filter(u => u.threads_access_token)
+      .sort((a, b) => a.user_id.localeCompare(b.user_id));
 
     if (validUsers.length === 0) {
       return NextResponse.json({
@@ -267,10 +269,23 @@ export async function GET(request: Request) {
       });
     }
 
+    const rawBatchSize = parseInt(searchParams.get('batchSize') || '2', 10);
+    const batchSize = Number.isFinite(rawBatchSize) && rawBatchSize > 0
+      ? Math.min(rawBatchSize, 2)
+      : 2;
+    const rawCursor = parseInt(searchParams.get('cursor') || '', 10);
+    const timeSlot = Math.floor(Date.now() / (30 * 60 * 1000));
+    const startIndex = Number.isFinite(rawCursor)
+      ? rawCursor % validUsers.length
+      : (timeSlot * batchSize) % validUsers.length;
+    const selectedUsers = Array.from({ length: Math.min(batchSize, validUsers.length) }, (_, offset) => (
+      validUsers[(startIndex + offset) % validUsers.length]
+    ));
+    const nextCursor = (startIndex + selectedUsers.length) % validUsers.length;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
-    const CONCURRENCY = 2;
+    const CONCURRENCY = Math.min(batchSize, 2);
 
-    const results = await runWithConcurrency(validUsers, CONCURRENCY, async (user) => {
+    const results = await runWithConcurrency(selectedUsers, CONCURRENCY, async (user) => {
       try {
         const res = await fetch(
           `${appUrl}/api/sync/threads/comments?userId=${encodeURIComponent(user.user_id)}&limit=${postLimit}`,
@@ -299,7 +314,11 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Dispatched comment sync for ${successCount}/${validUsers.length} users with concurrency ${CONCURRENCY}`,
+      message: `Dispatched comment sync for ${successCount}/${selectedUsers.length} users with concurrency ${CONCURRENCY}`,
+      cursor: startIndex,
+      nextCursor,
+      batchSize,
+      totalUsers: validUsers.length,
       results,
     });
   } catch (error) {

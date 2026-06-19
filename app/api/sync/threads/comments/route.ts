@@ -274,7 +274,7 @@ export async function GET(request: Request) {
       ? Math.min(rawBatchSize, 2)
       : 1;
     const rawCursor = parseInt(searchParams.get('cursor') || '', 10);
-    const timeSlot = Math.floor(Date.now() / (30 * 60 * 1000));
+    const timeSlot = Math.floor(Date.now() / (15 * 60 * 1000));
     const startIndex = Number.isFinite(rawCursor)
       ? rawCursor % validUsers.length
       : (timeSlot * batchSize) % validUsers.length;

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, getUserDashboardData, updateLastLogin } from '@/lib/bigquery';
 import { syncAnalycaUserToLineHarness } from '@/lib/line-harness-sync';
+import {
+  getYamazakiAgencyMetrics,
+  YAMAZAKI_ANALYCA_USER_ID,
+  YAMAZAKI_THREADS_USERNAME,
+} from '@/lib/yamazaki-agency-metrics';
 
 /**
  * BigQueryのタイムスタンプを安全にシリアライズ
@@ -103,6 +108,10 @@ export async function GET(
 
     // ダッシュボードデータを取得
     const { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats } = await getUserDashboardData(userId);
+    const yamazakiAgency =
+      userId === YAMAZAKI_ANALYCA_USER_ID || userRecord?.threads_username === YAMAZAKI_THREADS_USERNAME
+        ? await getYamazakiAgencyMetrics()
+        : null;
 
     // データを統合ダッシュボード形式に変換
     const dashboardData = {
@@ -221,7 +230,8 @@ export async function GET(
         lineFollowers: lineData[0]?.followers || 0,
         totalThreadsViews: threadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
         threadsFollowersCount: threadsDailyMetrics[0]?.followers_count || 0,
-      }
+      },
+      yamazakiAgency,
     };
 
     return NextResponse.json({

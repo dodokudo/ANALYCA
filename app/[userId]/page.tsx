@@ -97,6 +97,10 @@ type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate';
 
 type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
+const YAMAZAKI_ANALYCA_USER_ID = '26743384212021461';
+const YAMAZAKI_THREADS_USERNAME = 'zakiyamadesu_0608';
+const YAMAZAKI_METRICS_START_DATE = '2026-06-17';
+
 const datePresetOptions: { value: DatePreset; label: string }[] = [
   { value: '3d', label: '過去3日' },
   { value: '7d', label: '過去7日' },
@@ -289,6 +293,17 @@ interface DashboardData {
     latest: { followers_count: number; reach?: number; profile_views?: number; website_clicks?: number } | null;
     data: unknown[];
   };
+  yamazakiAgency?: {
+    startDate: string;
+    endDate: string;
+    linkClicks: number;
+    lineRegistrations: number;
+    daily: Array<{
+      date: string;
+      linkClicks: number;
+      lineRegistrations: number;
+    }>;
+  } | null;
 }
 
 // ============ メインコンポーネント ============
@@ -959,15 +974,21 @@ function ThreadsContent({
   username: string;
   profilePicture: string | undefined;
 }) {
+  const isYamazakiDashboard = userId === YAMAZAKI_ANALYCA_USER_ID || username === YAMAZAKI_THREADS_USERNAME;
+  const defaultStartDate = isYamazakiDashboard
+    ? YAMAZAKI_METRICS_START_DATE
+    : formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const defaultEndDate = formatDateForInput(new Date());
+
   const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>('analysis');
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
-  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
-  const [customStartDate, setCustomStartDate] = useState(() => formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
-  const [customEndDate, setCustomEndDate] = useState(() => formatDateForInput(new Date()));
-  const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(() => formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
-  const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(() => formatDateForInput(new Date()));
+  const [datePreset, setDatePreset] = useState<DatePreset>(isYamazakiDashboard ? 'custom' : 'thisMonth');
+  const [customStartDate, setCustomStartDate] = useState(defaultStartDate);
+  const [customEndDate, setCustomEndDate] = useState(defaultEndDate);
+  const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(defaultStartDate);
+  const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(defaultEndDate);
 
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => {
@@ -1013,6 +1034,19 @@ function ThreadsContent({
   const dailyPostStats = useMemo(() => {
     return allDailyPostStats.filter(d => isDateInRange(d.date, dateRange));
   }, [allDailyPostStats, dateRange]);
+
+  const yamazakiAgencyMetrics = useMemo(() => {
+    const daily = data?.yamazakiAgency?.daily || [];
+    return daily
+      .filter((row) => isDateInRange(row.date, dateRange))
+      .reduce(
+        (acc, row) => ({
+          linkClicks: acc.linkClicks + (row.linkClicks || 0),
+          lineRegistrations: acc.lineRegistrations + (row.lineRegistrations || 0),
+        }),
+        { linkClicks: 0, lineRegistrations: 0 },
+      );
+  }, [data?.yamazakiAgency?.daily, dateRange]);
 
   // フィルタ後の合計を計算（期間内の投稿データから直接集計）
   const totalPosts = posts.length;
@@ -1266,12 +1300,12 @@ function ThreadsContent({
                 <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
               </div>
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">いいね</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">リンククリック数</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
               </div>
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">エンゲ率</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
               </div>
             </dl>
           </div>

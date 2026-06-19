@@ -211,6 +211,8 @@ interface DailyMetric {
   total_likes: number;
   total_replies: number;
   post_count: number;
+  link_clicks?: number;
+  line_registrations?: number;
 }
 
 interface DailyPostStat {
@@ -1048,6 +1050,17 @@ function ThreadsContent({
       );
   }, [data?.yamazakiAgency?.daily, dateRange]);
 
+  const yamazakiDailyByDate = useMemo(() => {
+    const map = new Map<string, { linkClicks: number; lineRegistrations: number }>();
+    for (const row of data?.yamazakiAgency?.daily || []) {
+      map.set(row.date, {
+        linkClicks: row.linkClicks || 0,
+        lineRegistrations: row.lineRegistrations || 0,
+      });
+    }
+    return map;
+  }, [data?.yamazakiAgency?.daily]);
+
   // フィルタ後の合計を計算（期間内の投稿データから直接集計）
   const totalPosts = posts.length;
   const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
@@ -1108,6 +1121,31 @@ function ThreadsContent({
         });
       }
     }
+    for (const [date, metric] of yamazakiDailyByDate.entries()) {
+      if (!isDateInRange(date, dateRange)) {
+        continue;
+      }
+      const existing = merged.get(date);
+      if (existing) {
+        merged.set(date, {
+          ...existing,
+          link_clicks: metric.linkClicks,
+          line_registrations: metric.lineRegistrations,
+        });
+      } else {
+        merged.set(date, {
+          date,
+          followers_count: 0,
+          follower_delta: 0,
+          total_views: 0,
+          total_likes: 0,
+          total_replies: 0,
+          post_count: 0,
+          link_clicks: metric.linkClicks,
+          line_registrations: metric.lineRegistrations,
+        });
+      }
+    }
     // フォロワー数が0の日を、最も近い既知のフォロワー数で埋める
     const sorted = Array.from(merged.values())
       .filter((metric) => metric.date)
@@ -1123,7 +1161,7 @@ function ThreadsContent({
       }
     }
     return sorted.reverse();
-  }, [dailyFollowerMetrics, dailyPostStats, followersCount]);
+  }, [dailyFollowerMetrics, dailyPostStats, followersCount, yamazakiDailyByDate, dateRange]);
 
   // ソート
   const sortedPosts = useMemo(() => {
@@ -1326,22 +1364,42 @@ function ThreadsContent({
                   <th className="px-3 py-2 text-right">増減</th>
                   <th className="px-3 py-2 text-right">投稿</th>
                   <th className="px-3 py-2 text-right">閲覧数</th>
+                  {data?.yamazakiAgency && (
+                    <>
+                      <th className="px-3 py-2 text-right">クリック</th>
+                      <th className="px-3 py-2 text-right">LINE</th>
+                      <th className="px-3 py-2 text-right">CVR</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[color:var(--color-border)]">
-                {dailyMetrics.slice().reverse().map((m, idx) => (
-                  <tr key={m.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
-                    <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{m.date || '-'}</td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.followers_count || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">
-                      <span className={(m.follower_delta || 0) > 0 ? 'text-green-600' : (m.follower_delta || 0) < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
-                        {(m.follower_delta || 0) > 0 ? `+${m.follower_delta}` : m.follower_delta || '0'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.post_count || 0}</td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.total_views || 0).toLocaleString()}</td>
-                  </tr>
-                ))}
+                {dailyMetrics.slice().reverse().map((m, idx) => {
+                  const linkClicks = m.link_clicks || 0;
+                  const lineRegistrations = m.line_registrations || 0;
+                  const cvr = linkClicks > 0 ? `${((lineRegistrations / linkClicks) * 100).toFixed(1)}%` : '-';
+
+                  return (
+                    <tr key={m.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
+                      <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{m.date || '-'}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.followers_count || 0).toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right">
+                        <span className={(m.follower_delta || 0) > 0 ? 'text-green-600' : (m.follower_delta || 0) < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
+                          {(m.follower_delta || 0) > 0 ? `+${m.follower_delta}` : m.follower_delta || '0'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.post_count || 0}</td>
+                      <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.total_views || 0).toLocaleString()}</td>
+                      {data?.yamazakiAgency && (
+                        <>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{linkClicks.toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-orange-500">{lineRegistrations > 0 ? `+${lineRegistrations}` : '0'}</td>
+                          <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{cvr}</td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

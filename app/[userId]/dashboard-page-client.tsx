@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { ScheduleTab } from './components/schedule-tab';
 import { ThreadsInsights } from './components/threads-insights';
@@ -1216,7 +1216,13 @@ function ThreadsContent({
     : formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const defaultEndDate = formatDateForInput(new Date());
 
-  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>('analysis');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const threadsTabParam = searchParams?.get('threadsTab');
+  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>(
+    threadsTabParam === 'schedule' ? 'schedule' : 'analysis'
+  );
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
@@ -1225,6 +1231,19 @@ function ThreadsContent({
   const [customEndDate, setCustomEndDate] = useState(defaultEndDate);
   const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(defaultStartDate);
   const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(defaultEndDate);
+
+  useEffect(() => {
+    const nextTab = searchParams?.get('threadsTab') === 'schedule' ? 'schedule' : 'analysis';
+    setThreadsTab(nextTab);
+  }, [searchParams]);
+
+  const setActiveThreadsTab = (tab: 'analysis' | 'schedule') => {
+    setThreadsTab(tab);
+    const params = new URLSearchParams(searchParams?.toString());
+    params.set('tab', 'threads');
+    params.set('threadsTab', tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => {
@@ -1501,7 +1520,7 @@ function ThreadsContent({
           ] as const).map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setThreadsTab(key)}
+              onClick={() => setActiveThreadsTab(key)}
               className={`h-10 flex-1 rounded-[var(--radius-sm)] px-6 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] ${
                 threadsTab === key
                   ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white shadow-sm'

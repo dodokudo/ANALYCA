@@ -1395,24 +1395,42 @@ function ThreadsContent({
                 </span>
               </div>
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">リンククリック数</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
-                <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                  CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
-                </p>
-                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                  {linkClickDelta >= 0 ? '増加傾向' : '減少傾向'}
-                </span>
+                {isYamazakiDashboard ? (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">リンククリック数</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
+                    <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
+                    </p>
+                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                      {linkClickDelta >= 0 ? '増加傾向' : '減少傾向'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">いいね</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
+                  </>
+                )}
               </div>
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
-                <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                  CVR: {formatRate(lineCvr)} / {formatSigned(lineRegistrationDelta)}
-                </p>
-                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                  {lineRegistrationDelta >= 0 ? '増加傾向' : '減少傾向'}
-                </span>
+                {isYamazakiDashboard ? (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
+                    <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                      CVR: {formatRate(lineCvr)} / {formatSigned(lineRegistrationDelta)}
+                    </p>
+                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                      {lineRegistrationDelta >= 0 ? '増加傾向' : '減少傾向'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">エンゲージメント</dt>
+                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
+                  </>
+                )}
               </div>
             </dl>
           </div>

@@ -1397,7 +1397,7 @@ function ThreadsContent({
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
                 {isYamazakiDashboard ? (
                   <>
-                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">リンククリック数</dt>
+                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LPクリック</dt>
                     <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
                     <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                       CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
@@ -1453,7 +1453,7 @@ function ThreadsContent({
                   <th className="px-3 py-2 text-right">閲覧数</th>
                   {data?.yamazakiAgency && (
                     <>
-                      <th className="px-3 py-2 text-right">クリック</th>
+                      <th className="px-3 py-2 text-right">LPクリック</th>
                       <th className="px-3 py-2 text-right">LINE</th>
                       <th className="px-3 py-2 text-right">CVR</th>
                     </>

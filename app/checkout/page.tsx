@@ -335,7 +335,7 @@ function CheckoutContent() {
                 />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-3">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-200 border-t-purple-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-gray-500"></div>
                   <p className="text-sm">読み込み中...</p>
                 </div>
               )}

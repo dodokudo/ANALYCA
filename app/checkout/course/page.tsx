@@ -140,7 +140,7 @@ function CourseCheckoutContent() {
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 gap-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-200 border-t-purple-500" />
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-gray-500" />
                 <p className="text-sm">読み込み中...</p>
               </div>
             )}
@@ -178,8 +178,8 @@ function CourseCheckoutContent() {
 export default function CourseCheckoutPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-gray-500"></div>
       </div>
     }>
       <CourseCheckoutContent />

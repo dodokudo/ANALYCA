@@ -34,6 +34,16 @@ async function executeDML(options: { query: string; params?: Record<string, unkn
   await job.getQueryResults();
 }
 
+function parseBigQueryDate(value: unknown): Date | null {
+  if (!value) return null;
+  const raw = typeof value === 'object' && value !== null && 'value' in value
+    ? (value as { value?: unknown }).value
+    : value;
+  if (!raw) return null;
+  const date = raw instanceof Date ? raw : new Date(String(raw));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 async function ensureUserAccessLogsTable(): Promise<void> {
   if (!ensureUserAccessLogsTablePromise) {
     ensureUserAccessLogsTablePromise = executeDML({
@@ -491,22 +501,22 @@ export async function getUserById(userId: string): Promise<User | null> {
     instagram_username: row.instagram_username ?? null,
     instagram_profile_picture_url: row.instagram_profile_picture_url ?? null,
     access_token: row.access_token ?? null,
-    token_expires_at: row.token_expires_at ? new Date(row.token_expires_at) : null,
+    token_expires_at: parseBigQueryDate(row.token_expires_at),
     drive_folder_id: row.drive_folder_id ?? null,
     threads_user_id: row.threads_user_id ?? null,
     threads_username: row.threads_username ?? null,
     threads_access_token: row.threads_access_token ?? null,
-    threads_token_expires_at: row.threads_token_expires_at ? new Date(row.threads_token_expires_at) : null,
+    threads_token_expires_at: parseBigQueryDate(row.threads_token_expires_at),
     threads_profile_picture_url: row.threads_profile_picture_url ?? null,
     has_instagram: row.has_instagram ?? false,
     has_threads: row.has_threads ?? false,
     subscription_id: row.subscription_id ?? null,
     plan_id: row.plan_id ?? null,
     subscription_status: row.subscription_status ?? null,
-    subscription_created_at: row.subscription_created_at ? new Date(row.subscription_created_at) : null,
-    subscription_expires_at: row.subscription_expires_at ? new Date(row.subscription_expires_at) : null,
+    subscription_created_at: parseBigQueryDate(row.subscription_created_at),
+    subscription_expires_at: parseBigQueryDate(row.subscription_expires_at),
     recurring_token_id: row.recurring_token_id ?? null,
-    trial_ends_at: row.trial_ends_at ? new Date(row.trial_ends_at) : null,
+    trial_ends_at: parseBigQueryDate(row.trial_ends_at),
   };
 }
 

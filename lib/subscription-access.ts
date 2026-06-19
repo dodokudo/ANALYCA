@@ -20,7 +20,6 @@ export interface DashboardAccessResult {
   expiresAt: string | null;
 }
 
-const ACTIVE_STATUSES = new Set(['current', 'active', 'trial']);
 const CANCELED_STATUSES = new Set(['canceled', 'cancelled']);
 const PAYMENT_FAILED_STATUSES = new Set(['unpaid', 'unconfirmed']);
 
@@ -45,6 +44,7 @@ export function evaluateDashboardAccess(
   const normalizedStatus = (status || 'none').toLowerCase();
   const paidThrough = user ? inferPaidThrough(user) : null;
   const expiresAt = paidThrough?.toISOString() || null;
+  const trialEndsAt = user ? asDate(user.trial_ends_at) : null;
 
   if (options.isAdmin) {
     return {
@@ -64,10 +64,45 @@ export function evaluateDashboardAccess(
     };
   }
 
-  if (ACTIVE_STATUSES.has(normalizedStatus)) {
+  if (normalizedStatus === 'trial') {
+    if (!trialEndsAt || trialEndsAt > now) {
+      return {
+        allowed: true,
+        state: 'allowed',
+        status,
+        expiresAt,
+      };
+    }
+
     return {
-      allowed: true,
-      state: 'allowed',
+      allowed: false,
+      state: 'expired',
+      title: '無料期間が終了しています',
+      message: '課金を完了するとダッシュボードを引き続き確認できます。',
+      actionLabel: '課金して再開する',
+      actionType: 'reactivate',
+      status,
+      expiresAt,
+    };
+  }
+
+  if (normalizedStatus === 'current' || normalizedStatus === 'active') {
+    if (!paidThrough || paidThrough > now) {
+      return {
+        allowed: true,
+        state: 'allowed',
+        status,
+        expiresAt,
+      };
+    }
+
+    return {
+      allowed: false,
+      state: 'expired',
+      title: 'ご契約期間が終了しています',
+      message: '再契約するとダッシュボードを再び確認できます。',
+      actionLabel: '再契約する',
+      actionType: 'reactivate',
       status,
       expiresAt,
     };

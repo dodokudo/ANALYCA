@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
           subscription_id: subscription.id,
           subscription_status: 'current',
           subscription_created_at: new Date(),
+          subscription_expires_at: subscription.next_payment_date ? new Date(subscription.next_payment_date) : null,
         });
 
         try {

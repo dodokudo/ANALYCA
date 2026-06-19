@@ -80,8 +80,22 @@ function parseDate(value: string | null | undefined): Date | null {
 
 function shouldRefreshSubscriptionForAccess(user: User | null): user is User {
   if (!user?.subscription_id) return false;
+
+  const now = new Date();
   const status = (user.subscription_status || '').toLowerCase();
-  return ['expired', 'canceled', 'cancelled', 'unpaid', 'unconfirmed', 'suspended'].includes(status);
+  if (['expired', 'canceled', 'cancelled', 'unpaid', 'unconfirmed', 'suspended'].includes(status)) {
+    return true;
+  }
+
+  if (['current', 'active'].includes(status)) {
+    return !user.subscription_expires_at || user.subscription_expires_at <= now;
+  }
+
+  if (status === 'trial' && user.trial_ends_at && user.trial_ends_at <= now) {
+    return true;
+  }
+
+  return false;
 }
 
 async function refreshSubscriptionForAccess(user: User | null): Promise<User | null> {

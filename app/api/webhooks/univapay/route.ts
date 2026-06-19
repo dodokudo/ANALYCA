@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         const subscriptionId = data.subscription_id as string
           || (data.metadata as Record<string, unknown>)?.subscription_id as string;
         if (subscriptionId) {
-          updateStatusAndSync(subscriptionId, 'current').catch(err =>
+          updateStatusAndSync(subscriptionId, 'current', true).catch(err =>
             console.error('[WEBHOOK] Failed to update/sync status to current:', err)
           );
           findUserBySubscriptionId(subscriptionId)

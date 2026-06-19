@@ -119,6 +119,14 @@ function formatDateForInput(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function formatRate(value: number | null): string {
+  return value === null || !Number.isFinite(value) ? '-' : `${value.toFixed(2)}%`;
+}
+
+function formatSigned(value: number): string {
+  return value > 0 ? `+${value.toLocaleString()}` : value.toLocaleString();
+}
+
 // 日付範囲を計算するヘルパー関数
 function getDateRange(preset: DatePreset, options: { includeToday?: boolean } = {}): { start: Date; end: Date } {
   const now = new Date();
@@ -1025,6 +1033,18 @@ function ThreadsContent({
     return getDateRange(datePreset, { includeToday: true });
   }, [datePreset, appliedCustomStartDate, appliedCustomEndDate]);
 
+  const previousDateRange = useMemo(() => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const dayCount = Math.max(1, Math.round((dateRange.end.getTime() - dateRange.start.getTime()) / dayMs) + 1);
+    const end = new Date(dateRange.start);
+    end.setDate(end.getDate() - 1);
+    end.setHours(23, 59, 59, 999);
+    const start = new Date(end);
+    start.setDate(start.getDate() - dayCount + 1);
+    start.setHours(0, 0, 0, 0);
+    return { start, end };
+  }, [dateRange]);
+
   const posts = useMemo(() => {
     return allPosts.filter(p => isDateInRange(p.timestamp, dateRange));
   }, [allPosts, dateRange]);
@@ -1050,6 +1070,19 @@ function ThreadsContent({
       );
   }, [data?.yamazakiAgency?.daily, dateRange]);
 
+  const previousYamazakiAgencyMetrics = useMemo(() => {
+    const daily = data?.yamazakiAgency?.daily || [];
+    return daily
+      .filter((row) => isDateInRange(row.date, previousDateRange))
+      .reduce(
+        (acc, row) => ({
+          linkClicks: acc.linkClicks + (row.linkClicks || 0),
+          lineRegistrations: acc.lineRegistrations + (row.lineRegistrations || 0),
+        }),
+        { linkClicks: 0, lineRegistrations: 0 },
+      );
+  }, [data?.yamazakiAgency?.daily, previousDateRange]);
+
   const yamazakiDailyByDate = useMemo(() => {
     const map = new Map<string, { linkClicks: number; lineRegistrations: number }>();
     for (const row of data?.yamazakiAgency?.daily || []) {
@@ -1066,6 +1099,10 @@ function ThreadsContent({
   const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
   const totalLikes = posts.reduce((sum, p) => sum + (p.likes || 0), 0);
   const totalReplies = posts.reduce((sum, p) => sum + (p.replies || 0), 0);
+  const linkClickDelta = yamazakiAgencyMetrics.linkClicks - previousYamazakiAgencyMetrics.linkClicks;
+  const lineRegistrationDelta = yamazakiAgencyMetrics.lineRegistrations - previousYamazakiAgencyMetrics.lineRegistrations;
+  const linkCtr = totalViews > 0 ? (yamazakiAgencyMetrics.linkClicks / totalViews) * 100 : null;
+  const lineCvr = yamazakiAgencyMetrics.linkClicks > 0 ? (yamazakiAgencyMetrics.lineRegistrations / yamazakiAgencyMetrics.linkClicks) * 100 : null;
 
   // コメント紐付け
   const commentsByPostId = useMemo(() => {
@@ -1340,10 +1377,22 @@ function ThreadsContent({
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
                 <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">リンククリック数</dt>
                 <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {linkClickDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
               </div>
               <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
                 <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
                 <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  CVR: {formatRate(lineCvr)} / {formatSigned(lineRegistrationDelta)}
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {lineRegistrationDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
               </div>
             </dl>
           </div>

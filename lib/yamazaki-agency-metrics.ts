@@ -65,6 +65,13 @@ export async function getYamazakiAgencyMetrics(): Promise<YamazakiAgencyMetrics>
           DATE(@startDate) AS start_date,
           CURRENT_DATE("Asia/Tokyo") AS end_date
       ),
+      date_window AS (
+        SELECT
+          start_date,
+          end_date,
+          DATE_SUB(start_date, INTERVAL DATE_DIFF(end_date, start_date, DAY) + 1 DAY) AS previous_start_date
+        FROM params
+      ),
       agency_links AS (
         SELECT id
         FROM \`${projectId}.${LINKS_DATASET}.short_links\`
@@ -74,9 +81,9 @@ export async function getYamazakiAgencyMetrics(): Promise<YamazakiAgencyMetrics>
         SELECT
           DATE(clicked_at, "Asia/Tokyo") AS date,
           COUNT(*) AS link_clicks
-        FROM \`${projectId}.${LINKS_DATASET}.click_logs\`, params
+        FROM \`${projectId}.${LINKS_DATASET}.click_logs\`, date_window
         WHERE short_link_id IN (SELECT id FROM agency_links)
-          AND DATE(clicked_at, "Asia/Tokyo") BETWEEN params.start_date AND params.end_date
+          AND DATE(clicked_at, "Asia/Tokyo") BETWEEN date_window.previous_start_date AND date_window.end_date
           AND NOT REGEXP_CONTAINS(LOWER(COALESCE(user_agent, "")), @botPattern)
         GROUP BY date
       ),
@@ -104,12 +111,12 @@ export async function getYamazakiAgencyMetrics(): Promise<YamazakiAgencyMetrics>
         FROM \`${projectId}.${LSTEP_DATASET}.user_core\` core
         JOIN latest_core
           ON core.snapshot_date = latest_core.snapshot_date
-        JOIN params
+        JOIN date_window
           ON TRUE
         INNER JOIN yamazaki_users yu
           ON core.user_id = yu.user_id
         WHERE SAFE.PARSE_DATE('%Y-%m-%d', SUBSTR(core.friend_added_at, 1, 10))
-          BETWEEN params.start_date AND params.end_date
+          BETWEEN date_window.previous_start_date AND date_window.end_date
         GROUP BY date
       ),
       dates AS (
@@ -143,8 +150,12 @@ export async function getYamazakiAgencyMetrics(): Promise<YamazakiAgencyMetrics>
   return {
     startDate: YAMAZAKI_START_DATE,
     endDate: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' }).format(new Date()),
-    linkClicks: daily.reduce((sum, row) => sum + row.linkClicks, 0),
-    lineRegistrations: daily.reduce((sum, row) => sum + row.lineRegistrations, 0),
+    linkClicks: daily
+      .filter((row) => row.date >= YAMAZAKI_START_DATE)
+      .reduce((sum, row) => sum + row.linkClicks, 0),
+    lineRegistrations: daily
+      .filter((row) => row.date >= YAMAZAKI_START_DATE)
+      .reduce((sum, row) => sum + row.lineRegistrations, 0),
     daily,
   };
 }

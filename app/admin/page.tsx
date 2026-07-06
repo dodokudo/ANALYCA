@@ -451,7 +451,10 @@ function AdminPageContent() {
   ];
 
   const usersByThreadsUsername = new Map<string, AdminUser>();
+  const usersById = new Map<string, AdminUser>();
   realUsers.forEach((user) => {
+    usersById.set(user.user_id, user);
+
     const username = user.threads_username?.trim().replace(/^@/, '').toLowerCase();
     if (username) {
       usersByThreadsUsername.set(username, user);
@@ -907,7 +910,7 @@ function AdminPageContent() {
 	                <table className="w-full">
 	                  <thead className="bg-gray-50">
 	                    <tr>
-	                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザーID</th>
+		                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SNS ID</th>
 	                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">コード</th>
 	                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">クリック数</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">紹介数</th>
@@ -918,18 +921,26 @@ function AdminPageContent() {
                     </tr>
                   </thead>
 	                  <tbody className="divide-y divide-gray-100">
-	                    {affiliates.map((af) => (
-	                      <tr key={af.affiliate_code} className="hover:bg-gray-50">
-	                        <td className="px-4 py-4">
-	                          <a
-	                            href={`${baseUrl}/${af.user_id}`}
-	                            target="_blank"
-	                            rel="noopener noreferrer"
-	                            className="font-mono text-sm text-blue-600 hover:text-blue-800"
-	                          >
-	                            {af.user_id}
-	                          </a>
-	                        </td>
+		                    {affiliates.map((af) => {
+                          const affiliateUser = usersById.get(af.user_id);
+                          const snsId = affiliateUser?.threads_username || affiliateUser?.instagram_username || '';
+
+                          return (
+		                      <tr key={af.affiliate_code} className="hover:bg-gray-50">
+		                        <td className="px-4 py-4">
+		                          {snsId ? (
+		                            <a
+		                              href={`${baseUrl}/${af.user_id}`}
+		                              target="_blank"
+		                              rel="noopener noreferrer"
+		                              className="font-mono text-sm font-semibold text-blue-600 hover:text-blue-800"
+		                            >
+		                              @{snsId}
+		                            </a>
+		                          ) : (
+		                            <span className="text-sm text-gray-400">-</span>
+		                          )}
+		                        </td>
 	                        <td className="px-4 py-4">
 	                          <span className="font-mono text-sm text-gray-800 bg-gray-100 px-2 py-1 rounded">{af.affiliate_code}</span>
                         </td>
@@ -956,8 +967,9 @@ function AdminPageContent() {
                             </button>
                           </div>
                         </td>
-                      </tr>
-                    ))}
+	                      </tr>
+                          );
+                        })}
                   </tbody>
                 </table>
               </div>

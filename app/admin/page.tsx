@@ -48,6 +48,13 @@ interface UserExtended {
   affiliate_code: string | null;
 }
 
+interface GrandprixEntry {
+  lineName: string;
+  threadsUsername: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface SubscriptionInfo {
   next_payment_date: string | null;
   amount: number;
@@ -206,13 +213,41 @@ function AdminPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'users' | 'affiliates' | 'conversions'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'affiliates' | 'grandprix'>('users');
   const [rewardMonth, setRewardMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [grandprixEntries, setGrandprixEntries] = useState<GrandprixEntry[]>([]);
+  const [grandprixLoading, setGrandprixLoading] = useState(false);
+  const [grandprixError, setGrandprixError] = useState<string | null>(null);
+  const [grandprixFetchedAt, setGrandprixFetchedAt] = useState<string | null>(null);
+
+  const fetchGrandprixEntries = async (pw = password) => {
+    setGrandprixLoading(true);
+    setGrandprixError(null);
+
+    try {
+      const url = pw ? `/api/admin/threads-grandprix/entries?password=${encodeURIComponent(pw)}` : '/api/admin/threads-grandprix/entries';
+      const response = await fetch(url);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'グランプリ夏のエントリー取得に失敗しました');
+      }
+
+      setGrandprixEntries(result.data?.entries || []);
+      setGrandprixFetchedAt(result.data?.fetchedAt || new Date().toISOString());
+    } catch (err) {
+      setGrandprixEntries([]);
+      setGrandprixFetchedAt(null);
+      setGrandprixError(err instanceof Error ? err.message : 'グランプリ夏のエントリー取得に失敗しました');
+    } finally {
+      setGrandprixLoading(false);
+    }
+  };
 
   const handleRewardAction = async (action: 'confirm_rewards' | 'mark_paid', affiliateCode: string) => {
     const key = `${action}-${affiliateCode}`;
@@ -253,6 +288,13 @@ function AdminPageContent() {
       fetchData('');
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'grandprix' && !grandprixFetchedAt) {
+      fetchGrandprixEntries();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isAuthenticated, grandprixFetchedAt]);
 
   const fetchData = async (pw: string) => {
     setLoading(true);
@@ -371,12 +413,11 @@ function AdminPageContent() {
 
   // アフィリエイトデータ
   const affiliates = data.affiliates || [];
-  const funnel = data.funnel || { total_conversions: 0, total_revenue: 0, affiliate_sources: 0, utm_tracked: 0 };
 
   const tabs = [
     { key: 'users' as const, label: 'ユーザー一覧' },
     { key: 'affiliates' as const, label: 'アフィリエイト' },
-    { key: 'conversions' as const, label: 'コンバージョン' },
+    { key: 'grandprix' as const, label: 'グランプリ夏' },
   ];
 
   return (
@@ -504,23 +545,26 @@ function AdminPageContent() {
           </div>
         )}
 
-        {activeTab === 'conversions' && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {activeTab === 'grandprix' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">総決済数</p>
-              <p className="text-3xl font-bold text-gray-800">{funnel.total_conversions}</p>
+              <p className="text-sm text-gray-500">エントリー数</p>
+              <p className="text-3xl font-bold text-gray-800">{grandprixEntries.length}</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">総売上</p>
-              <p className="text-3xl font-bold text-purple-600">{funnel.total_revenue.toLocaleString()}円</p>
+              <p className="text-sm text-gray-500">最終取得</p>
+              <p className="text-lg font-bold text-blue-600">{grandprixFetchedAt ? formatDateTime(grandprixFetchedAt) : '-'}</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">アフィリエイト経由</p>
-              <p className="text-3xl font-bold text-blue-600">{funnel.affiliate_sources}</p>
-            </div>
-            <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">UTM追跡済み</p>
-              <p className="text-3xl font-bold text-blue-600">{funnel.utm_tracked}</p>
+              <p className="text-sm text-gray-500">操作</p>
+              <button
+                type="button"
+                onClick={() => fetchGrandprixEntries()}
+                disabled={grandprixLoading}
+                className="mt-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {grandprixLoading ? '更新中...' : '一覧を更新'}
+              </button>
             </div>
           </div>
         )}
@@ -701,6 +745,56 @@ function AdminPageContent() {
           </div>
         )}
 
+        {/* グランプリ夏タブ */}
+        {activeTab === 'grandprix' && (
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-800">グランプリ夏 エントリー一覧</h2>
+              <p className="text-sm text-gray-500 mt-1">LINE名とThreads IDを最新登録順で確認できます。</p>
+              {grandprixError && (
+                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{grandprixError}</p>
+              )}
+            </div>
+            {grandprixLoading ? (
+              <div className="px-6 py-12 text-center text-gray-400">読み込み中...</div>
+            ) : grandprixEntries.length === 0 ? (
+              <div className="px-6 py-12 text-center text-gray-400">エントリーはまだありません</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">LINE名</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Threads ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録日時</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">更新日時</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {grandprixEntries.map((entry) => (
+                      <tr key={entry.threadsUsername} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">{entry.lineName}</td>
+                        <td className="px-4 py-4 text-sm whitespace-nowrap">
+                          <a
+                            href={`https://www.threads.net/@${entry.threadsUsername}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-blue-600 hover:text-blue-800"
+                          >
+                            @{entry.threadsUsername}
+                          </a>
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.createdAt)}</td>
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.updatedAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* アフィリエイト一覧タブ */}
         {activeTab === 'affiliates' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -804,7 +898,6 @@ function AdminPageContent() {
           </div>
         )}
 
-        {/* コンバージョン詳細（サマリーカードは上部で表示済み） */}
       </main>
     </div>
   );

@@ -52,7 +52,16 @@ interface GrandprixEntry {
   lineName: string;
   threadsUsername: string;
   createdAt: string;
-  updatedAt: string;
+}
+
+type AdminTab = 'users' | 'affiliates' | 'grandprix';
+
+function parseAdminTab(value: string | null): AdminTab {
+  if (value === 'affiliates' || value === 'grandprix') {
+    return value;
+  }
+
+  return 'users';
 }
 
 interface SubscriptionInfo {
@@ -213,7 +222,7 @@ function AdminPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'users' | 'affiliates' | 'grandprix'>('users');
+  const [activeTab, setActiveTab] = useState<AdminTab>('users');
   const [rewardMonth, setRewardMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -278,8 +287,22 @@ function AdminPageContent() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
 
+  const handleTabChange = (tab: AdminTab) => {
+    setActiveTab(tab);
+
+    const params = new URLSearchParams();
+    const currentPassword = password || searchParams?.get('password') || '';
+    if (currentPassword) params.set('password', currentPassword);
+    if (tab !== 'users') params.set('tab', tab);
+
+    const query = params.toString();
+    router.replace(query ? `/admin?${query}` : '/admin', { scroll: false });
+  };
+
   useEffect(() => {
     const pwFromUrl = searchParams?.get('password');
+    setActiveTab(parseAdminTab(searchParams?.get('tab') || null));
+
     if (pwFromUrl) {
       setPassword(pwFromUrl);
       fetchData(pwFromUrl);
@@ -317,7 +340,10 @@ function AdminPageContent() {
         setData(result.data);
         setIsAuthenticated(true);
         if (pw && !searchParams?.get('password')) {
-          router.replace(`/admin?password=${encodeURIComponent(pw)}`, { scroll: false });
+          const params = new URLSearchParams();
+          params.set('password', pw);
+          if (activeTab !== 'users') params.set('tab', activeTab);
+          router.replace(`/admin?${params.toString()}`, { scroll: false });
         }
       }
     } catch {
@@ -420,6 +446,14 @@ function AdminPageContent() {
     { key: 'grandprix' as const, label: 'グランプリ夏' },
   ];
 
+  const usersByThreadsUsername = new Map<string, AdminUser>();
+  realUsers.forEach((user) => {
+    const username = user.threads_username?.trim().replace(/^@/, '').toLowerCase();
+    if (username) {
+      usersByThreadsUsername.set(username, user);
+    }
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="mx-auto max-w-[1800px] px-4 py-8 xl:px-8">
@@ -428,7 +462,7 @@ function AdminPageContent() {
           {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.key
                   ? 'bg-purple-600 text-white shadow-sm'
@@ -546,14 +580,10 @@ function AdminPageContent() {
         )}
 
         {activeTab === 'grandprix' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-sm text-gray-500">エントリー数</p>
               <p className="text-3xl font-bold text-gray-800">{grandprixEntries.length}</p>
-            </div>
-            <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">最終取得</p>
-              <p className="text-lg font-bold text-blue-600">{grandprixFetchedAt ? formatDateTime(grandprixFetchedAt) : '-'}</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-sm text-gray-500">操作</p>
@@ -748,13 +778,11 @@ function AdminPageContent() {
         {/* グランプリ夏タブ */}
         {activeTab === 'grandprix' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800">グランプリ夏 エントリー一覧</h2>
-              <p className="text-sm text-gray-500 mt-1">LINE名とThreads IDを最新登録順で確認できます。</p>
-              {grandprixError && (
+            {grandprixError && (
+              <div className="px-6 py-4 border-b border-gray-100">
                 <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{grandprixError}</p>
-              )}
-            </div>
+              </div>
+            )}
             {grandprixLoading ? (
               <div className="px-6 py-12 text-center text-gray-400">読み込み中...</div>
             ) : grandprixEntries.length === 0 ? (
@@ -767,27 +795,51 @@ function AdminPageContent() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">LINE名</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Threads ID</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録日時</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">更新日時</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">アナリカ契約</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザーURL</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {grandprixEntries.map((entry) => (
-                      <tr key={entry.threadsUsername} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">{entry.lineName}</td>
-                        <td className="px-4 py-4 text-sm whitespace-nowrap">
-                          <a
-                            href={`https://www.threads.net/@${entry.threadsUsername}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-semibold text-blue-600 hover:text-blue-800"
-                          >
-                            @{entry.threadsUsername}
-                          </a>
-                        </td>
-                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.createdAt)}</td>
-                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.updatedAt)}</td>
-                      </tr>
-                    ))}
+                    {grandprixEntries.map((entry) => {
+                      const matchedUser = usersByThreadsUsername.get(entry.threadsUsername.trim().replace(/^@/, '').toLowerCase());
+                      const userUrl = matchedUser ? `${baseUrl}/${matchedUser.user_id}` : '';
+
+                      return (
+                        <tr key={entry.threadsUsername} className="hover:bg-gray-50">
+                          <td className="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">{entry.lineName}</td>
+                          <td className="px-4 py-4 text-sm whitespace-nowrap">
+                            <a
+                              href={`https://www.threads.net/@${entry.threadsUsername}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-blue-600 hover:text-blue-800"
+                            >
+                              @{entry.threadsUsername}
+                            </a>
+                          </td>
+                          <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.createdAt)}</td>
+                          <td className="px-4 py-4 text-sm font-bold whitespace-nowrap">
+                            <span className={matchedUser ? 'text-emerald-600' : 'text-red-500'}>
+                              {matchedUser ? '○' : '×'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-sm whitespace-nowrap">
+                            {matchedUser ? (
+                              <a
+                                href={userUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800"
+                              >
+                                {userUrl}
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -216,6 +216,8 @@ function formatAmount(amount: number | null): string {
 function AdminPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const passwordFromUrl = searchParams?.get('password') || '';
+  const tabFromUrl = parseAdminTab(searchParams?.get('tab') || null);
   const [password, setPassword] = useState('');
   const [data, setData] = useState<AdminData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -300,17 +302,19 @@ function AdminPageContent() {
   };
 
   useEffect(() => {
-    const pwFromUrl = searchParams?.get('password');
-    setActiveTab(parseAdminTab(searchParams?.get('tab') || null));
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
 
-    if (pwFromUrl) {
-      setPassword(pwFromUrl);
-      fetchData(pwFromUrl);
+  useEffect(() => {
+    if (passwordFromUrl) {
+      setPassword(passwordFromUrl);
+      fetchData(passwordFromUrl);
     } else {
       // cookie認証を試行（パスワードなしでAPI呼び出し）
       fetchData('');
     }
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passwordFromUrl]);
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'grandprix' && !grandprixFetchedAt) {
@@ -900,11 +904,12 @@ function AdminPageContent() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">コード</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">クリック数</th>
+	                <table className="w-full">
+	                  <thead className="bg-gray-50">
+	                    <tr>
+	                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザーID</th>
+	                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">コード</th>
+	                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">クリック数</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">紹介数</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">転換率</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">報酬率</th>
@@ -912,11 +917,21 @@ function AdminPageContent() {
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">報酬管理</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {affiliates.map((af) => (
-                      <tr key={af.affiliate_code} className="hover:bg-gray-50">
-                        <td className="px-4 py-4">
-                          <span className="font-mono text-sm text-gray-800 bg-gray-100 px-2 py-1 rounded">{af.affiliate_code}</span>
+	                  <tbody className="divide-y divide-gray-100">
+	                    {affiliates.map((af) => (
+	                      <tr key={af.affiliate_code} className="hover:bg-gray-50">
+	                        <td className="px-4 py-4">
+	                          <a
+	                            href={`${baseUrl}/${af.user_id}`}
+	                            target="_blank"
+	                            rel="noopener noreferrer"
+	                            className="font-mono text-sm text-blue-600 hover:text-blue-800"
+	                          >
+	                            {af.user_id}
+	                          </a>
+	                        </td>
+	                        <td className="px-4 py-4">
+	                          <span className="font-mono text-sm text-gray-800 bg-gray-100 px-2 py-1 rounded">{af.affiliate_code}</span>
                         </td>
                         <td className="px-4 py-4 text-right text-sm text-gray-700">{af.total_clicks.toLocaleString()}</td>
                         <td className="px-4 py-4 text-right text-sm text-gray-700">{af.total_referrals}</td>

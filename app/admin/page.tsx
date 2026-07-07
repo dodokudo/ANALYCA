@@ -462,6 +462,9 @@ function AdminPageContent() {
       usersByThreadsUsername.set(username, user);
     }
   });
+  const grandprixUrlIssuedCount = grandprixEntries.filter((entry) =>
+    usersByThreadsUsername.has(entry.threadsUsername.trim().replace(/^@/, '').toLowerCase())
+  ).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -589,10 +592,14 @@ function AdminPageContent() {
         )}
 
         {activeTab === 'grandprix' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-sm text-gray-500">エントリー数</p>
               <p className="text-3xl font-bold text-gray-800">{grandprixEntries.length}</p>
+            </div>
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <p className="text-sm text-gray-500">URL発行済み</p>
+              <p className="text-3xl font-bold text-emerald-600">{grandprixUrlIssuedCount}</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-sm text-gray-500">共有URL</p>

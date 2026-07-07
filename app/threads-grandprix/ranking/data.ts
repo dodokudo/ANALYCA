@@ -1,11 +1,12 @@
 import { BigQuery } from '@google-cloud/bigquery';
 
-export type RankingScopeKey = 'today' | 'yesterday' | 'monthly';
+export type RankingScopeKey = 'yesterday' | 'monthly' | 'custom';
 
 export type FollowerRankingRow = {
   rank: number;
   lineName: string;
   threadsUsername: string;
+  profilePictureUrl: string;
   followerDelta: number;
   followersCount: number;
 };
@@ -14,6 +15,7 @@ export type PostRankingRow = {
   rank: number;
   lineName: string;
   threadsUsername: string;
+  profilePictureUrl: string;
   views: number;
   likes: number;
   replies: number;
@@ -31,6 +33,8 @@ export type RankingScope = {
 
 export type RankingData = {
   generatedAt: string;
+  initialScopeKey: RankingScopeKey;
+  selectedDate: string;
   scopes: RankingScope[];
 };
 
@@ -98,7 +102,8 @@ async function fetchFollowerRanking(startDate: string, endDate: string): Promise
           e.line_name,
           e.normalized_threads_username,
           u.user_id,
-          u.threads_username
+          u.threads_username,
+          u.threads_profile_picture_url
         FROM \`${projectId}.analyca.threads_grandprix_entries\` e
         JOIN \`${projectId}.analyca.users\` u
           ON LOWER(REGEXP_REPLACE(TRIM(u.threads_username), r'^@', '')) = e.normalized_threads_username
@@ -115,6 +120,7 @@ async function fetchFollowerRanking(startDate: string, endDate: string): Promise
       SELECT
         p.line_name,
         p.threads_username,
+        p.threads_profile_picture_url,
         COALESCE(m.follower_delta, 0) AS follower_delta,
         COALESCE(m.followers_count, 0) AS followers_count
       FROM participants p
@@ -130,6 +136,7 @@ async function fetchFollowerRanking(startDate: string, endDate: string): Promise
     rank: index + 1,
     lineName: String(row.line_name || ''),
     threadsUsername: String(row.threads_username || ''),
+    profilePictureUrl: String(row.threads_profile_picture_url || ''),
     followerDelta: toNumber(row.follower_delta),
     followersCount: toNumber(row.followers_count),
   }));
@@ -143,7 +150,8 @@ async function fetchPostRanking(startDate: string, endDate: string): Promise<Pos
           e.line_name,
           e.normalized_threads_username,
           u.user_id,
-          u.threads_username
+          u.threads_username,
+          u.threads_profile_picture_url
         FROM \`${projectId}.analyca.threads_grandprix_entries\` e
         JOIN \`${projectId}.analyca.users\` u
           ON LOWER(REGEXP_REPLACE(TRIM(u.threads_username), r'^@', '')) = e.normalized_threads_username
@@ -151,6 +159,7 @@ async function fetchPostRanking(startDate: string, endDate: string): Promise<Pos
       SELECT
         p.line_name,
         p.threads_username,
+        p.threads_profile_picture_url,
         COALESCE(tp.views, 0) AS views,
         COALESCE(tp.likes, 0) AS likes,
         COALESCE(tp.replies, 0) AS replies,
@@ -170,6 +179,7 @@ async function fetchPostRanking(startDate: string, endDate: string): Promise<Pos
     rank: index + 1,
     lineName: String(row.line_name || ''),
     threadsUsername: String(row.threads_username || ''),
+    profilePictureUrl: String(row.threads_profile_picture_url || ''),
     views: toNumber(row.views),
     likes: toNumber(row.likes),
     replies: toNumber(row.replies),
@@ -178,10 +188,11 @@ async function fetchPostRanking(startDate: string, endDate: string): Promise<Pos
   }));
 }
 
-export async function getGrandprixRankingData(): Promise<RankingData> {
+export async function getGrandprixRankingData(selectedDateInput?: string): Promise<RankingData> {
   const today = jstDateString();
   const yesterday = shiftDate(today, -1);
   const monthStart = '2026-07-07';
+  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(selectedDateInput || '') ? selectedDateInput! : yesterday;
 
   const scopeDefs: Array<{
     key: RankingScopeKey;
@@ -190,13 +201,6 @@ export async function getGrandprixRankingData(): Promise<RankingData> {
     startDate: string;
     endDate: string;
   }> = [
-    {
-      key: 'today',
-      label: '今日',
-      dateLabel: `${formatMd(today)}集計`,
-      startDate: today,
-      endDate: today,
-    },
     {
       key: 'yesterday',
       label: '昨日',
@@ -210,6 +214,13 @@ export async function getGrandprixRankingData(): Promise<RankingData> {
       dateLabel: `${formatMd(monthStart)}〜${formatMd(today)}`,
       startDate: monthStart,
       endDate: today,
+    },
+    {
+      key: 'custom',
+      label: '日付指定',
+      dateLabel: `${formatMd(selectedDate)}集計`,
+      startDate: selectedDate,
+      endDate: selectedDate,
     },
   ];
 
@@ -232,6 +243,8 @@ export async function getGrandprixRankingData(): Promise<RankingData> {
 
   return {
     generatedAt: new Date().toISOString(),
+    initialScopeKey: selectedDateInput ? 'custom' : 'yesterday',
+    selectedDate,
     scopes,
   };
 }

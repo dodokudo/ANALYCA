@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import type { RankingData, RankingScopeKey } from './data';
 
 function formatNumber(value: number): string {
@@ -12,38 +14,70 @@ function formatDelta(value: number): string {
 }
 
 function rankLabel(rank: number): string {
-  if (rank === 1) return '1位';
-  if (rank === 2) return '2位';
-  if (rank === 3) return '3位';
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
   return `${rank}位`;
 }
 
+function rankClass(rank: number): string {
+  if (rank === 1) return 'bg-[linear-gradient(135deg,#fff5ad,#f6b900)] text-[#6b4200]';
+  if (rank === 2) return 'bg-[linear-gradient(135deg,#ffffff,#b8c4d8)] text-[#344256]';
+  if (rank === 3) return 'bg-[linear-gradient(135deg,#ffd8b1,#c46b26)] text-[#5d2b08]';
+  return 'bg-[#0877d9] text-white';
+}
+
+function ProfileAvatar({ src, username }: { src: string; username: string }) {
+  const [failed, setFailed] = useState(false);
+  const initial = (username || '?').slice(0, 1).toUpperCase();
+
+  if (!src || failed) {
+    return (
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,#0877d9,#00c889)] text-sm font-black text-white ring-2 ring-white">
+        {initial}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={`@${username}`}
+      className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 export default function RankingView({ data }: { data: RankingData }) {
-  const [activeKey, setActiveKey] = useState<RankingScopeKey>('today');
+  const router = useRouter();
+  const [activeKey, setActiveKey] = useState<RankingScopeKey>(data.initialScopeKey);
+  const [selectedDate, setSelectedDate] = useState(data.selectedDate);
   const activeScope = useMemo(
     () => data.scopes.find((scope) => scope.key === activeKey) || data.scopes[0],
     [activeKey, data.scopes],
   );
 
+  function handleDateSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(selectedDate)) return;
+    router.push(`/threads-grandprix/ranking?date=${selectedDate}`);
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-[#102033]">
       <main className="mx-auto min-h-screen w-full max-w-[560px] bg-white shadow-[0_0_60px_rgba(0,33,88,0.22)]">
-        <section className="relative overflow-hidden bg-[linear-gradient(180deg,#03a9f4_0%,#0877d9_48%,#fff6df_100%)] px-5 pb-8 pt-7 text-white">
+        <section className="relative overflow-hidden bg-[linear-gradient(180deg,#03a9f4_0%,#0877d9_55%,#fff6df_100%)] px-5 pb-7 pt-7 text-white">
           <div className="absolute -right-10 top-4 h-32 w-32 rounded-full bg-yellow-300/35 blur-2xl" />
           <div className="absolute -left-10 bottom-2 h-28 w-28 rounded-full bg-pink-300/35 blur-2xl" />
 
           <div className="relative">
-            <p className="inline-flex rounded-full bg-white/20 px-3 py-1 text-xs font-bold backdrop-blur">
-              7月のお祭り企画
-            </p>
-            <h1 className="mt-4 text-4xl font-black leading-tight">
+            <h1 className="text-4xl font-black leading-tight">
               Threads
               <br />
               グランプリ夏
             </h1>
-            <p className="mt-3 text-sm font-semibold text-white/90">
-              参加者ランキング速報
-            </p>
+            <p className="mt-3 text-sm font-semibold text-white/90">参加者ランキング速報</p>
           </div>
         </section>
 
@@ -54,10 +88,8 @@ export default function RankingView({ data }: { data: RankingData }) {
                 key={scope.key}
                 type="button"
                 onClick={() => setActiveKey(scope.key)}
-                className={`rounded-xl px-3 py-3 text-sm font-black transition ${
-                  activeScope.key === scope.key
-                    ? 'bg-[#0877d9] text-white shadow-lg'
-                    : 'text-[#0877d9]'
+                className={`rounded-xl px-2 py-3 text-sm font-black transition ${
+                  activeScope.key === scope.key ? 'bg-[#0877d9] text-white shadow-lg' : 'text-[#0877d9]'
                 }`}
               >
                 {scope.label}
@@ -65,45 +97,49 @@ export default function RankingView({ data }: { data: RankingData }) {
             ))}
           </div>
 
+          {activeKey === 'custom' ? (
+            <form onSubmit={handleDateSubmit} className="mt-4 flex gap-2 rounded-2xl bg-white p-3 shadow-sm">
+              <input
+                type="date"
+                value={selectedDate}
+                min="2026-07-07"
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(event) => setSelectedDate(event.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-[#d8e1ee] px-3 py-3 text-base font-bold outline-none focus:border-[#0877d9]"
+              />
+              <button type="submit" className="rounded-xl bg-[#0877d9] px-4 py-3 text-sm font-black text-white">
+                表示
+              </button>
+            </form>
+          ) : null}
+
           <div className="mt-5 rounded-2xl border border-white bg-white/90 px-4 py-4 shadow-[0_12px_28px_rgba(0,63,132,0.12)]">
             <p className="text-xs font-bold text-[#0877d9]">{activeScope.dateLabel}</p>
-            <h2 className="mt-1 text-xl font-black">現在のTOP5</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              データ取得状況により、表示は更新タイミングで変動します。
-            </p>
+            <h2 className="mt-1 text-xl font-black">TOP5</h2>
           </div>
 
           <section className="mt-5">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">フォロワー増加数</h3>
-              <span className="rounded-full bg-[#00c889]/15 px-3 py-1 text-xs font-black text-[#009a67]">
-                TOP5
-              </span>
+              <span className="rounded-full bg-[#00c889]/15 px-3 py-1 text-xs font-black text-[#009a67]">TOP5</span>
             </div>
 
-            <div className="mt-3 space-y-3">
+            <div className="mt-3 space-y-2.5">
               {activeScope.followerRanking.length === 0 ? (
                 <EmptyState />
               ) : (
                 activeScope.followerRanking.map((row) => (
-                  <div
-                    key={`${activeScope.key}-followers-${row.rank}-${row.threadsUsername}`}
-                    className="rounded-2xl border border-[#e8edf5] bg-white p-4 shadow-sm"
-                  >
+                  <div key={`${activeScope.key}-followers-${row.rank}-${row.threadsUsername}`} className="rounded-2xl border border-[#e8edf5] bg-white p-3 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0877d9] text-sm font-black text-white">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-sm ${rankClass(row.rank)}`}>
                           {rankLabel(row.rank)}
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-black">@{row.threadsUsername}</p>
-                          <p className="truncate text-xs text-slate-500">{row.lineName}</p>
-                        </div>
+                        <ProfileAvatar src={row.profilePictureUrl} username={row.threadsUsername} />
+                        <p className="min-w-0 truncate text-sm font-black">@{row.threadsUsername}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-black text-[#00a876]">
-                          {formatDelta(row.followerDelta)}
-                        </p>
+                      <div className="shrink-0 text-right">
+                        <p className="text-xl font-black text-[#00a876]">{formatDelta(row.followerDelta)}</p>
                         <p className="text-xs text-slate-500">現在 {formatNumber(row.followersCount)}</p>
                       </div>
                     </div>
@@ -116,12 +152,10 @@ export default function RankingView({ data }: { data: RankingData }) {
           <section className="mt-7">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">伸びた投稿</h3>
-              <span className="rounded-full bg-[#ff2f7d]/15 px-3 py-1 text-xs font-black text-[#d71862]">
-                表示数TOP5
-              </span>
+              <span className="rounded-full bg-[#ff2f7d]/15 px-3 py-1 text-xs font-black text-[#d71862]">表示数TOP5</span>
             </div>
 
-            <div className="mt-3 space-y-3">
+            <div className="mt-3 space-y-2.5">
               {activeScope.postRanking.length === 0 ? (
                 <EmptyState />
               ) : (
@@ -131,34 +165,19 @@ export default function RankingView({ data }: { data: RankingData }) {
                     href={row.permalink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block rounded-2xl border border-[#e8edf5] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    className="block rounded-2xl border border-[#e8edf5] bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-[#ffcc33] px-2.5 py-1 text-xs font-black text-[#7a4b00]">
-                            {rankLabel(row.rank)}
-                          </span>
-                          <p className="truncate text-sm font-black">@{row.threadsUsername}</p>
+                    <div className="flex items-start gap-3">
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-sm ${rankClass(row.rank)}`}>
+                        {rankLabel(row.rank)}
+                      </div>
+                      <ProfileAvatar src={row.profilePictureUrl} username={row.threadsUsername} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="min-w-0 truncate text-sm font-black">@{row.threadsUsername}</p>
+                          <p className="shrink-0 text-base font-black text-[#d71862]">{formatNumber(row.views)}表示</p>
                         </div>
-                        <p className="mt-2 text-sm leading-relaxed text-slate-700">{row.text}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-bold">
-                      <div className="rounded-xl bg-[#eef7ff] px-2 py-2 text-[#0877d9]">
-                        {formatNumber(row.views)}
-                        <br />
-                        表示
-                      </div>
-                      <div className="rounded-xl bg-[#fff3f7] px-2 py-2 text-[#d71862]">
-                        {formatNumber(row.likes)}
-                        <br />
-                        いいね
-                      </div>
-                      <div className="rounded-xl bg-[#f2fff8] px-2 py-2 text-[#009a67]">
-                        {formatNumber(row.replies)}
-                        <br />
-                        返信
+                        <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">{row.text}</p>
                       </div>
                     </div>
                   </a>

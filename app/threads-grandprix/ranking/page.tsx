@@ -17,7 +17,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function ThreadsGrandprixRankingPage() {
-  const data = await getGrandprixRankingData();
+export default async function ThreadsGrandprixRankingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ date?: string }>;
+}) {
+  const params = await searchParams;
+  const data = await getGrandprixRankingData(params?.date);
   return <RankingView data={data} />;
 }

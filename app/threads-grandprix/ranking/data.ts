@@ -23,11 +23,20 @@ export type PostRankingRow = {
   text: string;
 };
 
+export type ImpressionRankingRow = {
+  rank: number;
+  lineName: string;
+  threadsUsername: string;
+  profilePictureUrl: string;
+  totalViews: number;
+};
+
 export type RankingScope = {
   key: RankingScopeKey;
   label: string;
   dateLabel: string;
   followerRanking: FollowerRankingRow[];
+  impressionRanking: ImpressionRankingRow[];
   postRanking: PostRankingRow[];
 };
 
@@ -142,6 +151,45 @@ async function fetchFollowerRanking(startDate: string, endDate: string): Promise
   }));
 }
 
+async function fetchImpressionRanking(startDate: string, endDate: string): Promise<ImpressionRankingRow[]> {
+  const [rows] = await getBigQueryClient().query({
+    query: `
+      WITH participants AS (
+        SELECT
+          e.line_name,
+          e.normalized_threads_username,
+          u.user_id,
+          u.threads_username,
+          u.threads_profile_picture_url
+        FROM \`${projectId}.analyca.threads_grandprix_entries\` e
+        JOIN \`${projectId}.analyca.users\` u
+          ON LOWER(REGEXP_REPLACE(TRIM(u.threads_username), r'^@', '')) = e.normalized_threads_username
+      )
+      SELECT
+        p.line_name,
+        p.threads_username,
+        p.threads_profile_picture_url,
+        SUM(COALESCE(tp.views, 0)) AS total_views
+      FROM participants p
+      JOIN \`${projectId}.analyca.threads_posts\` tp
+        ON tp.user_id = p.user_id
+      WHERE DATE(tp.timestamp, 'Asia/Tokyo') BETWEEN DATE(@startDate) AND DATE(@endDate)
+      GROUP BY p.line_name, p.threads_username, p.threads_profile_picture_url
+      ORDER BY total_views DESC
+      LIMIT 5
+    `,
+    params: { startDate, endDate },
+  });
+
+  return rows.map((row, index) => ({
+    rank: index + 1,
+    lineName: String(row.line_name || ''),
+    threadsUsername: String(row.threads_username || ''),
+    profilePictureUrl: String(row.threads_profile_picture_url || ''),
+    totalViews: toNumber(row.total_views),
+  }));
+}
+
 async function fetchPostRanking(startDate: string, endDate: string): Promise<PostRankingRow[]> {
   const [rows] = await getBigQueryClient().query({
     query: `
@@ -226,8 +274,9 @@ export async function getGrandprixRankingData(selectedDateInput?: string): Promi
 
   const scopes = await Promise.all(
     scopeDefs.map(async (scope) => {
-      const [followerRanking, postRanking] = await Promise.all([
+      const [followerRanking, impressionRanking, postRanking] = await Promise.all([
         fetchFollowerRanking(scope.startDate, scope.endDate),
+        scope.key === 'monthly' ? fetchImpressionRanking(scope.startDate, scope.endDate) : Promise.resolve([]),
         fetchPostRanking(scope.startDate, scope.endDate),
       ]);
 
@@ -236,6 +285,7 @@ export async function getGrandprixRankingData(selectedDateInput?: string): Promi
         label: scope.label,
         dateLabel: scope.dateLabel,
         followerRanking,
+        impressionRanking,
         postRanking,
       };
     }),

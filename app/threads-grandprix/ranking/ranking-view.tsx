@@ -14,7 +14,7 @@ function formatDelta(value: number): string {
 }
 
 function rankLabel(rank: number): string {
-  if (rank === 1) return '🥇';
+  if (rank === 1) return '🏆';
   if (rank === 2) return '🥈';
   if (rank === 3) return '🥉';
   return `${rank}位`;
@@ -72,8 +72,8 @@ export default function RankingView({ data }: { data: RankingData }) {
           <div className="absolute -left-10 bottom-2 h-28 w-28 rounded-full bg-pink-300/35 blur-2xl" />
 
           <div className="relative">
-            <h1 className="whitespace-nowrap text-[34px] font-black leading-tight tracking-normal">
-              Threads Grand Prix
+            <h1 className="whitespace-nowrap text-[25px] font-black leading-tight tracking-normal sm:text-[34px]">
+              Threads グランプリ ランキング
             </h1>
             <p className="mt-3 text-sm font-semibold text-white/90">参加者ランキング速報</p>
           </div>
@@ -141,6 +141,39 @@ export default function RankingView({ data }: { data: RankingData }) {
               )}
             </div>
           </section>
+
+          {activeScope.key === 'monthly' ? (
+            <section className="mt-7">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-black">合計インプレッション</h3>
+                <span className="rounded-full bg-[#0877d9]/15 px-3 py-1 text-xs font-black text-[#0877d9]">TOP5</span>
+              </div>
+
+              <div className="mt-3 space-y-2.5">
+                {activeScope.impressionRanking.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  activeScope.impressionRanking.map((row) => (
+                    <div key={`${activeScope.key}-impressions-${row.rank}-${row.threadsUsername}`} className="rounded-2xl border border-[#e8edf5] bg-white p-3 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-sm ${rankClass(row.rank)}`}>
+                            {rankLabel(row.rank)}
+                          </div>
+                          <ProfileAvatar src={row.profilePictureUrl} username={row.threadsUsername} />
+                          <p className="min-w-0 truncate text-sm font-black">@{row.threadsUsername}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-xl font-black text-[#0877d9]">{formatNumber(row.totalViews)}</p>
+                          <p className="text-xs text-slate-500">表示</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          ) : null}
 
           <section className="mt-7">
             <div className="flex items-center justify-between">

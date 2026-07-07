@@ -596,29 +596,26 @@ function AdminPageContent() {
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-sm text-gray-500">共有URL</p>
-              <a
-                href="https://analyca.jp/threads-grandprix/ranking"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 block truncate text-sm font-semibold text-blue-600 hover:text-blue-800"
-              >
-                https://analyca.jp/threads-grandprix/ranking
-              </a>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                 <a
                   href="https://analyca.jp/threads-grandprix/ranking"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
+                  className="min-w-0 flex-1 truncate text-sm font-semibold text-blue-600 hover:text-blue-800"
                 >
-                  ランキングを開く
+                  https://analyca.jp/threads-grandprix/ranking
                 </a>
                 <button
                   type="button"
                   onClick={() => copyToClipboard('https://analyca.jp/threads-grandprix/ranking', 'grandprix-ranking-url')}
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white hover:text-gray-900"
+                  aria-label="グランプリURLをコピー"
+                  title={copied === 'grandprix-ranking-url' ? 'コピー済み' : 'コピー'}
                 >
-                  {copied === 'grandprix-ranking-url' ? 'コピー済み' : 'URLコピー'}
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                  </svg>
                 </button>
               </div>
             </div>

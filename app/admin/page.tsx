@@ -51,6 +51,8 @@ interface UserExtended {
 interface GrandprixEntry {
   lineName: string;
   threadsUsername: string;
+  hasAnalycaAtEntry: boolean;
+  analycaUserIdAtEntry: string | null;
   createdAt: string;
 }
 
@@ -810,6 +812,7 @@ function AdminPageContent() {
                     {grandprixEntries.map((entry) => {
                       const matchedUser = usersByThreadsUsername.get(entry.threadsUsername.trim().replace(/^@/, '').toLowerCase());
                       const userUrl = matchedUser ? `${baseUrl}/${matchedUser.user_id}` : '';
+                      const hasAnalycaAtEntry = entry.hasAnalycaAtEntry;
 
                       return (
                         <tr key={entry.threadsUsername} className="hover:bg-gray-50">
@@ -826,8 +829,8 @@ function AdminPageContent() {
                           </td>
                           <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.createdAt)}</td>
                           <td className="px-4 py-4 text-sm font-bold whitespace-nowrap">
-                            <span className={matchedUser ? 'text-emerald-600' : 'text-red-500'}>
-                              {matchedUser ? '○' : '×'}
+                            <span className={hasAnalycaAtEntry ? 'text-emerald-600' : 'text-red-500'}>
+                              {hasAnalycaAtEntry ? '○' : '×'}
                             </span>
                           </td>
                           <td className="px-4 py-4 text-sm whitespace-nowrap">

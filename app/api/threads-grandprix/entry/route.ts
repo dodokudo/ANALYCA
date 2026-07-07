@@ -52,10 +52,16 @@ async function ensureEntriesTable(): Promise<void> {
         line_name STRING NOT NULL,
         threads_username STRING NOT NULL,
         normalized_threads_username STRING NOT NULL,
+        has_analyca_at_entry BOOL,
+        analyca_user_id_at_entry STRING,
         user_agent STRING,
         created_at TIMESTAMP NOT NULL,
         updated_at TIMESTAMP NOT NULL
-      )
+      );
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
+        ADD COLUMN IF NOT EXISTS has_analyca_at_entry BOOL;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
+        ADD COLUMN IF NOT EXISTS analyca_user_id_at_entry STRING;
     `).catch((error) => {
       ensureTablePromise = null;
       throw error;
@@ -71,6 +77,29 @@ function normalizeThreadsUsername(value: string): string {
 
 function isValidThreadsUsername(value: string): boolean {
   return /^[a-z0-9._]{2,30}$/.test(value);
+}
+
+async function findAnalycaUserByThreadsUsername(normalizedThreadsUsername: string): Promise<{
+  hasAnalyca: boolean;
+  userId: string | null;
+}> {
+  const [rows] = await getBigQueryClient().query({
+    query: `
+      SELECT user_id
+      FROM \`${projectId}.analyca.users\`
+      WHERE threads_username IS NOT NULL
+        AND LOWER(REGEXP_REPLACE(TRIM(threads_username), r'^@', '')) = @normalizedThreadsUsername
+      ORDER BY created_at ASC
+      LIMIT 1
+    `,
+    params: { normalizedThreadsUsername },
+  });
+
+  const userId = typeof rows[0]?.user_id === 'string' ? rows[0].user_id : null;
+  return {
+    hasAnalyca: !!userId,
+    userId,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -102,6 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     await ensureEntriesTable();
+    const analycaSnapshot = await findAnalycaUserByThreadsUsername(normalizedThreadsUsername);
 
     await executeDML(
       `
@@ -112,6 +142,8 @@ export async function POST(request: NextRequest) {
             @lineName AS line_name,
             @threadsUsername AS threads_username,
             @normalizedThreadsUsername AS normalized_threads_username,
+            @hasAnalycaAtEntry AS has_analyca_at_entry,
+            NULLIF(@analycaUserIdAtEntry, '') AS analyca_user_id_at_entry,
             @userAgent AS user_agent,
             CURRENT_TIMESTAMP() AS submitted_at
         ) source
@@ -128,6 +160,8 @@ export async function POST(request: NextRequest) {
             line_name,
             threads_username,
             normalized_threads_username,
+            has_analyca_at_entry,
+            analyca_user_id_at_entry,
             user_agent,
             created_at,
             updated_at
@@ -137,6 +171,8 @@ export async function POST(request: NextRequest) {
             source.line_name,
             source.threads_username,
             source.normalized_threads_username,
+            source.has_analyca_at_entry,
+            source.analyca_user_id_at_entry,
             source.user_agent,
             source.submitted_at,
             source.submitted_at
@@ -147,6 +183,8 @@ export async function POST(request: NextRequest) {
         lineName,
         threadsUsername: normalizedThreadsUsername,
         normalizedThreadsUsername,
+        hasAnalycaAtEntry: analycaSnapshot.hasAnalyca,
+        analycaUserIdAtEntry: analycaSnapshot.userId || '',
         userAgent: request.headers.get('user-agent') || '',
       },
     );

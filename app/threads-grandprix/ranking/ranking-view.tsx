@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { RankingData, RankingScopeKey } from './data';
 
@@ -67,16 +68,15 @@ export default function RankingView({ data }: { data: RankingData }) {
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-[#102033]">
       <main className="mx-auto min-h-screen w-full max-w-[560px] bg-white shadow-[0_0_60px_rgba(0,33,88,0.22)]">
-        <section className="relative overflow-hidden bg-[linear-gradient(180deg,#03a9f4_0%,#0877d9_55%,#fff6df_100%)] px-5 pb-7 pt-7 text-white">
-          <div className="absolute -right-10 top-4 h-32 w-32 rounded-full bg-yellow-300/35 blur-2xl" />
-          <div className="absolute -left-10 bottom-2 h-28 w-28 rounded-full bg-pink-300/35 blur-2xl" />
-
-          <div className="relative">
-            <h1 className="whitespace-nowrap text-[25px] font-black leading-tight tracking-normal sm:text-[34px]">
-              Threads グランプリ ランキング
-            </h1>
-            <p className="mt-3 text-sm font-semibold text-white/90">参加者ランキング速報</p>
-          </div>
+        <section className="overflow-hidden bg-[#078be8]">
+          <Image
+            src="/threads-grandprix/ranking-header.png"
+            alt="Threads グランプリ ランキング 参加者ランキング速報"
+            width={2157}
+            height={729}
+            priority
+            className="block h-auto w-full"
+          />
         </section>
 
         <section className="-mt-4 rounded-t-[28px] bg-[#fff8e9] px-4 pb-8 pt-5">

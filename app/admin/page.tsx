@@ -595,15 +595,32 @@ function AdminPageContent() {
               <p className="text-3xl font-bold text-gray-800">{grandprixEntries.length}</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">操作</p>
-              <button
-                type="button"
-                onClick={() => fetchGrandprixEntries()}
-                disabled={grandprixLoading}
-                className="mt-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              <p className="text-sm text-gray-500">共有URL</p>
+              <a
+                href="https://analyca.jp/threads-grandprix/ranking"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 block truncate text-sm font-semibold text-blue-600 hover:text-blue-800"
               >
-                {grandprixLoading ? '更新中...' : '一覧を更新'}
-              </button>
+                https://analyca.jp/threads-grandprix/ranking
+              </a>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a
+                  href="https://analyca.jp/threads-grandprix/ranking"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
+                >
+                  ランキングを開く
+                </a>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard('https://analyca.jp/threads-grandprix/ranking', 'grandprix-ranking-url')}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  {copied === 'grandprix-ranking-url' ? 'コピー済み' : 'URLコピー'}
+                </button>
+              </div>
             </div>
           </div>
         )}

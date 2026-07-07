@@ -72,10 +72,8 @@ export default function RankingView({ data }: { data: RankingData }) {
           <div className="absolute -left-10 bottom-2 h-28 w-28 rounded-full bg-pink-300/35 blur-2xl" />
 
           <div className="relative">
-            <h1 className="text-4xl font-black leading-tight">
-              Threads
-              <br />
-              グランプリ夏
+            <h1 className="whitespace-nowrap text-[34px] font-black leading-tight tracking-normal">
+              Threads Grand Prix
             </h1>
             <p className="mt-3 text-sm font-semibold text-white/90">参加者ランキング速報</p>
           </div>
@@ -112,11 +110,6 @@ export default function RankingView({ data }: { data: RankingData }) {
               </button>
             </form>
           ) : null}
-
-          <div className="mt-5 rounded-2xl border border-white bg-white/90 px-4 py-4 shadow-[0_12px_28px_rgba(0,63,132,0.12)]">
-            <p className="text-xs font-bold text-[#0877d9]">{activeScope.dateLabel}</p>
-            <h2 className="mt-1 text-xl font-black">TOP5</h2>
-          </div>
 
           <section className="mt-5">
             <div className="flex items-center justify-between">

@@ -178,7 +178,7 @@ export default function RankingView({ data }: { data: RankingData }) {
           <section className="mt-7">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">伸びた投稿</h3>
-              <span className="rounded-full bg-[#ff2f7d]/15 px-3 py-1 text-xs font-black text-[#d71862]">imp TOP10</span>
+              <span className="rounded-full bg-[#ff2f7d]/15 px-3 py-1 text-xs font-black text-[#d71862]">表示数TOP10</span>
             </div>
 
             <div className="mt-3 space-y-2.5">

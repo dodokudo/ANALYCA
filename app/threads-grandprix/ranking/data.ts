@@ -218,7 +218,7 @@ async function fetchPostRanking(startDate: string, endDate: string): Promise<Pos
         ON tp.user_id = p.user_id
       WHERE DATE(tp.timestamp, 'Asia/Tokyo') BETWEEN DATE(@startDate) AND DATE(@endDate)
       ORDER BY views DESC, likes DESC
-      LIMIT 5
+      LIMIT 10
     `,
     params: { startDate, endDate },
   });

@@ -145,7 +145,7 @@ export default function RankingView({ data }: { data: RankingData }) {
           {activeScope.key === 'monthly' ? (
             <section className="mt-7">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black">合計インプレッション</h3>
+                <h3 className="text-lg font-black">合計imp</h3>
                 <span className="rounded-full bg-[#0877d9]/15 px-3 py-1 text-xs font-black text-[#0877d9]">TOP5</span>
               </div>
 
@@ -165,7 +165,7 @@ export default function RankingView({ data }: { data: RankingData }) {
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="text-xl font-black text-[#0877d9]">{formatNumber(row.totalViews)}</p>
-                          <p className="text-xs text-slate-500">表示</p>
+                          <p className="text-xs text-slate-500">imp</p>
                         </div>
                       </div>
                     </div>
@@ -178,7 +178,7 @@ export default function RankingView({ data }: { data: RankingData }) {
           <section className="mt-7">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">伸びた投稿</h3>
-              <span className="rounded-full bg-[#ff2f7d]/15 px-3 py-1 text-xs font-black text-[#d71862]">表示数TOP10</span>
+              <span className="rounded-full bg-[#ff2f7d]/15 px-3 py-1 text-xs font-black text-[#d71862]">imp TOP10</span>
             </div>
 
             <div className="mt-3 space-y-2.5">
@@ -201,7 +201,7 @@ export default function RankingView({ data }: { data: RankingData }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
                           <p className="min-w-0 truncate text-sm font-black">@{row.threadsUsername}</p>
-                          <p className="shrink-0 text-base font-black text-[#d71862]">{formatNumber(row.views)}表示</p>
+                          <p className="shrink-0 text-base font-black text-[#d71862]">{formatNumber(row.views)}imp</p>
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">{row.text}</p>
                       </div>

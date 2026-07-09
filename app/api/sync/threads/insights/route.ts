@@ -174,7 +174,7 @@ export async function GET(request: Request) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
 
-    const syncPromises = validUsers.map(async (user) => {
+    const dispatchUser = async (user: (typeof validUsers)[number]) => {
       try {
         const res = await fetch(
           `${appUrl}/api/sync/threads/insights?userId=${encodeURIComponent(user.user_id)}`,
@@ -195,14 +195,32 @@ export async function GET(request: Request) {
           error: err instanceof Error ? err.message : 'Dispatch failed',
         };
       }
-    });
+    };
 
-    const results = await Promise.all(syncPromises);
+    // 一斉発行だと毎晩数ユーザーが取りこぼされるため、失敗分は間隔を空けて最大2回リトライする
+    const MAX_ATTEMPTS = 3;
+    const RETRY_DELAY_MS = 30_000;
+    const resultsByUser = new Map<string, Awaited<ReturnType<typeof dispatchUser>>>();
+    let pending = validUsers;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS && pending.length > 0; attempt++) {
+      if (attempt > 1) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+      const attemptResults = await Promise.all(pending.map(dispatchUser));
+      for (const result of attemptResults) {
+        resultsByUser.set(result.userId, result);
+      }
+      pending = pending.filter((user) => !resultsByUser.get(user.user_id)?.success);
+    }
+
+    const results = [...resultsByUser.values()];
     const successCount = results.filter(r => r.success).length;
 
     return NextResponse.json({
       success: true,
       message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
+      failed: results.filter(r => !r.success).map(r => ({ username: r.username, error: r.error })),
       results,
     });
   } catch (error) {

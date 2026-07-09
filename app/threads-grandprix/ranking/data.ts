@@ -75,6 +75,7 @@ export type RankingData = {
   initialScopeKey: RankingScopeKey;
   selectedDate: string;
   meUsername: string;
+  participants: string[];
   event: {
     eventId: string;
     name: string;
@@ -579,11 +580,17 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
     if (entry.expiresAt <= Date.now()) scopeStandingsCache.delete(key);
   }
 
+  const participants = (standingsByScope.get('monthly')?.follower || [])
+    .map((row) => row.threadsUsername)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
   return {
     generatedAt,
     initialScopeKey: selectedDateOrEmpty ? 'custom' : 'yesterday',
     selectedDate,
     meUsername: '',
+    participants,
     event: {
       eventId: event.eventId,
       name: event.name,

@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { PostRankingRow, RankChange, RankingData, RankingScopeKey } from './data';
 
 type PostSortKey = 'views' | 'likes';
+type TabKey = RankingScopeKey | 'me';
 
 function formatNumber(value: number): string {
   return value.toLocaleString('ja-JP');
@@ -148,9 +148,8 @@ function PodiumSpot({
 
 export default function RankingView({ data }: { data: RankingData }) {
   const router = useRouter();
-  const [activeKey, setActiveKey] = useState<RankingScopeKey>(data.initialScopeKey);
+  const [activeKey, setActiveKey] = useState<TabKey>(data.meUsername ? 'me' : data.initialScopeKey);
   const [selectedDate, setSelectedDate] = useState(data.selectedDate);
-  const [meInput, setMeInput] = useState(data.meUsername);
   const [postSort, setPostSort] = useState<PostSortKey>('views');
 
   const activeScope = useMemo(
@@ -184,9 +183,8 @@ export default function RankingView({ data }: { data: RankingData }) {
     router.push(`/threads-grandprix/ranking${buildQuery({ date: selectedDate })}`);
   }
 
-  function handleMeSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const normalized = meInput.trim().replace(/^@/, '').toLowerCase();
+  function handleMeSelect(username: string) {
+    const normalized = username.trim().replace(/^@/, '').toLowerCase();
     router.push(`/threads-grandprix/ranking${buildQuery({ me: normalized })}`);
   }
 
@@ -200,76 +198,68 @@ export default function RankingView({ data }: { data: RankingData }) {
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-[#102033]">
       <main className="mx-auto min-h-screen w-full max-w-[560px] bg-white shadow-[0_0_60px_rgba(0,33,88,0.22)]">
-        <section className="overflow-hidden bg-[#078be8]">
-          <Image
-            src="/threads-grandprix/ranking-header.png"
-            alt={`${data.event.name} ランキング 参加者ランキング速報`}
-            width={2157}
-            height={729}
-            priority
-            className="block h-auto w-full"
-          />
+        <section className="bg-[linear-gradient(135deg,#071c38,#0b2d55_55%,#0877d9)] px-5 pb-9 pt-7 text-white">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black tracking-[0.25em] text-[#7fd4ff]">ANALYCA PRESENTS</p>
+              <h1 className="mt-1.5 text-2xl font-black leading-tight">{data.event.name}</h1>
+              <p className="mt-1 text-xs font-bold text-white/70">
+                参加者ランキング速報・{formatMd(data.event.startDate)}〜{formatMd(data.event.endDate)}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              {data.event.isFinished ? (
+                <p className="rounded-full bg-[#f6b900] px-3 py-1.5 text-xs font-black text-[#6b4200]">結果発表</p>
+              ) : (
+                <>
+                  <p className="text-[10px] font-black tracking-widest text-white/70">残り</p>
+                  <p className="text-4xl font-black leading-none text-[#ffe58a]">
+                    {data.event.daysRemaining}
+                    <span className="ml-0.5 text-base">日</span>
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+          {!data.event.isFinished ? (
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full bg-[linear-gradient(90deg,#00c889,#ffe58a)] transition-all"
+                style={{ width: `${Math.round((data.event.elapsedDays / data.event.totalDays) * 100)}%` }}
+              />
+            </div>
+          ) : null}
+          {data.events.length > 1 ? (
+            <select
+              value={data.event.eventId}
+              onChange={(event) => router.push(`/threads-grandprix/ranking?event=${encodeURIComponent(event.target.value)}`)}
+              className="mt-4 w-full rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold text-white outline-none"
+            >
+              {data.events.map((event) => (
+                <option key={event.eventId} value={event.eventId} className="text-[#102033]">
+                  {event.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </section>
 
         <section className="-mt-4 rounded-t-[28px] bg-[#fff8e9] px-4 pb-8 pt-5">
-          <div className="rounded-2xl bg-[linear-gradient(120deg,#0b2d55,#0877d9)] p-4 text-white shadow-[0_12px_28px_rgba(0,63,132,0.3)]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black">{data.event.name}</p>
-                <p className="mt-0.5 text-xs font-bold text-white/70">
-                  {formatMd(data.event.startDate)}〜{formatMd(data.event.endDate)}・参加 {data.scopes[1]?.participantCount ?? activeScope.participantCount}名
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                {data.event.isFinished ? (
-                  <p className="rounded-full bg-[#f6b900] px-3 py-1 text-xs font-black text-[#6b4200]">結果発表</p>
-                ) : (
-                  <>
-                    <p className="text-[10px] font-black tracking-widest text-white/70">残り</p>
-                    <p className="text-2xl font-black leading-none text-[#ffe58a]">
-                      {data.event.daysRemaining}
-                      <span className="ml-0.5 text-sm">日</span>
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-            {!data.event.isFinished ? (
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
-                <div
-                  className="h-full rounded-full bg-[linear-gradient(90deg,#00c889,#ffe58a)] transition-all"
-                  style={{ width: `${Math.round((data.event.elapsedDays / data.event.totalDays) * 100)}%` }}
-                />
-              </div>
-            ) : null}
-            {data.events.length > 1 ? (
-              <select
-                value={data.event.eventId}
-                onChange={(event) => router.push(`/threads-grandprix/ranking?event=${encodeURIComponent(event.target.value)}`)}
-                className="mt-3 w-full rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold text-white outline-none"
-              >
-                {data.events.map((event) => (
-                  <option key={event.eventId} value={event.eventId} className="text-[#102033]">
-                    {event.name}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-white p-1.5 shadow-[0_12px_28px_rgba(0,63,132,0.15)]">
-            {data.scopes.map((scope) => (
-              <button
-                key={scope.key}
-                type="button"
-                onClick={() => setActiveKey(scope.key)}
-                className={`rounded-xl px-2 py-3 text-sm font-black transition ${
-                  activeScope.key === scope.key ? 'bg-[#0877d9] text-white shadow-lg' : 'text-[#0877d9]'
-                }`}
-              >
-                {scope.label}
-              </button>
-            ))}
+          <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-white p-1.5 shadow-[0_12px_28px_rgba(0,63,132,0.15)]">
+            {[...data.scopes.map((scope) => ({ key: scope.key as TabKey, label: scope.label })), { key: 'me' as TabKey, label: '自分の順位' }].map(
+              (tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveKey(tab.key)}
+                  className={`rounded-xl px-1 py-3 text-xs font-black transition ${
+                    activeKey === tab.key ? 'bg-[#0877d9] text-white shadow-lg' : 'text-[#0877d9]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ),
+            )}
           </div>
 
           {activeKey === 'custom' ? (
@@ -288,73 +278,75 @@ export default function RankingView({ data }: { data: RankingData }) {
             </form>
           ) : null}
 
-          <section className="mt-4 rounded-2xl border border-[#e8edf5] bg-white p-3 shadow-sm">
-            <form onSubmit={handleMeSubmit} className="flex gap-2">
-              <input
-                type="text"
-                value={meInput}
-                onChange={(event) => setMeInput(event.target.value)}
-                placeholder="自分のThreadsユーザー名で順位を見る"
-                className="min-w-0 flex-1 rounded-xl border border-[#d8e1ee] px-3 py-2.5 text-sm font-bold outline-none focus:border-[#0877d9]"
-              />
-              <button type="submit" className="shrink-0 rounded-xl bg-[#102033] px-4 py-2.5 text-sm font-black text-white">
-                検索
-              </button>
-            </form>
-
-            {meUsername && !personal ? (
-              <p className="mt-3 rounded-xl bg-[#fff2f2] px-3 py-2.5 text-xs font-bold text-[#c2402e]">
-                @{meUsername} のエントリーが見つかりません。ANALYCA連携済みのユーザー名で検索してください。
-              </p>
-            ) : null}
-
-            {personal ? (
-              <div className="mt-3 rounded-xl bg-[linear-gradient(120deg,#f2f9ff,#effcf6)] p-3">
-                <div className="flex items-center gap-3">
-                  <ProfileAvatar src={personal.profilePictureUrl} username={personal.threadsUsername} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black">@{personal.threadsUsername}</p>
-                    <p className="text-[11px] font-bold text-slate-500">
-                      {activeScope.dateLabel}・{personal.participantCount}名中
-                    </p>
-                  </div>
-                  <a
-                    href={shareUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 rounded-xl bg-[#102033] px-3 py-2 text-xs font-black text-white"
-                  >
-                    シェア
-                  </a>
-                </div>
-                <div className="mt-2.5 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-white p-2.5 text-center">
-                    <p className="text-[10px] font-black text-slate-500">フォロワー増加</p>
-                    <p className="text-lg font-black text-[#00a876]">
-                      {personal.followerRank ? `${personal.followerRank}位` : '—'}
-                      <span className="ml-1 text-xs">({formatDelta(personal.followerDelta)})</span>
-                    </p>
-                    {personal.followerRank && personal.followerRank > 1 && personal.followerGapToAbove !== null ? (
-                      <p className="text-[10px] font-bold text-slate-500">
-                        {personal.followerRank - 1}位まであと{formatNumber(personal.followerGapToAbove + 1)}人
-                      </p>
-                    ) : personal.followerRank === 1 ? (
-                      <p className="text-[10px] font-bold text-[#c99400]">現在トップ🏆</p>
-                    ) : null}
-                  </div>
-                  <div className="rounded-xl bg-white p-2.5 text-center">
-                    <p className="text-[10px] font-black text-slate-500">imp</p>
-                    <p className="text-lg font-black text-[#0877d9]">
-                      {personal.impressionRank ? `${personal.impressionRank}位` : '—'}
-                    </p>
-                    <p className="text-[10px] font-bold text-slate-500">{formatNumber(personal.impressionViews)}imp</p>
-                  </div>
-                </div>
+          {activeKey === 'me' ? (
+            <section className="mt-4">
+              <div className="rounded-2xl border border-[#e8edf5] bg-white p-3 shadow-sm">
+                <p className="text-xs font-black text-slate-500">自分のアカウントを選ぶ</p>
+                <select
+                  value={meUsername}
+                  onChange={(event) => handleMeSelect(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-[#d8e1ee] bg-white px-3 py-3 text-base font-bold outline-none focus:border-[#0877d9]"
+                >
+                  <option value="">-- 参加者から選択 --</option>
+                  {data.participants.map((username) => (
+                    <option key={username} value={username.toLowerCase().replace(/^@/, '')}>
+                      @{username}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : null}
-          </section>
 
-          <section className="mt-6">
+              {meUsername && !data.scopes.some((scope) => scope.personal) ? (
+                <p className="mt-3 rounded-xl bg-[#fff2f2] px-3 py-2.5 text-xs font-bold text-[#c2402e]">
+                  @{meUsername} のデータが見つかりません。
+                </p>
+              ) : null}
+
+              {data.scopes
+                .filter((scope) => scope.key !== 'custom' && scope.personal)
+                .map((scope) => {
+                  const stats = scope.personal!;
+                  return (
+                    <div key={`me-${scope.key}`} className="mt-3 rounded-2xl bg-[linear-gradient(120deg,#f2f9ff,#effcf6)] p-3 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <ProfileAvatar src={stats.profilePictureUrl} username={stats.threadsUsername} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-black">@{stats.threadsUsername}</p>
+                          <p className="text-[11px] font-bold text-slate-500">
+                            {scope.label}（{scope.dateLabel}）・{stats.participantCount}名中
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2.5 grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-white p-2.5 text-center">
+                          <p className="text-[10px] font-black text-slate-500">フォロワー増加</p>
+                          <p className="text-lg font-black text-[#00a876]">
+                            {stats.followerRank ? `${stats.followerRank}位` : '—'}
+                            <span className="ml-1 text-xs">({formatDelta(stats.followerDelta)})</span>
+                          </p>
+                          {stats.followerRank && stats.followerRank > 1 && stats.followerGapToAbove !== null ? (
+                            <p className="text-[10px] font-bold text-slate-500">
+                              {stats.followerRank - 1}位まであと{formatNumber(stats.followerGapToAbove + 1)}人
+                            </p>
+                          ) : stats.followerRank === 1 ? (
+                            <p className="text-[10px] font-bold text-[#c99400]">現在トップ🏆</p>
+                          ) : null}
+                        </div>
+                        <div className="rounded-xl bg-white p-2.5 text-center">
+                          <p className="text-[10px] font-black text-slate-500">imp</p>
+                          <p className="text-lg font-black text-[#0877d9]">
+                            {stats.impressionRank ? `${stats.impressionRank}位` : '—'}
+                          </p>
+                          <p className="text-[10px] font-bold text-slate-500">{formatNumber(stats.impressionViews)}imp</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </section>
+          ) : null}
+
+          <section className={`mt-6 ${activeKey === 'me' ? 'hidden' : ''}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">フォロワー増加数</h3>
               <span className="rounded-full bg-[#00c889]/15 px-3 py-1 text-xs font-black text-[#009a67]">
@@ -419,7 +411,7 @@ export default function RankingView({ data }: { data: RankingData }) {
             )}
           </section>
 
-          <section className="mt-7">
+          <section className={`mt-7 ${activeKey === 'me' ? 'hidden' : ''}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">合計imp</h3>
               <span className="rounded-full bg-[#0877d9]/15 px-3 py-1 text-xs font-black text-[#0877d9]">
@@ -464,7 +456,7 @@ export default function RankingView({ data }: { data: RankingData }) {
             </div>
           </section>
 
-          <section className="mt-7">
+          <section className={`mt-7 ${activeKey === 'me' ? 'hidden' : ''}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">{activeScope.postLabel}</h3>
               <div className="flex rounded-full bg-white p-0.5 shadow-sm">

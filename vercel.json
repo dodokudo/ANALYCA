@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/line-harness-sync",
       "schedule": "20 0 * * *"
+    },
+    {
+      "path": "/api/threads-grandprix/snapshot",
+      "schedule": "30 15 * * *"
     }
   ]
 }

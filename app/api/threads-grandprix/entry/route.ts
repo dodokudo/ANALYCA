@@ -1,5 +1,6 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchGrandprixEvents, resolveGrandprixEvent } from '@/app/threads-grandprix/grandprix-bigquery';
 
 type EntryBody = {
   lineName?: unknown;
@@ -62,6 +63,8 @@ async function ensureEntriesTable(): Promise<void> {
         ADD COLUMN IF NOT EXISTS has_analyca_at_entry BOOL;
       ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
         ADD COLUMN IF NOT EXISTS analyca_user_id_at_entry STRING;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
+        ADD COLUMN IF NOT EXISTS event_id STRING;
     `).catch((error) => {
       ensureTablePromise = null;
       throw error;
@@ -132,6 +135,7 @@ export async function POST(request: NextRequest) {
 
     await ensureEntriesTable();
     const analycaSnapshot = await findAnalycaUserByThreadsUsername(normalizedThreadsUsername);
+    const activeEvent = resolveGrandprixEvent(await fetchGrandprixEvents());
 
     await executeDML(
       `
@@ -142,12 +146,14 @@ export async function POST(request: NextRequest) {
             @lineName AS line_name,
             @threadsUsername AS threads_username,
             @normalizedThreadsUsername AS normalized_threads_username,
+            @eventId AS event_id,
             @hasAnalycaAtEntry AS has_analyca_at_entry,
             NULLIF(@analycaUserIdAtEntry, '') AS analyca_user_id_at_entry,
             @userAgent AS user_agent,
             CURRENT_TIMESTAMP() AS submitted_at
         ) source
         ON target.normalized_threads_username = source.normalized_threads_username
+          AND COALESCE(target.event_id, '') = source.event_id
         WHEN MATCHED THEN
           UPDATE SET
             line_name = source.line_name,
@@ -160,6 +166,7 @@ export async function POST(request: NextRequest) {
             line_name,
             threads_username,
             normalized_threads_username,
+            event_id,
             has_analyca_at_entry,
             analyca_user_id_at_entry,
             user_agent,
@@ -171,6 +178,7 @@ export async function POST(request: NextRequest) {
             source.line_name,
             source.threads_username,
             source.normalized_threads_username,
+            source.event_id,
             source.has_analyca_at_entry,
             source.analyca_user_id_at_entry,
             source.user_agent,
@@ -180,6 +188,7 @@ export async function POST(request: NextRequest) {
       `,
       {
         id: crypto.randomUUID(),
+        eventId: activeEvent.eventId,
         lineName,
         threadsUsername: normalizedThreadsUsername,
         normalizedThreadsUsername,

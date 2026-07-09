@@ -4,7 +4,24 @@ import {
   upsertThreadsDailyMetrics,
   getUserThreadsDailyMetrics,
   getUserThreadsPosts,
+  getThreadsUserIdsWithMetricsOn,
 } from '@/lib/bigquery';
+
+async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit);
+    const batchResults = await Promise.all(batch.map(worker));
+    results.push(...batchResults);
+  }
+
+  return results;
+}
 import { v4 as uuidv4 } from 'uuid';
 
 // ディスパッチャーモードでサブリクエスト完了を待つため余裕を持たせる
@@ -161,6 +178,8 @@ export async function GET(request: Request) {
     }
 
     // ── ディスパッチャーモード（cron用） ──
+    // 5分おきに起動し、「今日まだフォロワー記録がないユーザー」だけを少人数ずつ消化する。
+    // 失敗したユーザーは記録が残らないため、次の起動が自動的に拾い直す（リトライは仕組み側で担保）。
     const users = await getActiveThreadsUsers();
     const validUsers = users.filter(u => u.threads_access_token && u.threads_user_id);
 
@@ -172,7 +191,22 @@ export async function GET(request: Request) {
       });
     }
 
+    const today = new Date().toISOString().split('T')[0];
+    const syncedUserIds = await getThreadsUserIdsWithMetricsOn(today);
+    const pendingUsers = validUsers.filter(u => !syncedUserIds.has(u.user_id));
+
+    if (pendingUsers.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: `All ${validUsers.length} users already synced for ${today}`,
+        results: [],
+      });
+    }
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+    const BATCH_SIZE = 30;
+    const CONCURRENCY = 3;
+    const batch = pendingUsers.slice(0, BATCH_SIZE);
 
     const dispatchUser = async (user: (typeof validUsers)[number]) => {
       try {
@@ -197,29 +231,12 @@ export async function GET(request: Request) {
       }
     };
 
-    // 一斉発行だと毎晩数ユーザーが取りこぼされるため、失敗分は間隔を空けて最大2回リトライする
-    const MAX_ATTEMPTS = 3;
-    const RETRY_DELAY_MS = 30_000;
-    const resultsByUser = new Map<string, Awaited<ReturnType<typeof dispatchUser>>>();
-    let pending = validUsers;
-
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS && pending.length > 0; attempt++) {
-      if (attempt > 1) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      }
-      const attemptResults = await Promise.all(pending.map(dispatchUser));
-      for (const result of attemptResults) {
-        resultsByUser.set(result.userId, result);
-      }
-      pending = pending.filter((user) => !resultsByUser.get(user.user_id)?.success);
-    }
-
-    const results = [...resultsByUser.values()];
+    const results = await runWithConcurrency(batch, CONCURRENCY, dispatchUser);
     const successCount = results.filter(r => r.success).length;
 
     return NextResponse.json({
       success: true,
-      message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
+      message: `Synced ${successCount}/${batch.length} users (pending before run: ${pendingUsers.length}/${validUsers.length}) for ${today}`,
       failed: results.filter(r => !r.success).map(r => ({ username: r.username, error: r.error })),
       results,
     });

@@ -1142,6 +1142,22 @@ export async function getThreadsUsersNeedingTokenRefresh(): Promise<User[]> {
   }));
 }
 
+export async function getThreadsUserIdsWithMetricsOn(date: string): Promise<Set<string>> {
+  const query = `
+    SELECT DISTINCT user_id
+    FROM \`mark-454114.analyca.threads_daily_metrics\`
+    WHERE date = @date
+    AND followers_count IS NOT NULL
+  `;
+
+  try {
+    const [rows] = await bigquery.query({ query, params: { date } });
+    return new Set(rows.map((row: Record<string, unknown>) => row.user_id as string));
+  } catch {
+    return new Set();
+  }
+}
+
 // トークン更新が必要なInstagramユーザー一覧を取得（有効期限が7日以内 or 既に切れた直近30日以内）
 // Facebook長期トークンはfb_exchange_tokenで延長可能。期限切れでも短期間ならまだ通る場合があるので試す
 export async function getInstagramUsersNeedingTokenRefresh(): Promise<User[]> {

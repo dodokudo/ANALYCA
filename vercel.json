@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/sync/threads/insights",
-      "schedule": "10 15 * * *"
+      "schedule": "2-57/5 15 * * *"
     },
     {
       "path": "/api/sync/threads/comments",

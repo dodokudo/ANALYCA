@@ -198,14 +198,11 @@ export default function RankingView({ data }: { data: RankingData }) {
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-[#102033]">
       <main className="mx-auto min-h-screen w-full max-w-[560px] bg-white shadow-[0_0_60px_rgba(0,33,88,0.22)]">
-        <section className="bg-[linear-gradient(135deg,#071c38,#0b2d55_55%,#0877d9)] px-5 pb-9 pt-7 text-white">
+        <section className="bg-[linear-gradient(135deg,#078be8,#3fb1ff)] px-5 pb-9 pt-7 text-white">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-black tracking-[0.25em] text-[#7fd4ff]">ANALYCA PRESENTS</p>
-              <h1 className="mt-1.5 text-2xl font-black leading-tight">{data.event.name}</h1>
-              <p className="mt-1 text-xs font-bold text-white/70">
-                参加者ランキング速報・{formatMd(data.event.startDate)}〜{formatMd(data.event.endDate)}
-              </p>
+              <h1 className="whitespace-nowrap text-xl font-black leading-tight">{data.event.name}</h1>
+              <p className="mt-1 text-xs font-bold text-white/80">参加者ランキング速報</p>
             </div>
             <div className="shrink-0 text-right">
               {data.event.isFinished ? (

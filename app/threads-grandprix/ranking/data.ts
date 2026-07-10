@@ -35,6 +35,15 @@ export type PostRankingRow = {
   text: string;
 };
 
+export type PostCountRankingRow = {
+  rank: number;
+  lineName: string;
+  threadsUsername: string;
+  profilePictureUrl: string;
+  postCount: number;
+  avgPerDay: number;
+};
+
 export type ImpressionRankingRow = {
   rank: number;
   rankChange: RankChange;
@@ -54,6 +63,9 @@ export type PersonalStats = {
   impressionRank: number | null;
   impressionViews: number;
   impressionGapToAbove: number | null;
+  postCountRank: number | null;
+  postCount: number;
+  avgPostsPerDay: number;
 };
 
 export type RankingScope = {
@@ -65,6 +77,7 @@ export type RankingScope = {
   postLabel: string;
   followerRanking: FollowerRankingRow[];
   impressionRanking: ImpressionRankingRow[];
+  postCountRanking: PostCountRankingRow[];
   postRanking: PostRankingRow[];
   participantCount: number;
   personal: PersonalStats | null;
@@ -193,6 +206,30 @@ async function fetchImpressionStandingsCumulative(eventId: string, startDate: st
       WHERE DATE(tp.timestamp, 'Asia/Tokyo') BETWEEN DATE(@startDate) AND DATE(@endDate)
       GROUP BY p.line_name, p.threads_username, p.normalized_threads_username, p.threads_profile_picture_url
       ORDER BY value DESC
+    `,
+    params: { eventId, startDate, endDate },
+  });
+
+  return rows.map(mapStandingRow);
+}
+
+async function fetchPostCountStandings(eventId: string, startDate: string, endDate: string): Promise<StandingRow[]> {
+  const [rows] = await getBigQueryClient().query({
+    query: `
+      WITH ${PARTICIPANTS_CTE}
+      SELECT
+        p.line_name,
+        p.threads_username,
+        p.normalized_threads_username,
+        p.threads_profile_picture_url,
+        COUNT(*) AS value,
+        SUM(COALESCE(tp.views, 0)) AS secondary
+      FROM participants p
+      JOIN \`${projectId}.analyca.threads_posts\` tp
+        ON tp.user_id = p.user_id
+      WHERE DATE(tp.timestamp, 'Asia/Tokyo') BETWEEN DATE(@startDate) AND DATE(@endDate)
+      GROUP BY p.line_name, p.threads_username, p.normalized_threads_username, p.threads_profile_picture_url
+      ORDER BY value DESC, secondary DESC
     `,
     params: { eventId, startDate, endDate },
   });
@@ -371,13 +408,26 @@ function buildPersonal(
   meUsername: string,
   followerStandings: StandingRow[],
   impressionStandings: StandingRow[],
+  postCountStandings: StandingRow[],
+  days: number,
 ): PersonalStats | null {
   if (!meUsername) return null;
 
   const followerIndex = followerStandings.findIndex((row) => row.normalizedThreadsUsername === meUsername);
   const impressionIndex = impressionStandings.findIndex((row) => row.normalizedThreadsUsername === meUsername);
-  const base = followerIndex >= 0 ? followerStandings[followerIndex] : impressionIndex >= 0 ? impressionStandings[impressionIndex] : null;
+  const postCountIndex = postCountStandings.findIndex((row) => row.normalizedThreadsUsername === meUsername);
+  const base =
+    followerIndex >= 0
+      ? followerStandings[followerIndex]
+      : impressionIndex >= 0
+        ? impressionStandings[impressionIndex]
+        : postCountIndex >= 0
+          ? postCountStandings[postCountIndex]
+          : null;
   if (!base) return null;
+
+  const postCount = postCountIndex >= 0 ? postCountStandings[postCountIndex].value : 0;
+  const safeDays = Math.max(days, 1);
 
   return {
     threadsUsername: base.threadsUsername,
@@ -391,6 +441,9 @@ function buildPersonal(
     impressionViews: impressionIndex >= 0 ? impressionStandings[impressionIndex].value : 0,
     impressionGapToAbove:
       impressionIndex > 0 ? impressionStandings[impressionIndex - 1].value - impressionStandings[impressionIndex].value : null,
+    postCountRank: postCountIndex >= 0 ? postCountIndex + 1 : null,
+    postCount,
+    avgPostsPerDay: Math.round((postCount / safeDays) * 10) / 10,
   };
 }
 
@@ -403,6 +456,18 @@ function toFollowerRanking(standings: StandingRow[], rankChanges: RankChange[], 
     profilePictureUrl: row.profilePictureUrl,
     followerDelta: row.value,
     followersCount: row.secondary,
+  }));
+}
+
+function toPostCountRanking(standings: StandingRow[], limit: number, days: number): PostCountRankingRow[] {
+  const safeDays = Math.max(days, 1);
+  return standings.slice(0, limit).map((row, index) => ({
+    rank: index + 1,
+    lineName: row.lineName,
+    threadsUsername: row.threadsUsername,
+    profilePictureUrl: row.profilePictureUrl,
+    postCount: row.value,
+    avgPerDay: Math.round((row.value / safeDays) * 10) / 10,
   }));
 }
 
@@ -452,7 +517,10 @@ export async function getGrandprixRankingData(
   }
 }
 
-type StandingsByScope = Map<RankingScopeKey, { follower: StandingRow[]; impression: StandingRow[] }>;
+type StandingsByScope = Map<
+  RankingScopeKey,
+  { follower: StandingRow[]; impression: StandingRow[]; postCount: StandingRow[]; days: number }
+>;
 
 const scopeStandingsCache = new Map<string, { expiresAt: number; standings: StandingsByScope }>();
 
@@ -466,7 +534,9 @@ function personalizeRankingData(data: RankingData, meUsername: string): RankingD
       const standings = standingsEntry?.standings.get(scope.key);
       return {
         ...scope,
-        personal: standings ? buildPersonal(meUsername, standings.follower, standings.impression) : null,
+        personal: standings
+          ? buildPersonal(meUsername, standings.follower, standings.impression, standings.postCount, standings.days)
+          : null,
       };
     }),
   };
@@ -527,7 +597,9 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
       const useDelta = !isCumulative && hasDeltaFor(scope.startDate);
       const prevDate = shiftDate(scope.startDate, -1);
 
-      const [followerStandings, followerPrevStandings, impressionStandings, impressionPrevStandings, postRanking] =
+      const scopeDays = diffDays(scope.startDate, scope.endDate) + 1;
+
+      const [followerStandings, followerPrevStandings, impressionStandings, impressionPrevStandings, postRanking, postCountStandings] =
         await Promise.all([
           fetchFollowerStandings(event.eventId, scope.startDate, scope.endDate),
           isCumulative
@@ -550,9 +622,15 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
             : hasDeltaFor(scope.startDate)
               ? fetchPostRankingDelta(event.eventId, scope.startDate, 30)
               : fetchPostRankingCumulative(event.eventId, scope.startDate, scope.endDate, 30),
+          fetchPostCountStandings(event.eventId, scope.startDate, scope.endDate),
         ]);
 
-      standingsByScope.set(scope.key, { follower: followerStandings, impression: impressionStandings });
+      standingsByScope.set(scope.key, {
+        follower: followerStandings,
+        impression: impressionStandings,
+        postCount: postCountStandings,
+        days: scopeDays,
+      });
 
       const followerChanges = buildRankChanges(followerStandings, followerPrevStandings);
       const impressionChanges = buildRankChanges(impressionStandings, impressionPrevStandings);
@@ -566,6 +644,7 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
         postLabel: isCumulative || useDelta ? '伸びた投稿' : 'この日の投稿',
         followerRanking: toFollowerRanking(followerStandings, followerChanges, isCumulative ? 10 : 5),
         impressionRanking: toImpressionRanking(impressionStandings, impressionChanges, isCumulative ? 10 : 5),
+        postCountRanking: isCumulative ? toPostCountRanking(postCountStandings, 10, scopeDays) : [],
         postRanking,
         participantCount: followerStandings.length,
         personal: null,

@@ -408,7 +408,7 @@ export default function RankingView({ data }: { data: RankingData }) {
             )}
           </section>
 
-          <section className={`mt-7 ${activeKey === 'me' ? 'hidden' : ''}`}>
+          <section className={`mt-7 ${activeKey === 'me' || activeScope.key === 'yesterday' ? 'hidden' : ''}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">合計imp</h3>
               <span className="rounded-full bg-[#0877d9]/15 px-3 py-1 text-xs font-black text-[#0877d9]">

@@ -463,47 +463,6 @@ export default function RankingView({ data }: { data: RankingData }) {
             </div>
           </section>
 
-          <section className={`mt-7 ${activeKey === 'me' || activeScope.postCountRanking.length === 0 ? 'hidden' : ''}`}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-black">投稿数</h3>
-              <span className="rounded-full bg-[#7c3aed]/15 px-3 py-1 text-xs font-black text-[#7c3aed]">
-                {activeScope.dateLabel}
-              </span>
-            </div>
-
-            <div className="mt-3 space-y-2.5">
-              {activeScope.postCountRanking.map((row) => (
-                <div
-                  key={`${activeScope.key}-postcount-${row.rank}-${row.threadsUsername}`}
-                  className={`rounded-2xl border bg-white p-3 shadow-sm ${
-                    isMe(row.threadsUsername) ? 'border-[#0877d9] ring-2 ring-[#0877d9]/25' : 'border-[#e8edf5]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-sm ${rankClass(row.rank)}`}
-                      >
-                        {rankLabel(row.rank)}
-                      </div>
-                      <ProfileAvatar src={row.profilePictureUrl} username={row.threadsUsername} />
-                      <div className="min-w-0">
-                        <p className="min-w-0 truncate text-sm font-black">@{row.threadsUsername}</p>
-                        <p className="text-[11px] font-bold text-slate-500">1日平均 {row.avgPerDay}本</p>
-                      </div>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-xl font-black text-[#7c3aed]">
-                        <CountUp value={row.postCount} />
-                      </p>
-                      <p className="text-xs text-slate-500">投稿</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
           <section className={`mt-7 ${activeKey === 'me' ? 'hidden' : ''}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">{activeScope.postLabel}</h3>
@@ -565,6 +524,49 @@ export default function RankingView({ data }: { data: RankingData }) {
                   </a>
                 ))
               )}
+            </div>
+          </section>
+
+          <section className={`mt-7 ${activeKey === 'me' || activeScope.postCountRanking.length === 0 ? 'hidden' : ''}`}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black">投稿数</h3>
+              <span className="rounded-full bg-[#7c3aed]/15 px-3 py-1 text-xs font-black text-[#7c3aed]">
+                {activeScope.dateLabel}
+              </span>
+            </div>
+
+            <div className="mt-3 space-y-2.5">
+              {activeScope.postCountRanking.map((row) => (
+                <div
+                  key={`${activeScope.key}-postcount-${row.rank}-${row.threadsUsername}`}
+                  className={`rounded-2xl border bg-white p-3 shadow-sm ${
+                    isMe(row.threadsUsername) ? 'border-[#0877d9] ring-2 ring-[#0877d9]/25' : 'border-[#e8edf5]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black shadow-sm ${rankClass(row.rank)}`}
+                      >
+                        {rankLabel(row.rank)}
+                      </div>
+                      <ProfileAvatar src={row.profilePictureUrl} username={row.threadsUsername} />
+                      <div className="min-w-0">
+                        <p className="min-w-0 truncate text-sm font-black">@{row.threadsUsername}</p>
+                        {activeScope.key === 'monthly' ? (
+                          <p className="text-[11px] font-bold text-slate-500">1日平均 {row.avgPerDay}本</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-xl font-black text-[#7c3aed]">
+                        <CountUp value={row.postCount} />
+                      </p>
+                      <p className="text-xs text-slate-500">投稿</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 

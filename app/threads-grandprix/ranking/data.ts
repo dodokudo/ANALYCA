@@ -644,7 +644,11 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
         postLabel: isCumulative || useDelta ? '伸びた投稿' : 'この日の投稿',
         followerRanking: toFollowerRanking(followerStandings, followerChanges, isCumulative ? 10 : 5),
         impressionRanking: toImpressionRanking(impressionStandings, impressionChanges, isCumulative ? 10 : 5),
-        postCountRanking: isCumulative ? toPostCountRanking(postCountStandings, 10, scopeDays) : [],
+        postCountRanking: isCumulative
+          ? toPostCountRanking(postCountStandings, 10, scopeDays)
+          : scope.key === 'yesterday'
+            ? toPostCountRanking(postCountStandings, 5, scopeDays)
+            : [],
         postRanking,
         participantCount: followerStandings.length,
         personal: null,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import type { PostRankingRow, RankChange, RankingData, RankingScopeKey } from './data';
@@ -151,6 +151,7 @@ export default function RankingView({ data }: { data: RankingData }) {
   const [activeKey, setActiveKey] = useState<TabKey>(data.meUsername ? 'me' : data.initialScopeKey);
   const [selectedDate, setSelectedDate] = useState(data.selectedDate);
   const [postSort, setPostSort] = useState<PostSortKey>('views');
+  const [isPending, startTransition] = useTransition();
 
   const activeScope = useMemo(
     () => data.scopes.find((scope) => scope.key === activeKey) || data.scopes[0],
@@ -185,7 +186,9 @@ export default function RankingView({ data }: { data: RankingData }) {
 
   function handleMeSelect(username: string) {
     const normalized = username.trim().replace(/^@/, '').toLowerCase();
-    router.push(`/threads-grandprix/ranking${buildQuery({ me: normalized })}`);
+    startTransition(() => {
+      router.push(`/threads-grandprix/ranking${buildQuery({ me: normalized })}`);
+    });
   }
 
   const shareText = personal
@@ -293,13 +296,20 @@ export default function RankingView({ data }: { data: RankingData }) {
                 </select>
               </div>
 
-              {meUsername && !data.scopes.some((scope) => scope.personal) ? (
+              {isPending ? (
+                <div className="mt-4 flex flex-col items-center gap-2 py-6">
+                  <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#0877d9] border-t-transparent" />
+                  <p className="text-xs font-bold text-slate-500">順位を集計中...</p>
+                </div>
+              ) : null}
+
+              {!isPending && meUsername && !data.scopes.some((scope) => scope.personal) ? (
                 <p className="mt-3 rounded-xl bg-[#fff2f2] px-3 py-2.5 text-xs font-bold text-[#c2402e]">
                   @{meUsername} のデータが見つかりません。
                 </p>
               ) : null}
 
-              {data.scopes
+              {!isPending && data.scopes
                 .filter((scope) => scope.key !== 'custom' && scope.personal)
                 .map((scope) => {
                   const stats = scope.personal!;
@@ -347,6 +357,30 @@ export default function RankingView({ data }: { data: RankingData }) {
                           ) : null}
                         </div>
                       </div>
+                      {stats.topPosts.length > 0 ? (
+                        <div className="mt-2 rounded-xl bg-white p-2.5">
+                          <p className="text-[10px] font-black text-slate-500">
+                            自分の投稿TOP{scope.key === 'monthly' ? 5 : 3}
+                          </p>
+                          <div className="mt-1.5 space-y-1.5">
+                            {stats.topPosts.map((post) => (
+                              <a
+                                key={`me-post-${scope.key}-${post.rank}-${post.permalink}`}
+                                href={post.permalink || undefined}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center justify-between gap-2"
+                              >
+                                <p className="min-w-0 flex-1 truncate text-xs font-bold text-[#102033]">
+                                  <span className="mr-1 font-black text-slate-400">{post.rank}.</span>
+                                  {post.text || '（本文なし）'}
+                                </p>
+                                <p className="shrink-0 text-xs font-black text-[#0877d9]">{formatNumber(post.views)}imp</p>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}

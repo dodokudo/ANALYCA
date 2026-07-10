@@ -66,6 +66,7 @@ export type PersonalStats = {
   postCountRank: number | null;
   postCount: number;
   avgPostsPerDay: number;
+  topPosts: PostRankingRow[];
 };
 
 export type RankingScope = {
@@ -410,6 +411,8 @@ function buildPersonal(
   impressionStandings: StandingRow[],
   postCountStandings: StandingRow[],
   days: number,
+  posts: PostRankingRow[],
+  topPostsLimit: number,
 ): PersonalStats | null {
   if (!meUsername) return null;
 
@@ -444,6 +447,10 @@ function buildPersonal(
     postCountRank: postCountIndex >= 0 ? postCountIndex + 1 : null,
     postCount,
     avgPostsPerDay: Math.round((postCount / safeDays) * 10) / 10,
+    topPosts: posts
+      .filter((post) => post.threadsUsername.toLowerCase().replace(/^@/, '') === meUsername)
+      .slice(0, topPostsLimit)
+      .map((post, index) => ({ ...post, rank: index + 1 })),
   };
 }
 
@@ -519,7 +526,7 @@ export async function getGrandprixRankingData(
 
 type StandingsByScope = Map<
   RankingScopeKey,
-  { follower: StandingRow[]; impression: StandingRow[]; postCount: StandingRow[]; days: number }
+  { follower: StandingRow[]; impression: StandingRow[]; postCount: StandingRow[]; days: number; posts: PostRankingRow[] }
 >;
 
 const scopeStandingsCache = new Map<string, { expiresAt: number; standings: StandingsByScope }>();
@@ -535,7 +542,15 @@ function personalizeRankingData(data: RankingData, meUsername: string): RankingD
       return {
         ...scope,
         personal: standings
-          ? buildPersonal(meUsername, standings.follower, standings.impression, standings.postCount, standings.days)
+          ? buildPersonal(
+              meUsername,
+              standings.follower,
+              standings.impression,
+              standings.postCount,
+              standings.days,
+              standings.posts,
+              scope.key === 'monthly' ? 5 : 3,
+            )
           : null,
       };
     }),
@@ -618,10 +633,10 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
             ? fetchImpressionStandingsDelta(event.eventId, prevDate)
             : Promise.resolve(null),
           isCumulative
-            ? fetchPostRankingCumulative(event.eventId, scope.startDate, scope.endDate, 30)
+            ? fetchPostRankingCumulative(event.eventId, scope.startDate, scope.endDate, 1000)
             : hasDeltaFor(scope.startDate)
-              ? fetchPostRankingDelta(event.eventId, scope.startDate, 30)
-              : fetchPostRankingCumulative(event.eventId, scope.startDate, scope.endDate, 30),
+              ? fetchPostRankingDelta(event.eventId, scope.startDate, 1000)
+              : fetchPostRankingCumulative(event.eventId, scope.startDate, scope.endDate, 1000),
           fetchPostCountStandings(event.eventId, scope.startDate, scope.endDate),
         ]);
 
@@ -630,6 +645,7 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
         impression: impressionStandings,
         postCount: postCountStandings,
         days: scopeDays,
+        posts: postRanking,
       });
 
       const followerChanges = buildRankChanges(followerStandings, followerPrevStandings);
@@ -649,7 +665,7 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
           : scope.key === 'yesterday'
             ? toPostCountRanking(postCountStandings, 5, scopeDays)
             : [],
-        postRanking,
+        postRanking: postRanking.slice(0, 30),
         participantCount: followerStandings.length,
         personal: null,
       };

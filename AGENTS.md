@@ -33,3 +33,11 @@
 - Store secrets in `.env.local`; never commit them. Provide `.env.example` updates when introducing new vars.
 - For Google Cloud integrations, keep service account JSON files outside tracked paths or reference them via environment variables.
 - Inspect dependencies touching OAuth or analytics and document required scopes in the PR description.
+
+## Deployment & Git — MANDATORY, DO NOT DEVIATE
+
+- Just do the normal thing: commit and push to the GitHub `main` branch. That is the deploy.
+- Do NOT create side branches (e.g. `codex/*`, throwaway feature branches) or extra git worktrees to ship or deploy work. Work on `main`.
+- Do NOT hand-deploy production from the CLI (`vercel --prod`, manual wrangler prod pushes, etc.) as the normal flow. This project is connected to GitHub; pushing `main` is what deploys. Bypassing it desyncs `main` from what is actually live and is forbidden.
+- If you find the repo checked out on a non-`main` branch, or production served from a non-`main` branch/worktree, stop and restore the main-only flow before anything else.
+- Keep it simple. Push to GitHub `main` and let the connected pipeline deploy. Nothing extra.

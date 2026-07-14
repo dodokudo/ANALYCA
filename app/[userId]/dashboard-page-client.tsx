@@ -1226,6 +1226,7 @@ function ThreadsContent({
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
+  const [showDailyTable, setShowDailyTable] = useState(true);
   const [datePreset, setDatePreset] = useState<DatePreset>(isYamazakiDashboard ? 'custom' : 'thisMonth');
   const [customStartDate, setCustomStartDate] = useState(defaultStartDate);
   const [customEndDate, setCustomEndDate] = useState(defaultEndDate);
@@ -1685,10 +1686,22 @@ function ThreadsContent({
       {/* 日別メトリクス */}
       {dailyMetrics.length > 0 && (
         <div className="ui-card">
-          <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">インプレッション & フォロワー推移</h2>
-          <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別のパフォーマンス</p>
-          <div className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
-            <table className="w-full text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">インプレッション & フォロワー推移</h2>
+              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">日別のパフォーマンス</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDailyTable(!showDailyTable)}
+              className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]"
+            >
+              {showDailyTable ? '表を閉じる' : '日別データを表示'}
+            </button>
+          </div>
+          {showDailyTable && (
+            <div className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+              <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
                   <th className="px-3 py-2">日付</th>
@@ -1733,8 +1746,9 @@ function ThreadsContent({
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+          )}
           <div className="mt-6 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={[...dailyMetrics].reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>

@@ -1588,99 +1588,92 @@ function ThreadsContent({
 
       {threadsTab === 'analysis' && <>
       {/* アカウント + KPI */}
-      <div className="grid min-w-0 lg:grid-cols-12 gap-4">
-        {/* 左側：アカウント情報 */}
-        <div className="min-w-0 lg:col-span-3">
-          <div className="ui-card p-4 md:p-6 h-full">
-            <div className="flex items-center gap-3 md:gap-4">
-              <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)]">
+      <div className="ui-card p-4 md:p-6">
+        <h2 className="text-base md:text-lg font-semibold text-[color:var(--color-text-primary)] mb-3 md:mb-6">パフォーマンス指標</h2>
+        <dl className="grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-3 md:gap-4 xl:grid-cols-[1.35fr_repeat(4,minmax(0,1fr))]">
+          <div className="col-span-2 min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-3 sm:col-span-1 md:p-4">
+            <dt className="sr-only">アカウント</dt>
+            <dd className="flex min-w-0 items-center gap-3">
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[color:var(--color-surface-muted)]">
                 {profilePicture ? (
-                  <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
+                  <img src={profilePicture} alt="Profile" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-xl font-bold">
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 text-sm font-bold text-white">
                     {username.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
-                  <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
-                  <span className={`text-xs font-medium ${summary.followerGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[color:var(--color-text-primary)] md:text-base">{username}</p>
+                <div className="mt-1 flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-[9px] text-[color:var(--color-text-secondary)] md:text-xs">フォロワー</span>
+                  <span className="text-lg font-semibold text-[color:var(--color-text-primary)] md:text-2xl">{followersCount.toLocaleString()}</span>
+                  <span className={`text-xs font-medium ${summary.followerGrowth > 0 ? 'text-green-600' : summary.followerGrowth < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}`}>
+                    {formatSigned(summary.followerGrowth)}
                   </span>
                 </div>
               </div>
-            </div>
+            </dd>
           </div>
-        </div>
-        {/* 右側：KPI */}
-        <div className="min-w-0 lg:col-span-9">
-          <div className="ui-card p-4 md:p-6">
-            <h2 className="text-base md:text-lg font-semibold text-[color:var(--color-text-primary)] mb-3 md:mb-6">パフォーマンス指標</h2>
-            <dl className="grid min-w-0 grid-cols-4 gap-1.5 md:gap-4">
-              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">投稿数</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{totalPosts}</dd>
-                <p className={`mt-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                  {formatSigned(postDelta)}投稿 / {previousTotalPosts.toLocaleString()}件
-                </p>
-                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                  {postDelta >= 0 ? '増加傾向' : '減少傾向'}
-                </span>
-              </div>
-              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">閲覧数</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
-                <p className={`mt-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                  {formatSigned(viewDelta)}
-                </p>
-                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                  {viewDelta >= 0 ? '増加傾向' : '減少傾向'}
-                </span>
-              </div>
-              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                {isYamazakiDashboard ? (
-                  <>
-                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LPクリック</dt>
-                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
-                    <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                      CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
-                    </p>
-                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                      {linkClickDelta >= 0 ? '増加傾向' : '減少傾向'}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">いいね</dt>
-                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
-                  </>
-                )}
-              </div>
-              <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-                {isYamazakiDashboard ? (
-                  <>
-                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
-                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
-                    <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                      CVR: {formatRate(lineCvr)} / {formatSigned(lineRegistrationDelta)}
-                    </p>
-                    <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
-                      {lineRegistrationDelta >= 0 ? '増加傾向' : '減少傾向'}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">エンゲージメント</dt>
-                    <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
-                  </>
-                )}
-              </div>
-            </dl>
+          <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+            <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">投稿数</dt>
+            <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{totalPosts}</dd>
+            <p className={`mt-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              {formatSigned(postDelta)}投稿 / {previousTotalPosts.toLocaleString()}件
+            </p>
+            <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${postDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+              {postDelta >= 0 ? '増加傾向' : '減少傾向'}
+            </span>
           </div>
-        </div>
+          <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+            <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">閲覧数</dt>
+            <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalViews.toLocaleString()}</dd>
+            <p className={`mt-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              {formatSigned(viewDelta)}
+            </p>
+            <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${viewDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+              {viewDelta >= 0 ? '増加傾向' : '減少傾向'}
+            </span>
+          </div>
+          <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+            {isYamazakiDashboard ? (
+              <>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LPクリック</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {linkClickDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
+              </>
+            ) : (
+              <>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">いいね</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalLikes.toLocaleString()}</dd>
+              </>
+            )}
+          </div>
+          <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
+            {isYamazakiDashboard ? (
+              <>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
+                <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  CVR: {formatRate(lineCvr)} / {formatSigned(lineRegistrationDelta)}
+                </p>
+                <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                  {lineRegistrationDelta >= 0 ? '増加傾向' : '減少傾向'}
+                </span>
+              </>
+            ) : (
+              <>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">エンゲージメント</dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{summary.engagementRate}%</dd>
+              </>
+            )}
+          </div>
+        </dl>
       </div>
 
       {/* 日別メトリクス */}

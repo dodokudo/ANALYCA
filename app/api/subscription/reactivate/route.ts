@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserById, updateUserSubscription } from '@/lib/bigquery';
 import { createSubscriptionFromToken, getSubscription, updateSubscription } from '@/lib/univapay/client';
-import { PLANS } from '@/lib/univapay/plans';
+import { getUnivaPaySubscriptionPeriod, PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
-
-function getSubscriptionPeriod(planId: string): 'monthly' | 'yearly' {
-  return planId.includes('yearly') ? 'yearly' : 'monthly';
-}
 
 function getNextPaymentDate(subscription: { next_payment_date?: string | null; next_payment?: { due_date?: string | null } }): Date | null {
   const value = subscription.next_payment_date || subscription.next_payment?.due_date || null;
@@ -78,7 +74,7 @@ export async function POST(request: NextRequest) {
     const subscription = await createSubscriptionFromToken({
       recurringTokenId: user.recurring_token_id,
       amount: plan.price,
-      period: getSubscriptionPeriod(planId),
+      period: getUnivaPaySubscriptionPeriod(planId),
       metadata: {
         analycaUserId: userId,
         planId,

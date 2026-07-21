@@ -14,6 +14,12 @@ export interface Plan {
   hidden?: boolean;
 }
 
+export type PublicPlanBaseId = 'light-threads' | 'standard' | 'pro';
+export type PlanBillingCycle = 'monthly' | 'yearly';
+export type UnivaPaySubscriptionPeriod = 'monthly' | 'annually';
+
+export const PUBLIC_PLAN_BASE_IDS: PublicPlanBaseId[] = ['light-threads', 'standard', 'pro'];
+
 export const PLANS: Record<string, Plan> = {
   'light-threads': {
     name: 'Light',
@@ -62,6 +68,27 @@ export const PLANS: Record<string, Plan> = {
     yearly: true,
   },
 };
+
+export function getPlanBillingCycle(planId: string): PlanBillingCycle {
+  return planId.endsWith('-yearly') ? 'yearly' : 'monthly';
+}
+
+export function getUnivaPaySubscriptionPeriod(planId: string): UnivaPaySubscriptionPeriod {
+  return getPlanBillingCycle(planId) === 'yearly' ? 'annually' : 'monthly';
+}
+
+export function getPlanIdForBillingCycle(
+  basePlanId: PublicPlanBaseId,
+  billingCycle: PlanBillingCycle,
+): string {
+  return billingCycle === 'yearly' ? `${basePlanId}-yearly` : basePlanId;
+}
+
+export function getMonthlyEquivalentPrice(planId: string): number {
+  const plan = PLANS[planId];
+  if (!plan) return 0;
+  return plan.yearly ? Math.round(plan.price / 12) : plan.price;
+}
 
 export type BillableChannel = 'instagram' | 'threads';
 

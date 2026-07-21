@@ -3,6 +3,8 @@
  * https://docs.univapay.com/
  */
 
+import type { UnivaPaySubscriptionPeriod } from './plans';
+
 const UNIVAPAY_API_URL = process.env.UNIVAPAY_API_URL ?? 'https://api.univapay.com';
 const UNIVAPAY_JWT = process.env.UNIVAPAY_JWT ?? '';
 const UNIVAPAY_SECRET = process.env.UNIVAPAY_SECRET ?? '';
@@ -34,7 +36,7 @@ export interface UnivaPaySubscription {
   amount: number;
   currency: string;
   status: 'unverified' | 'unconfirmed' | 'canceled' | 'unpaid' | 'suspended' | 'current' | 'completed';
-  period: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly' | 'yearly';
+  period: UnivaPaySubscriptionPeriod | 'weekly' | 'daily' | 'biweekly' | 'quarterly' | 'semiannually';
   initial_amount?: number;
   next_payment_date?: string;
   next_payment?: {
@@ -58,12 +60,14 @@ export interface CreateSubscriptionParams {
   transaction_token_id: string;
   amount: number;
   currency?: string;
-  period: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly' | 'yearly';
+  period: UnivaPaySubscriptionPeriod | 'weekly' | 'daily' | 'biweekly' | 'quarterly' | 'semiannually';
   initial_amount?: number;
   schedule_settings?: {
     start_on?: string; // ISO date string (YYYY-MM-DD) - delays first charge until this date
+    zone_id?: string;
   };
   metadata?: Record<string, string>;
+  idempotencyKey?: string;
 }
 
 export interface CreateChargeParams {
@@ -103,6 +107,8 @@ async function fetchUnivaPay<T>(
     method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
     body?: Record<string, unknown>;
     params?: Record<string, string | number | undefined>;
+    idempotencyKey?: string;
+    ignoreNotFound?: boolean;
   },
 ): Promise<T> {
   const url = new URL(endpoint, UNIVAPAY_API_URL);
@@ -123,6 +129,10 @@ async function fetchUnivaPay<T>(
       'Content-Type': 'application/json',
     },
   };
+
+  if (options?.idempotencyKey) {
+    (baseFetchOptions.headers as Record<string, string>)['Idempotency-Key'] = options.idempotencyKey;
+  }
 
   if (options?.body && (method === 'POST' || method === 'PATCH')) {
     baseFetchOptions.body = JSON.stringify(options.body);
@@ -145,6 +155,9 @@ async function fetchUnivaPay<T>(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        if (response.status === 404 && options?.ignoreNotFound) {
+          return undefined as T;
+        }
         const errorText = await response.text();
         throw new Error(`UnivaPay API error: ${response.status} ${errorText}`);
       }
@@ -200,6 +213,7 @@ export async function createSubscription(
     {
       method: 'POST',
       body,
+      idempotencyKey: params.idempotencyKey,
     },
   );
 }
@@ -229,6 +243,7 @@ export async function getSubscription(subscriptionId: string): Promise<UnivaPayS
 export async function updateSubscription(
   subscriptionId: string,
   params: UpdateSubscriptionParams,
+  idempotencyKey?: string,
 ): Promise<UnivaPaySubscription> {
   const storeId = UNIVAPAY_STORE_ID;
   if (!storeId) {
@@ -240,6 +255,7 @@ export async function updateSubscription(
     {
       method: 'PATCH',
       body: params as Record<string, unknown>,
+      idempotencyKey,
     },
   );
 
@@ -333,7 +349,7 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
   // UnivaPay仕様: statusのPATCHはFORBIDDEN_PARAMETER。DELETEメソッドでキャンセル。
   await fetchUnivaPay(
     `/stores/${storeId}/subscriptions/${subscriptionId}`,
-    { method: 'DELETE' },
+    { method: 'DELETE', ignoreNotFound: true },
   );
 }
 
@@ -370,8 +386,13 @@ export async function createSubscriptionFromToken(params: {
   recurringTokenId: string;
   amount: number;
   currency?: string;
-  period?: 'monthly' | 'weekly' | 'daily' | 'biweekly' | 'semimonthly' | 'yearly';
+  period?: UnivaPaySubscriptionPeriod | 'weekly' | 'daily' | 'biweekly' | 'quarterly' | 'semiannually';
+  schedule_settings?: {
+    start_on?: string;
+    zone_id?: string;
+  };
   metadata?: Record<string, string>;
+  idempotencyKey?: string;
 }): Promise<UnivaPaySubscription> {
   const storeId = UNIVAPAY_STORE_ID;
   if (!storeId) {
@@ -387,8 +408,10 @@ export async function createSubscriptionFromToken(params: {
         amount: params.amount,
         currency: params.currency ?? 'JPY',
         period: params.period ?? 'monthly',
+        schedule_settings: params.schedule_settings,
         metadata: params.metadata,
       },
+      idempotencyKey: params.idempotencyKey,
     },
   );
 

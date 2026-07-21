@@ -2597,7 +2597,7 @@ function UpgradeCard({
     setUpgradeError(null);
 
     try {
-      const res = await fetch('/api/subscription/upgrade', {
+      const res = await fetch('/api/subscription/change-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, targetPlanId: 'standard' }),
@@ -2605,6 +2605,10 @@ function UpgradeCard({
       const json = await res.json();
 
       if (!json.success) {
+        if (json.requiresReauthentication) {
+          window.location.href = '/login';
+          return;
+        }
         setUpgradeError(json.error || 'アップグレードに失敗しました');
         return;
       }
@@ -2663,8 +2667,8 @@ Standardプランにアップグレードすると
           <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-left">
             <p className="text-sm font-semibold text-gray-900">この内容でアップグレードしますか？</p>
             <p className="mt-2 text-xs leading-relaxed text-gray-700">
-              差額分を今すぐ決済し、現在の契約をStandardプランへ変更します。
-              アップグレード時に7日間無料体験は付きません。
+              次回更新日にStandardプランへ変更します。
+              それまでは現在のプランを利用でき、途中の追加請求や返金はありません。
             </p>
             <div className="mt-4 flex gap-2">
               <button

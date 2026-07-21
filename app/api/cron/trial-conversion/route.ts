@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTrialExpiredUsersWithCard, expireTrialUsersWithoutCard, updateUserSubscription, confirmReferralByUserId, getUserById, getUsersForLineHarnessSync } from '@/lib/bigquery';
 import { createSubscriptionFromToken } from '@/lib/univapay/client';
-import { PLANS } from '@/lib/univapay/plans';
+import { getUnivaPaySubscriptionPeriod, PLANS } from '@/lib/univapay/plans';
 import { syncAllAnalycaUsersToLineHarness, syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 
 export const maxDuration = 60;
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         const subscription = await createSubscriptionFromToken({
           recurringTokenId: user.recurring_token_id,
           amount: plan.price,
+          period: getUnivaPaySubscriptionPeriod(user.plan_id),
           metadata: { planId: user.plan_id, userId: user.user_id },
         });
 

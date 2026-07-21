@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { findUserBySubscriptionId, getUserById, updateSubscriptionStatusBySubId, updateUserSubscription } from '@/lib/bigquery';
+import {
+  completePendingPlanChange,
+  findUserByPendingSubscriptionId,
+  findUserBySubscriptionId,
+  getUserById,
+  updateSubscriptionStatusBySubId,
+  updateUserSubscription,
+} from '@/lib/bigquery';
 import { sendAdminPaymentNotificationEmail } from '@/lib/email';
 import { PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
@@ -48,9 +55,45 @@ function getNextPaymentDate(subscription: { next_payment_date?: string | null; n
 }
 
 async function updateStatusAndSync(subscriptionId: string, status: string, hydrateSubscription = false): Promise<void> {
-  await updateSubscriptionStatusBySubId(subscriptionId, status);
+  const pendingUser = await findUserByPendingSubscriptionId(subscriptionId);
+  if (pendingUser) {
+    let subscriptionStatus = status;
+    let nextPaymentDate: Date | null = null;
+    if (hydrateSubscription) {
+      const subscription = await getSubscription(subscriptionId);
+      subscriptionStatus = subscription.status || status;
+      nextPaymentDate = getNextPaymentDate(subscription);
+    }
+
+    if (subscriptionStatus === 'current') {
+      await completePendingPlanChange(
+        pendingUser.user_id,
+        subscriptionId,
+        subscriptionStatus,
+        nextPaymentDate,
+      );
+    } else if (
+      !pendingUser.plan_change_effective_at
+      || pendingUser.plan_change_effective_at.getTime() <= Date.now()
+    ) {
+      await updateUserSubscription(pendingUser.user_id, {
+        subscription_status: subscriptionStatus,
+        subscription_expires_at: nextPaymentDate,
+      });
+    }
+
+    const updatedUser = await getUserById(pendingUser.user_id);
+    if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
+    return;
+  }
+
   const user = await findUserBySubscriptionId(subscriptionId);
   if (!user) return;
+  if (status === 'canceled' && user.pending_subscription_id) {
+    return;
+  }
+
+  await updateSubscriptionStatusBySubId(subscriptionId, status);
 
   if (hydrateSubscription) {
     try {
@@ -101,6 +144,7 @@ export async function POST(request: NextRequest) {
             console.error('[WEBHOOK] Failed to update/sync status to current:', err)
           );
           findUserBySubscriptionId(subscriptionId)
+            .then(async (user) => user || findUserByPendingSubscriptionId(subscriptionId))
             .then((user) => {
               if (!user) return;
               const plan = user.plan_id ? PLANS[user.plan_id] : null;

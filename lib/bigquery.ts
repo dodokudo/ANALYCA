@@ -88,6 +88,10 @@ export interface User {
   subscription_expires_at?: Date | null;
   recurring_token_id?: string | null;
   trial_ends_at?: Date | null;
+  pending_plan_id?: string | null;
+  pending_subscription_id?: string | null;
+  plan_change_effective_at?: Date | null;
+  plan_change_request_id?: string | null;
 }
 
 export interface InstagramReel {
@@ -517,6 +521,10 @@ export async function getUserById(userId: string): Promise<User | null> {
     subscription_expires_at: parseBigQueryDate(row.subscription_expires_at),
     recurring_token_id: row.recurring_token_id ?? null,
     trial_ends_at: parseBigQueryDate(row.trial_ends_at),
+    pending_plan_id: row.pending_plan_id ?? null,
+    pending_subscription_id: row.pending_subscription_id ?? null,
+    plan_change_effective_at: parseBigQueryDate(row.plan_change_effective_at),
+    plan_change_request_id: row.plan_change_request_id ?? null,
   };
 }
 
@@ -1755,6 +1763,10 @@ export async function updateUserSubscription(userId: string, data: {
   subscription_status?: string;
   subscription_created_at?: Date;
   subscription_expires_at?: Date | null;
+  pending_plan_id?: string | null;
+  pending_subscription_id?: string | null;
+  plan_change_effective_at?: Date | null;
+  plan_change_request_id?: string | null;
 }): Promise<void> {
   const updates: string[] = [];
   const params: Record<string, unknown> = { user_id: userId };
@@ -1779,6 +1791,22 @@ export async function updateUserSubscription(userId: string, data: {
     updates.push('subscription_expires_at = @subscription_expires_at');
     params.subscription_expires_at = data.subscription_expires_at;
   }
+  if (data.pending_plan_id !== undefined) {
+    updates.push('pending_plan_id = @pending_plan_id');
+    params.pending_plan_id = data.pending_plan_id;
+  }
+  if (data.pending_subscription_id !== undefined) {
+    updates.push('pending_subscription_id = @pending_subscription_id');
+    params.pending_subscription_id = data.pending_subscription_id;
+  }
+  if (data.plan_change_effective_at !== undefined) {
+    updates.push('plan_change_effective_at = @plan_change_effective_at');
+    params.plan_change_effective_at = data.plan_change_effective_at;
+  }
+  if (data.plan_change_request_id !== undefined) {
+    updates.push('plan_change_request_id = @plan_change_request_id');
+    params.plan_change_request_id = data.plan_change_request_id;
+  }
 
   if (updates.length === 0) return;
 
@@ -1797,7 +1825,8 @@ export async function updateUserSubscription(userId: string, data: {
 export async function findUserBySubscriptionId(subscriptionId: string): Promise<User | null> {
   const query = `
     SELECT user_id, email, subscription_id, plan_id, subscription_status,
-           instagram_username, threads_username
+           instagram_username, threads_username, pending_plan_id,
+           pending_subscription_id, plan_change_effective_at, plan_change_request_id
     FROM \`mark-454114.analyca.users\`
     WHERE subscription_id = @subscription_id
     LIMIT 1
@@ -1811,6 +1840,54 @@ export async function findUserBySubscriptionId(subscriptionId: string): Promise<
   return rows.length > 0 ? rows[0] : null;
 }
 
+export async function findUserByPendingSubscriptionId(subscriptionId: string): Promise<User | null> {
+  const query = `
+    SELECT user_id
+    FROM \`mark-454114.analyca.users\`
+    WHERE pending_subscription_id = @subscription_id
+    LIMIT 1
+  `;
+
+  const [rows] = await bigquery.query({
+    query,
+    params: { subscription_id: subscriptionId },
+  });
+
+  return rows.length > 0 ? getUserById(rows[0].user_id) : null;
+}
+
+export async function completePendingPlanChange(
+  userId: string,
+  pendingSubscriptionId: string,
+  status: string,
+  expiresAt: Date | null,
+): Promise<void> {
+  const query = `
+    UPDATE \`mark-454114.analyca.users\`
+    SET subscription_id = pending_subscription_id,
+        plan_id = pending_plan_id,
+        subscription_status = @status,
+        subscription_expires_at = @expires_at,
+        pending_plan_id = NULL,
+        pending_subscription_id = NULL,
+        plan_change_effective_at = NULL,
+        plan_change_request_id = NULL,
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @user_id
+      AND pending_subscription_id = @pending_subscription_id
+  `;
+
+  await executeDML({
+    query,
+    params: {
+      user_id: userId,
+      pending_subscription_id: pendingSubscriptionId,
+      status,
+      expires_at: expiresAt,
+    },
+  });
+}
+
 /**
  * ユーザーのサブスクリプション状態を取得
  */
@@ -1821,12 +1898,17 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
   subscription_created_at: string | null;
   subscription_expires_at: string | null;
   trial_ends_at: string | null;
+  pending_plan_id: string | null;
+  pending_subscription_id: string | null;
+  plan_change_effective_at: string | null;
 }> {
   const query = `
     SELECT subscription_id, plan_id, subscription_status,
            FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_created_at) as subscription_created_at,
            FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', subscription_expires_at) as subscription_expires_at,
-           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', trial_ends_at) as trial_ends_at
+           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', trial_ends_at) as trial_ends_at,
+           pending_plan_id, pending_subscription_id,
+           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', plan_change_effective_at) as plan_change_effective_at
     FROM \`mark-454114.analyca.users\`
     WHERE user_id = @user_id
     LIMIT 1
@@ -1845,6 +1927,9 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
       subscription_created_at: null,
       subscription_expires_at: null,
       trial_ends_at: null,
+      pending_plan_id: null,
+      pending_subscription_id: null,
+      plan_change_effective_at: null,
     };
   }
 
@@ -1855,6 +1940,9 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
     subscription_created_at: rows[0].subscription_created_at || null,
     subscription_expires_at: rows[0].subscription_expires_at || null,
     trial_ends_at: rows[0].trial_ends_at || null,
+    pending_plan_id: rows[0].pending_plan_id || null,
+    pending_subscription_id: rows[0].pending_subscription_id || null,
+    plan_change_effective_at: rows[0].plan_change_effective_at || null,
   };
 }
 

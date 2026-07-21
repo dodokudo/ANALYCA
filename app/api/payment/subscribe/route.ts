@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSubscription } from '@/lib/univapay/client';
-import { PLANS } from '@/lib/univapay/plans';
+import { getUnivaPaySubscriptionPeriod, PLANS } from '@/lib/univapay/plans';
 import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, createReferral, getUserById, recordConversionEvent } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
 
     const plan = PLANS[planId];
     const isTrial = TRIAL_ENABLED;
-    const isYearly = plan.yearly === true;
     const normalizedCouponCode = normalizeCouponCode(couponCode);
     const coupon = getCoupon(normalizedCouponCode);
     if (normalizedCouponCode && !coupon) {
@@ -87,7 +86,7 @@ export async function POST(request: NextRequest) {
       transaction_token_id: transactionTokenId,
       amount: plan.price,
       currency: 'JPY',
-      period: isYearly ? 'yearly' : 'monthly',
+      period: getUnivaPaySubscriptionPeriod(planId),
       metadata: {
         analycaUserId: userId,
         planId,

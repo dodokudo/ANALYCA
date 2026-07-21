@@ -6,6 +6,7 @@ import {
   updateLastLogin,
 } from '@/lib/bigquery';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
+import { setAnalycaSessionCookie } from '@/lib/analyca-session';
 
 export const maxDuration = 300;
 
@@ -106,7 +107,9 @@ export async function GET(request: NextRequest) {
           has_instagram: existingUser.has_instagram,
         });
         if (isChannelBlockedByPlan(effectivePlanId, 'instagram')) {
-          return NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
+          const response = NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
+          setAnalycaSessionCookie(response, existingUserId);
+          return response;
         }
       }
     }
@@ -137,6 +140,7 @@ export async function GET(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 365, // 1年
       sameSite: 'lax',
     });
+    setAnalycaSessionCookie(response, userId);
     return response;
   } catch (err) {
     console.error('Instagram OAuth callback error:', err);

@@ -7,6 +7,7 @@ import {
   updateLastLogin,
 } from '@/lib/bigquery';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
+import { setAnalycaSessionCookie } from '@/lib/analyca-session';
 
 export const maxDuration = 300;
 
@@ -65,7 +66,9 @@ export async function GET(request: NextRequest) {
           has_instagram: existingUser.has_instagram,
         });
         if (isChannelBlockedByPlan(effectivePlanId, 'threads')) {
-          return NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
+          const response = NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
+          setAnalycaSessionCookie(response, existingUserId);
+          return response;
         }
       }
     }
@@ -95,6 +98,7 @@ export async function GET(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 365,
       sameSite: 'lax',
     });
+    setAnalycaSessionCookie(response, userId);
     return response;
   } catch (err) {
     console.error('Threads OAuth callback error:', err);

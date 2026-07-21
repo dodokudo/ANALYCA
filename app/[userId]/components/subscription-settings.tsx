@@ -456,73 +456,6 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
             </div>
           )}
 
-          {!isCanceled && (isTrial || data.subscription_status === 'current' || data.subscription_status === 'unpaid' || data.subscription_status === 'suspended') && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-900">カード情報</h4>
-                  <p className="mt-1 text-xs text-gray-600">次回以降の決済に使うカードを変更できます。</p>
-                </div>
-                {!showPaymentForm && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPaymentResult(null);
-                      setShowPaymentForm(true);
-                    }}
-                    className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                  >
-                    カード変更
-                  </button>
-                )}
-              </div>
-
-              {showPaymentForm && (
-                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
-                  <div id="univapay-card-update" className="min-h-[320px]">
-                    {paymentAppId ? (
-                      <span
-                        data-app-id={paymentAppId}
-                        data-checkout="token"
-                        data-amount={planInfo?.price || 0}
-                        data-currency="jpy"
-                        data-inline="true"
-                        data-cvv-authorize="true"
-                        data-require-phone-number="false"
-                        data-phone-number="00000000000"
-                        data-inline-item-style="padding: 10px 0; border-bottom: none;"
-                        data-inline-item-label-style="color: #4b5563; font-size: 13px; font-weight: 600; margin-bottom: 6px;"
-                        data-inline-text-field-style="border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; font-size: 15px; background: #fafafa; width: 100%; box-sizing: border-box;"
-                        data-inline-field-focus-style="border-color: #8b5cf6; background: #fff; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);"
-                        data-inline-field-invalid-style="border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);"
-                      />
-                    ) : (
-                      <div className="flex h-[240px] items-center justify-center text-sm text-gray-400">読み込み中...</div>
-                    )}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePaymentMethodUpdate}
-                      disabled={!scriptLoaded || !paymentAppId || updatingPayment}
-                      className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {updatingPayment ? '更新中...' : 'このカードに変更'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowPaymentForm(false)}
-                      disabled={updatingPayment}
-                      className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                    >
-                      キャンセル
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {canChangePlan && !isCanceled && (
             <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-emerald-50 p-4">
               <h4 className="text-sm font-semibold text-gray-900">プラン変更</h4>
@@ -651,6 +584,73 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                     </div>
                   )}
                 </>
+              )}
+            </div>
+          )}
+
+          {!isCanceled && (isTrial || data.subscription_status === 'current' || data.subscription_status === 'unpaid' || data.subscription_status === 'suspended') && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900">カード情報</h4>
+                  <p className="mt-1 text-xs text-gray-600">次回以降の決済に使うカードを変更できます。</p>
+                </div>
+                {!showPaymentForm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentResult(null);
+                      setShowPaymentForm(true);
+                    }}
+                    className="shrink-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    カード変更
+                  </button>
+                )}
+              </div>
+
+              {showPaymentForm && (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+                  <div id="univapay-card-update" className="min-h-[320px]">
+                    {paymentAppId ? (
+                      <span
+                        data-app-id={paymentAppId}
+                        data-checkout="token"
+                        data-amount={planInfo?.price || 0}
+                        data-currency="jpy"
+                        data-inline="true"
+                        data-cvv-authorize="true"
+                        data-require-phone-number="false"
+                        data-phone-number="00000000000"
+                        data-inline-item-style="padding: 10px 0; border-bottom: none;"
+                        data-inline-item-label-style="color: #4b5563; font-size: 13px; font-weight: 600; margin-bottom: 6px;"
+                        data-inline-text-field-style="border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; font-size: 15px; background: #fafafa; width: 100%; box-sizing: border-box;"
+                        data-inline-field-focus-style="border-color: #8b5cf6; background: #fff; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);"
+                        data-inline-field-invalid-style="border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);"
+                      />
+                    ) : (
+                      <div className="flex h-[240px] items-center justify-center text-sm text-gray-400">読み込み中...</div>
+                    )}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePaymentMethodUpdate}
+                      disabled={!scriptLoaded || !paymentAppId || updatingPayment}
+                      className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {updatingPayment ? '更新中...' : 'このカードに変更'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentForm(false)}
+                      disabled={updatingPayment}
+                      className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}

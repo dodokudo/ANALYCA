@@ -86,6 +86,16 @@ interface AdminData {
   fetchedAt: string;
 }
 
+const PINNED_USERNAMES = ['kudooo_aii', 'kudooo_ai'];
+
+function getPinnedUserRank(user: AdminUser): number {
+  const usernames = [user.instagram_username, user.threads_username]
+    .filter((username): username is string => Boolean(username))
+    .map((username) => username.trim().replace(/^@/, '').toLowerCase());
+  const rank = PINNED_USERNAMES.findIndex((username) => usernames.includes(username));
+  return rank === -1 ? PINNED_USERNAMES.length : rank;
+}
+
 // プラン判定
 function getPlan(user: AdminUser): string {
   if (user.has_instagram && user.has_threads) return 'Standard';
@@ -425,7 +435,7 @@ function AdminPageContent() {
   (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
 
   // 一覧表示用: 未契約リード（SNS連携だけ）も含める全ユーザー
-  const realUsers = demoFiltered;
+  const realUsers = [...demoFiltered].sort((a, b) => getPinnedUserRank(a) - getPinnedUserRank(b));
 
   // KPI集計用: 契約ユーザーのみ（subscription_status が 'none'/NULL を除外）
   const paidUsers = demoFiltered.filter(u => {

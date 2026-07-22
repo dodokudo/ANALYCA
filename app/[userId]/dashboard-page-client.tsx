@@ -92,6 +92,24 @@ function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function SidebarToggleIcon() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+    </svg>
+  );
+}
+
 // ============ 型定義 ============
 type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate';
 
@@ -616,6 +634,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
   const [prefetchedSubscriptionStatus, setPrefetchedSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
   const [affiliateDashboardData, setAffiliateDashboardData] = useState<AffiliateDashboardResponse | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isInitialSetup = searchParams?.get('auth')?.includes('complete') || false;
   const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
@@ -653,6 +672,18 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   const dismissLineModal = () => {
     setShowLineModal(false);
     safeSessionStorage.setItem('analycaLineModalDismissed', '1');
+  };
+
+  useEffect(() => {
+    setIsSidebarCollapsed(safeLocalStorage.getItem('analyca-sidebar-collapsed') === '1');
+  }, []);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((current) => {
+      const next = !current;
+      safeLocalStorage.setItem('analyca-sidebar-collapsed', next ? '1' : '0');
+      return next;
+    });
   };
 
   // データ取得関数
@@ -835,16 +866,15 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
     return planId;
   }, [planId]);
 
-  // アクティブチャンネル（Threadsのみの場合はThreadsがデフォルト）
+  // アクティブチャンネル（Threadsが利用可能ならThreadsをデフォルトにする）
   const activeChannel = useMemo((): Channel => {
     if (tabParam === 'settings') return 'settings';
     if (tabParam === 'threads') return 'threads';
     if (tabParam === 'instagram') return 'instagram';
     if (tabParam === 'affiliate') return 'affiliate';
     if (!tabParam) {
-      if (planId === 'light-threads' || (channels.threads && !channels.instagram)) return 'threads';
+      if (planId === 'light-threads' || channels.threads) return 'threads';
       if (planId === 'light-instagram' || channels.instagram) return 'instagram';
-      if (channels.threads) return 'threads';
     }
     return 'threads';
   }, [tabParam, channels, planId]);
@@ -940,15 +970,47 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       )}
 
       {/* サイドバー（PC） */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40">
-        <div className="p-4 border-b border-[color:var(--color-border)]">
-          <div className="flex items-center gap-3">
-            <AnalycaLogo size="md" />
-            <div>
-              <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
-              <p className="text-xs text-[color:var(--color-text-muted)]">@{username}</p>
+      <aside
+        className={`hidden lg:flex lg:flex-col bg-[color:var(--color-surface)] border-r border-[color:var(--color-border)] fixed h-full z-40 transition-[width] duration-200 ${
+          isSidebarCollapsed ? 'lg:w-[88px]' : 'lg:w-56'
+        }`}
+      >
+        <div className={`border-b border-[color:var(--color-border)] ${isSidebarCollapsed ? 'px-2 py-4' : 'p-4'}`}>
+          {isSidebarCollapsed ? (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label="メニューを開く"
+              title="メニューを開く"
+              className="group relative mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] transition-colors hover:bg-black/5"
+            >
+              <span className="transition-opacity duration-150 group-hover:opacity-0">
+                <AnalycaLogo size="md" />
+              </span>
+              <span className="absolute inset-0 flex items-center justify-center text-[color:var(--color-text-secondary)] opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                <SidebarToggleIcon />
+              </span>
+            </button>
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-3">
+                <AnalycaLogo size="md" />
+                <div className="min-w-0">
+                  <h1 className="text-xl font-bold text-[color:var(--color-text-primary)]">ANALYCA</h1>
+                  <p className="truncate text-xs text-[color:var(--color-text-muted)]">@{username}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                aria-label="メニューを閉じる"
+                title="メニューを閉じる"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-[color:var(--color-text-muted)] transition-colors hover:bg-black/5 hover:text-[color:var(--color-text-secondary)]"
+              >
+                <SidebarToggleIcon />
+              </button>
             </div>
-          </div>
+          )}
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
@@ -958,24 +1020,34 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
               <button
                 key={channel.value}
                 onClick={() => setActiveChannel(channel.value)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                title={isSidebarCollapsed ? channel.label : undefined}
+                aria-label={channel.label}
+                className={`w-full flex items-center py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+                  isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
+                } ${
                   activeChannel === channel.value
                     ? 'bg-[color:var(--color-accent)] text-white'
                     : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
                 }`}
               >
                 <Icon className="w-5 h-5" />
-                {channel.label}
+                {!isSidebarCollapsed && channel.label}
               </button>
             );
           })}
         </nav>
 
         <div className="p-3 border-t border-[color:var(--color-border)] space-y-1">
-          <NotificationBell userId={userId} variant="sidebar" />
+          <div className={isSidebarCollapsed ? 'flex justify-center' : undefined}>
+            <NotificationBell userId={userId} variant={isSidebarCollapsed ? 'rail' : 'sidebar'} />
+          </div>
           <button
             onClick={() => setActiveChannel('settings')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+            title={isSidebarCollapsed ? '設定' : undefined}
+            aria-label="設定"
+            className={`w-full flex items-center py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors ${
+              isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
+            } ${
               activeChannel === 'settings'
                 ? 'bg-[color:var(--color-accent)] text-white'
                 : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]'
@@ -985,20 +1057,26 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            設定
+            {!isSidebarCollapsed && '設定'}
           </button>
           <a
             href={buildContactLineUrl(user)}
             target="_blank"
             rel="noopener"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)]"
+            title={isSidebarCollapsed ? 'お問い合わせ' : undefined}
+            aria-label="お問い合わせ"
+            className={`w-full flex items-center py-2.5 rounded-[var(--radius-md)] text-sm font-medium transition-colors text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-muted)] ${
+              isSidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
+            }`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
-            お問い合わせ
+            {!isSidebarCollapsed && 'お問い合わせ'}
           </a>
-          <p className="text-xs text-[color:var(--color-text-muted)] mt-3 px-3">Powered by ANALYCA</p>
+          {!isSidebarCollapsed && (
+            <p className="text-xs text-[color:var(--color-text-muted)] mt-3 px-3">Powered by ANALYCA</p>
+          )}
         </div>
       </aside>
 
@@ -1085,7 +1163,11 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       )}
 
       {/* メインコンテンツ */}
-      <main className="flex-1 lg:ml-56 min-w-0">
+      <main
+        className={`flex-1 min-w-0 transition-[margin] duration-200 ${
+          isSidebarCollapsed ? 'lg:ml-[88px]' : 'lg:ml-56'
+        }`}
+      >
         <header className="lg:hidden sticky top-0 z-30 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(true)}

@@ -14,7 +14,7 @@ type NotificationItem = {
 
 type NotificationBellProps = {
   userId: string;
-  variant?: 'icon' | 'sidebar';
+  variant?: 'icon' | 'sidebar' | 'rail';
 };
 
 function formatRelative(createdAt: string): string {
@@ -110,7 +110,7 @@ export function NotificationBell({ userId, variant = 'icon' }: NotificationBellP
   };
 
   const bellIcon = (
-    <svg className={variant === 'sidebar' ? 'w-5 h-5' : 'h-6 w-6'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className={variant === 'icon' ? 'h-6 w-6' : 'w-5 h-5'} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
   );
@@ -140,7 +140,9 @@ export function NotificationBell({ userId, variant = 'icon' }: NotificationBellP
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="relative flex h-10 w-10 items-center justify-center rounded-full text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]"
+          className={`relative flex h-10 w-10 items-center justify-center text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)] ${
+            variant === 'rail' ? 'rounded-[var(--radius-md)]' : 'rounded-full'
+          }`}
           aria-label="通知"
         >
           {bellIcon}
@@ -153,7 +155,7 @@ export function NotificationBell({ userId, variant = 'icon' }: NotificationBellP
       )}
       {open && (
         <div className={`absolute z-50 w-80 max-w-[calc(100vw-1rem)] overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-xl ${
-          variant === 'sidebar' ? 'left-full bottom-0 ml-2' : 'right-0 top-12'
+          variant === 'sidebar' || variant === 'rail' ? 'left-full bottom-0 ml-2' : 'right-0 top-12'
         }`}>
           <div className="flex items-center justify-between border-b border-[color:var(--color-border)] px-3 py-2">
             <span className="text-sm font-semibold text-[color:var(--color-text-primary)]">通知</span>

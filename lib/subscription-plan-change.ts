@@ -16,6 +16,7 @@ import {
   PLANS,
   PUBLIC_PLAN_BASE_IDS,
 } from './univapay/plans';
+import { PLAN_CHANGE_INITIAL_AMOUNT } from './subscription-plan-change-policy';
 
 const PLAN_CHANGE_STATUSES = new Set(['current', 'active', 'trial']);
 const PUBLIC_PLAN_IDS = new Set(
@@ -118,6 +119,7 @@ export async function scheduleSubscriptionPlanChange(
     const pendingSubscription = await createSubscriptionFromToken({
       recurringTokenId: transactionTokenId,
       amount: targetPlan.price,
+      initialAmount: PLAN_CHANGE_INITIAL_AMOUNT,
       period: getUnivaPaySubscriptionPeriod(targetPlanId),
       schedule_settings: {
         start_on: startOn,

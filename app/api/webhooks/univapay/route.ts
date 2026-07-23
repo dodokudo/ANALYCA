@@ -12,6 +12,7 @@ import { sendAdminPaymentNotificationEmail } from '@/lib/email';
 import { PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 import { getSubscription } from '@/lib/univapay/client';
+import { canActivatePendingPlanChange } from '@/lib/subscription-plan-change-policy';
 
 function extractAmount(data: Record<string, unknown>): number | null {
   const raw = data.amount ?? data.charged_amount ?? data.requested_amount;
@@ -65,7 +66,10 @@ async function updateStatusAndSync(subscriptionId: string, status: string, hydra
       nextPaymentDate = getNextPaymentDate(subscription);
     }
 
-    if (subscriptionStatus === 'current') {
+    if (
+      subscriptionStatus === 'current'
+      && canActivatePendingPlanChange(pendingUser.plan_change_effective_at)
+    ) {
       await completePendingPlanChange(
         pendingUser.user_id,
         subscriptionId,
@@ -73,8 +77,11 @@ async function updateStatusAndSync(subscriptionId: string, status: string, hydra
         nextPaymentDate,
       );
     } else if (
-      !pendingUser.plan_change_effective_at
-      || pendingUser.plan_change_effective_at.getTime() <= Date.now()
+      subscriptionStatus !== 'current'
+      && (
+        !pendingUser.plan_change_effective_at
+        || pendingUser.plan_change_effective_at.getTime() <= Date.now()
+      )
     ) {
       await updateUserSubscription(pendingUser.user_id, {
         subscription_status: subscriptionStatus,

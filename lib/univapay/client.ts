@@ -385,6 +385,7 @@ export async function deleteRecurringToken(tokenId: string): Promise<void> {
 export async function createSubscriptionFromToken(params: {
   recurringTokenId: string;
   amount: number;
+  initialAmount?: number;
   currency?: string;
   period?: UnivaPaySubscriptionPeriod | 'weekly' | 'daily' | 'biweekly' | 'quarterly' | 'semiannually';
   schedule_settings?: {
@@ -406,6 +407,7 @@ export async function createSubscriptionFromToken(params: {
       body: {
         transaction_token_id: params.recurringTokenId,
         amount: params.amount,
+        initial_amount: params.initialAmount,
         currency: params.currency ?? 'JPY',
         period: params.period ?? 'monthly',
         schedule_settings: params.schedule_settings,

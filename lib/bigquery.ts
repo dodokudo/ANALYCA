@@ -1770,42 +1770,52 @@ export async function updateUserSubscription(userId: string, data: {
 }): Promise<void> {
   const updates: string[] = [];
   const params: Record<string, unknown> = { user_id: userId };
+  const types: Record<string, string> = { user_id: 'STRING' };
 
   if (data.subscription_id !== undefined) {
     updates.push('subscription_id = @subscription_id');
     params.subscription_id = data.subscription_id;
+    types.subscription_id = 'STRING';
   }
   if (data.plan_id !== undefined) {
     updates.push('plan_id = @plan_id');
     params.plan_id = data.plan_id;
+    types.plan_id = 'STRING';
   }
   if (data.subscription_status !== undefined) {
     updates.push('subscription_status = @subscription_status');
     params.subscription_status = data.subscription_status;
+    types.subscription_status = 'STRING';
   }
   if (data.subscription_created_at !== undefined) {
     updates.push('subscription_created_at = @subscription_created_at');
     params.subscription_created_at = data.subscription_created_at;
+    types.subscription_created_at = 'TIMESTAMP';
   }
   if (data.subscription_expires_at !== undefined) {
     updates.push('subscription_expires_at = @subscription_expires_at');
     params.subscription_expires_at = data.subscription_expires_at;
+    types.subscription_expires_at = 'TIMESTAMP';
   }
   if (data.pending_plan_id !== undefined) {
     updates.push('pending_plan_id = @pending_plan_id');
     params.pending_plan_id = data.pending_plan_id;
+    types.pending_plan_id = 'STRING';
   }
   if (data.pending_subscription_id !== undefined) {
     updates.push('pending_subscription_id = @pending_subscription_id');
     params.pending_subscription_id = data.pending_subscription_id;
+    types.pending_subscription_id = 'STRING';
   }
   if (data.plan_change_effective_at !== undefined) {
     updates.push('plan_change_effective_at = @plan_change_effective_at');
     params.plan_change_effective_at = data.plan_change_effective_at;
+    types.plan_change_effective_at = 'TIMESTAMP';
   }
   if (data.plan_change_request_id !== undefined) {
     updates.push('plan_change_request_id = @plan_change_request_id');
     params.plan_change_request_id = data.plan_change_request_id;
+    types.plan_change_request_id = 'STRING';
   }
 
   if (updates.length === 0) return;
@@ -1816,7 +1826,7 @@ export async function updateUserSubscription(userId: string, data: {
     WHERE user_id = @user_id
   `;
 
-  await executeDML({ query, params });
+  await executeDML({ query, params, types });
 }
 
 /**

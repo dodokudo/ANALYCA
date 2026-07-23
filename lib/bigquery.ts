@@ -1895,6 +1895,12 @@ export async function completePendingPlanChange(
       status,
       expires_at: expiresAt,
     },
+    types: {
+      user_id: 'STRING',
+      pending_subscription_id: 'STRING',
+      status: 'STRING',
+      expires_at: 'TIMESTAMP',
+    },
   });
 }
 

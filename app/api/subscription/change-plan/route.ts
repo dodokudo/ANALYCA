@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hasValidAnalycaSession } from '@/lib/analyca-session';
 import {
   PlanChangeValidationError,
   scheduleSubscriptionPlanChange,
@@ -15,17 +14,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'userId and targetPlanId are required' },
         { status: 400 },
-      );
-    }
-
-    if (!hasValidAnalycaSession(request, userId)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: '安全にプランを変更するため、SNSアカウントで本人確認をしてください',
-          requiresReauthentication: true,
-        },
-        { status: 401 },
       );
     }
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Script from 'next/script';
-import Link from 'next/link';
 import {
   getMonthlyEquivalentPrice,
   getPlanBillingCycle,
@@ -136,7 +135,6 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
   const [planChangeResult, setPlanChangeResult] = useState<{
     success: boolean;
     message: string;
-    requiresReauthentication?: boolean;
   } | null>(null);
   const [paymentResult, setPaymentResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -246,7 +244,6 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
         setPlanChangeResult({
           success: false,
           message: json.error || 'プラン変更に失敗しました',
-          requiresReauthentication: json.requiresReauthentication === true,
         });
       }
     } catch {
@@ -442,11 +439,6 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
           {planChangeResult && (
             <div className={`rounded-lg p-3 text-sm ${planChangeResult.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
               <p>{planChangeResult.message}</p>
-              {planChangeResult.requiresReauthentication && (
-                <Link href="/login" className="mt-2 inline-block font-semibold underline">
-                  SNSアカウントで本人確認する
-                </Link>
-              )}
             </div>
           )}
 

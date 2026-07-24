@@ -110,8 +110,16 @@ export default function InstagramLoginPage() {
           )}
         </button>
 
+        <button
+          type="button"
+          onClick={() => router.push('/checkout?plan=light-instagram')}
+          className="mt-3 w-full rounded-xl border border-purple-200 bg-purple-50 px-6 py-3 text-sm font-semibold text-purple-700 transition-colors hover:bg-purple-100"
+        >
+          新規登録はこちら（月額4,980円）
+        </button>
+
         <p className="text-xs text-gray-500 mt-4 text-center">
-          Instagramアカウントを連携して分析を始めましょう
+          新規登録は決済後にInstagramアカウントを連携します
         </p>
       </div>
 

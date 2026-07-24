@@ -15,6 +15,7 @@ import {
   InstagramInsights
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
+import { canConnectChannel } from '@/lib/subscription-access';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
@@ -447,13 +448,24 @@ export async function POST(request: NextRequest) {
     const existingInstagramUserId = await findUserIdByInstagramId(instagramAccount.id);
 
     // ============ ユーザーID決定 ============
-    // 決済から渡されたuserId > 既存ユーザー > 新規作成
-    const userId = requestUserId || existingThreadsUserId || existingInstagramUserId || uuidv4();
+    // 決済から渡されたuserId > 既存ユーザー
+    const userId = requestUserId || existingThreadsUserId || existingInstagramUserId;
+    const subscribedUser = userId ? await getUserById(userId) : null;
+    if (
+      !canConnectChannel(subscribedUser, 'threads')
+      || !canConnectChannel(subscribedUser, 'instagram')
+    ) {
+      return NextResponse.json({
+        success: false,
+        error: 'Standardプランの契約が必要です',
+        checkoutPath: `/checkout?plan=standard${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`,
+      }, { status: 402 });
+    }
 
     // ============ Threadsユーザー保存 ============
     const threadsTokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
     await upsertThreadsUser({
-      user_id: userId,
+      user_id: subscribedUser.user_id,
       threads_user_id: threadsAccount.id,
       threads_username: threadsAccount.username,
       threads_access_token: threads.accessToken,
@@ -464,7 +476,7 @@ export async function POST(request: NextRequest) {
     // ============ Instagramユーザー保存 ============
     const instagramTokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
     await upsertUser({
-      user_id: userId,
+      user_id: subscribedUser.user_id,
       instagram_user_id: instagramAccount.id,
       instagram_username: instagramAccount.username,
       instagram_profile_picture_url: instagramAccount.profile_picture_url,
@@ -479,7 +491,7 @@ export async function POST(request: NextRequest) {
         const insights = await getThreadsPostInsights(threads.accessToken, post.id);
         return {
           id: uuidv4(),
-          user_id: userId,
+          user_id: subscribedUser.user_id,
           threads_id: post.id,
           text: post.text || '',
           timestamp: new Date(post.timestamp),
@@ -513,7 +525,7 @@ export async function POST(request: NextRequest) {
 
       await upsertThreadsDailyMetrics({
         id: uuidv4(),
-        user_id: userId,
+        user_id: subscribedUser.user_id,
         date: today,
         followers_count: followersCount,
         follower_delta: 0,
@@ -528,11 +540,11 @@ export async function POST(request: NextRequest) {
 
     // ============ Instagramデータ取得・保存 ============
     const [reels, stories] = await Promise.all([
-      getInstagramReels(instagramLongToken, instagramAccount.id, userId),
-      getInstagramStories(instagramLongToken, instagramAccount.id, userId),
+      getInstagramReels(instagramLongToken, instagramAccount.id, subscribedUser.user_id),
+      getInstagramStories(instagramLongToken, instagramAccount.id, subscribedUser.user_id),
     ]);
 
-    const insights = createInstagramInsights(userId, instagramAccount);
+    const insights = createInstagramInsights(subscribedUser.user_id, instagramAccount);
 
     await Promise.all([
       reels.length > 0 ? insertInstagramReels(reels) : Promise.resolve(),
@@ -540,14 +552,14 @@ export async function POST(request: NextRequest) {
       insertInstagramInsights([insights]),
     ]);
 
-    const userRecord = await getUserById(userId);
+    const userRecord = await getUserById(subscribedUser.user_id);
 
     if (userRecord?.email) {
       const { sendOnboardingCompleteEmail } = await import('@/lib/email');
       sendOnboardingCompleteEmail(
         userRecord.email,
         instagramAccount.username,
-        `https://analyca.jp/${userId}`,
+        `https://analyca.jp/${subscribedUser.user_id}`,
       ).catch((err) => console.error('Onboarding email send failed:', err));
     }
 
@@ -555,7 +567,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      userId,
+      userId: subscribedUser.user_id,
       syncPending: true, // クライアント側でバックグラウンド同期を呼び出す
       accountInfo: {
         threads: {

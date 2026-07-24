@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { upsertThreadsUser, getUserById, insertThreadsPosts, upsertThreadsDailyMetrics } from '@/lib/bigquery';
+import {
+  upsertThreadsUser,
+  getUserById,
+  findUserIdByThreadsId,
+  insertThreadsPosts,
+  upsertThreadsDailyMetrics,
+} from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import { sendOnboardingCompleteEmail } from '@/lib/email';
+import { canConnectChannel } from '@/lib/subscription-access';
 
 // Vercel Functionの最大実行時間を延長（Hobbyプラン: 最大60秒、Proプラン: 最大300秒）
 export const maxDuration = 60;
@@ -211,6 +218,16 @@ export async function POST(request: NextRequest) {
 
     // 1. アクセストークンからユーザー情報を取得
     const accountInfo = await getThreadsAccountInfo(accessToken);
+    const existingThreadsUserId = await findUserIdByThreadsId(accountInfo.id);
+    const userId = requestUserId || existingThreadsUserId;
+    const subscribedUser = userId ? await getUserById(userId) : null;
+    if (!canConnectChannel(subscribedUser, 'threads')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Threads分析を利用するにはプラン契約が必要です',
+        checkoutPath: `/checkout?plan=light-threads${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`,
+      }, { status: 402 });
+    }
 
     // 2. ユーザー情報を保存（user_id = threads_user_id = instagram_user_id で統一）
     // トークンの有効期限は入力されたものなので長期とみなす
@@ -218,8 +235,8 @@ export async function POST(request: NextRequest) {
 
     // requestUserIdがあればそのIDを使用（決済後の仮ユーザーにMERGE）
     // なければThreadsアカウントIDを使用（従来通り）
-    const userId = await upsertThreadsUser({
-      user_id: requestUserId || accountInfo.id,
+    const connectedUserId = await upsertThreadsUser({
+      user_id: subscribedUser.user_id,
       threads_user_id: accountInfo.id,
       threads_username: accountInfo.username,
       threads_access_token: accessToken,
@@ -255,7 +272,7 @@ export async function POST(request: NextRequest) {
       const insights = await getPostInsights(accessToken, post.id);
       postsWithInsights.push({
         id: uuidv4(),
-        user_id: userId,
+        user_id: connectedUserId,
         threads_id: post.id,
         text: post.text || '',
         timestamp: new Date(post.timestamp),
@@ -296,7 +313,7 @@ export async function POST(request: NextRequest) {
     let followerDelta = 0;
     try {
       const { getUserThreadsDailyMetrics } = await import('@/lib/bigquery');
-      const previousMetrics = await getUserThreadsDailyMetrics(userId, 2);
+      const previousMetrics = await getUserThreadsDailyMetrics(connectedUserId, 2);
       if (previousMetrics.length > 0) {
         // 前日のデータがあれば差分を計算
         const yesterday = previousMetrics.find(m => m.date !== today);
@@ -311,7 +328,7 @@ export async function POST(request: NextRequest) {
     try {
       await upsertThreadsDailyMetrics({
         id: uuidv4(),
-        user_id: userId,
+        user_id: connectedUserId,
         date: today,
         followers_count: followersCount,
         follower_delta: followerDelta,
@@ -325,20 +342,20 @@ export async function POST(request: NextRequest) {
     }
 
     // 9. ユーザー情報を取得
-    const userRecord = await getUserById(userId);
+    const userRecord = await getUserById(connectedUserId);
 
     // 10. オンボーディング完了メール送信（非ブロッキング）
     if (userRecord?.email) {
       sendOnboardingCompleteEmail(
         userRecord.email,
         accountInfo.username,
-        `https://analyca.jp/${userId}`,
+        `https://analyca.jp/${connectedUserId}`,
       ).catch(err => console.error('Onboarding email send failed:', err));
     }
 
     return NextResponse.json({
       success: true,
-      userId,
+      userId: connectedUserId,
       syncPending: true, // クライアント側でバックグラウンド同期を呼び出す必要あり
       accountInfo: {
         username: accountInfo.username,

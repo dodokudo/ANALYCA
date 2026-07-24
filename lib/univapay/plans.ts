@@ -39,7 +39,6 @@ export const PLANS: Record<string, Plan> = {
     subtitle: 'Instagram分析',
     price: 4980,
     onboardingPath: '/onboarding/light2',
-    hidden: true, // 既存ユーザー用に残す。pricing UIからは非表示
   },
   'standard': {
     name: 'Standard',

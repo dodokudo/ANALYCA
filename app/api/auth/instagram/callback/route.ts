@@ -5,7 +5,7 @@ import {
   findUserIdByInstagramId,
   updateLastLogin,
 } from '@/lib/bigquery';
-import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
+import { canConnectChannel, hasSubscriptionAccess } from '@/lib/subscription-access';
 
 export const maxDuration = 300;
 
@@ -95,21 +95,25 @@ export async function GET(request: NextRequest) {
         pendingUserId = state.pendingUserId;
       } catch { /* invalid state, ignore */ }
     }
-    const existingUserId = pendingUserId || await findUserIdByInstagramId(igUserId);
+    const matchedUserId = await findUserIdByInstagramId(igUserId);
+    let existingUser = pendingUserId ? await getUserById(pendingUserId) : null;
+    if (!existingUser && matchedUserId && matchedUserId !== pendingUserId) {
+      existingUser = await getUserById(matchedUserId);
+    }
 
-    // 既存ユーザーが居る場合のみプラン制限チェック。居ない場合は新規ダッシュボードを作成する（決済は別フロー）
-    if (existingUserId) {
-      const existingUser = await getUserById(existingUserId);
-      if (existingUser) {
-        const effectivePlanId = resolveEffectivePlanId(existingUser.plan_id, {
-          has_threads: existingUser.has_threads,
-          has_instagram: existingUser.has_instagram,
-        });
-        if (isChannelBlockedByPlan(effectivePlanId, 'instagram')) {
-          const response = NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
-          return response;
-        }
+    // 新規・未契約・利用期限切れのユーザーは、先にInstagram専用プランを契約する。
+    if (!existingUser || !hasSubscriptionAccess(existingUser)) {
+      const checkoutUrl = new URL('/checkout', request.url);
+      checkoutUrl.searchParams.set('plan', 'light-instagram');
+      if (existingUser?.user_id) {
+        checkoutUrl.searchParams.set('userId', existingUser.user_id);
       }
+      return NextResponse.redirect(checkoutUrl);
+    }
+
+    const existingUserId = existingUser.user_id;
+    if (!canConnectChannel(existingUser, 'instagram')) {
+      return NextResponse.redirect(new URL(`/${existingUserId}?tab=instagram`, request.url));
     }
 
     // Step 5: Save user

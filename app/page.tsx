@@ -220,6 +220,19 @@ function PricingSection() {
           })}
         </div>
 
+        <div className="mt-8 mx-auto flex max-w-5xl flex-col gap-4 rounded-2xl border border-pink-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-bold text-gray-900">Instagramだけ使いたい方</p>
+            <p className="mt-1 text-sm text-gray-600">Instagram分析 Lightプラン（月額4,980円・税込）</p>
+          </div>
+          <Link
+            href="/checkout?plan=light-instagram"
+            className="shrink-0 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 px-6 py-3 text-center font-semibold text-white transition-all hover:from-pink-600 hover:to-purple-700"
+          >
+            Instagram分析を始める
+          </Link>
+        </div>
+
         <p className="text-center text-sm text-gray-500 mt-8">
           すべてのプランに7日間の無料体験がつきます。期間中はいつでもキャンセル可能。8日目から課金が開始されます。
         </p>

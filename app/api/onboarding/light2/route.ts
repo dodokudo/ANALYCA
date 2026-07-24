@@ -11,6 +11,7 @@ import {
   InstagramInsights
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
+import { canConnectChannel } from '@/lib/subscription-access';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
@@ -335,13 +336,21 @@ export async function POST(request: NextRequest) {
     const existingInstagramUserId = await findUserIdByInstagramId(instagramAccount.id);
 
     // ============ ユーザーID決定 ============
-    // requestUserId（決済後の仮ユーザー）を最優先、次に既存ユーザー、なければ新規作成
-    const userId = requestUserId || existingInstagramUserId || uuidv4();
+    // requestUserId（決済後の仮ユーザー）を最優先、次に既存ユーザーを利用
+    const userId = requestUserId || existingInstagramUserId;
+    const subscribedUser = userId ? await getUserById(userId) : null;
+    if (!canConnectChannel(subscribedUser, 'instagram')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Instagram分析を利用するにはプラン契約が必要です',
+        checkoutPath: `/checkout?plan=light-instagram${userId ? `&userId=${encodeURIComponent(userId)}` : ''}`,
+      }, { status: 402 });
+    }
 
     // ============ Instagramユーザー保存 ============
     const instagramTokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
     await upsertUser({
-      user_id: userId,
+      user_id: subscribedUser.user_id,
       instagram_user_id: instagramAccount.id,
       instagram_username: instagramAccount.username,
       instagram_profile_picture_url: instagramAccount.profile_picture_url,
@@ -351,11 +360,11 @@ export async function POST(request: NextRequest) {
 
     // ============ Instagramデータ取得・保存 ============
     const [reels, stories] = await Promise.all([
-      getInstagramReels(instagramLongToken, instagramAccount.id, userId),
-      getInstagramStories(instagramLongToken, instagramAccount.id, userId),
+      getInstagramReels(instagramLongToken, instagramAccount.id, subscribedUser.user_id),
+      getInstagramStories(instagramLongToken, instagramAccount.id, subscribedUser.user_id),
     ]);
 
-    const insights = createInstagramInsights(userId, instagramAccount);
+    const insights = createInstagramInsights(subscribedUser.user_id, instagramAccount);
 
     await Promise.all([
       reels.length > 0 ? insertInstagramReels(reels) : Promise.resolve(),
@@ -363,14 +372,14 @@ export async function POST(request: NextRequest) {
       insertInstagramInsights([insights]),
     ]);
 
-    const userRecord = await getUserById(userId);
+    const userRecord = await getUserById(subscribedUser.user_id);
 
     if (userRecord?.email) {
       const { sendOnboardingCompleteEmail } = await import('@/lib/email');
       sendOnboardingCompleteEmail(
         userRecord.email,
         instagramAccount.username,
-        `https://analyca.jp/${userId}`,
+        `https://analyca.jp/${subscribedUser.user_id}`,
       ).catch((err) => console.error('Onboarding email send failed:', err));
     }
 
@@ -378,7 +387,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      userId,
+      userId: subscribedUser.user_id,
       syncPending: true, // クライアント側でバックグラウンド同期を呼び出す
       accountInfo: {
         instagram: {

@@ -13,6 +13,7 @@ import {
   getUserById
 } from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
+import { canConnectChannel } from '@/lib/subscription-access';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 60;
@@ -38,9 +39,18 @@ export async function POST(request: NextRequest) {
 
       const account = await instagram.getInstagramAccount();
       const existingUserId = providedUserId || (await findUserIdByInstagramId(account.id));
+      const existingUser = existingUserId ? await getUserById(existingUserId) : null;
+
+      if (!canConnectChannel(existingUser, 'instagram')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Instagram分析を利用するにはプラン契約が必要です',
+          checkoutPath: `/checkout?plan=light-instagram${existingUserId ? `&userId=${encodeURIComponent(existingUserId)}` : ''}`,
+        }, { status: 402 });
+      }
 
       const userId = await upsertUser({
-        user_id: existingUserId || undefined,
+        user_id: existingUser.user_id,
         instagram_user_id: account.id,
         instagram_username: account.username,
         access_token: instagramLongTermToken,
@@ -91,10 +101,19 @@ export async function POST(request: NextRequest) {
 
       const account = await threads.getAccountInfo();
       const existingUserId = providedUserId || (await findUserIdByThreadsId(account.id));
+      const existingUser = existingUserId ? await getUserById(existingUserId) : null;
+
+      if (!canConnectChannel(existingUser, 'threads')) {
+        return NextResponse.json({
+          success: false,
+          error: 'Threads分析を利用するにはプラン契約が必要です',
+          checkoutPath: `/checkout?plan=light-threads${existingUserId ? `&userId=${encodeURIComponent(existingUserId)}` : ''}`,
+        }, { status: 402 });
+      }
 
       // ユーザー情報を保存（新規の場合は作成）
       const userId = await upsertThreadsUser({
-        user_id: existingUserId || undefined,
+        user_id: existingUser.user_id,
         threads_user_id: account.id,
         threads_username: account.username,
         threads_access_token: threadsLongTermToken,

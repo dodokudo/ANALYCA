@@ -1,4 +1,9 @@
 import type { User } from '@/lib/bigquery';
+import {
+  isChannelBlockedByPlan,
+  resolveEffectivePlanId,
+  type BillableChannel,
+} from '@/lib/univapay/plans';
 
 export type DashboardAccessState =
   | 'allowed'
@@ -184,4 +189,24 @@ export function evaluateDashboardAccess(
     status,
     expiresAt,
   };
+}
+
+export function hasSubscriptionAccess(user: User | null, now: Date = new Date()): boolean {
+  const status = (user?.subscription_status || '').toLowerCase();
+  if (!user || !status || status === 'none') return false;
+  return evaluateDashboardAccess(user, { now }).allowed;
+}
+
+export function canConnectChannel(
+  user: User | null,
+  channel: BillableChannel,
+  now: Date = new Date(),
+): user is User {
+  if (!hasSubscriptionAccess(user, now) || !user) return false;
+
+  const planId = resolveEffectivePlanId(user.plan_id, {
+    has_threads: user.has_threads,
+    has_instagram: user.has_instagram,
+  });
+  return !!planId && !isChannelBlockedByPlan(planId, channel);
 }

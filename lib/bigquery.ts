@@ -379,6 +379,17 @@ export async function findUserIdByInstagramId(instagramUserId: string): Promise<
     SELECT user_id
     FROM \`mark-454114.analyca.users\`
     WHERE instagram_user_id = @instagram_user_id
+    ORDER BY
+      CASE LOWER(IFNULL(subscription_status, 'none'))
+        WHEN 'trial' THEN 0
+        WHEN 'current' THEN 0
+        WHEN 'active' THEN 0
+        WHEN 'canceled' THEN 1
+        WHEN 'cancelled' THEN 1
+        ELSE 2
+      END,
+      subscription_created_at DESC,
+      user_id DESC
     LIMIT 1
   `;
 
@@ -396,6 +407,17 @@ export async function findUserIdByThreadsId(threadsUserId: string): Promise<stri
     SELECT user_id
     FROM \`mark-454114.analyca.users\`
     WHERE threads_user_id = @threads_user_id
+    ORDER BY
+      CASE LOWER(IFNULL(subscription_status, 'none'))
+        WHEN 'trial' THEN 0
+        WHEN 'current' THEN 0
+        WHEN 'active' THEN 0
+        WHEN 'canceled' THEN 1
+        WHEN 'cancelled' THEN 1
+        ELSE 2
+      END,
+      subscription_created_at DESC,
+      user_id DESC
     LIMIT 1
   `;
 

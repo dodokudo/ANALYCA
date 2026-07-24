@@ -9,7 +9,6 @@ export default function InstagramLoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
@@ -17,22 +16,6 @@ export default function InstagramLoginPage() {
 
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
-
-    if (!error) {
-      let userId = safeLocalStorage.getItem('analycaUserId');
-      if (!userId) {
-        const match = document.cookie.match(/(?:^|;\s*)analycaUserId=([^;]+)/);
-        if (match) {
-          userId = decodeURIComponent(match[1]);
-          safeLocalStorage.setItem('analycaUserId', userId);
-        }
-      }
-      if (userId) {
-        setIsRedirecting(true);
-        router.push(`/${userId}?tab=instagram`);
-        return;
-      }
-    }
 
     if (error) {
       setAuthError(decodeURIComponent(error));
@@ -46,11 +29,7 @@ export default function InstagramLoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);
     const scope = 'instagram_business_basic,instagram_business_manage_insights';
-    const currentUserId = safeLocalStorage.getItem('analycaUserId');
-    const stateParam = currentUserId
-      ? `&state=${encodeURIComponent(JSON.stringify({ pendingUserId: currentUserId }))}`
-      : '';
-    const oauthUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}${stateParam}`;
+    const oauthUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
 
     try {
       const { userId } = await openOAuthPopup(oauthUrl);
@@ -64,17 +43,6 @@ export default function InstagramLoginPage() {
       setIsLoading(false);
     }
   };
-
-  if (isRedirecting) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">ダッシュボードへ移動中...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">
@@ -134,7 +102,7 @@ export default function InstagramLoginPage() {
 
             <p className="text-sm text-gray-700 mb-3">
               Instagramの画面でこのような項目が表示されます。<br />
-              <strong>すべてのスイッチをONにしてから「許可する」</strong>を押してください。
+              <strong>利用するアカウントを確認し、すべてのスイッチをONにしてから「許可する」</strong>を押してください。
             </p>
 
             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4">

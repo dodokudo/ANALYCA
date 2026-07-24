@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { openOAuthPopup, PopupBlockedError } from '@/lib/oauth-popup';
 import { safeLocalStorage } from '@/lib/safe-storage';
 
@@ -10,33 +11,13 @@ export default function LoginPage() {
   const [isInstagramLoading, setIsInstagramLoading] = useState(false);
   const [isThreadsLoading, setIsThreadsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isRedirecting, setIsRedirecting] = useState(false);
   const [showInstagramModal, setShowInstagramModal] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // ログイン済みユーザーはダッシュボードへリダイレクト
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
-
-    if (!error) {
-      // localStorageまたはcookieからuserIdを取得
-      let userId = safeLocalStorage.getItem('analycaUserId');
-      if (!userId) {
-        // cookieからフォールバック（OAuth callback後のドメイン不一致対策）
-        const match = document.cookie.match(/(?:^|;\s*)analycaUserId=([^;]+)/);
-        if (match) {
-          userId = decodeURIComponent(match[1]);
-          safeLocalStorage.setItem('analycaUserId', userId);
-        }
-      }
-      if (userId) {
-        setIsRedirecting(true);
-        router.push(`/${userId}`);
-        return;
-      }
-    }
 
     // OAuth エラーメッセージ表示
     if (error) {
@@ -53,11 +34,7 @@ export default function LoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);
     const scope = 'instagram_business_basic,instagram_business_manage_insights';
-    const currentUserId = safeLocalStorage.getItem('analycaUserId');
-    const stateParam = currentUserId
-      ? `&state=${encodeURIComponent(JSON.stringify({ pendingUserId: currentUserId }))}`
-      : '';
-    const oauthUrl = `https://api.instagram.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}${stateParam}`;
+    const oauthUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
 
     try {
       const { userId } = await openOAuthPopup(oauthUrl);
@@ -83,24 +60,9 @@ export default function LoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
     const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
-    const currentUserId = safeLocalStorage.getItem('analycaUserId');
-    const stateParam = currentUserId
-      ? `&state=${encodeURIComponent(JSON.stringify({ pendingUserId: currentUserId }))}`
-      : '';
 
-    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
+    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
   };
-
-  if (isRedirecting) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">ダッシュボードへ移動中...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">
@@ -166,12 +128,12 @@ export default function LoginPage() {
           <p className="text-sm text-gray-600">
             アカウントをお持ちでない方は
           </p>
-          <a
+          <Link
             href="/pricing"
             className="inline-block mt-2 text-sm font-medium bg-gradient-to-r from-purple-500 to-emerald-400 bg-clip-text text-transparent hover:from-purple-600 hover:to-emerald-500"
           >
             プランを選んで始める →
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -186,7 +148,7 @@ export default function LoginPage() {
 
             <p className="text-sm text-gray-700 mb-3">
               Instagramの画面でこのような項目が表示されます。<br />
-              <strong>すべてのスイッチをONにしてから「許可する」</strong>を押してください。
+              <strong>利用するアカウントを確認し、すべてのスイッチをONにしてから「許可する」</strong>を押してください。
             </p>
 
             <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4">

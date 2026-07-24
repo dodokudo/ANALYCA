@@ -159,7 +159,9 @@ function CheckoutContent() {
       const utmMedium = safeLocalStorage.getItem('analyca_utm_medium') || '';
       const utmCampaign = safeLocalStorage.getItem('analyca_utm_campaign') || '';
       const utmContent = safeLocalStorage.getItem('analyca_utm_content') || '';
-      const existingUserId = searchParams?.get('userId') || safeLocalStorage.getItem('analycaUserId') || '';
+      // 既存ユーザーとの紐付けは、明示的にuserIdが渡された再契約フローだけで行う。
+      // 同じブラウザに残った別アカウントのIDを新規申込みへ引き継がない。
+      const existingUserId = searchParams?.get('userId') || '';
 
       console.log('[CHECKOUT] Creating subscription with token:', tokenId, 'plan:', planId);
       const response = await fetch('/api/payment/subscribe', {

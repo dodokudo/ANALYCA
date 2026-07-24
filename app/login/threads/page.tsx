@@ -1,14 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { safeLocalStorage } from '@/lib/safe-storage';
 
 export default function ThreadsLoginPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -16,27 +12,11 @@ export default function ThreadsLoginPage() {
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
 
-    if (!error) {
-      let userId = safeLocalStorage.getItem('analycaUserId');
-      if (!userId) {
-        const match = document.cookie.match(/(?:^|;\s*)analycaUserId=([^;]+)/);
-        if (match) {
-          userId = decodeURIComponent(match[1]);
-          safeLocalStorage.setItem('analycaUserId', userId);
-        }
-      }
-      if (userId) {
-        setIsRedirecting(true);
-        router.push(`/${userId}?tab=threads`);
-        return;
-      }
-    }
-
     if (error) {
       setAuthError(decodeURIComponent(error));
       window.history.replaceState({}, '', '/login/threads');
     }
-  }, [router]);
+  }, []);
 
   const handleThreadsLogin = () => {
     setIsLoading(true);
@@ -44,23 +24,8 @@ export default function ThreadsLoginPage() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
     const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
-    const currentUserId = safeLocalStorage.getItem('analycaUserId');
-    const stateParam = currentUserId
-      ? `&state=${encodeURIComponent(JSON.stringify({ pendingUserId: currentUserId }))}`
-      : '';
-    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
+    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
   };
-
-  if (isRedirecting) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">ダッシュボードへ移動中...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-emerald-50 flex items-center justify-center p-4">

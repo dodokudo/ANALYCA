@@ -64,9 +64,6 @@ export async function GET(request: NextRequest) {
     if (!existingUser || !hasSubscriptionAccess(existingUser)) {
       const checkoutUrl = new URL('/checkout', request.url);
       checkoutUrl.searchParams.set('plan', 'light-threads');
-      if (existingUser?.user_id) {
-        checkoutUrl.searchParams.set('userId', existingUser.user_id);
-      }
       return NextResponse.redirect(checkoutUrl);
     }
 

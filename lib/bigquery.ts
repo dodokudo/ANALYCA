@@ -23,6 +23,7 @@ const bigquery = new BigQuery({
 
 const dataset = bigquery.dataset('analyca');
 let ensureUserAccessLogsTablePromise: Promise<void> | null = null;
+let ensurePaymentAttemptsTablePromise: Promise<void> | null = null;
 
 /**
  * DML（INSERT/UPDATE/DELETE/MERGE）を確実に実行するヘルパー
@@ -63,6 +64,32 @@ async function ensureUserAccessLogsTable(): Promise<void> {
   }
 
   return ensureUserAccessLogsTablePromise;
+}
+
+async function ensurePaymentAttemptsTable(): Promise<void> {
+  if (!ensurePaymentAttemptsTablePromise) {
+    ensurePaymentAttemptsTablePromise = executeDML({
+      query: `
+        CREATE TABLE IF NOT EXISTS \`${projectId}.analyca.payment_attempts\` (
+          attempt_id STRING NOT NULL,
+          user_id STRING NOT NULL,
+          email STRING,
+          plan_id STRING NOT NULL,
+          transaction_token_id STRING,
+          subscription_id STRING,
+          status STRING NOT NULL,
+          error_message STRING,
+          created_at TIMESTAMP NOT NULL,
+          updated_at TIMESTAMP NOT NULL
+        )
+      `,
+    }).catch((error) => {
+      ensurePaymentAttemptsTablePromise = null;
+      throw error;
+    });
+  }
+
+  return ensurePaymentAttemptsTablePromise;
 }
 
 export interface User {
@@ -1717,12 +1744,255 @@ export async function createPendingUser(userId: string, subscriptionData: {
       coupon_code: subscriptionData.coupon_code || null,
     },
     types: {
+      user_id: 'STRING',
+      email: 'STRING',
+      subscription_id: 'STRING',
+      plan_id: 'STRING',
+      subscription_status: 'STRING',
       subscription_created_at: 'TIMESTAMP',
       trial_ends_at: 'TIMESTAMP',
+      transaction_token_id: 'STRING',
+      coupon_code: 'STRING',
     },
   });
 
   return userId;
+}
+
+export async function createPaymentAttempt(input: {
+  attempt_id: string;
+  user_id: string;
+  email?: string | null;
+  plan_id: string;
+  transaction_token_id: string;
+}): Promise<void> {
+  await ensurePaymentAttemptsTable();
+  const query = `
+    MERGE \`${projectId}.analyca.payment_attempts\` T
+    USING (
+      SELECT
+        @attempt_id AS attempt_id,
+        @user_id AS user_id,
+        @email AS email,
+        @plan_id AS plan_id,
+        @transaction_token_id AS transaction_token_id
+    ) S
+    ON T.attempt_id = S.attempt_id
+    WHEN MATCHED THEN UPDATE SET
+      email = COALESCE(S.email, T.email),
+      plan_id = S.plan_id,
+      transaction_token_id = S.transaction_token_id,
+      status = 'processing',
+      error_message = NULL,
+      updated_at = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (
+      attempt_id,
+      user_id,
+      email,
+      plan_id,
+      transaction_token_id,
+      subscription_id,
+      status,
+      error_message,
+      created_at,
+      updated_at
+    ) VALUES (
+      S.attempt_id,
+      S.user_id,
+      S.email,
+      S.plan_id,
+      S.transaction_token_id,
+      NULL,
+      'processing',
+      NULL,
+      CURRENT_TIMESTAMP(),
+      CURRENT_TIMESTAMP()
+    )
+  `;
+
+  await executeDML({
+    query,
+    params: {
+      attempt_id: input.attempt_id,
+      user_id: input.user_id,
+      email: input.email || null,
+      plan_id: input.plan_id,
+      transaction_token_id: input.transaction_token_id,
+    },
+    types: {
+      attempt_id: 'STRING',
+      user_id: 'STRING',
+      email: 'STRING',
+      plan_id: 'STRING',
+      transaction_token_id: 'STRING',
+    },
+  });
+}
+
+export async function updatePaymentAttempt(
+  attemptId: string,
+  input: {
+    status: 'subscription_created' | 'completed' | 'failed' | 'rolled_back';
+    subscription_id?: string | null;
+    error_message?: string | null;
+  },
+): Promise<void> {
+  await ensurePaymentAttemptsTable();
+  const query = `
+    UPDATE \`${projectId}.analyca.payment_attempts\`
+    SET
+      status = @status,
+      subscription_id = COALESCE(@subscription_id, subscription_id),
+      error_message = @error_message,
+      updated_at = CURRENT_TIMESTAMP()
+    WHERE attempt_id = @attempt_id
+  `;
+
+  await executeDML({
+    query,
+    params: {
+      attempt_id: attemptId,
+      status: input.status,
+      subscription_id: input.subscription_id || null,
+      error_message: input.error_message || null,
+    },
+    types: {
+      attempt_id: 'STRING',
+      status: 'STRING',
+      subscription_id: 'STRING',
+      error_message: 'STRING',
+    },
+  });
+}
+
+export async function getIncompletePaymentAttempts(): Promise<Array<{
+  attempt_id: string;
+  user_id: string;
+  email: string | null;
+  plan_id: string;
+  subscription_id: string | null;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}>> {
+  await ensurePaymentAttemptsTable();
+  const query = `
+    SELECT
+      attempt_id,
+      user_id,
+      email,
+      plan_id,
+      subscription_id,
+      status,
+      error_message,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', created_at) AS created_at,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', updated_at) AS updated_at
+    FROM \`${projectId}.analyca.payment_attempts\`
+    WHERE status != 'completed'
+      AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+    ORDER BY created_at DESC
+    LIMIT 100
+  `;
+  const [rows] = await bigquery.query({ query });
+  return rows as Array<{
+    attempt_id: string;
+    user_id: string;
+    email: string | null;
+    plan_id: string;
+    subscription_id: string | null;
+    status: string;
+    error_message: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+
+export async function linkSubscriptionToUser(input: {
+  target_user_id: string;
+  source_user_id?: string | null;
+  email?: string | null;
+  subscription_id: string;
+  plan_id: string;
+  subscription_status: string;
+  subscription_created_at: Date;
+  subscription_expires_at?: Date | null;
+  trial_ends_at?: Date | null;
+  transaction_token_id: string;
+}): Promise<void> {
+  const sourceUserId =
+    input.source_user_id && input.source_user_id !== input.target_user_id
+      ? input.source_user_id
+      : null;
+  const query = `
+    BEGIN TRANSACTION;
+
+    ASSERT (
+      SELECT COUNT(*)
+      FROM \`mark-454114.analyca.users\`
+      WHERE user_id = @target_user_id
+    ) = 1 AS 'target user not found';
+
+    UPDATE \`mark-454114.analyca.users\`
+    SET
+      email = COALESCE(@email, email),
+      subscription_id = @subscription_id,
+      plan_id = @plan_id,
+      subscription_status = @subscription_status,
+      subscription_created_at = @subscription_created_at,
+      subscription_expires_at = COALESCE(@subscription_expires_at, subscription_expires_at),
+      trial_ends_at = COALESCE(@trial_ends_at, trial_ends_at),
+      transaction_token_id = @transaction_token_id,
+      updated_at = CURRENT_TIMESTAMP()
+    WHERE user_id = @target_user_id;
+
+    UPDATE \`mark-454114.analyca.conversion_events\`
+    SET user_id = @target_user_id
+    WHERE @source_user_id IS NOT NULL
+      AND user_id = @source_user_id;
+
+    UPDATE \`mark-454114.analyca.referrals\`
+    SET referred_user_id = @target_user_id
+    WHERE @source_user_id IS NOT NULL
+      AND referred_user_id = @source_user_id;
+
+    DELETE FROM \`mark-454114.analyca.users\`
+    WHERE @source_user_id IS NOT NULL
+      AND user_id = @source_user_id
+      AND subscription_id = @subscription_id
+      AND COALESCE(has_instagram, FALSE) = FALSE
+      AND COALESCE(has_threads, FALSE) = FALSE;
+
+    COMMIT TRANSACTION;
+  `;
+
+  await executeDML({
+    query,
+    params: {
+      target_user_id: input.target_user_id,
+      source_user_id: sourceUserId,
+      email: input.email || null,
+      subscription_id: input.subscription_id,
+      plan_id: input.plan_id,
+      subscription_status: input.subscription_status,
+      subscription_created_at: input.subscription_created_at,
+      subscription_expires_at: input.subscription_expires_at || null,
+      trial_ends_at: input.trial_ends_at || null,
+      transaction_token_id: input.transaction_token_id,
+    },
+    types: {
+      target_user_id: 'STRING',
+      source_user_id: 'STRING',
+      email: 'STRING',
+      subscription_id: 'STRING',
+      plan_id: 'STRING',
+      subscription_status: 'STRING',
+      subscription_created_at: 'TIMESTAMP',
+      subscription_expires_at: 'TIMESTAMP',
+      trial_ends_at: 'TIMESTAMP',
+      transaction_token_id: 'STRING',
+    },
+  });
 }
 
 export async function updateUserPaymentToken(

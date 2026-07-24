@@ -72,6 +72,18 @@ interface SubscriptionInfo {
   status: string;
 }
 
+interface UnlinkedSubscription {
+  id: string;
+  email: string | null;
+  user_id: string | null;
+  source_user_id: string | null;
+  plan_id: string | null;
+  amount: number;
+  status: string;
+  created_on: string;
+  next_payment_date: string | null;
+}
+
 interface AdminData {
   users: AdminUser[];
   stats: {
@@ -83,6 +95,18 @@ interface AdminData {
   funnel: ConversionFunnel;
   usersExtended: UserExtended[];
   subscriptionMap: Record<string, SubscriptionInfo>;
+  unlinkedSubscriptions: UnlinkedSubscription[];
+  paymentAttempts: Array<{
+    attempt_id: string;
+    user_id: string;
+    email: string | null;
+    plan_id: string;
+    subscription_id: string | null;
+    status: string;
+    error_message: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
   fetchedAt: string;
 }
 
@@ -243,6 +267,7 @@ function AdminPageContent() {
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [linkTargets, setLinkTargets] = useState<Record<string, string>>({});
   const [grandprixEntries, setGrandprixEntries] = useState<GrandprixEntry[]>([]);
   const [grandprixLoading, setGrandprixLoading] = useState(false);
   const [grandprixError, setGrandprixError] = useState<string | null>(null);
@@ -290,6 +315,46 @@ function AdminPageContent() {
       }
     } catch {
       setActionMessage('Request failed');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleLinkSubscription = async (subscription: UnlinkedSubscription) => {
+    const targetUserId = linkTargets[subscription.id];
+    if (!targetUserId) return;
+    if (!window.confirm('この決済情報を選択したSNSログインユーザーへ紐付けます。よろしいですか？')) {
+      return;
+    }
+
+    const key = `link-${subscription.id}`;
+    setActionLoading(key);
+    setActionMessage(null);
+    try {
+      const response = await fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password,
+          action: 'link_subscription',
+          subscriptionId: subscription.id,
+          sourceUserId: subscription.source_user_id,
+          targetUserId,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '紐付けに失敗しました');
+      }
+      setActionMessage(result.message);
+      setLinkTargets((current) => {
+        const next = { ...current };
+        delete next[subscription.id];
+        return next;
+      });
+      await fetchData(password);
+    } catch (err) {
+      setActionMessage(err instanceof Error ? `Error: ${err.message}` : '紐付けに失敗しました');
     } finally {
       setActionLoading(null);
     }
@@ -436,6 +501,10 @@ function AdminPageContent() {
 
   // 一覧表示用: 未契約リード（SNS連携だけ）も含める全ユーザー
   const realUsers = [...demoFiltered].sort((a, b) => getPinnedUserRank(a) - getPinnedUserRank(b));
+  const linkableUsers = realUsers.filter((user) => {
+    const ext = extendedMap.get(user.user_id);
+    return (user.has_instagram || user.has_threads) && !ext?.subscription_id;
+  });
 
   // KPI集計用: 契約ユーザーのみ（subscription_status が 'none'/NULL を除外）
   const paidUsers = demoFiltered.filter(u => {
@@ -641,8 +710,147 @@ function AdminPageContent() {
 
         {/* ユーザー一覧タブ */}
         {activeTab === 'users' && (
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="space-y-6">
+            {(data.paymentAttempts || []).length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
+                <div className="border-b border-amber-100 bg-amber-50 px-5 py-4">
+                  <p className="font-bold text-amber-900">
+                    決済エラー・未完了 {data.paymentAttempts.length}件
+                  </p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    契約作成前の失敗も含め、直近30日間の未完了決済を表示しています。
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1000px]">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">メール</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">プラン</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">状態</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">発生日時</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">エラー内容</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {data.paymentAttempts.map((attempt) => (
+                        <tr key={attempt.attempt_id} className="bg-amber-50/20">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-800">
+                            {attempt.email || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{attempt.plan_id}</td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
+                              {attempt.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {formatDateTime(attempt.created_at)}
+                          </td>
+                          <td className="max-w-[480px] px-4 py-3 text-sm text-red-700">
+                            {attempt.error_message || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {(data.unlinkedSubscriptions || []).length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-red-200 bg-white shadow-sm">
+                <div className="border-b border-red-100 bg-red-50 px-5 py-4">
+                  <p className="font-bold text-red-800">
+                    SNS未紐付け決済 {data.unlinkedSubscriptions.length}件
+                  </p>
+                  <p className="mt-1 text-sm text-red-700">
+                    決済済みの契約と、SNSログイン済みのダッシュボードを手動で紐付けできます。
+                  </p>
+                  {actionMessage && (
+                    <p className="mt-2 text-sm font-medium text-red-800">{actionMessage}</p>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1400px]">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">メール</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">プラン</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">状態</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">作成日時</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">次回決済</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">金額</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">契約ID</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">SNSログインユーザーへ紐付け</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {data.unlinkedSubscriptions.map((subscription) => (
+                        <tr key={subscription.id} className="bg-red-50/20">
+                          <td className="px-4 py-3 text-sm font-medium text-gray-800">
+                            {subscription.email || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {subscription.plan_id || '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
+                              {subscription.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {formatDateTime(subscription.created_on)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {formatDate(subscription.next_payment_date)}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-800">
+                            {formatAmount(subscription.amount)}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                            {subscription.id}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex min-w-[360px] items-center gap-2">
+                              <select
+                                value={linkTargets[subscription.id] || ''}
+                                onChange={(event) => setLinkTargets((current) => ({
+                                  ...current,
+                                  [subscription.id]: event.target.value,
+                                }))}
+                                className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800"
+                              >
+                                <option value="">ログイン済みユーザーを選択</option>
+                                {linkableUsers.map((user) => (
+                                  <option key={user.user_id} value={user.user_id}>
+                                    {user.instagram_username || user.threads_username || user.user_id}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleLinkSubscription(subscription)}
+                                disabled={
+                                  !linkTargets[subscription.id]
+                                  || actionLoading === `link-${subscription.id}`
+                                }
+                                className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {actionLoading === `link-${subscription.id}` ? '処理中' : '紐付け'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="w-full min-w-[1660px]">
                 <thead className="bg-gray-50">
                   <tr>
@@ -811,6 +1019,7 @@ function AdminPageContent() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}

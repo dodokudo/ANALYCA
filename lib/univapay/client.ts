@@ -56,6 +56,15 @@ export interface UnivaPayListResponse<T> {
   total_hits?: number;
 }
 
+export interface UnivaPayTransactionToken {
+  id: string;
+  store_id: string;
+  email?: string;
+  active: boolean;
+  mode: 'live' | 'test';
+  created_on: string;
+}
+
 export interface CreateSubscriptionParams {
   transaction_token_id: string;
   amount: number;
@@ -276,9 +285,30 @@ export async function listSubscriptions(
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
-  return fetchUnivaPay<UnivaPayListResponse<UnivaPaySubscription>>(
+  const response = await fetchUnivaPay<UnivaPayListResponse<UnivaPaySubscription>>(
     `/stores/${storeId}/subscriptions`,
     { params: params as Record<string, string | number | undefined> },
+  );
+
+  return {
+    ...response,
+    items: response.items.map((subscription) => ({
+      ...subscription,
+      next_payment_date: subscription.next_payment_date || subscription.next_payment?.due_date,
+    })),
+  };
+}
+
+export async function getTransactionToken(
+  transactionTokenId: string,
+): Promise<UnivaPayTransactionToken> {
+  const storeId = UNIVAPAY_STORE_ID;
+  if (!storeId) {
+    throw new Error('UNIVAPAY_STORE_ID is not configured');
+  }
+
+  return fetchUnivaPay<UnivaPayTransactionToken>(
+    `/stores/${storeId}/tokens/${transactionTokenId}`,
   );
 }
 

@@ -6,7 +6,7 @@ import {
   findUserIdByThreadsId,
   updateLastLogin,
 } from '@/lib/bigquery';
-import { canConnectChannel, hasSubscriptionAccess } from '@/lib/subscription-access';
+import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
 
 export const maxDuration = 300;
 
@@ -54,22 +54,21 @@ export async function GET(request: NextRequest) {
         pendingUserId = state.pendingUserId;
       } catch { /* invalid state, ignore */ }
     }
-    const matchedUserId = await findUserIdByThreadsId(account.id || threadsUserId);
-    let existingUser = pendingUserId ? await getUserById(pendingUserId) : null;
-    if (!existingUser && matchedUserId && matchedUserId !== pendingUserId) {
-      existingUser = await getUserById(matchedUserId);
-    }
+    const existingUserId = pendingUserId || await findUserIdByThreadsId(account.id || threadsUserId);
 
-    // 新規・未契約・利用期限切れのユーザーは、先にThreads専用プランを契約する。
-    if (!existingUser || !hasSubscriptionAccess(existingUser)) {
-      const checkoutUrl = new URL('/checkout', request.url);
-      checkoutUrl.searchParams.set('plan', 'light-threads');
-      return NextResponse.redirect(checkoutUrl);
-    }
-
-    const existingUserId = existingUser.user_id;
-    if (!canConnectChannel(existingUser, 'threads')) {
-      return NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
+    // 無料配布用ログインでは新規ダッシュボードを作成する。
+    // 既存ユーザーだけ、契約済みプランの媒体制限を確認する。
+    if (existingUserId) {
+      const existingUser = await getUserById(existingUserId);
+      if (existingUser) {
+        const effectivePlanId = resolveEffectivePlanId(existingUser.plan_id, {
+          has_threads: existingUser.has_threads,
+          has_instagram: existingUser.has_instagram,
+        });
+        if (isChannelBlockedByPlan(effectivePlanId, 'threads')) {
+          return NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
+        }
+      }
     }
 
     // Step 5: Save user (profile picture URLはCDNのまま保存、GCSアップロードはsyncで実行)

@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSubscription } from '@/lib/univapay/client';
+import { cancelSubscription, createSubscription } from '@/lib/univapay/client';
 import { getUnivaPaySubscriptionPeriod, PLANS } from '@/lib/univapay/plans';
-import { createPendingUser, findUserByTransactionTokenId, getAffiliateByCode, createReferral, getUserById, recordConversionEvent } from '@/lib/bigquery';
+import {
+  createPaymentAttempt,
+  createPendingUser,
+  findUserByTransactionTokenId,
+  getAffiliateByCode,
+  createReferral,
+  getUserById,
+  recordConversionEvent,
+  updatePaymentAttempt,
+} from '@/lib/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
 import { getCoupon, getTrialDays, normalizeCouponCode } from '@/lib/coupons';
@@ -15,6 +24,7 @@ const TRIAL_ENABLED = true;
 const TRIAL_DAYS = 7;
 
 export async function POST(request: NextRequest) {
+  let paymentAttemptId: string | null = null;
   try {
     const body = await request.json();
     const { transactionTokenId, planId, refCode, couponCode, utm_source, utm_medium, utm_campaign, utm_content, email, userId: requestedUserId } = body;
@@ -80,6 +90,16 @@ export async function POST(request: NextRequest) {
       });
     }
     const userId = existingUser?.user_id || uuidv4();
+    paymentAttemptId = userId;
+
+    // 外部決済を作る前に、管理画面から追跡できる決済試行を保存する。
+    await createPaymentAttempt({
+      attempt_id: paymentAttemptId,
+      user_id: userId,
+      email: email || null,
+      plan_id: planId,
+      transaction_token_id: transactionTokenId,
+    });
 
     // UnivaPayでサブスクリプション作成
     const subscriptionParams: Parameters<typeof createSubscription>[0] = {
@@ -93,6 +113,7 @@ export async function POST(request: NextRequest) {
         planName: plan.name,
         ...(coupon ? { couponCode: coupon.code, trialDays: String(trialDays) } : {}),
       },
+      idempotencyKey: transactionTokenId,
     };
 
     if (isTrial) {
@@ -113,18 +134,63 @@ export async function POST(request: NextRequest) {
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + trialDays);
 
-    await createPendingUser(userId, {
-      subscription_id: subscription.id,
-      plan_id: planId,
-      subscription_status: isTrial ? 'trial' : 'current',
-      subscription_created_at: new Date(),
-      email: email || undefined,
-      transaction_token_id: transactionTokenId,
-      coupon_code: coupon?.code,
-      ...(isTrial ? { trial_ends_at: trialEndsAt } : {}),
-    });
+    try {
+      await updatePaymentAttempt(paymentAttemptId, {
+        status: 'subscription_created',
+        subscription_id: subscription.id,
+      });
+      await createPendingUser(userId, {
+        subscription_id: subscription.id,
+        plan_id: planId,
+        subscription_status: isTrial ? 'trial' : 'current',
+        subscription_created_at: new Date(),
+        email: email || undefined,
+        transaction_token_id: transactionTokenId,
+        coupon_code: coupon?.code,
+        ...(isTrial ? { trial_ends_at: trialEndsAt } : {}),
+      });
+    } catch (storageError) {
+      console.error('[SUBSCRIBE] Failed to persist subscription; rolling back UnivaPay subscription:', {
+        subscriptionId: subscription.id,
+        userId,
+        storageError,
+      });
+      try {
+        await cancelSubscription(subscription.id);
+        await updatePaymentAttempt(paymentAttemptId, {
+          status: 'rolled_back',
+          subscription_id: subscription.id,
+          error_message: storageError instanceof Error ? storageError.message : String(storageError),
+        }).catch((attemptError) => {
+          console.error('[SUBSCRIBE] Failed to mark rolled-back payment attempt:', attemptError);
+        });
+        console.warn('[SUBSCRIBE] Rolled back orphaned UnivaPay subscription:', subscription.id);
+      } catch (rollbackError) {
+        await updatePaymentAttempt(paymentAttemptId, {
+          status: 'failed',
+          subscription_id: subscription.id,
+          error_message: `DB保存失敗・自動キャンセル失敗: ${
+            rollbackError instanceof Error ? rollbackError.message : String(rollbackError)
+          }`,
+        }).catch((attemptError) => {
+          console.error('[SUBSCRIBE] Failed to mark orphaned payment attempt:', attemptError);
+        });
+        console.error('[SUBSCRIBE] Failed to roll back orphaned UnivaPay subscription:', {
+          subscriptionId: subscription.id,
+          rollbackError,
+        });
+      }
+      paymentAttemptId = null;
+      throw storageError;
+    }
 
     console.log('Pending user created:', userId, isTrial ? `(trial until ${trialEndsAt.toISOString()})` : '');
+    await updatePaymentAttempt(paymentAttemptId, {
+      status: 'completed',
+      subscription_id: subscription.id,
+    }).catch((attemptError) => {
+      console.error('[SUBSCRIBE] Failed to mark payment attempt completed:', attemptError);
+    });
 
     try {
       await syncAnalycaUserToLineHarness({
@@ -210,6 +276,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Subscription error:', error);
+    if (paymentAttemptId) {
+      await updatePaymentAttempt(paymentAttemptId, {
+        status: 'failed',
+        error_message: error instanceof Error ? error.message : String(error),
+      }).catch((attemptError) => {
+        console.error('[SUBSCRIBE] Failed to mark payment attempt failed:', attemptError);
+      });
+    }
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create subscription',

@@ -577,6 +577,25 @@ export async function getUserById(userId: string): Promise<User | null> {
   };
 }
 
+export async function isThreadsGrandprixParticipant(
+  threadsUsername?: string | null,
+): Promise<boolean> {
+  const normalizedThreadsUsername = threadsUsername?.trim().replace(/^@/, '').toLowerCase();
+  if (!normalizedThreadsUsername) return false;
+
+  const query = `
+    SELECT COUNT(1) > 0 AS is_participant
+    FROM \`mark-454114.analyca.threads_grandprix_entries\`
+    WHERE normalized_threads_username = @normalized_threads_username
+  `;
+  const [rows] = await bigquery.query({
+    query,
+    params: { normalized_threads_username: normalizedThreadsUsername },
+  });
+
+  return rows[0]?.is_participant === true;
+}
+
 // ユーザーのリールデータ取得
 export async function getUserReels(userId: string, limit: number = 50): Promise<InstagramReel[]> {
   const query = `

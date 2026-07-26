@@ -50,6 +50,8 @@ function CheckoutContent() {
   const planId = searchParams?.get('plan') || '';
   const plan = PLANS[planId];
   const isYearly = plan?.yearly === true;
+  const isImmediatePayment = searchParams?.get('trial') === '0';
+  const existingUserId = searchParams?.get('userId') || '';
 
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -103,10 +105,10 @@ function CheckoutContent() {
     );
   }
 
-  const appliedCoupon = getCoupon(couponCode);
-  const couponInput = couponCode.trim();
+  const appliedCoupon = isImmediatePayment ? null : getCoupon(couponCode);
+  const couponInput = isImmediatePayment ? '' : couponCode.trim();
   const couponError = couponInput && !appliedCoupon ? 'クーポンコードが無効です' : null;
-  const trialDays = getTrialDays(couponCode, 7);
+  const trialDays = isImmediatePayment ? 0 : getTrialDays(couponCode, 7);
   const nextBillingDayLabel = `${trialDays + 1}日目`;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -161,8 +163,6 @@ function CheckoutContent() {
       const utmContent = safeLocalStorage.getItem('analyca_utm_content') || '';
       // 既存ユーザーとの紐付けは、明示的にuserIdが渡された再契約フローだけで行う。
       // 同じブラウザに残った別アカウントのIDを新規申込みへ引き継がない。
-      const existingUserId = searchParams?.get('userId') || '';
-
       console.log('[CHECKOUT] Creating subscription with token:', tokenId, 'plan:', planId);
       const response = await fetch('/api/payment/subscribe', {
         method: 'POST',
@@ -178,6 +178,7 @@ function CheckoutContent() {
           utm_content: utmContent || undefined,
           email: email || undefined,
           userId: existingUserId || undefined,
+          skipTrial: isImmediatePayment,
         }),
       });
 
@@ -239,69 +240,81 @@ function CheckoutContent() {
             </div>
           </div>
 
-          {/* 無料トライアル表示 */}
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mt-3">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm font-medium text-emerald-800">{trialDays}日間無料体験</p>
+          {isImmediatePayment ? (
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mt-3">
+              <p className="text-sm font-medium text-purple-800">
+                カード登録後、月額 ¥{plan.price.toLocaleString()}（税込）を本日決済します
+              </p>
+              <p className="text-xs text-purple-600 mt-1">
+                決済完了後は、連携済みのThreadsアカウントをそのまま利用できます。
+              </p>
             </div>
-            <p className="text-xs text-emerald-600 mt-1 ml-7">
-              今日から{trialDays}日間は無料。期間中はいつでもキャンセルできます。
-            </p>
-          </div>
-
-          {(() => {
-            const trialEndDate = new Date();
-            trialEndDate.setDate(trialEndDate.getDate() + trialDays);
-            const formatted = trialEndDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
-            return (
-              <div className="border-t border-gray-100 pt-3 mt-3 space-y-1">
-                <p className="text-sm text-gray-600">{nextBillingDayLabel}から{isYearly ? '年額' : '月額'} ¥{plan.price.toLocaleString()}（税込）・自動更新</p>
-                <p className="text-xs text-gray-400">初回課金日: {formatted}</p>
+          ) : (
+            <>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mt-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm font-medium text-emerald-800">{trialDays}日間無料体験</p>
+                </div>
+                <p className="text-xs text-emerald-600 mt-1 ml-7">
+                  今日から{trialDays}日間は無料。期間中はいつでもキャンセルできます。
+                </p>
               </div>
-            );
-          })()}
 
-          {/* 紹介コード */}
-          <div className="border-t border-gray-100 pt-3 mt-3">
-            <label htmlFor="refCode" className="text-xs text-gray-500">紹介コード（任意）</label>
-            <input
-              type="text"
-              id="refCode"
-              value={refCode}
-              onChange={(e) => setRefCode(e.target.value.trim())}
-              placeholder="紹介コードがあれば入力"
-              className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-            />
-          </div>
+              {(() => {
+                const trialEndDate = new Date();
+                trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+                const formatted = trialEndDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+                return (
+                  <div className="border-t border-gray-100 pt-3 mt-3 space-y-1">
+                    <p className="text-sm text-gray-600">{nextBillingDayLabel}から{isYearly ? '年額' : '月額'} ¥{plan.price.toLocaleString()}（税込）・自動更新</p>
+                    <p className="text-xs text-gray-400">初回課金日: {formatted}</p>
+                  </div>
+                );
+              })()}
 
-          {/* クーポンコード */}
-          <div className="border-t border-gray-100 pt-3 mt-3">
-            <label htmlFor="couponCode" className="text-xs text-gray-500">クーポンコード（任意）</label>
-            <input
-              type="text"
-              id="couponCode"
-              value={couponCode}
-              onChange={(e) => {
-                const value = e.target.value.trim().toUpperCase();
-                setCouponCode(value);
-                if (value) {
-                  safeLocalStorage.setItem('analyca_coupon', value);
-                } else {
-                  safeLocalStorage.removeItem('analyca_coupon');
-                }
-              }}
-              placeholder="例: ANALYCA30"
-              className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-            />
-            {appliedCoupon ? (
-              <p className="mt-2 text-xs font-medium text-emerald-600">{appliedCoupon.label}が適用されています</p>
-            ) : couponError ? (
-              <p className="mt-2 text-xs font-medium text-red-600">{couponError}</p>
-            ) : null}
-          </div>
+              {/* 紹介コード */}
+              <div className="border-t border-gray-100 pt-3 mt-3">
+                <label htmlFor="refCode" className="text-xs text-gray-500">紹介コード（任意）</label>
+                <input
+                  type="text"
+                  id="refCode"
+                  value={refCode}
+                  onChange={(e) => setRefCode(e.target.value.trim())}
+                  placeholder="紹介コードがあれば入力"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                />
+              </div>
+
+              {/* クーポンコード */}
+              <div className="border-t border-gray-100 pt-3 mt-3">
+                <label htmlFor="couponCode" className="text-xs text-gray-500">クーポンコード（任意）</label>
+                <input
+                  type="text"
+                  id="couponCode"
+                  value={couponCode}
+                  onChange={(e) => {
+                    const value = e.target.value.trim().toUpperCase();
+                    setCouponCode(value);
+                    if (value) {
+                      safeLocalStorage.setItem('analyca_coupon', value);
+                    } else {
+                      safeLocalStorage.removeItem('analyca_coupon');
+                    }
+                  }}
+                  placeholder="例: ANALYCA30"
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                />
+                {appliedCoupon ? (
+                  <p className="mt-2 text-xs font-medium text-emerald-600">{appliedCoupon.label}が適用されています</p>
+                ) : couponError ? (
+                  <p className="mt-2 text-xs font-medium text-red-600">{couponError}</p>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
 
         {/* カード入力フォーム */}
@@ -360,12 +373,16 @@ function CheckoutContent() {
                   処理中...
                 </span>
               ) : (
-                `無料で始める（${trialDays}日間）`
+                isImmediatePayment
+                  ? 'カード登録して決済する'
+                  : `無料で始める（${trialDays}日間）`
               )}
             </button>
 
             <p className="text-center text-xs text-gray-500 mt-3">
-              {trialDays}日間無料。期間中はいつでもキャンセル可能。{nextBillingDayLabel}から{isYearly ? '年額' : '月額'}¥{plan.price.toLocaleString()}
+              {isImmediatePayment
+                ? `本日${isYearly ? '年額' : '月額'}¥${plan.price.toLocaleString()}を決済し、以後自動更新されます。`
+                : `${trialDays}日間無料。期間中はいつでもキャンセル可能。${nextBillingDayLabel}から${isYearly ? '年額' : '月額'}¥${plan.price.toLocaleString()}`}
             </p>
 
             <div className="flex items-center justify-center gap-2 mt-3">
@@ -382,10 +399,10 @@ function CheckoutContent() {
         {/* 戻るリンク */}
         <div className="text-center mt-6">
           <button
-            onClick={() => router.push('/pricing')}
+            onClick={() => router.push(isImmediatePayment && existingUserId ? `/${existingUserId}?tab=threads` : '/pricing')}
             className="text-gray-400 hover:text-gray-600 text-sm transition-colors"
           >
-            ← プラン選択に戻る
+            {isImmediatePayment ? '← ダッシュボードに戻る' : '← プラン選択に戻る'}
           </button>
         </div>
       </main>

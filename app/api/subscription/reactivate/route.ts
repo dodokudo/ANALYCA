@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserById, updateUserSubscription } from '@/lib/bigquery';
+import { getUserById, isThreadsGrandprixParticipant, updateUserSubscription } from '@/lib/bigquery';
 import { createSubscriptionFromToken, getSubscription, updateSubscription } from '@/lib/univapay/client';
 import { getUnivaPaySubscriptionPeriod, PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
+import {
+  isThreadsGrandprixPaymentRequired,
+  isThreadsGrandprixUncontractedParticipant,
+} from '@/lib/threads-grandprix-access';
 
 function getNextPaymentDate(subscription: { next_payment_date?: string | null; next_payment?: { due_date?: string | null } }): Date | null {
   const value = subscription.next_payment_date || subscription.next_payment?.due_date || null;
@@ -25,7 +29,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ユーザーが見つかりません' }, { status: 404 });
     }
 
-    const planId = user.plan_id || 'light-threads';
+    const grandprixAccessSubject = {
+      isParticipant: await isThreadsGrandprixParticipant(user.threads_username),
+      subscriptionStatus: user.subscription_status,
+    };
+    const isGrandprixPaymentRequired = isThreadsGrandprixPaymentRequired(grandprixAccessSubject);
+    if (
+      isThreadsGrandprixUncontractedParticipant(grandprixAccessSubject) &&
+      !isGrandprixPaymentRequired
+    ) {
+      return NextResponse.json({
+        success: false,
+        error: 'Threadsグランプリ参加者の無料利用期間は2026年7月31日23:59までです',
+      }, { status: 409 });
+    }
+
+    const planId = isGrandprixPaymentRequired ? 'light-threads' : (user.plan_id || 'light-threads');
     const plan = PLANS[planId];
     if (!plan) {
       return NextResponse.json({ success: false, error: 'プラン情報が見つかりません' }, { status: 400 });
@@ -62,12 +81,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (!user.recurring_token_id) {
+    if (isGrandprixPaymentRequired || !user.recurring_token_id) {
       return NextResponse.json({
         success: false,
         requiresPaymentMethod: true,
-        error: 'カード情報の再登録が必要です',
-        checkoutUrl: `/checkout?plan=${encodeURIComponent(planId)}&userId=${encodeURIComponent(userId)}`,
+        error: isGrandprixPaymentRequired
+          ? 'カード情報を登録して決済してください'
+          : 'カード情報の再登録が必要です',
+        checkoutUrl: `/checkout?plan=${encodeURIComponent(planId)}&userId=${encodeURIComponent(userId)}${isGrandprixPaymentRequired ? '&trial=0' : ''}`,
       }, { status: 400 });
     }
 

@@ -8,6 +8,7 @@ import {
   getAffiliateByCode,
   createReferral,
   getUserById,
+  isThreadsGrandprixParticipant,
   recordConversionEvent,
   updatePaymentAttempt,
 } from '@/lib/bigquery';
@@ -15,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendAdminCardRegisteredEmail, sendPaymentCompleteEmail } from '@/lib/email';
 import { getCoupon, getTrialDays, normalizeCouponCode } from '@/lib/coupons';
 import { syncAnalycaUserToLineHarness } from '@/lib/line-harness-sync';
+import { isThreadsGrandprixPaymentRequired } from '@/lib/threads-grandprix-access';
 
 // Vercel Serverless関数のタイムアウト上限を伸ばす（デフォルト10秒→30秒）
 export const maxDuration = 30;
@@ -27,7 +29,19 @@ export async function POST(request: NextRequest) {
   let paymentAttemptId: string | null = null;
   try {
     const body = await request.json();
-    const { transactionTokenId, planId, refCode, couponCode, utm_source, utm_medium, utm_campaign, utm_content, email, userId: requestedUserId } = body;
+    const {
+      transactionTokenId,
+      planId,
+      refCode,
+      couponCode,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_content,
+      email,
+      userId: requestedUserId,
+      skipTrial,
+    } = body;
 
     if (!transactionTokenId) {
       return NextResponse.json({
@@ -44,7 +58,6 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = PLANS[planId];
-    const isTrial = TRIAL_ENABLED;
     const normalizedCouponCode = normalizeCouponCode(couponCode);
     const coupon = getCoupon(normalizedCouponCode);
     if (normalizedCouponCode && !coupon) {
@@ -53,7 +66,6 @@ export async function POST(request: NextRequest) {
         error: 'クーポンコードが無効です',
       }, { status: 400 });
     }
-    const trialDays = isTrial ? getTrialDays(normalizedCouponCode, TRIAL_DAYS) : 0;
 
     // 冪等性チェック: 同じ transaction_token_id で既にサブスク登録済みなら既存レスポンスを返す
     const existing = await findUserByTransactionTokenId(transactionTokenId);
@@ -66,7 +78,9 @@ export async function POST(request: NextRequest) {
         status: existing.subscription_status,
         userId: existing.user_id,
         isTrial: existing.subscription_status === 'trial',
-        onboardingPath: `${existingPlan?.onboardingPath || plan.onboardingPath}?userId=${existing.user_id}`,
+        onboardingPath: skipTrial === true
+          ? `/${existing.user_id}?tab=threads`
+          : `${existingPlan?.onboardingPath || plan.onboardingPath}?userId=${existing.user_id}`,
         idempotent: true,
       });
     }
@@ -74,9 +88,10 @@ export async function POST(request: NextRequest) {
     const existingUser = typeof requestedUserId === 'string' && requestedUserId
       ? await getUserById(requestedUserId)
       : null;
+    const existingUserStatus = (existingUser?.subscription_status || 'none').toLowerCase();
     if (
       existingUser?.subscription_id &&
-      !['none', 'canceled', 'cancelled', 'expired'].includes(existingUser.subscription_status || '')
+      !['none', 'canceled', 'cancelled', 'expired'].includes(existingUserStatus)
     ) {
       const existingPlan = existingUser.plan_id ? PLANS[existingUser.plan_id] : null;
       return NextResponse.json({
@@ -85,11 +100,39 @@ export async function POST(request: NextRequest) {
         status: existingUser.subscription_status,
         userId: existingUser.user_id,
         isTrial: existingUser.subscription_status === 'trial',
-        onboardingPath: `${existingPlan?.onboardingPath || plan.onboardingPath}?userId=${existingUser.user_id}`,
+        onboardingPath: skipTrial === true
+          ? `/${existingUser.user_id}?tab=threads`
+          : `${existingPlan?.onboardingPath || plan.onboardingPath}?userId=${existingUser.user_id}`,
         idempotent: true,
       });
     }
+
+    const grandprixPaymentRequired = existingUser
+      ? isThreadsGrandprixPaymentRequired({
+          isParticipant: await isThreadsGrandprixParticipant(existingUser.threads_username),
+          subscriptionStatus: existingUser.subscription_status,
+        })
+      : false;
+    const requestedImmediatePayment = skipTrial === true;
+    if (grandprixPaymentRequired && !requestedImmediatePayment) {
+      return NextResponse.json({
+        success: false,
+        error: 'Threadsグランプリ参加者専用の決済画面からお手続きください',
+      }, { status: 400 });
+    }
+    if (requestedImmediatePayment && (planId !== 'light-threads' || !grandprixPaymentRequired)) {
+      return NextResponse.json({
+        success: false,
+        error: 'この即時決済は対象のThreadsグランプリ参加者のみ利用できます',
+      }, { status: 400 });
+    }
+
+    const isTrial = TRIAL_ENABLED && !grandprixPaymentRequired;
+    const trialDays = isTrial ? getTrialDays(normalizedCouponCode, TRIAL_DAYS) : 0;
     const userId = existingUser?.user_id || uuidv4();
+    const completionPath = grandprixPaymentRequired
+      ? `/${userId}?tab=threads`
+      : `${plan.onboardingPath}?userId=${userId}`;
     paymentAttemptId = userId;
 
     // 外部決済を作る前に、管理画面から追跡できる決済試行を保存する。
@@ -112,6 +155,7 @@ export async function POST(request: NextRequest) {
         planId,
         planName: plan.name,
         ...(coupon ? { couponCode: coupon.code, trialDays: String(trialDays) } : {}),
+        ...(grandprixPaymentRequired ? { grandprixPaymentOnly: 'true' } : {}),
       },
       idempotencyKey: transactionTokenId,
     };
@@ -210,7 +254,7 @@ export async function POST(request: NextRequest) {
       sendPaymentCompleteEmail(
         email,
         plan.name,
-        `https://analyca.jp${plan.onboardingPath}?userId=${userId}`,
+        `https://analyca.jp${completionPath}`,
       ).catch(err => console.error('Payment email send failed:', err));
     }
 
@@ -271,7 +315,7 @@ export async function POST(request: NextRequest) {
       status: subscription.status,
       userId,
       isTrial,
-      onboardingPath: `${plan.onboardingPath}?userId=${userId}`,
+      onboardingPath: completionPath,
     });
 
   } catch (error) {

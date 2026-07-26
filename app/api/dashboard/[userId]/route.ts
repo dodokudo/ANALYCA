@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserById, getUserDashboardData, updateLastLogin, updateUserSubscription, type User } from '@/lib/bigquery';
+import {
+  getUserById,
+  getUserDashboardData,
+  isThreadsGrandprixParticipant,
+  updateLastLogin,
+  updateUserSubscription,
+  type User,
+} from '@/lib/bigquery';
 import { syncAnalycaUserToLineHarness } from '@/lib/line-harness-sync';
 import {
   getYamazakiAgencyMetrics,
@@ -7,6 +14,7 @@ import {
   YAMAZAKI_THREADS_USERNAME,
 } from '@/lib/yamazaki-agency-metrics';
 import { evaluateDashboardAccess } from '@/lib/subscription-access';
+import { evaluateThreadsGrandprixAccess } from '@/lib/threads-grandprix-access';
 import { getSubscription } from '@/lib/univapay/client';
 
 /**
@@ -168,6 +176,15 @@ export async function GET(
     }
 
     const access = evaluateDashboardAccess(userRecord, { isAdmin: isAdminAccess });
+    const threadsGrandprixParticipant = userRecord
+      ? await isThreadsGrandprixParticipant(userRecord.threads_username)
+      : false;
+    const threadsAccess = evaluateThreadsGrandprixAccess({
+      isParticipant: threadsGrandprixParticipant,
+      subscriptionStatus: userRecord?.subscription_status,
+    }, {
+      isAdmin: isAdminAccess,
+    });
     const userPayload = {
       user_id: userRecord?.user_id || userId,
       threads_username: userRecord?.threads_username || null,
@@ -194,11 +211,17 @@ export async function GET(
         user: userPayload,
         channels: channelPayload,
         access,
+        threadsAccess,
       });
     }
 
     // ダッシュボードデータを取得
     const { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats } = await getUserDashboardData(userId);
+    const threadsDataAllowed = threadsAccess?.allowed !== false;
+    const visibleThreadsPosts = threadsDataAllowed ? threadsPosts : [];
+    const visibleThreadsComments = threadsDataAllowed ? threadsComments : [];
+    const visibleThreadsDailyMetrics = threadsDataAllowed ? threadsDailyMetrics : [];
+    const visibleThreadsDailyPostStats = threadsDataAllowed ? threadsDailyPostStats : [];
     const yamazakiAgency =
       userId === YAMAZAKI_ANALYCA_USER_ID || userRecord?.threads_username === YAMAZAKI_THREADS_USERNAME
         ? await getYamazakiAgencyMetrics()
@@ -256,13 +279,13 @@ export async function GET(
         data: lineData.map(l => serializeRecord(l as unknown as Record<string, unknown>))
       },
       threads: {
-        total: threadsPosts.length,
-        totalViews: threadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
-        totalLikes: threadsPosts.reduce((sum, post) => sum + (post.likes || 0), 0),
-        totalReplies: threadsPosts.reduce((sum, post) => sum + (post.replies || 0), 0),
-        totalReposts: threadsPosts.reduce((sum, post) => sum + (post.reposts || 0), 0),
-        totalQuotes: threadsPosts.reduce((sum, post) => sum + (post.quotes || 0), 0),
-        data: threadsPosts.map(post => ({
+        total: visibleThreadsPosts.length,
+        totalViews: visibleThreadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
+        totalLikes: visibleThreadsPosts.reduce((sum, post) => sum + (post.likes || 0), 0),
+        totalReplies: visibleThreadsPosts.reduce((sum, post) => sum + (post.replies || 0), 0),
+        totalReposts: visibleThreadsPosts.reduce((sum, post) => sum + (post.reposts || 0), 0),
+        totalQuotes: visibleThreadsPosts.reduce((sum, post) => sum + (post.quotes || 0), 0),
+        data: visibleThreadsPosts.map(post => ({
           id: post.id,
           threads_id: post.threads_id,
           text: post.text,
@@ -278,9 +301,9 @@ export async function GET(
         }))
       },
       threadsComments: {
-        total: threadsComments.length,
-        totalViews: threadsComments.reduce((sum, c) => sum + (c.views || 0), 0),
-        data: threadsComments.map(comment => ({
+        total: visibleThreadsComments.length,
+        totalViews: visibleThreadsComments.reduce((sum, c) => sum + (c.views || 0), 0),
+        data: visibleThreadsComments.map(comment => ({
           id: comment.id,
           comment_id: comment.comment_id,
           parent_post_id: comment.parent_post_id,
@@ -293,8 +316,8 @@ export async function GET(
         }))
       },
       threadsDailyMetrics: {
-        latest: threadsDailyMetrics[0] ? serializeRecord(threadsDailyMetrics[0] as unknown as Record<string, unknown>) : null,
-        data: threadsDailyMetrics.map(m => ({
+        latest: visibleThreadsDailyMetrics[0] ? serializeRecord(visibleThreadsDailyMetrics[0] as unknown as Record<string, unknown>) : null,
+        data: visibleThreadsDailyMetrics.map(m => ({
           date: serializeTimestamp(m.date),
           followers_count: m.followers_count ?? 0,
           follower_delta: m.follower_delta ?? 0,
@@ -305,8 +328,8 @@ export async function GET(
         }))
       },
       threadsDailyPostStats: {
-        latest: threadsDailyPostStats[0] ? serializeRecord(threadsDailyPostStats[0] as unknown as Record<string, unknown>) : null,
-        data: threadsDailyPostStats.map(stat => ({
+        latest: visibleThreadsDailyPostStats[0] ? serializeRecord(visibleThreadsDailyPostStats[0] as unknown as Record<string, unknown>) : null,
+        data: visibleThreadsDailyPostStats.map(stat => ({
           date: serializeTimestamp(stat.date),
           post_count: stat.post_count ?? 0,
           total_views: stat.total_views ?? 0,
@@ -319,8 +342,8 @@ export async function GET(
         totalStoriesViews: stories.reduce((sum, story) => sum + (story.views || 0), 0),
         currentFollowers: insights[0]?.followers_count || 0,
         lineFollowers: lineData[0]?.followers || 0,
-        totalThreadsViews: threadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
-        threadsFollowersCount: threadsDailyMetrics[0]?.followers_count || 0,
+        totalThreadsViews: visibleThreadsPosts.reduce((sum, post) => sum + (post.views || 0), 0),
+        threadsFollowersCount: visibleThreadsDailyMetrics[0]?.followers_count || 0,
       },
       yamazakiAgency,
     };
@@ -331,6 +354,7 @@ export async function GET(
       user: userPayload,
       channels: channelPayload,
       access,
+      threadsAccess,
     });
 
   } catch (error) {

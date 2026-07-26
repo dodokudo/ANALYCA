@@ -350,11 +350,15 @@ function AccessRestrictedScreen({
   user,
   userId,
   subscriptionStatus,
+  threadsOnlyRestriction = false,
+  instagramAvailable = false,
 }: {
   access: DashboardAccess;
   user: UserInfo | null;
   userId: string;
   subscriptionStatus: SubscriptionStatusResponse | null;
+  threadsOnlyRestriction?: boolean;
+  instagramAvailable?: boolean;
 }) {
   const [reactivating, setReactivating] = useState(false);
   const [reactivateMessage, setReactivateMessage] = useState<string | null>(null);
@@ -380,7 +384,7 @@ function AccessRestrictedScreen({
       }
       if (json.requiresPaymentMethod) {
         setReactivateMessage(json.error || 'カード情報の登録が必要です。');
-        window.location.href = `/checkout?plan=${encodeURIComponent(planId)}&userId=${encodeURIComponent(userId)}`;
+        window.location.href = json.checkoutUrl || `/checkout?plan=${encodeURIComponent(planId)}&userId=${encodeURIComponent(userId)}`;
         return;
       }
       setReactivateMessage(json.error || '再契約に失敗しました。カード情報を確認してください。');
@@ -544,6 +548,24 @@ function AccessRestrictedScreen({
             </button>
           )}
           {reactivateMessage && <p className="mt-3 text-sm font-medium text-red-600">{reactivateMessage}</p>}
+          {threadsOnlyRestriction && (
+            <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+              {instagramAvailable && (
+                <a
+                  href={`/${encodeURIComponent(userId)}?tab=instagram`}
+                  className="font-medium text-gray-600 underline underline-offset-4 hover:text-gray-900"
+                >
+                  Instagramを見る
+                </a>
+              )}
+              <a
+                href={`/${encodeURIComponent(userId)}?tab=settings`}
+                className="font-medium text-gray-600 underline underline-offset-4 hover:text-gray-900"
+              >
+                設定を開く
+              </a>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -631,6 +653,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   const [user, setUser] = useState<UserInfo | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [access, setAccess] = useState<DashboardAccess | null>(null);
+  const [threadsAccess, setThreadsAccess] = useState<DashboardAccess | null>(null);
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
   const [prefetchedSubscriptionStatus, setPrefetchedSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
   const [affiliateDashboardData, setAffiliateDashboardData] = useState<AffiliateDashboardResponse | null>(null);
@@ -698,6 +721,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
         setUser(result.user || null);
         setData(result.data || null);
         setAccess(result.access || null);
+        setThreadsAccess(result.threadsAccess || null);
         setChannels(result.channels || { instagram: false, threads: false });
         setLastUpdated(new Date());
         void Promise.all([
@@ -922,6 +946,19 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
         user={user}
         userId={userId}
         subscriptionStatus={prefetchedSubscriptionStatus}
+      />
+    );
+  }
+
+  if (activeChannel === 'threads' && threadsAccess && !threadsAccess.allowed) {
+    return (
+      <AccessRestrictedScreen
+        access={threadsAccess}
+        user={user}
+        userId={userId}
+        subscriptionStatus={prefetchedSubscriptionStatus}
+        threadsOnlyRestriction
+        instagramAvailable={channels.instagram}
       />
     );
   }

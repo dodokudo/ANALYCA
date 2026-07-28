@@ -13,6 +13,10 @@ import { PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 import { getSubscription } from '@/lib/univapay/client';
 import { canActivatePendingPlanChange } from '@/lib/subscription-plan-change-policy';
+import {
+  findLinkLineOptionBySubscriptionId,
+  updateLinkLineOptionBySubscriptionId,
+} from '@/lib/link-line-option';
 
 function extractAmount(data: Record<string, unknown>): number | null {
   const raw = data.amount ?? data.charged_amount ?? data.requested_amount;
@@ -56,6 +60,27 @@ function getNextPaymentDate(subscription: { next_payment_date?: string | null; n
 }
 
 async function updateStatusAndSync(subscriptionId: string, status: string, hydrateSubscription = false): Promise<void> {
+  const option = await findLinkLineOptionBySubscriptionId(subscriptionId);
+  if (option) {
+    let optionStatus = status;
+    let expiresAt: Date | null | undefined;
+    if (hydrateSubscription) {
+      try {
+        const subscription = await getSubscription(subscriptionId);
+        optionStatus = subscription.status || status;
+        expiresAt = getNextPaymentDate(subscription);
+      } catch (error) {
+        console.error('[WEBHOOK] Failed to hydrate option subscription:', error);
+      }
+    }
+    await updateLinkLineOptionBySubscriptionId({
+      subscriptionId,
+      status: optionStatus,
+      expiresAt,
+    });
+    return;
+  }
+
   const pendingUser = await findUserByPendingSubscriptionId(subscriptionId);
   if (pendingUser) {
     let subscriptionStatus = status;

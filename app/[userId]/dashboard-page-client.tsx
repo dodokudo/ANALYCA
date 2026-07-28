@@ -10,6 +10,11 @@ import { NotificationBell } from './components/notification-bell';
 import AnalycaLogo from '@/components/AnalycaLogo';
 import SubscriptionSettings, { type SubscriptionStatusResponse } from './components/subscription-settings';
 import AffiliateDashboard, { type AffiliateDashboardResponse } from './components/affiliate-dashboard';
+import OptionDashboard, {
+  type LinkLineOptionStatusResponse,
+  type LinkLineOptionView,
+} from './components/option-dashboard';
+import LinkRegistrationTab from './components/link-registration-tab';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
 import { safeLocalStorage, safeSessionStorage } from '@/lib/safe-storage';
 import {
@@ -84,6 +89,14 @@ function AffiliateIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function OptionIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v18m9-9H3" />
+    </svg>
+  );
+}
+
 function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -111,7 +124,7 @@ function SidebarToggleIcon() {
 }
 
 // ============ 型定義 ============
-type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate';
+type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate' | 'options';
 
 type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
@@ -239,6 +252,7 @@ interface DailyMetric {
   post_count: number;
   link_clicks?: number;
   line_registrations?: number;
+  line_friends?: number;
 }
 
 interface DailyPostStat {
@@ -657,6 +671,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   const [channels, setChannels] = useState<{ instagram: boolean; threads: boolean }>({ instagram: false, threads: false });
   const [prefetchedSubscriptionStatus, setPrefetchedSubscriptionStatus] = useState<SubscriptionStatusResponse | null>(null);
   const [affiliateDashboardData, setAffiliateDashboardData] = useState<AffiliateDashboardResponse | null>(null);
+  const [linkLineOptionStatus, setLinkLineOptionStatus] = useState<LinkLineOptionStatusResponse | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isInitialSetup = searchParams?.get('auth')?.includes('complete') || false;
@@ -732,6 +747,10 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
           fetch(`/api/affiliate/dashboard?userId=${encodeURIComponent(userId)}`)
             .then((res) => res.json())
             .then((json) => setAffiliateDashboardData(json as AffiliateDashboardResponse))
+            .catch(() => {}),
+          fetch(`/api/options/link-line/status?userId=${encodeURIComponent(userId)}`)
+            .then((res) => res.json())
+            .then((json) => setLinkLineOptionStatus(json as LinkLineOptionStatusResponse))
             .catch(() => {}),
         ]);
       }
@@ -870,6 +889,12 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       Icon: AffiliateIcon,
       locked: false,
     });
+    items.push({
+      value: 'options',
+      label: 'オプション',
+      Icon: OptionIcon,
+      locked: false,
+    });
     return items;
   }, [planId]);
 
@@ -896,6 +921,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
     if (tabParam === 'threads') return 'threads';
     if (tabParam === 'instagram') return 'instagram';
     if (tabParam === 'affiliate') return 'affiliate';
+    if (tabParam === 'options') return 'options';
     if (!tabParam) {
       if (planId === 'light-threads' || channels.threads) return 'threads';
       if (planId === 'light-instagram' || channels.instagram) return 'instagram';
@@ -1239,6 +1265,9 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
                 data={data}
                 username={username}
                 profilePicture={profilePicture}
+                linkLineOption={linkLineOptionStatus?.option || null}
+                optionStatusLoaded={linkLineOptionStatus !== null}
+                onOptionStatusChange={setLinkLineOptionStatus}
               />
             )
           )}
@@ -1270,6 +1299,13 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
           )}
           {activeChannel === 'affiliate' && (
             <AffiliateDashboard userId={userId} initialData={affiliateDashboardData} />
+          )}
+          {activeChannel === 'options' && (
+            <OptionDashboard
+              userId={userId}
+              initialData={linkLineOptionStatus}
+              onStatusChange={setLinkLineOptionStatus}
+            />
           )}
         </div>
       </main>
@@ -1322,14 +1358,21 @@ function ThreadsContent({
   data,
   username,
   profilePicture,
+  linkLineOption,
+  optionStatusLoaded,
+  onOptionStatusChange,
 }: {
   userId: string;
   user: UserInfo | null;
   data: DashboardData | null;
   username: string;
   profilePicture: string | undefined;
+  linkLineOption: LinkLineOptionView | null;
+  optionStatusLoaded: boolean;
+  onOptionStatusChange: (status: LinkLineOptionStatusResponse) => void;
 }) {
   const isYamazakiDashboard = userId === YAMAZAKI_ANALYCA_USER_ID || username === YAMAZAKI_THREADS_USERNAME;
+  const hasLinkLineOption = Boolean(linkLineOption?.hasAccess);
   const defaultStartDate = isYamazakiDashboard
     ? YAMAZAKI_METRICS_START_DATE
     : formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -1339,8 +1382,12 @@ function ThreadsContent({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const threadsTabParam = searchParams?.get('threadsTab');
-  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule'>(
-    threadsTabParam === 'schedule' ? 'schedule' : 'analysis'
+  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule' | 'links'>(
+    threadsTabParam === 'schedule'
+      ? 'schedule'
+      : threadsTabParam === 'links' && hasLinkLineOption
+        ? 'links'
+        : 'analysis'
   );
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
@@ -1353,11 +1400,22 @@ function ThreadsContent({
   const [appliedCustomEndDate, setAppliedCustomEndDate] = useState(defaultEndDate);
 
   useEffect(() => {
-    const nextTab = searchParams?.get('threadsTab') === 'schedule' ? 'schedule' : 'analysis';
+    const requestedTab = searchParams?.get('threadsTab');
+    const nextTab = requestedTab === 'schedule'
+      ? 'schedule'
+      : requestedTab === 'links' && hasLinkLineOption
+        ? 'links'
+        : 'analysis';
     setThreadsTab(nextTab);
-  }, [searchParams]);
+    if (requestedTab === 'links' && optionStatusLoaded && !hasLinkLineOption) {
+      const params = new URLSearchParams(searchParams?.toString());
+      params.set('tab', 'threads');
+      params.set('threadsTab', 'analysis');
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [hasLinkLineOption, optionStatusLoaded, pathname, router, searchParams]);
 
-  const setActiveThreadsTab = (tab: 'analysis' | 'schedule') => {
+  const setActiveThreadsTab = (tab: 'analysis' | 'schedule' | 'links') => {
     setThreadsTab(tab);
     const params = new URLSearchParams(searchParams?.toString());
     params.set('tab', 'threads');
@@ -1463,6 +1521,42 @@ function ThreadsContent({
     return map;
   }, [data?.yamazakiAgency?.daily]);
 
+  const optionMetrics = useMemo(() => {
+    const daily = linkLineOption?.metrics.daily || [];
+    const currentRows = daily.filter((row) => isDateInRange(row.date, dateRange));
+    const previousRows = daily.filter((row) => isDateInRange(row.date, previousDateRange));
+    const currentFollowers = currentRows
+      .filter((row) => row.lineFollowers !== null)
+      .sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date))[0]?.lineFollowers
+      ?? linkLineOption?.metrics.latestLineFollowers
+      ?? 0;
+    const previousFollowers = previousRows
+      .filter((row) => row.lineFollowers !== null)
+      .sort((a, b) => safeGetTime(b.date) - safeGetTime(a.date))[0]?.lineFollowers
+      ?? currentRows
+        .filter((row) => row.lineFollowers !== null)
+        .sort((a, b) => safeGetTime(a.date) - safeGetTime(b.date))[0]?.lineFollowers
+      ?? currentFollowers;
+
+    return {
+      linkClicks: currentRows.reduce((sum, row) => sum + row.linkClicks, 0),
+      previousLinkClicks: previousRows.reduce((sum, row) => sum + row.linkClicks, 0),
+      lineFollowers: currentFollowers,
+      previousLineFollowers: previousFollowers,
+    };
+  }, [dateRange, linkLineOption?.metrics.daily, linkLineOption?.metrics.latestLineFollowers, previousDateRange]);
+
+  const optionDailyByDate = useMemo(() => {
+    const map = new Map<string, { linkClicks: number; lineFollowers: number | null }>();
+    for (const row of linkLineOption?.metrics.daily || []) {
+      map.set(row.date, {
+        linkClicks: row.linkClicks || 0,
+        lineFollowers: row.lineFollowers,
+      });
+    }
+    return map;
+  }, [linkLineOption?.metrics.daily]);
+
   // フィルタ後の合計を計算（期間内の投稿データから直接集計）
   const totalPosts = posts.length;
   const totalViews = posts.reduce((sum, p) => sum + (p.views || 0), 0);
@@ -1472,10 +1566,18 @@ function ThreadsContent({
   const previousTotalViews = previousPosts.reduce((sum, p) => sum + (p.views || 0), 0);
   const postDelta = totalPosts - previousTotalPosts;
   const viewDelta = totalViews - previousTotalViews;
-  const linkClickDelta = yamazakiAgencyMetrics.linkClicks - previousYamazakiAgencyMetrics.linkClicks;
-  const lineRegistrationDelta = yamazakiAgencyMetrics.lineRegistrations - previousYamazakiAgencyMetrics.lineRegistrations;
-  const linkCtr = totalViews > 0 ? (yamazakiAgencyMetrics.linkClicks / totalViews) * 100 : null;
-  const lineCvr = yamazakiAgencyMetrics.linkClicks > 0 ? (yamazakiAgencyMetrics.lineRegistrations / yamazakiAgencyMetrics.linkClicks) * 100 : null;
+  const displayedLinkClicks = isYamazakiDashboard ? yamazakiAgencyMetrics.linkClicks : optionMetrics.linkClicks;
+  const displayedLineMetric = isYamazakiDashboard ? yamazakiAgencyMetrics.lineRegistrations : optionMetrics.lineFollowers;
+  const linkClickDelta = isYamazakiDashboard
+    ? yamazakiAgencyMetrics.linkClicks - previousYamazakiAgencyMetrics.linkClicks
+    : optionMetrics.linkClicks - optionMetrics.previousLinkClicks;
+  const lineRegistrationDelta = isYamazakiDashboard
+    ? yamazakiAgencyMetrics.lineRegistrations - previousYamazakiAgencyMetrics.lineRegistrations
+    : optionMetrics.lineFollowers - optionMetrics.previousLineFollowers;
+  const linkCtr = totalViews > 0 ? (displayedLinkClicks / totalViews) * 100 : null;
+  const lineCvr = displayedLinkClicks > 0 && isYamazakiDashboard
+    ? (displayedLineMetric / displayedLinkClicks) * 100
+    : null;
 
   // コメント紐付け
   const commentsByPostId = useMemo(() => {
@@ -1556,6 +1658,31 @@ function ThreadsContent({
         });
       }
     }
+    for (const [date, metric] of optionDailyByDate.entries()) {
+      if (!isDateInRange(date, dateRange)) {
+        continue;
+      }
+      const existing = merged.get(date);
+      if (existing) {
+        merged.set(date, {
+          ...existing,
+          link_clicks: metric.linkClicks,
+          line_friends: metric.lineFollowers ?? undefined,
+        });
+      } else {
+        merged.set(date, {
+          date,
+          followers_count: 0,
+          follower_delta: 0,
+          total_views: 0,
+          total_likes: 0,
+          total_replies: 0,
+          post_count: 0,
+          link_clicks: metric.linkClicks,
+          line_friends: metric.lineFollowers ?? undefined,
+        });
+      }
+    }
     // フォロワー数が0の日を、最も近い既知のフォロワー数で埋める
     const sorted = Array.from(merged.values())
       .filter((metric) => metric.date)
@@ -1571,7 +1698,7 @@ function ThreadsContent({
       }
     }
     return sorted.reverse();
-  }, [dailyFollowerMetrics, dailyPostStats, followersCount, yamazakiDailyByDate, dateRange]);
+  }, [dailyFollowerMetrics, dailyPostStats, followersCount, yamazakiDailyByDate, optionDailyByDate, dateRange]);
 
   // ソート
   const sortedPosts = useMemo(() => {
@@ -1637,6 +1764,7 @@ function ThreadsContent({
           {([
             { key: 'analysis', label: '分析' },
             { key: 'schedule', label: '予約投稿' },
+            ...(hasLinkLineOption ? [{ key: 'links' as const, label: 'リンク登録' }] : []),
           ] as const).map(({ key, label }) => (
             <button
               key={key}
@@ -1704,6 +1832,13 @@ function ThreadsContent({
       </div>
 
       {threadsTab === 'schedule' && <ScheduleTab userId={userId} />}
+      {threadsTab === 'links' && linkLineOption && (
+        <LinkRegistrationTab
+          userId={userId}
+          option={linkLineOption}
+          onStatusChange={onOptionStatusChange}
+        />
+      )}
 
       {threadsTab === 'analysis' && <>
       {/* アカウント + KPI */}
@@ -1755,10 +1890,12 @@ function ThreadsContent({
             </span>
           </div>
           <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-            {isYamazakiDashboard ? (
+            {isYamazakiDashboard || hasLinkLineOption ? (
               <>
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LPクリック</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.linkClicks.toLocaleString()}</dd>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">
+                  {isYamazakiDashboard ? 'LPクリック' : 'リンククリック'}
+                </dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{displayedLinkClicks.toLocaleString()}</dd>
                 <p className={`mt-1 text-[9px] font-medium md:text-xs ${linkClickDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                   CTR: {formatRate(linkCtr)} / {formatSigned(linkClickDelta)}
                 </p>
@@ -1774,12 +1911,15 @@ function ThreadsContent({
             )}
           </div>
           <div className="min-w-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-2 md:p-4">
-            {isYamazakiDashboard ? (
+            {isYamazakiDashboard || hasLinkLineOption ? (
               <>
-                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">LINE登録数</dt>
-                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{yamazakiAgencyMetrics.lineRegistrations.toLocaleString()}</dd>
+                <dt className="truncate text-[9px] md:text-xs font-medium text-[color:var(--color-text-secondary)]">
+                  {isYamazakiDashboard ? 'LINE登録数' : 'LINE友だち数'}
+                </dt>
+                <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{displayedLineMetric.toLocaleString()}</dd>
                 <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                  CVR: {formatRate(lineCvr)} / {formatSigned(lineRegistrationDelta)}
+                  {isYamazakiDashboard ? `CVR: ${formatRate(lineCvr)} / ` : '前期間比: '}
+                  {formatSigned(lineRegistrationDelta)}
                 </p>
                 <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
                   {lineRegistrationDelta >= 0 ? '増加傾向' : '減少傾向'}
@@ -1821,11 +1961,11 @@ function ThreadsContent({
                   <th className="px-3 py-2 text-right">増減</th>
                   <th className="px-3 py-2 text-right">投稿</th>
                   <th className="px-3 py-2 text-right">閲覧数</th>
-                  {data?.yamazakiAgency && (
+                  {(data?.yamazakiAgency || hasLinkLineOption) && (
                     <>
-                      <th className="px-3 py-2 text-right">LPクリック</th>
-                      <th className="px-3 py-2 text-right">LINE</th>
-                      <th className="px-3 py-2 text-right">CVR</th>
+                      <th className="px-3 py-2 text-right">{isYamazakiDashboard ? 'LPクリック' : 'リンククリック'}</th>
+                      <th className="px-3 py-2 text-right">{isYamazakiDashboard ? 'LINE' : 'LINE友だち'}</th>
+                      {isYamazakiDashboard && <th className="px-3 py-2 text-right">CVR</th>}
                     </>
                   )}
                 </tr>
@@ -1834,6 +1974,7 @@ function ThreadsContent({
                 {dailyMetrics.map((m, idx) => {
                   const linkClicks = m.link_clicks || 0;
                   const lineRegistrations = m.line_registrations || 0;
+                  const lineFriends = m.line_friends;
                   const cvr = linkClicks > 0 ? `${((lineRegistrations / linkClicks) * 100).toFixed(1)}%` : '-';
 
                   return (
@@ -1847,11 +1988,17 @@ function ThreadsContent({
                       </td>
                       <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{m.post_count || 0}</td>
                       <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(m.total_views || 0).toLocaleString()}</td>
-                      {data?.yamazakiAgency && (
+                      {(data?.yamazakiAgency || hasLinkLineOption) && (
                         <>
                           <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{linkClicks.toLocaleString()}</td>
-                          <td className="px-3 py-2 text-right text-orange-500">{lineRegistrations > 0 ? `+${lineRegistrations}` : '0'}</td>
-                          <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{cvr}</td>
+                          <td className="px-3 py-2 text-right text-orange-500">
+                            {isYamazakiDashboard
+                              ? lineRegistrations > 0 ? `+${lineRegistrations}` : '0'
+                              : lineFriends?.toLocaleString() ?? '-'}
+                          </td>
+                          {isYamazakiDashboard && (
+                            <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{cvr}</td>
+                          )}
                         </>
                       )}
                     </tr>

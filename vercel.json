@@ -49,6 +49,10 @@
       "schedule": "20 0 * * *"
     },
     {
+      "path": "/api/cron/link-line-sync",
+      "schedule": "30 0 * * *"
+    },
+    {
       "path": "/api/threads-grandprix/snapshot",
       "schedule": "30 15 * * *"
     }

@@ -3,6 +3,10 @@ import { getUserSubscriptionStatus, updateUserSubscription, getUserById } from '
 import { sendCancellationEmail } from '@/lib/email';
 import { cancelSubscription, getSubscription } from '@/lib/univapay/client';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
+import {
+  getLinkLineOptionRecord,
+  updateLinkLineOptionBySubscriptionId,
+} from '@/lib/link-line-option';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,6 +39,32 @@ export async function POST(request: NextRequest) {
     } catch {
       // 取得失敗しても解約自体は成功しているのでOK
       expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // 基本プランだけ解約されてオプション課金が残らないよう、オプションも停止する。
+    try {
+      const option = await getLinkLineOptionRecord(userId);
+      if (option?.subscriptionId && option.status.toLowerCase() !== 'canceled') {
+        let optionExpiresAt = option.expiresAt ? new Date(option.expiresAt) : undefined;
+        try {
+          const optionSubscription = await getSubscription(option.subscriptionId);
+          const rawNextPayment = optionSubscription.next_payment_date || optionSubscription.next_payment?.due_date;
+          if (rawNextPayment) {
+            const parsed = new Date(rawNextPayment);
+            if (!Number.isNaN(parsed.getTime())) optionExpiresAt = parsed;
+          }
+        } catch {
+          // 保存済みの期限を使う。
+        }
+        await cancelSubscription(option.subscriptionId);
+        await updateLinkLineOptionBySubscriptionId({
+          subscriptionId: option.subscriptionId,
+          status: 'canceled',
+          expiresAt: optionExpiresAt,
+        });
+      }
+    } catch (optionError) {
+      console.error('Failed to cancel link-line option with base subscription:', optionError);
     }
 
     // BigQuery更新

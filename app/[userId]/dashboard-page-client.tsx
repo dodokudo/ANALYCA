@@ -1393,7 +1393,7 @@ function ThreadsContent({
   const [sortBy, setSortBy] = useState<'postedAt' | 'views' | 'likes'>('views');
   const [showAllPosts, setShowAllPosts] = useState(false);
   const [showDailyTable, setShowDailyTable] = useState(true);
-  const [datePreset, setDatePreset] = useState<DatePreset>(isYamazakiDashboard ? 'custom' : 'thisMonth');
+  const [datePreset, setDatePreset] = useState<DatePreset>(isYamazakiDashboard ? 'custom' : '7d');
   const [customStartDate, setCustomStartDate] = useState(defaultStartDate);
   const [customEndDate, setCustomEndDate] = useState(defaultEndDate);
   const [appliedCustomStartDate, setAppliedCustomStartDate] = useState(defaultStartDate);
@@ -2254,7 +2254,7 @@ function InstagramContent({
   profilePicture: string | undefined;
 }) {
   const [activeTab, setActiveTab] = useState<IGTab>('overview');
-  const [datePreset, setDatePreset] = useState<DatePreset>('thisMonth');
+  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
   const [reelSortBy, setReelSortBy] = useState('views');
   const [storySortBy, setStorySortBy] = useState('views');
 

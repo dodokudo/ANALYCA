@@ -35,7 +35,7 @@ function OnboardingStandardContent() {
     const targetUserId = connectedUserId || userId;
     const state = targetUserId ? encodeURIComponent(JSON.stringify({ pendingUserId: targetUserId })) : '';
     const stateParam = state ? `&state=${state}` : '';
-    window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
+    window.location.href = `https://threads.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code${stateParam}`;
   };
 
   const handleInstagramOAuth = async () => {

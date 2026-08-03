@@ -2807,7 +2807,7 @@ function ConnectCard({ channel, userId }: { channel: 'threads' | 'instagram'; us
       const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
       const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
       const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
-      window.location.href = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
+      window.location.href = `https://threads.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
     } else {
       const clientId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID || '1238454094361851';
       const redirectUri = encodeURIComponent(`${appUrl}/api/auth/instagram/callback`);

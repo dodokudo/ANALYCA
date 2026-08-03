@@ -24,6 +24,7 @@ const bigquery = new BigQuery({
 const dataset = bigquery.dataset('analyca');
 let ensureUserAccessLogsTablePromise: Promise<void> | null = null;
 let ensurePaymentAttemptsTablePromise: Promise<void> | null = null;
+let ensureSubscriptionUpgradeAttemptsTablePromise: Promise<void> | null = null;
 
 /**
  * DML（INSERT/UPDATE/DELETE/MERGE）を確実に実行するヘルパー
@@ -90,6 +91,40 @@ async function ensurePaymentAttemptsTable(): Promise<void> {
   }
 
   return ensurePaymentAttemptsTablePromise;
+}
+
+async function ensureSubscriptionUpgradeAttemptsTable(): Promise<void> {
+  if (!ensureSubscriptionUpgradeAttemptsTablePromise) {
+    ensureSubscriptionUpgradeAttemptsTablePromise = executeDML({
+      query: `
+        CREATE TABLE IF NOT EXISTS \`${projectId}.analyca.subscription_upgrade_attempts\` (
+          attempt_id STRING NOT NULL,
+          user_id STRING NOT NULL,
+          subscription_id STRING NOT NULL,
+          transaction_token_id STRING NOT NULL,
+          from_plan_id STRING NOT NULL,
+          target_plan_id STRING NOT NULL,
+          current_amount INT64 NOT NULL,
+          target_amount INT64 NOT NULL,
+          prorated_amount INT64 NOT NULL,
+          period_start DATE NOT NULL,
+          period_end DATE NOT NULL,
+          remaining_days INT64 NOT NULL,
+          total_days INT64 NOT NULL,
+          charge_id STRING,
+          status STRING NOT NULL,
+          error_message STRING,
+          created_at TIMESTAMP NOT NULL,
+          updated_at TIMESTAMP NOT NULL
+        )
+      `,
+    }).catch((error) => {
+      ensureSubscriptionUpgradeAttemptsTablePromise = null;
+      throw error;
+    });
+  }
+
+  return ensureSubscriptionUpgradeAttemptsTablePromise;
 }
 
 export interface User {
@@ -1927,6 +1962,181 @@ export async function getIncompletePaymentAttempts(): Promise<Array<{
   }>;
 }
 
+export type SubscriptionUpgradeAttemptStatus =
+  | 'processing'
+  | 'charge_created'
+  | 'charged'
+  | 'completed'
+  | 'failed';
+
+export interface SubscriptionUpgradeAttempt {
+  attempt_id: string;
+  user_id: string;
+  subscription_id: string;
+  transaction_token_id: string;
+  from_plan_id: string;
+  target_plan_id: string;
+  current_amount: number;
+  target_amount: number;
+  prorated_amount: number;
+  period_start: string;
+  period_end: string;
+  remaining_days: number;
+  total_days: number;
+  charge_id: string | null;
+  status: SubscriptionUpgradeAttemptStatus;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getSubscriptionUpgradeAttempt(
+  attemptId: string,
+): Promise<SubscriptionUpgradeAttempt | null> {
+  await ensureSubscriptionUpgradeAttemptsTable();
+  const query = `
+    SELECT
+      attempt_id, user_id, subscription_id, transaction_token_id,
+      from_plan_id, target_plan_id, current_amount, target_amount,
+      prorated_amount, FORMAT_DATE('%Y-%m-%d', period_start) AS period_start,
+      FORMAT_DATE('%Y-%m-%d', period_end) AS period_end,
+      remaining_days, total_days, charge_id, status, error_message,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', created_at) AS created_at,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', updated_at) AS updated_at
+    FROM \`${projectId}.analyca.subscription_upgrade_attempts\`
+    WHERE attempt_id = @attempt_id
+    LIMIT 1
+  `;
+  const [rows] = await bigquery.query({ query, params: { attempt_id: attemptId } });
+  return rows.length > 0 ? rows[0] as SubscriptionUpgradeAttempt : null;
+}
+
+export async function createSubscriptionUpgradeAttempt(input: {
+  attempt_id: string;
+  user_id: string;
+  subscription_id: string;
+  transaction_token_id: string;
+  from_plan_id: string;
+  target_plan_id: string;
+  current_amount: number;
+  target_amount: number;
+  prorated_amount: number;
+  period_start: string;
+  period_end: string;
+  remaining_days: number;
+  total_days: number;
+}): Promise<SubscriptionUpgradeAttempt> {
+  await ensureSubscriptionUpgradeAttemptsTable();
+  const query = `
+    MERGE \`${projectId}.analyca.subscription_upgrade_attempts\` T
+    USING (
+      SELECT
+        @attempt_id AS attempt_id,
+        @user_id AS user_id,
+        @subscription_id AS subscription_id,
+        @transaction_token_id AS transaction_token_id,
+        @from_plan_id AS from_plan_id,
+        @target_plan_id AS target_plan_id,
+        @current_amount AS current_amount,
+        @target_amount AS target_amount,
+        @prorated_amount AS prorated_amount,
+        @period_start AS period_start,
+        @period_end AS period_end,
+        @remaining_days AS remaining_days,
+        @total_days AS total_days
+    ) S
+    ON T.attempt_id = S.attempt_id
+    WHEN NOT MATCHED THEN INSERT (
+      attempt_id, user_id, subscription_id, transaction_token_id,
+      from_plan_id, target_plan_id, current_amount, target_amount,
+      prorated_amount, period_start, period_end, remaining_days, total_days,
+      charge_id, status, error_message, created_at, updated_at
+    ) VALUES (
+      S.attempt_id, S.user_id, S.subscription_id, S.transaction_token_id,
+      S.from_plan_id, S.target_plan_id, S.current_amount, S.target_amount,
+      S.prorated_amount, S.period_start, S.period_end, S.remaining_days, S.total_days,
+      NULL, 'processing', NULL, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+    )
+  `;
+  await executeDML({
+    query,
+    params: input,
+    types: {
+      attempt_id: 'STRING',
+      user_id: 'STRING',
+      subscription_id: 'STRING',
+      transaction_token_id: 'STRING',
+      from_plan_id: 'STRING',
+      target_plan_id: 'STRING',
+      current_amount: 'INT64',
+      target_amount: 'INT64',
+      prorated_amount: 'INT64',
+      period_start: 'DATE',
+      period_end: 'DATE',
+      remaining_days: 'INT64',
+      total_days: 'INT64',
+    },
+  });
+  const attempt = await getSubscriptionUpgradeAttempt(input.attempt_id);
+  if (!attempt) throw new Error('Failed to persist subscription upgrade attempt');
+  return attempt;
+}
+
+export async function updateSubscriptionUpgradeAttempt(
+  attemptId: string,
+  input: {
+    status: SubscriptionUpgradeAttemptStatus;
+    charge_id?: string | null;
+    error_message?: string | null;
+  },
+): Promise<void> {
+  await ensureSubscriptionUpgradeAttemptsTable();
+  const query = `
+    UPDATE \`${projectId}.analyca.subscription_upgrade_attempts\`
+    SET status = @status,
+        charge_id = COALESCE(@charge_id, charge_id),
+        error_message = @error_message,
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE attempt_id = @attempt_id
+  `;
+  await executeDML({
+    query,
+    params: {
+      attempt_id: attemptId,
+      status: input.status,
+      charge_id: input.charge_id || null,
+      error_message: input.error_message || null,
+    },
+    types: {
+      attempt_id: 'STRING',
+      status: 'STRING',
+      charge_id: 'STRING',
+      error_message: 'STRING',
+    },
+  });
+}
+
+export async function getRecoverableSubscriptionUpgradeAttempts(): Promise<SubscriptionUpgradeAttempt[]> {
+  await ensureSubscriptionUpgradeAttemptsTable();
+  const query = `
+    SELECT
+      attempt_id, user_id, subscription_id, transaction_token_id,
+      from_plan_id, target_plan_id, current_amount, target_amount,
+      prorated_amount, FORMAT_DATE('%Y-%m-%d', period_start) AS period_start,
+      FORMAT_DATE('%Y-%m-%d', period_end) AS period_end,
+      remaining_days, total_days, charge_id, status, error_message,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', created_at) AS created_at,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', updated_at) AS updated_at
+    FROM \`${projectId}.analyca.subscription_upgrade_attempts\`
+    WHERE status IN ('processing', 'charge_created', 'charged')
+      AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+    ORDER BY created_at
+    LIMIT 100
+  `;
+  const [rows] = await bigquery.query({ query });
+  return rows as SubscriptionUpgradeAttempt[];
+}
+
 export async function linkSubscriptionToUser(input: {
   target_user_id: string;
   source_user_id?: string | null;
@@ -2175,6 +2385,22 @@ export async function findUserByPendingSubscriptionId(subscriptionId: string): P
   });
 
   return rows.length > 0 ? getUserById(rows[0].user_id) : null;
+}
+
+export async function getDuePendingPlanChanges(): Promise<User[]> {
+  const query = `
+    SELECT user_id
+    FROM \`${projectId}.analyca.users\`
+    WHERE pending_subscription_id IS NOT NULL
+      AND pending_plan_id IS NOT NULL
+      AND plan_change_effective_at IS NOT NULL
+      AND plan_change_effective_at <= CURRENT_TIMESTAMP()
+    ORDER BY plan_change_effective_at
+    LIMIT 100
+  `;
+  const [rows] = await bigquery.query({ query });
+  const users = await Promise.all(rows.map((row) => getUserById(row.user_id)));
+  return users.filter((user): user is User => user !== null);
 }
 
 export async function completePendingPlanChange(

@@ -53,6 +53,10 @@
       "schedule": "30 0 * * *"
     },
     {
+      "path": "/api/cron/subscription-reconcile",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/threads-grandprix/snapshot",
       "schedule": "30 15 * * *"
     }

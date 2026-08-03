@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import {
   completePendingPlanChange,
@@ -13,6 +13,7 @@ import { PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 import { getSubscription } from '@/lib/univapay/client';
 import { canActivatePendingPlanChange } from '@/lib/subscription-plan-change-policy';
+import { reconcileSubscriptionUpgradeAttempt } from '@/lib/subscription-upgrade';
 import {
   findLinkLineOptionBySubscriptionId,
   updateLinkLineOptionBySubscriptionId,
@@ -143,6 +144,111 @@ async function updateStatusAndSync(subscriptionId: string, status: string, hydra
   if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
 }
 
+async function processWebhook(event: string | undefined, body: Record<string, unknown>): Promise<void> {
+  try {
+    switch (event) {
+      case 'charge_finished':
+      case 'charge.successful': {
+        const data = (body.data as Record<string, unknown>) || {};
+        const metadata = (data.metadata as Record<string, unknown>) || {};
+        const upgradeAttemptId = metadata.attemptId as string | undefined;
+        if (metadata.type === 'subscription_upgrade_diff' && upgradeAttemptId) {
+          await reconcileSubscriptionUpgradeAttempt(upgradeAttemptId);
+          break;
+        }
+        const subscriptionId = data.subscription_id as string
+          || metadata.subscription_id as string;
+        if (subscriptionId) {
+          await updateStatusAndSync(subscriptionId, 'current', true);
+          const user = await findUserBySubscriptionId(subscriptionId)
+            || await findUserByPendingSubscriptionId(subscriptionId);
+          if (user) {
+            const plan = user.plan_id ? PLANS[user.plan_id] : null;
+            await sendAdminPaymentNotificationEmail({
+              userId: user.user_id,
+              email: user.email,
+              username: user.instagram_username || user.threads_username || null,
+              instagramUsername: user.instagram_username || null,
+              threadsUsername: user.threads_username || null,
+              planId: user.plan_id,
+              planName: plan ? `${plan.name} ${plan.subtitle}`.trim() : user.plan_id,
+              amount: extractAmount(data),
+              paidAt: new Date(),
+              paymentType: '課金',
+            });
+          }
+          console.log(`[PAYMENT SUCCESS] SubID: ${subscriptionId}, Amount: ${data.amount}`);
+        }
+        break;
+      }
+
+      case 'charge_updated':
+      case 'charge.failed': {
+        const data = (body.data as Record<string, unknown>) || {};
+        const metadata = (data.metadata as Record<string, unknown>) || {};
+        const upgradeAttemptId = metadata.attemptId as string | undefined;
+        if (metadata.type === 'subscription_upgrade_diff' && upgradeAttemptId) {
+          await reconcileSubscriptionUpgradeAttempt(upgradeAttemptId);
+          break;
+        }
+        const subscriptionId = data.subscription_id as string || metadata.subscription_id as string;
+        if (subscriptionId) {
+          await updateStatusAndSync(subscriptionId, 'unpaid');
+          console.log(`[PAYMENT FAILED] SubID: ${subscriptionId}, Error: ${data.error}`);
+        }
+        break;
+      }
+
+      case 'subscription_failure':
+      case 'subscription.failed': {
+        const data = (body.data as Record<string, unknown>) || {};
+        const subId = data.id as string || data.subscription_id as string;
+        const nextStatus = typeof data.status === 'string' ? data.status : 'unpaid';
+        if (subId) {
+          await updateStatusAndSync(subId, nextStatus, true);
+          console.log(`[SUBSCRIPTION FAILURE] SubID: ${subId}, Status: ${nextStatus}`);
+        }
+        break;
+      }
+
+      case 'subscription_payment': {
+        // 定期課金の支払い完了通知 → ステータスをcurrentに維持
+        const subIdPayment = (body.data as Record<string, unknown>)?.id as string;
+        if (subIdPayment) {
+          await updateStatusAndSync(subIdPayment, 'current', true);
+          console.log(`[SUBSCRIPTION PAYMENT] SubID: ${subIdPayment}`);
+        }
+        break;
+      }
+
+      case 'subscription.suspended':
+      case 'subscription_suspended': {
+        const subId = (body.data as Record<string, unknown>)?.id as string;
+        if (subId) {
+          await updateStatusAndSync(subId, 'suspended', true);
+          console.log(`[SUBSCRIPTION SUSPENDED] SubID: ${subId}`);
+        }
+        break;
+      }
+
+      case 'subscription_canceled':
+      case 'subscription.canceled': {
+        const subId = (body.data as Record<string, unknown>)?.id as string;
+        if (subId) {
+          await updateStatusAndSync(subId, 'canceled', true);
+          console.log(`[SUBSCRIPTION CANCELED] SubID: ${subId}`);
+        }
+        break;
+      }
+
+      default:
+        console.log('UnivaPay webhook: unhandled event', event);
+    }
+  } catch (error) {
+    console.error('Webhook processing error:', error);
+  }
+}
+
 export async function POST(request: NextRequest) {
   const auth: AuthResult = verifyWebhookAuth(request);
   if (auth.ok === false) {
@@ -161,113 +267,7 @@ export async function POST(request: NextRequest) {
   }
 
   console.log('UnivaPay webhook received:', event, JSON.stringify(body).substring(0, 500));
-
-  // 即座に200を返す（UnivaPayは3秒以内のレスポンスを要求）
-  // BigQuery更新はfire-and-forgetで実行
-  try {
-    switch (event) {
-      case 'charge_finished':
-      case 'charge.successful': {
-        const data = (body.data as Record<string, unknown>) || {};
-        const subscriptionId = data.subscription_id as string
-          || (data.metadata as Record<string, unknown>)?.subscription_id as string;
-        if (subscriptionId) {
-          updateStatusAndSync(subscriptionId, 'current', true).catch(err =>
-            console.error('[WEBHOOK] Failed to update/sync status to current:', err)
-          );
-          findUserBySubscriptionId(subscriptionId)
-            .then(async (user) => user || findUserByPendingSubscriptionId(subscriptionId))
-            .then((user) => {
-              if (!user) return;
-              const plan = user.plan_id ? PLANS[user.plan_id] : null;
-              return sendAdminPaymentNotificationEmail({
-                userId: user.user_id,
-                email: user.email,
-                username: user.instagram_username || user.threads_username || null,
-                instagramUsername: user.instagram_username || null,
-                threadsUsername: user.threads_username || null,
-                planId: user.plan_id,
-                planName: plan ? `${plan.name} ${plan.subtitle}`.trim() : user.plan_id,
-                amount: extractAmount(data),
-                paidAt: new Date(),
-                paymentType: '課金',
-              });
-            })
-            .catch((err) => console.error('[WEBHOOK] Failed to send admin payment email:', err));
-          console.log(`[PAYMENT SUCCESS] SubID: ${subscriptionId}, Amount: ${data.amount}`);
-        }
-        break;
-      }
-
-      case 'charge_updated':
-      case 'charge.failed': {
-        const subscriptionId = (body.data as Record<string, unknown>)?.subscription_id as string
-          || ((body.data as Record<string, unknown>)?.metadata as Record<string, unknown>)?.subscription_id as string;
-        if (subscriptionId) {
-          updateStatusAndSync(subscriptionId, 'unpaid').catch(err =>
-            console.error('[WEBHOOK] Failed to update/sync status to unpaid:', err)
-          );
-          console.log(`[PAYMENT FAILED] SubID: ${subscriptionId}, Error: ${(body.data as Record<string, unknown>)?.error}`);
-        }
-        break;
-      }
-
-      case 'subscription_failure':
-      case 'subscription.failed': {
-        const data = (body.data as Record<string, unknown>) || {};
-        const subId = data.id as string || data.subscription_id as string;
-        const nextStatus = typeof data.status === 'string' ? data.status : 'unpaid';
-        if (subId) {
-          updateStatusAndSync(subId, nextStatus, true).catch(err =>
-            console.error('[WEBHOOK] Failed to update/sync subscription failure:', err)
-          );
-          console.log(`[SUBSCRIPTION FAILURE] SubID: ${subId}, Status: ${nextStatus}`);
-        }
-        break;
-      }
-
-      case 'subscription_payment': {
-        // 定期課金の支払い完了通知 → ステータスをcurrentに維持
-        const subIdPayment = (body.data as Record<string, unknown>)?.id as string;
-        if (subIdPayment) {
-          updateStatusAndSync(subIdPayment, 'current', true).catch(err =>
-            console.error('[WEBHOOK] Failed to update/sync status to current (payment):', err)
-          );
-          console.log(`[SUBSCRIPTION PAYMENT] SubID: ${subIdPayment}`);
-        }
-        break;
-      }
-
-      case 'subscription.suspended':
-      case 'subscription_suspended': {
-        const subId = (body.data as Record<string, unknown>)?.id as string;
-        if (subId) {
-          updateStatusAndSync(subId, 'suspended', true).catch(err =>
-            console.error('[WEBHOOK] Failed to update/sync status to suspended:', err)
-          );
-          console.log(`[SUBSCRIPTION SUSPENDED] SubID: ${subId}`);
-        }
-        break;
-      }
-
-      case 'subscription_canceled':
-      case 'subscription.canceled': {
-        const subId = (body.data as Record<string, unknown>)?.id as string;
-        if (subId) {
-          updateStatusAndSync(subId, 'canceled', true).catch(err =>
-            console.error('[WEBHOOK] Failed to update/sync status to canceled:', err)
-          );
-          console.log(`[SUBSCRIPTION CANCELED] SubID: ${subId}`);
-        }
-        break;
-      }
-
-      default:
-        console.log('UnivaPay webhook: unhandled event', event);
-    }
-  } catch (error) {
-    console.error('Webhook processing error:', error);
-  }
+  after(() => processWebhook(event, body));
 
   return NextResponse.json({ received: true });
 }

@@ -6,10 +6,10 @@ import {
   getMonthlyEquivalentPrice,
   getPlanBillingCycle,
   getPlanIdForBillingCycle,
+  PLAN_CHANGE_BASE_IDS,
   PLANS,
-  PUBLIC_PLAN_BASE_IDS,
   type PlanBillingCycle,
-  type PublicPlanBaseId,
+  type PlanChangeBaseId,
 } from '@/lib/univapay/plans';
 
 declare global {
@@ -49,6 +49,14 @@ interface SubscriptionData {
   pending_plan_id: string | null;
   pending_subscription_id: string | null;
   plan_change_effective_at: string | null;
+}
+
+interface UpgradeQuote {
+  proratedAmount: number;
+  remainingDays: number;
+  totalDays: number;
+  nextBillingDate: string;
+  targetRecurringAmount: number;
 }
 
 function formatDate(dateStr: string | null): string {
@@ -125,7 +133,10 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
   const [showPlanChangeConfirm, setShowPlanChangeConfirm] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
-  const [selectedBasePlanId, setSelectedBasePlanId] = useState<PublicPlanBaseId>('light-threads');
+  const [cancelingPlanChange, setCancelingPlanChange] = useState(false);
+  const [loadingUpgradeQuote, setLoadingUpgradeQuote] = useState(false);
+  const [upgradeQuote, setUpgradeQuote] = useState<UpgradeQuote | null>(null);
+  const [selectedBasePlanId, setSelectedBasePlanId] = useState<PlanChangeBaseId>('light-threads');
   const [selectedBillingCycle, setSelectedBillingCycle] = useState<PlanBillingCycle>('monthly');
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [paymentAppId, setPaymentAppId] = useState<string | null>(null);
@@ -174,8 +185,8 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
 
   useEffect(() => {
     if (!data?.plan_id) return;
-    const basePlanId = data.plan_id.replace(/-yearly$/, '') as PublicPlanBaseId;
-    if (PUBLIC_PLAN_BASE_IDS.includes(basePlanId)) {
+    const basePlanId = data.plan_id.replace(/-yearly$/, '') as PlanChangeBaseId;
+    if (PLAN_CHANGE_BASE_IDS.includes(basePlanId)) {
       setSelectedBasePlanId(basePlanId);
     }
     setSelectedBillingCycle(getPlanBillingCycle(data.plan_id));
@@ -230,6 +241,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
     const targetPlan = PLANS[targetPlanId];
     const isImmediateUpgrade = !!currentPlan
       && targetPlan.price > currentPlan.price
+      && data?.subscription_status !== 'trial'
       && getPlanBillingCycle(targetPlanId) === getPlanBillingCycle(data?.plan_id || '');
     setChangingPlan(true);
     setPlanChangeResult(null);
@@ -244,9 +256,14 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
       );
       const json = await res.json();
 
-      if (json.success) {
+      if (json.processing) {
+        setPlanChangeResult({ success: true, message: json.message || '決済を確認中です' });
+        setShowPlanChangeConfirm(false);
+        setTimeout(() => void fetchStatus(), 5000);
+      } else if (json.success) {
         setPlanChangeResult({ success: true, message: json.message || 'プラン変更を予約しました' });
         setShowPlanChangeConfirm(false);
+        setUpgradeQuote(null);
         await fetchStatus();
       } else {
         setPlanChangeResult({
@@ -258,6 +275,61 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
       setPlanChangeResult({ success: false, message: '通信エラーが発生しました' });
     } finally {
       setChangingPlan(false);
+    }
+  };
+
+  const handleShowPlanChangeConfirm = async () => {
+    if (!data?.plan_id) return;
+    const targetPlanId = getPlanIdForBillingCycle(selectedBasePlanId, selectedBillingCycle);
+    const currentPlan = PLANS[data.plan_id];
+    const targetPlan = PLANS[targetPlanId];
+    const isImmediateUpgrade = targetPlan.price > currentPlan.price
+      && data.subscription_status !== 'trial'
+      && getPlanBillingCycle(targetPlanId) === getPlanBillingCycle(data.plan_id);
+
+    setPlanChangeResult(null);
+    setUpgradeQuote(null);
+    if (isImmediateUpgrade) {
+      setLoadingUpgradeQuote(true);
+      try {
+        const res = await fetch(
+          `/api/subscription/upgrade?userId=${encodeURIComponent(userId)}&targetPlanId=${encodeURIComponent(targetPlanId)}`,
+        );
+        const json = await res.json();
+        if (!json.success) {
+          setPlanChangeResult({ success: false, message: json.error || '日割り金額を確認できませんでした' });
+          return;
+        }
+        setUpgradeQuote(json as UpgradeQuote);
+      } catch {
+        setPlanChangeResult({ success: false, message: '日割り金額を確認できませんでした' });
+        return;
+      } finally {
+        setLoadingUpgradeQuote(false);
+      }
+    }
+    setShowPlanChangeConfirm(true);
+  };
+
+  const handleCancelPlanChange = async () => {
+    setCancelingPlanChange(true);
+    setPlanChangeResult(null);
+    try {
+      const res = await fetch('/api/subscription/change-plan/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      const json = await res.json();
+      setPlanChangeResult({
+        success: !!json.success,
+        message: json.message || json.error || 'プラン変更予約を取り消せませんでした',
+      });
+      if (json.success) await fetchStatus();
+    } catch {
+      setPlanChangeResult({ success: false, message: '通信エラーが発生しました' });
+    } finally {
+      setCancelingPlanChange(false);
     }
   };
 
@@ -353,6 +425,9 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
   const targetPlanInfo = PLANS[targetPlanId];
   const pendingPlanInfo = data.pending_plan_id ? PLANS[data.pending_plan_id] : null;
   const canChangePlan = ['current', 'active', 'trial'].includes(data.subscription_status);
+  const isImmediateUpgrade = targetPlanInfo.price > (planInfo?.price || 0)
+    && data.subscription_status !== 'trial'
+    && getPlanBillingCycle(targetPlanId) === getPlanBillingCycle(data.plan_id || '');
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -472,6 +547,14 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                   <p className="mt-1 text-xs text-gray-600">
                     {formatPrice(data.pending_plan_id || '', pendingPlanInfo.price)}
                   </p>
+                  <button
+                    type="button"
+                    onClick={handleCancelPlanChange}
+                    disabled={cancelingPlanChange}
+                    className="mt-3 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    {cancelingPlanChange ? '取り消し中...' : '変更予約を取り消す'}
+                  </button>
                 </div>
               ) : (
                 <>
@@ -482,6 +565,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                       onClick={() => {
                         setSelectedBillingCycle('monthly');
                         setShowPlanChangeConfirm(false);
+                        setUpgradeQuote(null);
                       }}
                       className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                         selectedBillingCycle === 'monthly'
@@ -497,6 +581,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                       onClick={() => {
                         setSelectedBillingCycle('yearly');
                         setShowPlanChangeConfirm(false);
+                        setUpgradeQuote(null);
                       }}
                       className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                         selectedBillingCycle === 'yearly'
@@ -508,8 +593,8 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                     </button>
                   </div>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {PUBLIC_PLAN_BASE_IDS.map((basePlanId) => {
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {PLAN_CHANGE_BASE_IDS.map((basePlanId) => {
                       const optionPlanId = getPlanIdForBillingCycle(basePlanId, selectedBillingCycle);
                       const option = PLANS[optionPlanId];
                       const selected = selectedBasePlanId === basePlanId;
@@ -521,6 +606,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                           onClick={() => {
                             setSelectedBasePlanId(basePlanId);
                             setShowPlanChangeConfirm(false);
+                            setUpgradeQuote(null);
                           }}
                           className={`rounded-lg border p-3 text-left transition-colors ${
                             selected
@@ -544,27 +630,41 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                     <button
                       type="button"
                       onClick={() => {
-                        setPlanChangeResult(null);
-                        setShowPlanChangeConfirm(true);
+                        void handleShowPlanChangeConfirm();
                       }}
-                      disabled={targetPlanId === data.plan_id}
+                      disabled={targetPlanId === data.plan_id || loadingUpgradeQuote}
                       className="mt-3 w-full rounded-lg bg-gradient-to-r from-purple-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-purple-600 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {targetPlanId === data.plan_id ? '現在のプランです' : '変更内容を確認'}
+                      {targetPlanId === data.plan_id
+                        ? '現在のプランです'
+                        : loadingUpgradeQuote ? '日割り金額を計算中...' : '変更内容を確認'}
                     </button>
                   ) : (
                     <div className="mt-3 rounded-lg border border-purple-200 bg-white/90 p-3">
-                      <p className="text-xs font-semibold text-gray-900">この内容で変更を予約しますか？</p>
+                      <p className="text-xs font-semibold text-gray-900">
+                        {isImmediateUpgrade ? 'この内容でアップグレードしますか？' : 'この内容で変更を予約しますか？'}
+                      </p>
                       <p className="mt-2 text-sm font-medium text-gray-900">
                         {targetPlanInfo.name}（{targetPlanInfo.subtitle}）
                       </p>
                       <p className="mt-1 text-xs text-gray-600">{formatPrice(targetPlanId, targetPlanInfo.price)}</p>
-                      <p className="mt-2 text-xs leading-relaxed text-gray-600">
-                        {targetPlanInfo.price > (planInfo?.price || 0)
-                          && getPlanBillingCycle(targetPlanId) === getPlanBillingCycle(data.plan_id || '')
-                          ? '現在の契約との差額を決済し、すぐに変更されます。'
-                          : `次回更新日の${formatDate(data.subscription_expires_at)}から変更されます。それまでは現在のプランを利用できます。`}
-                      </p>
+                      {isImmediateUpgrade && upgradeQuote ? (
+                        <div className="mt-2 rounded-lg bg-purple-50 p-3 text-xs text-gray-700">
+                          <p>本日のお支払い（日割り {upgradeQuote.remainingDays}/{upgradeQuote.totalDays}日）</p>
+                          <p className="mt-1 text-base font-bold text-purple-700">
+                            {upgradeQuote.proratedAmount.toLocaleString('ja-JP')}円
+                          </p>
+                          <p className="mt-2">
+                            {formatDate(upgradeQuote.nextBillingDate)}から {upgradeQuote.targetRecurringAmount.toLocaleString('ja-JP')}円
+                            {selectedBillingCycle === 'yearly' ? '/年' : '/月'}です。
+                          </p>
+                          <p className="mt-1">決済成功後、すぐに変更されます。</p>
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs leading-relaxed text-gray-600">
+                          {`次回更新日の${formatDate(data.subscription_expires_at)}から変更されます。それまでは現在のプランを利用できます。`}
+                        </p>
+                      )}
                       <div className="mt-3 flex gap-2">
                         <button
                           type="button"
@@ -572,7 +672,11 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                           disabled={changingPlan}
                           className="flex-1 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-400 px-3 py-2 text-xs font-semibold text-white transition-all hover:from-purple-600 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {changingPlan ? '予約中...' : '変更を予約する'}
+                          {changingPlan
+                            ? '処理中...'
+                            : isImmediateUpgrade && upgradeQuote
+                              ? `${upgradeQuote.proratedAmount.toLocaleString('ja-JP')}円を支払って変更`
+                              : '変更を予約する'}
                         </button>
                         <button
                           type="button"

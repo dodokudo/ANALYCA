@@ -13,14 +13,14 @@ import {
 } from './univapay/client';
 import {
   getUnivaPaySubscriptionPeriod,
+  PLAN_CHANGE_BASE_IDS,
   PLANS,
-  PUBLIC_PLAN_BASE_IDS,
 } from './univapay/plans';
 import { PLAN_CHANGE_INITIAL_AMOUNT } from './subscription-plan-change-policy';
 
 const PLAN_CHANGE_STATUSES = new Set(['current', 'active', 'trial']);
 const PUBLIC_PLAN_IDS = new Set(
-  PUBLIC_PLAN_BASE_IDS.flatMap((basePlanId) => [basePlanId, `${basePlanId}-yearly`]),
+  PLAN_CHANGE_BASE_IDS.flatMap((basePlanId) => [basePlanId, `${basePlanId}-yearly`]),
 );
 
 export class PlanChangeValidationError extends Error {}
@@ -187,4 +187,42 @@ export async function scheduleSubscriptionPlanChange(
     }
     throw error;
   }
+}
+
+export async function cancelScheduledSubscriptionPlanChange(userId: string): Promise<string> {
+  const status = await getUserSubscriptionStatus(userId);
+  if (!status.subscription_id || !status.pending_subscription_id || !status.pending_plan_id) {
+    throw new PlanChangeValidationError('取り消せるプラン変更予約がありません');
+  }
+
+  const currentSubscription = await getSubscription(status.subscription_id);
+  const metadata = { ...(currentSubscription.metadata || {}) };
+  delete metadata.pendingPlanId;
+  delete metadata.pendingSubscriptionId;
+  delete metadata.planChangeRequestId;
+
+  await updateSubscription(
+    status.subscription_id,
+    {
+      next_payment: { terminate_with_status: '' },
+      metadata,
+    },
+    `analyca-plan-change-cancel-${status.pending_subscription_id}`,
+  );
+  await cancelSubscription(status.pending_subscription_id);
+  await updateUserSubscription(userId, {
+    pending_plan_id: null,
+    pending_subscription_id: null,
+    plan_change_effective_at: null,
+    plan_change_request_id: null,
+  });
+
+  try {
+    const updatedUser = await getUserById(userId);
+    if (updatedUser) await syncAnalycaUserRecordToLineHarness(updatedUser);
+  } catch (syncError) {
+    console.error('[plan-change] Failed to sync canceled plan change:', syncError);
+  }
+
+  return 'プラン変更予約を取り消しました';
 }

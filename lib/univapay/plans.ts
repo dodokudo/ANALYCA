@@ -15,10 +15,17 @@ export interface Plan {
 }
 
 export type PublicPlanBaseId = 'light-threads' | 'standard' | 'pro';
+export type PlanChangeBaseId = PublicPlanBaseId | 'light-instagram';
 export type PlanBillingCycle = 'monthly' | 'yearly';
 export type UnivaPaySubscriptionPeriod = 'monthly' | 'annually';
 
 export const PUBLIC_PLAN_BASE_IDS: PublicPlanBaseId[] = ['light-threads', 'standard', 'pro'];
+export const PLAN_CHANGE_BASE_IDS: PlanChangeBaseId[] = [
+  'light-threads',
+  'light-instagram',
+  'standard',
+  'pro',
+];
 
 export const PLANS: Record<string, Plan> = {
   'light-threads': {
@@ -39,6 +46,13 @@ export const PLANS: Record<string, Plan> = {
     subtitle: 'Instagram分析',
     price: 4980,
     onboardingPath: '/onboarding/light2',
+  },
+  'light-instagram-yearly': {
+    name: 'Light',
+    subtitle: 'Instagram分析（年払い）',
+    price: 47760,
+    onboardingPath: '/onboarding/light2',
+    yearly: true,
   },
   'standard': {
     name: 'Standard',
@@ -77,7 +91,7 @@ export function getUnivaPaySubscriptionPeriod(planId: string): UnivaPaySubscript
 }
 
 export function getPlanIdForBillingCycle(
-  basePlanId: PublicPlanBaseId,
+  basePlanId: PlanChangeBaseId,
   billingCycle: PlanBillingCycle,
 ): string {
   return billingCycle === 'yearly' ? `${basePlanId}-yearly` : basePlanId;

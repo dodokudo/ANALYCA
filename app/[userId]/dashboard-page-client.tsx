@@ -2855,8 +2855,38 @@ function UpgradeCard({
   features: string[];
 }) {
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [showUpgradeConfirm, setShowUpgradeConfirm] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const [upgradeQuote, setUpgradeQuote] = useState<{
+    proratedAmount: number;
+    remainingDays: number;
+    totalDays: number;
+    nextBillingDate: string;
+    targetRecurringAmount: number;
+    targetPlanId: string;
+  } | null>(null);
+
+  const handleShowUpgradeConfirm = async () => {
+    setIsLoadingQuote(true);
+    setUpgradeError(null);
+    try {
+      const res = await fetch(
+        `/api/subscription/upgrade?userId=${encodeURIComponent(userId)}&targetPlanId=standard`,
+      );
+      const json = await res.json();
+      if (!json.success) {
+        setUpgradeError(json.error || '日割り金額を確認できませんでした');
+        return;
+      }
+      setUpgradeQuote(json);
+      setShowUpgradeConfirm(true);
+    } catch {
+      setUpgradeError('日割り金額を確認できませんでした');
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  };
 
   const handleUpgrade = async () => {
     setIsUpgrading(true);
@@ -2870,6 +2900,11 @@ function UpgradeCard({
       });
       const json = await res.json();
 
+      if (json.processing) {
+        setUpgradeError(json.message || '決済を確認中です。確認後、自動的に反映されます');
+        setTimeout(() => window.location.reload(), 5000);
+        return;
+      }
       if (!json.success) {
         if (json.requiresReauthentication) {
           window.location.href = '/login';
@@ -2922,20 +2957,30 @@ Standardプランにアップグレードすると
           <button
             type="button"
             onClick={() => {
-              setUpgradeError(null);
-              setShowUpgradeConfirm(true);
+              void handleShowUpgradeConfirm();
             }}
-            className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all"
+            disabled={isLoadingQuote}
+            className="inline-block w-full bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold py-3 px-6 rounded-xl transition-all disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Standardプランにアップグレード
+            {isLoadingQuote ? '日割り金額を計算中...' : 'Standardプランにアップグレード'}
           </button>
         ) : (
           <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-left">
             <p className="text-sm font-semibold text-gray-900">この内容でアップグレードしますか？</p>
-            <p className="mt-2 text-xs leading-relaxed text-gray-700">
-              現在の契約との差額を決済し、すぐにStandardプランへ変更します。
-              変更後はInstagramとThreadsの両方を利用できます。
-            </p>
+            {upgradeQuote && (
+              <div className="mt-2 text-xs leading-relaxed text-gray-700">
+                <p>本日のお支払い（日割り {upgradeQuote.remainingDays}/{upgradeQuote.totalDays}日）</p>
+                <p className="mt-1 text-lg font-bold text-purple-700">
+                  {upgradeQuote.proratedAmount.toLocaleString('ja-JP')}円
+                </p>
+                <p className="mt-2">
+                  {new Date(`${upgradeQuote.nextBillingDate}T00:00:00+09:00`).toLocaleDateString('ja-JP')}から
+                  {upgradeQuote.targetRecurringAmount.toLocaleString('ja-JP')}円
+                  {upgradeQuote.targetPlanId.endsWith('-yearly') ? '/年' : '/月'}です。
+                </p>
+                <p className="mt-1">決済成功後、InstagramとThreadsの両方をすぐに利用できます。</p>
+              </div>
+            )}
             <div className="mt-4 flex gap-2">
               <button
                 type="button"
@@ -2943,7 +2988,11 @@ Standardプランにアップグレードすると
                 disabled={isUpgrading}
                 className="flex-1 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white transition-all hover:from-purple-600 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isUpgrading ? '変更中...' : '確定する'}
+                {isUpgrading
+                  ? '処理中...'
+                  : upgradeQuote
+                    ? `${upgradeQuote.proratedAmount.toLocaleString('ja-JP')}円を支払って変更`
+                    : '確定する'}
               </button>
               <button
                 type="button"

@@ -10,6 +10,32 @@ function validateTextLength(label: string, value?: string) {
   return null;
 }
 
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const scheduleId = id;
+    if (!scheduleId) {
+      return NextResponse.json({ error: 'schedule id is required' }, { status: 400 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    const item = await getScheduledPostById(scheduleId);
+    if (!item || item.user_id !== userId) {
+      return NextResponse.json({ error: 'Schedule not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ item });
+  } catch (error) {
+    console.error('[schedule/threads] GET by id failed', error);
+    return NextResponse.json({ error: 'Failed to load schedule' }, { status: 500 });
+  }
+}
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;

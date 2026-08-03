@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ScheduleCalendar } from './schedule-calendar';
 import { ScheduleEditor } from './schedule-editor';
 import type { ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
@@ -76,6 +77,9 @@ function getJstNow() {
 }
 
 export function ScheduleTab({ userId }: { userId: string }) {
+  const searchParams = useSearchParams();
+  const requestedScheduleId = searchParams.get('scheduleId');
+  const editorRef = useRef<HTMLDivElement>(null);
   const [currentMonth, setCurrentMonth] = useState(() => getJstNow());
   const [selectedDate, setSelectedDate] = useState(() => formatDateKey(getJstNow()));
   const [items, setItems] = useState<ScheduledPost[]>([]);
@@ -112,6 +116,49 @@ export function ScheduleTab({ userId }: { userId: string }) {
   useEffect(() => {
     loadSchedules();
   }, [loadSchedules]);
+
+  useEffect(() => {
+    if (!requestedScheduleId) return;
+
+    let cancelled = false;
+    const loadRequestedSchedule = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({ userId });
+        const res = await fetch(`/api/schedule/threads/${encodeURIComponent(requestedScheduleId)}?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error || 'Failed to load schedule');
+        }
+        if (cancelled || !data.item) return;
+
+        const item = mapItem(data.item);
+        setSelectedItem(item);
+        if (item.scheduledDate) {
+          setSelectedDate(item.scheduledDate);
+          const [year, month] = item.scheduledDate.split('-').map((part) => Number(part));
+          if (year && month) {
+            setCurrentMonth(new Date(year, month - 1, 1));
+          }
+        }
+        requestAnimationFrame(() => {
+          editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load schedule');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void loadRequestedSchedule();
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedScheduleId, userId]);
 
   const handleMonthChange = (next: Date) => {
     setCurrentMonth(next);
@@ -272,25 +319,29 @@ export function ScheduleTab({ userId }: { userId: string }) {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <ScheduleCalendar
-          currentMonth={currentMonth}
-          selectedDate={selectedDate}
-          items={items}
-          isLoading={loading}
-          onMonthChange={handleMonthChange}
-          onSelectDate={handleSelectDate}
-          onSelectItem={handleSelectItem}
-          onDeleteItem={handleDeleteItem}
-        />
-        <ScheduleEditor
-          selectedDate={selectedDate}
-          selectedItem={selectedItem}
-          userId={userId}
-          isSaving={saving}
-          isPublishing={publishing}
-          onSave={handleSave}
-          onPublishNow={handlePublishNow}
-        />
+        <div className={requestedScheduleId ? 'order-2 lg:order-1' : undefined}>
+          <ScheduleCalendar
+            currentMonth={currentMonth}
+            selectedDate={selectedDate}
+            items={items}
+            isLoading={loading}
+            onMonthChange={handleMonthChange}
+            onSelectDate={handleSelectDate}
+            onSelectItem={handleSelectItem}
+            onDeleteItem={handleDeleteItem}
+          />
+        </div>
+        <div ref={editorRef} className={requestedScheduleId ? 'order-1 scroll-mt-4 lg:order-2' : undefined}>
+          <ScheduleEditor
+            selectedDate={selectedDate}
+            selectedItem={selectedItem}
+            userId={userId}
+            isSaving={saving}
+            isPublishing={publishing}
+            onSave={handleSave}
+            onPublishNow={handlePublishNow}
+          />
+        </div>
       </div>
     </div>
   );

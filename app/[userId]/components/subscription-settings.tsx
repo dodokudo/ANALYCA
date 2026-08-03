@@ -226,14 +226,22 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
 
   const handlePlanChange = async () => {
     const targetPlanId = getPlanIdForBillingCycle(selectedBasePlanId, selectedBillingCycle);
+    const currentPlan = data?.plan_id ? PLANS[data.plan_id] : null;
+    const targetPlan = PLANS[targetPlanId];
+    const isImmediateUpgrade = !!currentPlan
+      && targetPlan.price > currentPlan.price
+      && getPlanBillingCycle(targetPlanId) === getPlanBillingCycle(data?.plan_id || '');
     setChangingPlan(true);
     setPlanChangeResult(null);
     try {
-      const res = await fetch('/api/subscription/change-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, targetPlanId }),
-      });
+      const res = await fetch(
+        isImmediateUpgrade ? '/api/subscription/upgrade' : '/api/subscription/change-plan',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, targetPlanId }),
+        },
+      );
       const json = await res.json();
 
       if (json.success) {
@@ -452,7 +460,7 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
             <div className="rounded-xl border border-purple-200 bg-gradient-to-r from-purple-50 to-emerald-50 p-4">
               <h4 className="text-sm font-semibold text-gray-900">プラン変更</h4>
               <p className="mt-1 text-xs text-gray-600">
-                変更は次回更新日に反映され、途中の追加請求や返金はありません。
+                上位プランへの変更は差額決済後すぐに反映されます。その他の変更は次回更新日に反映されます。
               </p>
 
               {pendingPlanInfo && data.plan_change_effective_at ? (
@@ -552,8 +560,10 @@ export default function SubscriptionSettings({ userId, initialData = null }: Sub
                       </p>
                       <p className="mt-1 text-xs text-gray-600">{formatPrice(targetPlanId, targetPlanInfo.price)}</p>
                       <p className="mt-2 text-xs leading-relaxed text-gray-600">
-                        次回更新日の{formatDate(data.subscription_expires_at)}から変更されます。
-                        それまでは現在のプランを利用できます。
+                        {targetPlanInfo.price > (planInfo?.price || 0)
+                          && getPlanBillingCycle(targetPlanId) === getPlanBillingCycle(data.plan_id || '')
+                          ? '現在の契約との差額を決済し、すぐに変更されます。'
+                          : `次回更新日の${formatDate(data.subscription_expires_at)}から変更されます。それまでは現在のプランを利用できます。`}
                       </p>
                       <div className="mt-3 flex gap-2">
                         <button

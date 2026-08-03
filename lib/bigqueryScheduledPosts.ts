@@ -258,6 +258,20 @@ export async function getScheduledPostById(scheduleId: string) {
   return rows[0] ? mapRow(rows[0]) : undefined;
 }
 
+export async function scheduleDraftPost(scheduleId: string, userId: string) {
+  await ensureTable();
+  const sql = `
+    UPDATE \`${projectId}.${DATASET}.${TABLE}\`
+    SET status = 'scheduled', updated_at = CURRENT_TIMESTAMP(), error_message = NULL
+    WHERE schedule_id = @scheduleId
+      AND user_id = @userId
+      AND status = 'draft'
+      AND scheduled_time > CURRENT_TIMESTAMP()
+  `;
+  await query(sql, { scheduleId, userId });
+  return getScheduledPostById(scheduleId);
+}
+
 export async function insertScheduledPost(params: {
   scheduleId: string;
   userId: string;

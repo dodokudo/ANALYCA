@@ -85,6 +85,7 @@ export interface CreateChargeParams {
   currency?: string;
   capture?: boolean;
   metadata?: Record<string, string>;
+  idempotencyKey?: string;
 }
 
 export interface UpdateSubscriptionParams {
@@ -334,6 +335,7 @@ export async function createCharge(
         capture: params.capture ?? true,
         metadata: params.metadata,
       },
+      idempotencyKey: params.idempotencyKey,
     },
   );
 }

@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
         transaction_token_id: subscription.transaction_token_id,
         amount: diffAmount,
         currency: 'JPY',
+        idempotencyKey: `analyca-immediate-upgrade-${userId}-${currentPlanId}-${resolvedTargetPlanId}`,
         metadata: {
           userId,
           type: 'subscription_upgrade_diff',

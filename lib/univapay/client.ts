@@ -325,7 +325,7 @@ export async function createCharge(
   }
 
   return fetchUnivaPay<UnivaPayCharge>(
-    `/charges`,
+    `/stores/${storeId}/charges`,
     {
       method: 'POST',
       body: {
@@ -349,7 +349,7 @@ export async function getCharge(chargeId: string): Promise<UnivaPayCharge> {
     throw new Error('UNIVAPAY_STORE_ID is not configured');
   }
 
-  return fetchUnivaPay<UnivaPayCharge>(`/charges/${chargeId}`);
+  return fetchUnivaPay<UnivaPayCharge>(`/stores/${storeId}/charges/${chargeId}`);
 }
 
 /**
@@ -364,7 +364,7 @@ export async function listCharges(
   }
 
   return fetchUnivaPay<UnivaPayListResponse<UnivaPayCharge>>(
-    `/charges`,
+    `/stores/${storeId}/charges`,
     { params: params as Record<string, string | number | undefined> },
   );
 }

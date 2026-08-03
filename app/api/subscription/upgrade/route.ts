@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { setTimeout as delay } from 'node:timers/promises';
 import {
   getUserById,
   getUserSubscriptionStatus,
@@ -7,6 +8,7 @@ import {
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 import {
   createCharge,
+  getCharge,
   getSubscription,
   updateSubscription,
 } from '@/lib/univapay/client';
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      const charge = await createCharge({
+      let charge = await createCharge({
         transaction_token_id: subscription.transaction_token_id,
         amount: diffAmount,
         currency: 'JPY',
@@ -134,6 +136,11 @@ export async function POST(request: NextRequest) {
           toPlanId: resolvedTargetPlanId,
         },
       });
+
+      for (let attempt = 0; attempt < 30 && ['pending', 'awaiting'].includes(charge.status); attempt += 1) {
+        await delay(1000);
+        charge = await getCharge(charge.id);
+      }
 
       if (charge.status !== 'successful' && charge.status !== 'authorized') {
         throw new Error(`差額決済に失敗しました（status: ${charge.status}）`);

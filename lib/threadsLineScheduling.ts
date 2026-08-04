@@ -201,8 +201,9 @@ export function parseThreadsScheduleCommand(
   const normalized = commandLine.trim().replace(/[ \t　]+/g, ' ');
   const date = '(?:(\\d{1,2})月)?(\\d{1,2})日|(今日|明日)';
   const time = '(\\d{1,2})(?:時(?:(半)|(\\d{1,2})分)?|:(\\d{2}))';
-  const suffix = new RegExp(`^(?:${date})\\s*(?:${time})\\s*投稿(?:\\s*#?(\\d+))?$`);
-  const prefix = new RegExp(`^投稿(?:\\s*#?(\\d+))?\\s*(?:${date})\\s*(?:${time})$`);
+  const keyword = '(?:投稿|予約)';
+  const suffix = new RegExp(`^(?:${date})\\s*(?:${time})\\s*${keyword}(?:\\s*#?(\\d+))?$`);
+  const prefix = new RegExp(`^${keyword}(?:\\s*#?(\\d+))?\\s*(?:${date})\\s*(?:${time})$`);
   const suffixMatch = normalized.match(suffix);
   const prefixMatch = normalized.match(prefix);
   if (!suffixMatch && !prefixMatch) return undefined;

@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "threads:line-actions": "node scripts/threads-line-actions.js"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.1",

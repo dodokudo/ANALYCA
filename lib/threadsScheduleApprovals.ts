@@ -1,6 +1,11 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { BigQuery } from '@google-cloud/bigquery';
-import { getScheduledPostById, scheduleDraftPost } from '@/lib/bigqueryScheduledPosts';
+import { getScheduledPostById } from '@/lib/bigqueryScheduledPosts';
+import {
+  changeScheduledPostAt,
+  formatScheduledAtJst,
+  scheduleDraftAt,
+} from '@/lib/threadsLineScheduling';
 
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
@@ -70,20 +75,40 @@ function toIsoString(value: ApprovalRow['expires_at']) {
   return value?.value || '';
 }
 
-function formatScheduledAtJst(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date);
+export async function createThreadsScheduleApproval(params: {
+  scheduleId: string;
+  userId: string;
+  groupId: string;
+  expiresAt?: Date;
+}) {
+  await ensureTable();
+  const token = randomBytes(24).toString('base64url');
+  const tokenHash = hashToken(token);
+  const expiresAt = params.expiresAt || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await client.query({
+    query: `
+      INSERT INTO \`${projectId}.${DATASET}.${TABLE}\`
+        (token_hash, schedule_id, user_id, group_id, status, expires_at, created_at, used_at)
+      VALUES
+        (@tokenHash, @scheduleId, @userId, @groupId, 'pending', @expiresAt, CURRENT_TIMESTAMP(), NULL)
+    `,
+    params: {
+      tokenHash,
+      scheduleId: params.scheduleId,
+      userId: params.userId,
+      groupId: params.groupId,
+      expiresAt,
+    },
+    types: { expiresAt: 'TIMESTAMP' },
+  });
+  return token;
 }
 
-export async function confirmThreadsScheduleApproval(token: string, groupId: string): Promise<ScheduleApprovalResult> {
+export async function confirmThreadsScheduleApproval(
+  token: string,
+  groupId: string,
+  options: { requestedTimeIso?: string; mode?: 'schedule' | 'change' } = {},
+): Promise<ScheduleApprovalResult> {
   await ensureTable();
   const tokenHash = hashToken(token);
   const [rows] = await client.query({
@@ -111,7 +136,7 @@ export async function confirmThreadsScheduleApproval(token: string, groupId: str
   }
 
   const scheduledAtJst = formatScheduledAtJst(current.scheduled_time);
-  if (current.status === 'scheduled') {
+  if (current.status === 'scheduled' && options.mode !== 'change') {
     return {
       ok: true,
       alreadyScheduled: true,
@@ -123,17 +148,21 @@ export async function confirmThreadsScheduleApproval(token: string, groupId: str
   if (approval.status === 'used') {
     return { ok: false, message: 'この予約ボタンはすでに使用されています。' };
   }
-  if (current.status !== 'draft') {
+  if (options.mode === 'change' && current.status !== 'scheduled') {
+    return { ok: false, message: `この投稿は予約変更できない状態です（${current.status}）。` };
+  }
+  if (options.mode !== 'change' && current.status !== 'draft') {
     return { ok: false, message: `この投稿は予約できない状態です（${current.status}）。` };
   }
-  if (new Date(current.scheduled_time).getTime() <= Date.now()) {
+  const requestedTimeIso = options.requestedTimeIso || current.scheduled_time;
+  if (new Date(requestedTimeIso).getTime() <= Date.now()) {
     return { ok: false, message: '予約日時が過ぎているため、予約できませんでした。' };
   }
 
-  const updated = await scheduleDraftPost(current.schedule_id, current.user_id);
-  if (!updated || updated.status !== 'scheduled') {
-    return { ok: false, message: '予約処理に失敗しました。下書きの状態を確認してください。' };
-  }
+  const mutation = options.mode === 'change'
+    ? await changeScheduledPostAt(current.schedule_id, current.user_id, requestedTimeIso)
+    : await scheduleDraftAt(current.schedule_id, current.user_id, requestedTimeIso);
+  if (!mutation.ok || !mutation.post) return { ok: false, message: mutation.message };
 
   await client.query({
     query: `
@@ -146,8 +175,8 @@ export async function confirmThreadsScheduleApproval(token: string, groupId: str
 
   return {
     ok: true,
-    message: `${scheduledAtJst}で予約しました。`,
-    scheduleId: updated.schedule_id,
-    scheduledAtJst,
+    message: mutation.message,
+    scheduleId: mutation.post.schedule_id,
+    scheduledAtJst: formatScheduledAtJst(mutation.post.scheduled_time),
   };
 }

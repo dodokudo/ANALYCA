@@ -24,7 +24,6 @@ const DATASET = 'analyca';
 const CONFIG_TABLE = 'threads_line_group_configs';
 const BINDINGS_TABLE = 'threads_line_message_bindings';
 const BOT_USER_ID = 'Ucdaaa14396462f82af6cd6a27c4b750b';
-const COLLISION_WINDOW_MINUTES = 15;
 
 const CONFIG_SCHEMA = [
   { name: 'group_id', type: 'STRING', mode: 'REQUIRED' },
@@ -203,7 +202,7 @@ export function parseThreadsScheduleCommand(
   const date = '(?:(\\d{1,2})月)?(\\d{1,2})日|(今日|明日)';
   const time = '(\\d{1,2})(?:時(?:(半)|(\\d{1,2})分)?|:(\\d{2}))';
   const suffix = new RegExp(`^(?:${date})\\s*(?:${time})\\s*投稿(?:\\s*#?(\\d+))?$`);
-  const prefix = new RegExp(`^投稿(?:\\s*#?(\\d+))?\\s+(?:${date})\\s*(?:${time})$`);
+  const prefix = new RegExp(`^投稿(?:\\s*#?(\\d+))?\\s*(?:${date})\\s*(?:${time})$`);
   const suffixMatch = normalized.match(suffix);
   const prefixMatch = normalized.match(prefix);
   if (!suffixMatch && !prefixMatch) return undefined;
@@ -341,34 +340,6 @@ export async function listUpcomingScheduledPosts(userId: string) {
   return posts.filter((post): post is ScheduledPostRow => Boolean(post));
 }
 
-async function findCollision(userId: string, scheduleId: string, scheduledTimeIso: string) {
-  const [rows] = await client.query({
-    query: `
-      SELECT schedule_id, scheduled_time
-      FROM \`${projectId}.${DATASET}.scheduled_posts\`
-      WHERE user_id = @userId
-        AND schedule_id != @scheduleId
-        AND status IN ('scheduled', 'processing', 'partial')
-        AND ABS(TIMESTAMP_DIFF(scheduled_time, @scheduledTime, MINUTE)) < @windowMinutes
-      ORDER BY scheduled_time
-      LIMIT 1
-    `,
-    params: {
-      userId,
-      scheduleId,
-      scheduledTime: new Date(scheduledTimeIso),
-      windowMinutes: COLLISION_WINDOW_MINUTES,
-    },
-    types: { scheduledTime: 'TIMESTAMP', windowMinutes: 'INT64' },
-  });
-  const row = rows[0] as Record<string, unknown> | undefined;
-  if (!row) return undefined;
-  return {
-    scheduleId: plain(row.schedule_id),
-    scheduledTime: plain(row.scheduled_time),
-  };
-}
-
 export async function scheduleDraftAt(
   scheduleId: string,
   userId: string,
@@ -376,13 +347,6 @@ export async function scheduleDraftAt(
 ): Promise<ThreadsScheduleMutationResult> {
   if (new Date(scheduledTimeIso).getTime() <= Date.now()) {
     return { ok: false, message: '過去の日時は指定できません。' };
-  }
-  const collision = await findCollision(userId, scheduleId, scheduledTimeIso);
-  if (collision) {
-    return {
-      ok: false,
-      message: `${formatScheduledAtJst(collision.scheduledTime)}に別の投稿があります。15分以上空けて指定してください。`,
-    };
   }
   await client.query({
     query: `
@@ -412,13 +376,6 @@ export async function changeScheduledPostAt(
 ): Promise<ThreadsScheduleMutationResult> {
   if (new Date(scheduledTimeIso).getTime() <= Date.now()) {
     return { ok: false, message: '過去の日時は指定できません。' };
-  }
-  const collision = await findCollision(userId, scheduleId, scheduledTimeIso);
-  if (collision) {
-    return {
-      ok: false,
-      message: `${formatScheduledAtJst(collision.scheduledTime)}に別の投稿があります。15分以上空けて指定してください。`,
-    };
   }
   await client.query({
     query: `

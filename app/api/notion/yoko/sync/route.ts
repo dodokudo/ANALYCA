@@ -7,13 +7,18 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 function authorized(request: NextRequest) {
-  const expected = process.env.ANALYCA_SESSION_SECRET || '';
   const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || '';
-  if (!expected || !supplied) return false;
-  const expectedBuffer = Buffer.from(expected);
+  const expectedSecrets = [
+    process.env.YOKO_SYNC_SECRET,
+    process.env.ANALYCA_SESSION_SECRET,
+  ].filter((value): value is string => Boolean(value));
+  if (!supplied) return false;
   const suppliedBuffer = Buffer.from(supplied);
-  return expectedBuffer.length === suppliedBuffer.length
-    && timingSafeEqual(expectedBuffer, suppliedBuffer);
+  return expectedSecrets.some((expected) => {
+    const expectedBuffer = Buffer.from(expected);
+    return expectedBuffer.length === suppliedBuffer.length
+      && timingSafeEqual(expectedBuffer, suppliedBuffer);
+  });
 }
 
 export async function POST(request: NextRequest) {

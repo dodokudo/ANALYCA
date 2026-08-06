@@ -48,11 +48,32 @@ async function hydrateChangedPages(
     if (previous && previous.body_text && previous.notion_last_edited_time === page.lastEditedTime) {
       entries.push({ ...page, bodyText: '', blockCount: 0, contentHash: previous.content_hash });
     } else {
-      entries.push(await hydrateYokoNotionPage(page));
+      entries.push(await hydrateYokoNotionSourcePage(sourceType, page));
     }
   }
 
   return entries;
+}
+
+function hydrateYokoNotionSourcePage(
+  sourceType: YokoNotionSourceType,
+  page: YokoNotionPageIndex,
+) {
+  if (sourceType === 'instagram_script') {
+    return hydrateYokoNotionPage(page, { followSourcePage: true });
+  }
+  return hydrateYokoNotionPage(page, {
+    propertyBodyFields: [
+      '知識',
+      'カテゴリ',
+      '要点',
+      '条件・例外',
+      '禁止・注意表現',
+      '検証状態',
+      '最終確認日',
+      '外部根拠',
+    ],
+  });
 }
 
 export async function syncAllYokoNotionContent(): Promise<YokoNotionFullSyncResult> {
@@ -95,7 +116,7 @@ export async function syncYokoNotionContentBatch(
   });
   const selectedPages = pendingPages.slice(0, batchLimit);
   const entries: YokoNotionPageContent[] = [];
-  for (const page of selectedPages) entries.push(await hydrateYokoNotionPage(page));
+  for (const page of selectedPages) entries.push(await hydrateYokoNotionSourcePage(sourceType, page));
 
   let summary = await syncYokoNotionLedger(sourceType, entries, { completeSnapshot: false });
   const remaining = Math.max(0, pendingPages.length - selectedPages.length);

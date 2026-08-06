@@ -83,6 +83,11 @@ export type YokoNotionPageContent = {
 
 export type YokoNotionPageIndex = Omit<YokoNotionPageContent, 'bodyText' | 'blockCount' | 'contentHash'>;
 
+export type YokoNotionHydrationOptions = {
+  followSourcePage?: boolean;
+  propertyBodyFields?: string[];
+};
+
 export type YokoNotionCorpus = {
   corePages: {
     startHere: YokoNotionPageContent;
@@ -270,6 +275,30 @@ function hashContent(properties: Record<string, unknown>, bodyText: string) {
   return createHash('sha256').update(canonical).digest('hex');
 }
 
+function notionPageIdFromUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const compactId = value.match(/([0-9a-f]{32})(?:[?#/]|$)/i)?.[1];
+  if (!compactId) return null;
+  return [
+    compactId.slice(0, 8),
+    compactId.slice(8, 12),
+    compactId.slice(12, 16),
+    compactId.slice(16, 20),
+    compactId.slice(20),
+  ].join('-');
+}
+
+function propertyBodyText(properties: Record<string, unknown>, fields: string[]): string {
+  return fields.flatMap((field) => {
+    const value = properties[field];
+    if (value === null || value === undefined || value === '') return [];
+    const rendered = Array.isArray(value)
+      ? value.map((item) => typeof item === 'string' ? item : JSON.stringify(item)).join('、')
+      : typeof value === 'string' ? value : JSON.stringify(value);
+    return rendered ? [`${field}：${rendered}`] : [];
+  }).join('\n');
+}
+
 function pageIndex(page: NotionPage): YokoNotionPageIndex {
   return {
     id: page.id,
@@ -280,15 +309,35 @@ function pageIndex(page: NotionPage): YokoNotionPageIndex {
   };
 }
 
-export async function hydrateYokoNotionPage(index: YokoNotionPageIndex): Promise<YokoNotionPageContent> {
-  const nestedBlocks = await retrieveBlocksRecursively(index.id);
-  const bodyText = nestedBlocks
+export async function hydrateYokoNotionPage(
+  index: YokoNotionPageIndex,
+  options: YokoNotionHydrationOptions = {},
+): Promise<YokoNotionPageContent> {
+  let nestedBlocks = await retrieveBlocksRecursively(index.id);
+  let blockBodyText = nestedBlocks
     .map(({ block, depth }) => {
       const text = blockText(block);
       return text ? `${'  '.repeat(depth)}${text}` : '';
     })
     .filter(Boolean)
     .join('\n');
+
+  if (!blockBodyText && options.followSourcePage) {
+    const sourcePageId = notionPageIdFromUrl(index.properties['元台本']);
+    if (sourcePageId && sourcePageId !== index.id) {
+      nestedBlocks = await retrieveBlocksRecursively(sourcePageId);
+      blockBodyText = nestedBlocks
+        .map(({ block, depth }) => {
+          const text = blockText(block);
+          return text ? `${'  '.repeat(depth)}${text}` : '';
+        })
+        .filter(Boolean)
+        .join('\n');
+    }
+  }
+
+  const propertiesText = propertyBodyText(index.properties, options.propertyBodyFields || []);
+  const bodyText = [propertiesText, blockBodyText].filter(Boolean).join('\n\n');
 
   return {
     ...index,

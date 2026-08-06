@@ -1771,8 +1771,8 @@ function ThreadsContent({
         <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
           {([
             { key: 'analysis', label: '分析' },
-            ...(isYokoDashboard ? [{ key: 'create' as const, label: '投稿作成' }] : []),
             { key: 'schedule', label: '予約投稿' },
+            ...(isYokoDashboard ? [{ key: 'create' as const, label: '投稿作成' }] : []),
             ...(hasLinkLineOption ? [{ key: 'links' as const, label: 'リンク登録' }] : []),
           ] as const).map(({ key, label }) => (
             <button
@@ -1841,7 +1841,7 @@ function ThreadsContent({
       </div>
 
       {threadsTab === 'create' && isYokoDashboard && (
-        <ThreadsContentCreationTab onOpenSchedule={() => setActiveThreadsTab('schedule')} />
+        <ThreadsContentCreationTab userId={userId} />
       )}
       {threadsTab === 'schedule' && <ScheduleTab userId={userId} />}
       {threadsTab === 'links' && linkLineOption && (

@@ -110,7 +110,7 @@ interface AdminData {
   fetchedAt: string;
 }
 
-const PINNED_USERNAMES = ['kudooo_aii', 'kudooo_ai'];
+const PINNED_USERNAMES = ['kudooo_aii', 'kudooo_ai', 'yoko_gemqueen'];
 
 function getPinnedUserRank(user: AdminUser): number {
   const usernames = [user.instagram_username, user.threads_username]
@@ -445,13 +445,17 @@ function AdminPageContent() {
     return <LoadingScreen message="データ取得中" />;
   }
 
-  // デモアカウントを除外した実ユーザー
+  // デモアカウントを除外した一覧表示ユーザー
   const demoFiltered = data.users.filter(u =>
     u.instagram_username !== 'demo_account' &&
     u.threads_username !== 'demo_account' &&
-    u.instagram_username !== 'yoko_gemqueen' &&
-    u.threads_username !== 'yoko_gemqueen' &&
     !u.user_id.includes('demo')
+  );
+
+  // KPIには従来どおりYOKOの運用代行アカウントを含めない
+  const kpiUsers = demoFiltered.filter(u =>
+    u.instagram_username !== 'yoko_gemqueen' &&
+    u.threads_username !== 'yoko_gemqueen'
   );
 
   // ユーザー拡張情報のマップ（アクティブ判定で subscription_status を参照するため先に構築）
@@ -462,7 +466,7 @@ function AdminPageContent() {
   const realUsers = [...demoFiltered].sort((a, b) => getPinnedUserRank(a) - getPinnedUserRank(b));
 
   // KPI集計用: 契約ユーザーのみ（subscription_status が 'none'/NULL を除外）
-  const paidUsers = demoFiltered.filter(u => {
+  const paidUsers = kpiUsers.filter(u => {
     const sub = extendedMap.get(u.user_id)?.subscription_status;
     return sub && sub !== 'none';
   });

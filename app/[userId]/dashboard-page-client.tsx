@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { ScheduleTab } from './components/schedule-tab';
+import ThreadsContentCreationTab from './components/threads-content-creation-tab';
 import { ThreadsInsights } from './components/threads-insights';
 import { RepostButton } from './components/repost-button';
 import { NotificationBell } from './components/notification-bell';
@@ -131,6 +132,8 @@ type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMon
 const YAMAZAKI_ANALYCA_USER_ID = '26743384212021461';
 const YAMAZAKI_THREADS_USERNAME = 'zakiyamadesu_0608';
 const YAMAZAKI_METRICS_START_DATE = '2026-06-17';
+const YOKO_ANALYCA_USER_ID = '33833959932919231';
+type ThreadsTab = 'analysis' | 'create' | 'schedule' | 'links';
 
 const datePresetOptions: { value: DatePreset; label: string }[] = [
   { value: '3d', label: '過去3日' },
@@ -1372,6 +1375,7 @@ function ThreadsContent({
   onOptionStatusChange: (status: LinkLineOptionStatusResponse) => void;
 }) {
   const isYamazakiDashboard = userId === YAMAZAKI_ANALYCA_USER_ID || username === YAMAZAKI_THREADS_USERNAME;
+  const isYokoDashboard = userId === YOKO_ANALYCA_USER_ID;
   const hasLinkLineOption = Boolean(linkLineOption?.hasAccess);
   const defaultStartDate = isYamazakiDashboard
     ? YAMAZAKI_METRICS_START_DATE
@@ -1382,8 +1386,10 @@ function ThreadsContent({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const threadsTabParam = searchParams?.get('threadsTab');
-  const [threadsTab, setThreadsTab] = useState<'analysis' | 'schedule' | 'links'>(
-    threadsTabParam === 'schedule'
+  const [threadsTab, setThreadsTab] = useState<ThreadsTab>(
+    threadsTabParam === 'create' && isYokoDashboard
+      ? 'create'
+      : threadsTabParam === 'schedule'
       ? 'schedule'
       : threadsTabParam === 'links' && hasLinkLineOption
         ? 'links'
@@ -1401,11 +1407,13 @@ function ThreadsContent({
 
   useEffect(() => {
     const requestedTab = searchParams?.get('threadsTab');
-    const nextTab = requestedTab === 'schedule'
-      ? 'schedule'
-      : requestedTab === 'links' && hasLinkLineOption
-        ? 'links'
-        : 'analysis';
+    const nextTab: ThreadsTab = requestedTab === 'create' && isYokoDashboard
+      ? 'create'
+      : requestedTab === 'schedule'
+        ? 'schedule'
+        : requestedTab === 'links' && hasLinkLineOption
+          ? 'links'
+          : 'analysis';
     setThreadsTab(nextTab);
     if (requestedTab === 'links' && optionStatusLoaded && !hasLinkLineOption) {
       const params = new URLSearchParams(searchParams?.toString());
@@ -1413,9 +1421,9 @@ function ThreadsContent({
       params.set('threadsTab', 'analysis');
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
-  }, [hasLinkLineOption, optionStatusLoaded, pathname, router, searchParams]);
+  }, [hasLinkLineOption, isYokoDashboard, optionStatusLoaded, pathname, router, searchParams]);
 
-  const setActiveThreadsTab = (tab: 'analysis' | 'schedule' | 'links') => {
+  const setActiveThreadsTab = (tab: ThreadsTab) => {
     setThreadsTab(tab);
     const params = new URLSearchParams(searchParams?.toString());
     params.set('tab', 'threads');
@@ -1763,6 +1771,7 @@ function ThreadsContent({
         <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
           {([
             { key: 'analysis', label: '分析' },
+            ...(isYokoDashboard ? [{ key: 'create' as const, label: '投稿作成' }] : []),
             { key: 'schedule', label: '予約投稿' },
             ...(hasLinkLineOption ? [{ key: 'links' as const, label: 'リンク登録' }] : []),
           ] as const).map(({ key, label }) => (
@@ -1831,6 +1840,9 @@ function ThreadsContent({
         )}
       </div>
 
+      {threadsTab === 'create' && isYokoDashboard && (
+        <ThreadsContentCreationTab onOpenSchedule={() => setActiveThreadsTab('schedule')} />
+      )}
       {threadsTab === 'schedule' && <ScheduleTab userId={userId} />}
       {threadsTab === 'links' && linkLineOption && (
         <LinkRegistrationTab

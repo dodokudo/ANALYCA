@@ -341,7 +341,7 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       <div
         className={classNames(
           'grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
-          previewEnabled && 'xl:grid-cols-[minmax(300px,0.8fr)_minmax(440px,1.15fr)_320px]',
+          previewEnabled && 'xl:grid-cols-[minmax(300px,0.85fr)_minmax(440px,1.1fr)_320px]',
         )}
       >
         <div className={requestedScheduleId ? 'order-2 lg:order-1' : undefined}>

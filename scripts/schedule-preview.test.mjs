@@ -10,7 +10,7 @@ test('Threads preview is restricted to the requested account and desktop layout'
   const source = await readFile(scheduleTabPath, 'utf8');
 
   assert.match(source, /27016191458061252/);
-  assert.match(source, /xl:grid-cols-\[minmax\(300px/);
+  assert.match(source, /xl:grid-cols-\[minmax\(300px,0\.85fr\)_minmax\(440px,1\.1fr\)_320px\]/);
   assert.match(source, /hidden xl:block/);
   assert.doesNotMatch(source, /hidden 2xl:block/);
   assert.match(source, /sticky top-6/);

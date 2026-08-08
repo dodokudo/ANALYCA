@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test:schedule-preview": "node --test scripts/schedule-preview.test.mjs",
     "threads:line-actions": "node scripts/threads-line-actions.js"
   },
   "dependencies": {

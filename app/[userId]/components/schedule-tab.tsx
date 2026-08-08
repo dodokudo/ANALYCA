@@ -4,7 +4,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ScheduleCalendar } from './schedule-calendar';
 import { ScheduleEditor } from './schedule-editor';
-import type { ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
+import { SchedulePreview } from './schedule-preview';
+import { classNames } from '@/lib/classNames';
+import type { SchedulePreviewData, ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
+
+const KUDO_THREADS_USER_ID = '27016191458061252';
+const EMPTY_PREVIEW_DATA: SchedulePreviewData = {
+  scheduledAt: '',
+  mainText: '',
+  comment1: '',
+  comment2: '',
+  comment3: '',
+  comment4: '',
+  comment5: '',
+  comment6: '',
+  comment7: '',
+  mediaItems: [],
+  comment1MediaItems: [],
+  comment2MediaItems: [],
+};
 
 function formatDateKey(date: Date) {
   const year = date.getFullYear();
@@ -76,8 +94,9 @@ function getJstNow() {
   return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
 }
 
-export function ScheduleTab({ userId }: { userId: string }) {
+export function ScheduleTab({ userId, username, profilePicture }: { userId: string; username: string; profilePicture?: string }) {
   const searchParams = useSearchParams();
+  const previewEnabled = userId === KUDO_THREADS_USER_ID;
   const requestedScheduleId = searchParams.get('scheduleId');
   const editorRef = useRef<HTMLDivElement>(null);
   const [currentMonth, setCurrentMonth] = useState(() => getJstNow());
@@ -88,6 +107,7 @@ export function ScheduleTab({ userId }: { userId: string }) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<SchedulePreviewData>(EMPTY_PREVIEW_DATA);
 
   const range = useMemo(() => ({
     start: formatMonthStart(currentMonth),
@@ -318,7 +338,12 @@ export function ScheduleTab({ userId }: { userId: string }) {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div
+        className={classNames(
+          'grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
+          previewEnabled && '2xl:grid-cols-[minmax(400px,0.8fr)_minmax(560px,1fr)_360px]',
+        )}
+      >
         <div className={requestedScheduleId ? 'order-2 lg:order-1' : undefined}>
           <ScheduleCalendar
             currentMonth={currentMonth}
@@ -338,10 +363,18 @@ export function ScheduleTab({ userId }: { userId: string }) {
             userId={userId}
             isSaving={saving}
             isPublishing={publishing}
+            onPreviewChange={previewEnabled ? setPreviewData : undefined}
             onSave={handleSave}
             onPublishNow={handlePublishNow}
           />
         </div>
+        {previewEnabled ? (
+          <div className="hidden 2xl:block">
+            <div className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto overscroll-contain pr-1">
+              <SchedulePreview data={previewData} username={username} profilePicture={profilePicture} />
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

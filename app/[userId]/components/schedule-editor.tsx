@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
+import type { SchedulePreviewData, ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
 import { classNames } from '@/lib/classNames';
 
 const MAX_LENGTH = 500;
@@ -22,6 +22,7 @@ type ScheduleEditorProps = {
   userId: string;
   isSaving?: boolean;
   isPublishing?: boolean;
+  onPreviewChange?: (data: SchedulePreviewData) => void;
   onSave: (payload: {
     scheduleId?: string;
     scheduledAt: string;
@@ -59,6 +60,7 @@ export function ScheduleEditor({
   userId,
   isSaving,
   isPublishing,
+  onPreviewChange,
   onSave,
   onPublishNow,
 }: ScheduleEditorProps) {
@@ -119,6 +121,38 @@ export function ScheduleEditor({
   const comment5Length = comment5.length;
   const comment6Length = comment6.length;
   const comment7Length = comment7.length;
+
+  useEffect(() => {
+    if (!onPreviewChange) return;
+    onPreviewChange({
+      scheduledAt,
+      mainText,
+      comment1,
+      comment2,
+      comment3,
+      comment4,
+      comment5,
+      comment6,
+      comment7,
+      mediaItems,
+      comment1MediaItems,
+      comment2MediaItems,
+    });
+  }, [
+    scheduledAt,
+    mainText,
+    comment1,
+    comment2,
+    comment3,
+    comment4,
+    comment5,
+    comment6,
+    comment7,
+    mediaItems,
+    comment1MediaItems,
+    comment2MediaItems,
+    onPreviewChange,
+  ]);
 
   const optionalCommentsValid =
     comment3Length <= MAX_LENGTH &&

@@ -1843,7 +1843,9 @@ function ThreadsContent({
       {threadsTab === 'create' && isYokoDashboard && (
         <ThreadsContentCreationTab userId={userId} />
       )}
-      {threadsTab === 'schedule' && <ScheduleTab userId={userId} />}
+      {threadsTab === 'schedule' && (
+        <ScheduleTab userId={userId} username={username} profilePicture={profilePicture} />
+      )}
       {threadsTab === 'links' && linkLineOption && (
         <LinkRegistrationTab
           userId={userId}

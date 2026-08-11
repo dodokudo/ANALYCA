@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applySelectedStyleFields, validateGeneratedDrafts } from '../threads-content-drafts';
+import {
+  applySelectedStyleFields,
+  selectYokoVoiceEvidence,
+  validateGeneratedDrafts,
+  validateYokoStyleCandidate,
+  type YokoVoiceEvidence,
+} from '../threads-content-drafts';
 
 function draft(overrides: Partial<{
   sourcePageId: string;
@@ -40,4 +46,37 @@ test('コメントだけの文体調整ではメイン投稿を変更しない',
   assert.equal(result.mainText, '工藤さんが編集したメイン');
   assert.equal(result.comment1, '本人文体コメント1');
   assert.equal(result.comment2, '本人文体コメント2');
+});
+
+test('投稿テーマに近い本人コメントをVOICE_EVIDENCEとして優先する', () => {
+  const evidence = (id: string, text: string): YokoVoiceEvidence => ({
+    id,
+    parentPostId: `parent-${id}`,
+    parentText: text,
+    commentText: text,
+    permalink: '',
+    createdAt: '2026-08-11T00:00:00.000Z',
+  });
+  const selected = selectYokoVoiceEvidence({
+    theme: 'ダイヤモンドのカラーグレード',
+    mainText: 'ダイヤの色を解説します',
+    comment1: 'DカラーとFカラーの違いです',
+    comment2: '無色感を確認してください',
+    approvedSnapshot: null,
+    sources: [],
+  }, [
+    evidence('pearl', '真珠のテリとオリエントを太陽光で確認します'),
+    evidence('diamond', 'ダイヤモンドのカラーはDからZまで。無色感を見るならFカラー以上を確認してください'),
+    evidence('ring', 'リングを着ける指の意味を解説します'),
+  ], 1);
+  assert.equal(selected[0]?.id, 'diamond');
+});
+
+test('均一な説明文と硬い否定表現の連発を本人文体として通さない', () => {
+  const issues = validateYokoStyleCandidate({
+    comment1: 'これは正解ではありません。'.repeat(20),
+    comment2: 'それだけで決めるわけではありません。'.repeat(20),
+  });
+  assert.match(issues.join(' / '), /改行が少なすぎます/);
+  assert.match(issues.join(' / '), /硬い否定表現/);
 });

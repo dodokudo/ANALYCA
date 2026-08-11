@@ -28,6 +28,15 @@ export type ThreadsContentSource = {
   bodyText: string;
 };
 
+export type YokoVoiceEvidence = {
+  id: string;
+  parentPostId: string;
+  parentText: string;
+  commentText: string;
+  permalink: string;
+  createdAt: string;
+};
+
 export type ThreadsContentDraft = {
   id: string;
   batchId: string;
@@ -841,12 +850,18 @@ function styleSchema(fields: ThreadsContentField[]): Record<string, unknown> {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['draftId', ...fields],
+          required: ['draftId', ...fields, 'voiceEvidenceIds'],
           properties: {
             draftId: { type: 'string' },
             ...(fields.includes('main_text') ? { main_text: { type: 'string' } } : {}),
             ...(fields.includes('comment1') ? { comment1: { type: 'string' } } : {}),
             ...(fields.includes('comment2') ? { comment2: { type: 'string' } } : {}),
+            voiceEvidenceIds: {
+              type: 'array',
+              minItems: 3,
+              maxItems: 6,
+              items: { type: 'string' },
+            },
           },
         },
       },
@@ -865,17 +880,96 @@ function styleAuditSchema(): Record<string, unknown> {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['draftId', 'contentPreserved', 'styleMatches', 'issues'],
+          required: ['draftId', 'contentPreserved', 'styleMatches', 'evidenceGrounded', 'issues'],
           properties: {
             draftId: { type: 'string' },
             contentPreserved: { type: 'boolean' },
             styleMatches: { type: 'boolean' },
+            evidenceGrounded: { type: 'boolean' },
             issues: { type: 'array', items: { type: 'string' } },
           },
         },
       },
     },
   };
+}
+
+function characterNgrams(value: string, size = 3): Set<string> {
+  const normalized = normalizeForDuplicateCheck(value);
+  const grams = new Set<string>();
+  for (let index = 0; index <= normalized.length - size; index += 1) {
+    grams.add(normalized.slice(index, index + size));
+  }
+  return grams;
+}
+
+export function selectYokoVoiceEvidence(
+  draft: Pick<ThreadsContentDraft, 'theme' | 'mainText' | 'comment1' | 'comment2' | 'approvedSnapshot' | 'sources'>,
+  corpus: YokoVoiceEvidence[],
+  limit = 6,
+): YokoVoiceEvidence[] {
+  const primary = draft.sources.find((source) => source.role === 'primary');
+  const approved = draft.approvedSnapshot || draft;
+  const queryGrams = characterNgrams([
+    draft.theme,
+    draft.mainText,
+    approved.comment1,
+    approved.comment2,
+    primary?.title || '',
+    primary?.bodyText || '',
+  ].join('\n'));
+  const ranked = corpus
+    .map((item) => {
+      const evidenceGrams = characterNgrams(`${item.parentText}\n${item.commentText}`);
+      let overlap = 0;
+      for (const gram of evidenceGrams) {
+        if (queryGrams.has(gram)) overlap += 1;
+      }
+      return { item, score: overlap / Math.sqrt(Math.max(queryGrams.size * evidenceGrams.size, 1)) };
+    })
+    .sort((left, right) => right.score - left.score || right.item.createdAt.localeCompare(left.item.createdAt))
+    .map(({ item }) => item);
+  const selected: YokoVoiceEvidence[] = [];
+  const seenTexts = new Set<string>();
+  for (const item of ranked) {
+    const normalized = normalizeForDuplicateCheck(item.commentText);
+    if (seenTexts.has(normalized)) continue;
+    seenTexts.add(normalized);
+    selected.push(item);
+    if (selected.length >= limit) break;
+  }
+  return selected;
+}
+
+async function listYokoVoiceEvidence(): Promise<YokoVoiceEvidence[]> {
+  const [rows] = await client.query({
+    query: `
+      SELECT
+        c.comment_id AS evidence_id,
+        c.parent_post_id,
+        COALESCE(p.text, '') AS parent_text,
+        c.text AS comment_text,
+        c.permalink,
+        c.timestamp AS created_at
+      FROM \`${projectId}.${DATASET}.threads_comments\` c
+      LEFT JOIN \`${projectId}.${DATASET}.threads_posts\` p
+        ON p.user_id = c.user_id AND p.threads_id = c.parent_post_id
+      WHERE c.user_id = @userId
+        AND c.depth = 0
+        AND CHAR_LENGTH(c.text) >= 150
+      ORDER BY c.timestamp DESC
+      LIMIT 500
+    `,
+    params: { userId: YOKO_ANALYCA_USER_ID },
+  });
+  return rows.map((row) => ({
+    id: plain(row.evidence_id),
+    parentPostId: plain(row.parent_post_id),
+    parentText: plain(row.parent_text),
+    commentText: plain(row.comment_text),
+    permalink: plain(row.permalink),
+    createdAt: plain(row.created_at),
+  }));
 }
 
 export function applySelectedStyleFields(
@@ -900,6 +994,22 @@ function selectedStyleText(
   ]));
 }
 
+export function validateYokoStyleCandidate(
+  draft: Pick<ThreadsContentDraft, 'comment1' | 'comment2'>,
+): string[] {
+  const combined = `${draft.comment1}\n${draft.comment2}`;
+  const lines = combined.split('\n').map((line) => line.trim()).filter(Boolean);
+  const averageLineLength = lines.length
+    ? lines.reduce((sum, line) => sum + Array.from(line).length, 0) / lines.length
+    : 0;
+  const formalNegatives = combined.match(/ではありません|わけではありません|必要はありません|限りません/g) || [];
+  const issues: string[] = [];
+  if (lines.length < 16) issues.push(`本人実文より改行が少なすぎます（非空行${lines.length}行）`);
+  if (averageLineLength > 45) issues.push(`1行が長く均一な説明文です（平均${averageLineLength.toFixed(1)}文字）`);
+  if (formalNegatives.length > 1) issues.push(`硬い否定表現が${formalNegatives.length}回あります`);
+  return issues;
+}
+
 async function setDraftError(draftId: string, message: string): Promise<ThreadsContentDraft> {
   await client.query({
     query: `
@@ -921,7 +1031,15 @@ export async function styleYokoDrafts(input: {
   if (fields.length === 0) throw new Error('文体調整する欄を選んでください');
   const drafts = await Promise.all(input.draftIds.map(getDraft));
   if (drafts.some((draft) => draft.status !== 'approved')) throw new Error('採用済みの投稿だけ文体調整できます');
-  const corePages = await getYokoNotionCorePages();
+  const [corePages, voiceCorpus] = await Promise.all([
+    getYokoNotionCorePages(),
+    listYokoVoiceEvidence(),
+  ]);
+  const voiceByDraft = new Map(drafts.map((draft) => [draft.id, selectYokoVoiceEvidence(draft, voiceCorpus)]));
+  const missingEvidence = drafts.filter((draft) => (voiceByDraft.get(draft.id)?.length || 0) < 3);
+  if (missingEvidence.length) {
+    throw new Error(`本人実文が3件未満の投稿があります: ${missingEvidence.map((draft) => `投稿${draft.number}`).join('、')}`);
+  }
   const model = process.env.OPENAI_STYLE_MODEL || 'gpt-5.6-terra';
   const result = await callOpenAI({
     model,
@@ -929,6 +1047,8 @@ export async function styleYokoDrafts(input: {
     schema: styleSchema(fields),
     instructions: [
       corePages.styleGuide.bodyText,
+      '文体ガイドの頻度表だけで文章を作らず、各投稿のvoiceEvidenceにあるYOKO本人の実文を最優先してください。',
+      'voiceEvidenceから、驚き、事実説明、本音、反論、共感、判断、問いかけに近い実文を最低3件選び、その文の長短、改行、間、言い切りを移してください。',
       'メイン投稿は工藤さんが編集済みです。メイン投稿は出力せず、一字も変更しないでください。',
       '承認済みコメントの事実・中心主張・論理の順序・結論・CTAは変更しないでください。',
       'primarySourceは文の長短、間、テンポの参考だけに使い、承認済みコメントにない自己開示・事実・主張・具体表現を持ち込まないでください。',
@@ -936,6 +1056,7 @@ export async function styleYokoDrafts(input: {
       '語尾だけの機械的置換は禁止です。元台本の感情の流れ、文の長短、間、言い切り、問いかけを使ってください。',
       '承認済み原文にない共感や断定を作る「ね」「よ」「なんです」などは追加しないでください。',
       'previousAuditErrorがある場合は、その指摘を繰り返さずに修正してください。',
+      'voiceEvidenceIdsには実際に文体根拠として使用したvoiceEvidenceのidを3〜6件入れてください。',
       '出力は指定されたJSONスキーマだけにしてください。',
     ].join('\n\n'),
     prompt: JSON.stringify({
@@ -949,19 +1070,41 @@ export async function styleYokoDrafts(input: {
         },
         previousAuditError: draft.lastError,
         primarySource: draft.sources.find((source) => source.role === 'primary') || null,
+        voiceEvidence: voiceByDraft.get(draft.id),
       })),
     }),
   });
-  const transformed = (result.json as { drafts?: Array<Record<string, string>> }).drafts || [];
+  type StyleTransformRow = {
+    draftId: string;
+    main_text?: string;
+    comment1?: string;
+    comment2?: string;
+    voiceEvidenceIds: string[];
+  };
+  const transformed = (result.json as { drafts?: StyleTransformRow[] }).drafts || [];
   const byId = new Map(transformed.map((item) => [item.draftId, item]));
   const projected = drafts.map((draft) => {
     const item = byId.get(draft.id);
     if (!item) throw new Error(`OpenAI omitted draft ${draft.id}`);
+    const allowedEvidenceIds = new Set((voiceByDraft.get(draft.id) || []).map((evidence) => evidence.id));
+    const usedEvidenceIds = Array.from(new Set(item.voiceEvidenceIds));
+    if (usedEvidenceIds.length < 3 || usedEvidenceIds.some((id) => !allowedEvidenceIds.has(id))) {
+      throw new Error(`投稿${draft.number}: 本人実文の根拠IDが不足または不正です`);
+    }
     return {
       draftId: draft.id,
-      ...applySelectedStyleFields(draft, item, fields),
+      ...applySelectedStyleFields(draft, {
+        main_text: item.main_text || '',
+        comment1: item.comment1 || '',
+        comment2: item.comment2 || '',
+      }, fields),
+      voiceEvidenceIds: usedEvidenceIds,
     };
   });
+  const deterministicIssuesById = new Map(projected.map((draft) => [
+    draft.draftId,
+    validateYokoStyleCandidate(draft),
+  ]));
   await recordUsage({ operation: 'style_transform', model, usage: result.usage, batchId: drafts[0]?.batchId });
 
   const auditModel = process.env.OPENAI_AUDIT_MODEL || model;
@@ -972,10 +1115,12 @@ export async function styleYokoDrafts(input: {
     instructions: [
       corePages.styleGuide.bodyText,
       'あなたは文体変換を実行した担当とは別の監査者です。修正はせず、合否だけを判定してください。',
+      '文体ガイドの頻度ではなく、voiceEvidenceの本人実文と変換稿を直接比較してください。',
       '監査対象はselectedFieldsにあるコメント欄だけです。メイン投稿は監査対象外です。',
       'contentPreservedは内容保持だけの判定です。事実・数値・主体・時期・頻度・本人属性・中心主張・結論・CTAが追加、削除、変更された場合だけfalseにしてください。',
       '句読点、かぎ括弧、改行、文の分割、接続詞、語尾、言い切り方の変更は文体調整の目的そのものです。意味と論理の順序が同じならcontentPreservedをfalseにしないでください。',
       'styleMatchesは本人文体だけの判定です。元台本の感情の流れ、文の長短、間、言い切り、問いかけが本人実文に沿うか確認してください。',
+      'evidenceGroundedは、usedVoiceEvidenceIdsで指定された最低3件の実文から、改行、呼吸、文の長短、言い切りの具体的な根拠が確認できる場合だけtrueにしてください。IDを列挙しただけならfalseです。',
       'primarySourceの自己開示や固有表現が承認稿にない場合、それを追加していないことをstyleMatchesの不合格理由にしてはいけません。承認稿にある内容だけで作れるリズムとテンポを評価してください。',
       '語尾だけの機械的置換、均一なテンポ、本人根拠のない「ね」「よ」「なんです」などの追加があればstyleMatchesをfalseにしてください。',
       'issuesにはcontentPreservedまたはstyleMatchesをfalseにした具体的理由だけを書いてください。単なる表現差はissuesに書かないでください。',
@@ -992,19 +1137,23 @@ export async function styleYokoDrafts(input: {
         }, fields),
         transformed: selectedStyleText(projected[index], fields),
         primarySource: draft.sources.find((source) => source.role === 'primary') || null,
+        usedVoiceEvidenceIds: projected[index].voiceEvidenceIds,
+        voiceEvidence: voiceByDraft.get(draft.id),
+        deterministicIssues: deterministicIssuesById.get(draft.id),
       })),
     }),
   });
   await recordUsage({ operation: 'style_audit', model: auditModel, usage: audit.usage, batchId: drafts[0]?.batchId });
-  const auditRows = (audit.json as { drafts?: Array<{ draftId: string; contentPreserved: boolean; styleMatches: boolean; issues: string[] }> }).drafts || [];
+  const auditRows = (audit.json as { drafts?: Array<{ draftId: string; contentPreserved: boolean; styleMatches: boolean; evidenceGrounded: boolean; issues: string[] }> }).drafts || [];
   const auditById = new Map(auditRows.map((item) => [item.draftId, item]));
   const updated: ThreadsContentDraft[] = [];
   for (let index = 0; index < drafts.length; index += 1) {
     const draft = drafts[index];
     const item = projected[index];
     const auditItem = auditById.get(draft.id);
-    if (!auditItem?.contentPreserved || !auditItem.styleMatches) {
-      const issues = auditItem?.issues.join('、') || '監査結果がありません';
+    const deterministicIssues = deterministicIssuesById.get(draft.id) || [];
+    if (deterministicIssues.length || !auditItem?.contentPreserved || !auditItem.styleMatches || !auditItem.evidenceGrounded) {
+      const issues = [...deterministicIssues, ...(auditItem?.issues || [])].join('、') || '監査結果がありません';
       updated.push(await setDraftError(draft.id, `本人文体監査NG: ${issues}`));
       continue;
     }

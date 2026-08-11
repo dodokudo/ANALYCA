@@ -865,10 +865,11 @@ function styleAuditSchema(): Record<string, unknown> {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['draftId', 'pass', 'issues'],
+          required: ['draftId', 'contentPreserved', 'styleMatches', 'issues'],
           properties: {
             draftId: { type: 'string' },
-            pass: { type: 'boolean' },
+            contentPreserved: { type: 'boolean' },
+            styleMatches: { type: 'boolean' },
             issues: { type: 'array', items: { type: 'string' } },
           },
         },
@@ -968,10 +969,11 @@ export async function styleYokoDrafts(input: {
       corePages.styleGuide.bodyText,
       'あなたは文体変換を実行した担当とは別の監査者です。修正はせず、合否だけを判定してください。',
       '監査対象はselectedFieldsにあるコメント欄だけです。メイン投稿は監査対象外です。',
-      '承認済み原文から、事実・数値・主体・時期・頻度・本人属性・中心主張・結論・CTAが追加、削除、変更されていれば不合格です。',
-      '句読点、かぎ括弧、改行、文の分割、接続詞の変更だけを理由に不合格にしないでください。ただし意味や論理の順序が変わった場合は不合格です。',
-      '自然な日本語というだけでは合格にせず、元台本の感情の流れ、文の長短、間、言い切り、問いかけが本人実文に沿うか確認してください。',
-      '語尾だけの機械的置換、均一なテンポ、本人根拠のない「ね」「よ」「なんです」などの追加は不合格です。',
+      'contentPreservedは内容保持だけの判定です。事実・数値・主体・時期・頻度・本人属性・中心主張・結論・CTAが追加、削除、変更された場合だけfalseにしてください。',
+      '句読点、かぎ括弧、改行、文の分割、接続詞、語尾、言い切り方の変更は文体調整の目的そのものです。意味と論理の順序が同じならcontentPreservedをfalseにしないでください。',
+      'styleMatchesは本人文体だけの判定です。元台本の感情の流れ、文の長短、間、言い切り、問いかけが本人実文に沿うか確認してください。',
+      '語尾だけの機械的置換、均一なテンポ、本人根拠のない「ね」「よ」「なんです」などの追加があればstyleMatchesをfalseにしてください。',
+      'issuesにはcontentPreservedまたはstyleMatchesをfalseにした具体的理由だけを書いてください。単なる表現差はissuesに書かないでください。',
       '出力は指定されたJSONスキーマだけにしてください。',
     ].join('\n\n'),
     prompt: JSON.stringify({
@@ -989,14 +991,14 @@ export async function styleYokoDrafts(input: {
     }),
   });
   await recordUsage({ operation: 'style_audit', model: auditModel, usage: audit.usage, batchId: drafts[0]?.batchId });
-  const auditRows = (audit.json as { drafts?: Array<{ draftId: string; pass: boolean; issues: string[] }> }).drafts || [];
+  const auditRows = (audit.json as { drafts?: Array<{ draftId: string; contentPreserved: boolean; styleMatches: boolean; issues: string[] }> }).drafts || [];
   const auditById = new Map(auditRows.map((item) => [item.draftId, item]));
   const updated: ThreadsContentDraft[] = [];
   for (let index = 0; index < drafts.length; index += 1) {
     const draft = drafts[index];
     const item = projected[index];
     const auditItem = auditById.get(draft.id);
-    if (!auditItem?.pass) {
+    if (!auditItem?.contentPreserved || !auditItem.styleMatches) {
       const issues = auditItem?.issues.join('、') || '監査結果がありません';
       updated.push(await setDraftError(draft.id, `本人文体監査NG: ${issues}`));
       continue;

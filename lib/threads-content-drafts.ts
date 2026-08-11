@@ -999,14 +999,23 @@ export function validateYokoStyleCandidate(
 ): string[] {
   const combined = `${draft.comment1}\n${draft.comment2}`;
   const lines = combined.split('\n').map((line) => line.trim()).filter(Boolean);
+  const commentLineCounts = [draft.comment1, draft.comment2].map((comment) => (
+    comment.split('\n').map((line) => line.trim()).filter(Boolean).length
+  ));
   const averageLineLength = lines.length
     ? lines.reduce((sum, line) => sum + Array.from(line).length, 0) / lines.length
     : 0;
+  const shortLineRatio = lines.length
+    ? lines.filter((line) => Array.from(line).length <= 24).length / lines.length
+    : 0;
   const formalNegatives = combined.match(/ではありません|わけではありません|必要はありません|限りません/g) || [];
   const issues: string[] = [];
-  if (lines.length < 16) issues.push(`本人実文より改行が少なすぎます（非空行${lines.length}行）`);
-  if (averageLineLength > 45) issues.push(`1行が長く均一な説明文です（平均${averageLineLength.toFixed(1)}文字）`);
-  if (formalNegatives.length > 1) issues.push(`硬い否定表現が${formalNegatives.length}回あります`);
+  if (commentLineCounts.some((count) => count < 10)) {
+    issues.push(`本人実文より改行が少なすぎます（コメント別${commentLineCounts.join('行・')}行）`);
+  }
+  if (averageLineLength > 38) issues.push(`1行が長く均一な説明文です（平均${averageLineLength.toFixed(1)}文字）`);
+  if (shortLineRatio < 0.35) issues.push(`短い言い切りと間が不足しています（24文字以下${Math.round(shortLineRatio * 100)}%）`);
+  if (formalNegatives.length > 0) issues.push(`硬い否定表現が${formalNegatives.length}回あります`);
   return issues;
 }
 
@@ -1049,6 +1058,11 @@ export async function styleYokoDrafts(input: {
       corePages.styleGuide.bodyText,
       '文体ガイドの頻度表だけで文章を作らず、各投稿のvoiceEvidenceにあるYOKO本人の実文を最優先してください。',
       'voiceEvidenceから、驚き、事実説明、本音、反論、共感、判断、問いかけに近い実文を最低3件選び、その文の長短、改行、間、言い切りを移してください。',
+      '最重要: 長い説明文を段落のまま残さないでください。承認稿の一文を意味の区切りで分け、1行1メッセージにします。各コメントは非空行10行以上、平均1行38文字以下、24文字以下の短い行を全体の35%以上にしてください。',
+      '各コメントは370〜500文字を維持してください。短く切るために事実や結論を削らず、文を分けて改行してください。',
+      '「〜という話ではありません」「〜わけではありません」「〜必要はありません」「〜とは限りません」のような硬い否定は禁止です。本人実文に合わせて「〜って話じゃないです」「〜って意味じゃないです」「〜必要はないです」「〜とは限らないです」のような会話調にしてください。',
+      '「ただし」「一方で」「もちろん」を段落ごとに機械的に置く説明文は禁止です。必要な接続だけ残し、「でも」「逆に」「つまり」「だからこそ」や短い言い切りを、voiceEvidenceで実際に使われている範囲で使ってください。',
+      '変換後に自分で、各コメントの非空行数、平均行長、24文字以下の行の割合、硬い否定表現0件を数えてから出力してください。条件を満たさない稿は出力しないでください。',
       'メイン投稿は工藤さんが編集済みです。メイン投稿は出力せず、一字も変更しないでください。',
       '承認済みコメントの事実・中心主張・論理の順序・結論・CTAは変更しないでください。',
       'primarySourceは文の長短、間、テンポの参考だけに使い、承認済みコメントにない自己開示・事実・主張・具体表現を持ち込まないでください。',
@@ -1123,6 +1137,7 @@ export async function styleYokoDrafts(input: {
       'evidenceGroundedは、usedVoiceEvidenceIdsで指定された最低3件の実文から、改行、呼吸、文の長短、言い切りの具体的な根拠が確認できる場合だけtrueにしてください。IDを列挙しただけならfalseです。',
       'primarySourceの自己開示や固有表現が承認稿にない場合、それを追加していないことをstyleMatchesの不合格理由にしてはいけません。承認稿にある内容だけで作れるリズムとテンポを評価してください。',
       '語尾だけの機械的置換、均一なテンポ、本人根拠のない「ね」「よ」「なんです」などの追加があればstyleMatchesをfalseにしてください。',
+      '各コメントが非空行10行以上、平均1行38文字以下、24文字以下の短い行35%以上、硬い否定表現0件を満たさない場合はstyleMatchesをfalseにしてください。',
       'issuesにはcontentPreservedまたはstyleMatchesをfalseにした具体的理由だけを書いてください。単なる表現差はissuesに書かないでください。',
       '出力は指定されたJSONスキーマだけにしてください。',
     ].join('\n\n'),

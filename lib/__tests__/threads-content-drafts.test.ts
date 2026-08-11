@@ -80,3 +80,22 @@ test('均一な説明文と硬い否定表現の連発を本人文体として�
   assert.match(issues.join(' / '), /改行が少なすぎます/);
   assert.match(issues.join(' / '), /硬い否定表現/);
 });
+
+test('短い改行と会話調の否定を含む本人文体候補を通す', () => {
+  const conversationalLines = [
+    'まず結論から言うと、',
+    'ここだけは見てください。',
+    '同じに見えても、',
+    '中身は全部同じじゃないです。',
+    'なぜなら、',
+    '選ぶ基準が違うからです。',
+    'でも、',
+    '全部ダメって意味じゃないです。',
+    '大事なのは、',
+    '何を優先するかです。',
+  ].join('\n');
+  assert.deepEqual(validateYokoStyleCandidate({
+    comment1: conversationalLines,
+    comment2: conversationalLines,
+  }), []);
+});

@@ -933,6 +933,8 @@ export async function styleYokoDrafts(input: {
       '承認済みコメントの事実・中心主張・論理の順序・結論・CTAは変更しないでください。',
       '指定された欄だけ、YOKO本人の文体に整えてください。指定外の欄は出力しないでください。',
       '語尾だけの機械的置換は禁止です。元台本の感情の流れ、文の長短、間、言い切り、問いかけを使ってください。',
+      '承認済み原文にない共感や断定を作る「ね」「よ」「なんです」などは追加しないでください。',
+      'previousAuditErrorがある場合は、その指摘を繰り返さずに修正してください。',
       '出力は指定されたJSONスキーマだけにしてください。',
     ].join('\n\n'),
     prompt: JSON.stringify({
@@ -944,6 +946,7 @@ export async function styleYokoDrafts(input: {
           comment1: draft.comment1,
           comment2: draft.comment2,
         },
+        previousAuditError: draft.lastError,
         primarySource: draft.sources.find((source) => source.role === 'primary') || null,
       })),
     }),

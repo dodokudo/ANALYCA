@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateGeneratedDrafts } from '../threads-content-drafts';
+import { applySelectedStyleFields, validateGeneratedDrafts } from '../threads-content-drafts';
 
 function draft(overrides: Partial<{
   sourcePageId: string;
@@ -29,4 +29,15 @@ test('コメントは370〜500文字を許可する', () => {
   assert.deepEqual(validateGeneratedDrafts([draft()], 1), []);
   assert.match(validateGeneratedDrafts([draft({ comment1: 'あ'.repeat(369) })], 1).join(' / '), /コメント1が369文字/);
   assert.match(validateGeneratedDrafts([draft({ comment2: 'い'.repeat(501) })], 1).join(' / '), /コメント2が501文字/);
+});
+
+test('コメントだけの文体調整ではメイン投稿を変更しない', () => {
+  const result = applySelectedStyleFields(
+    { mainText: '工藤さんが編集したメイン', comment1: '元コメント1', comment2: '元コメント2' },
+    { main_text: 'AIが変更したメイン', comment1: '本人文体コメント1', comment2: '本人文体コメント2' },
+    ['comment1', 'comment2'],
+  );
+  assert.equal(result.mainText, '工藤さんが編集したメイン');
+  assert.equal(result.comment1, '本人文体コメント1');
+  assert.equal(result.comment2, '本人文体コメント2');
 });

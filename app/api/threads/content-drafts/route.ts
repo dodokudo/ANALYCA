@@ -43,6 +43,7 @@ export async function PATCH(request: NextRequest) {
       ...(typeof body.comment1 === 'string' ? { comment1: body.comment1 } : {}),
       ...(typeof body.comment2 === 'string' ? { comment2: body.comment2 } : {}),
       ...(typeof body.status === 'string' ? { status: body.status as ThreadsContentStatus } : {}),
+      ...(body.markSaved === true ? { markSaved: true } : {}),
     });
     return NextResponse.json({ draft });
   } catch (error) {

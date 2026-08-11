@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
 type DraftStatus = 'review' | 'approved' | 'style_review' | 'stock' | 'discarded' | 'ready' | 'line_sent';
-type StyleField = 'main_text' | 'comment1' | 'comment2';
 
 type CreationSource = {
   notionPageId: string;
@@ -28,6 +27,7 @@ type CreationDraft = {
   scheduleId: string | null;
   threadId: string | null;
   lastError: string | null;
+  manualSavedAt: string | null;
   createdAt: string;
   updatedAt: string;
   sources: CreationSource[];
@@ -63,12 +63,6 @@ const FILTERS: Array<{ key: 'all' | DraftStatus; label: string }> = [
   { key: 'line_sent', label: '送信済み' },
 ];
 
-const STYLE_FIELD_OPTIONS: Array<{ value: StyleField; label: string }> = [
-  { value: 'main_text', label: 'メイン' },
-  { value: 'comment1', label: 'コメント1' },
-  { value: 'comment2', label: 'コメント2' },
-];
-
 function countText(value: string) {
   return Array.from(value.replace(/[\s\u3000]/g, '')).length;
 }
@@ -90,7 +84,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
   const [pageSize] = useState(24);
   const [usage, setUsage] = useState<ListResponse['usage']>({ inputTokens: 0, outputTokens: 0, estimatedCostUsd: null });
   const [statusCounts, setStatusCounts] = useState<ListResponse['counts']>({});
-  const [styleFields, setStyleFields] = useState<StyleField[]>(['main_text', 'comment1', 'comment2']);
+  const [dirtyDraftIds, setDirtyDraftIds] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,10 +140,16 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
 
   const updateLocalDraft = (id: string, patch: Partial<CreationDraft>) => {
     setDrafts((current) => current.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)));
+    setDirtyDraftIds((current) => new Set(current).add(id));
     setNotice(null);
   };
 
-  const persistDraft = async (draft: CreationDraft, patch: Partial<CreationDraft>, actionLabel: string) => {
+  const persistDraft = async (
+    draft: CreationDraft,
+    patch: Partial<CreationDraft>,
+    actionLabel: string,
+    options: { markSaved?: boolean } = {},
+  ) => {
     setWorking(draft.id);
     setError(null);
     setNotice(null);
@@ -165,11 +165,17 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
           comment1: patch.comment1 ?? draft.comment1,
           comment2: patch.comment2 ?? draft.comment2,
           ...(patch.status ? { status: patch.status } : {}),
+          ...(options.markSaved ? { markSaved: true } : {}),
         }),
       });
       const payload = await response.json() as { draft?: CreationDraft; error?: string };
       if (!response.ok || !payload.draft) throw new Error(apiError(payload, `${actionLabel}に失敗しました`));
       setDrafts((current) => current.map((item) => item.id === draft.id ? payload.draft! : item));
+      setDirtyDraftIds((current) => {
+        const next = new Set(current);
+        next.delete(draft.id);
+        return next;
+      });
       setNotice(`${actionLabel}しました。`);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : `${actionLabel}に失敗しました`);
@@ -210,13 +216,17 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
       const response = await fetch('/api/threads/content-drafts/style', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, draftIds, fields: styleFields }),
+        body: JSON.stringify({ userId, draftIds, fields: ['comment1', 'comment2'] }),
       });
       const payload = await response.json() as { drafts?: CreationDraft[]; error?: string };
       if (!response.ok) throw new Error(apiError(payload, '本人文体への調整に失敗しました'));
-      setFilter('style_review');
+      const styledCount = payload.drafts?.filter((draft) => draft.status === 'style_review').length || 0;
+      const failedCount = (payload.drafts?.length || 0) - styledCount;
+      setFilter(failedCount === 0 ? 'style_review' : 'all');
       setPage(1);
-      setNotice(`${draftIds.length}件の選択欄だけを本人文体へ調整しました。`);
+      setNotice(failedCount === 0
+        ? `${styledCount}件のコメント1・2だけを本人文体へ調整しました。メイン投稿は変更していません。`
+        : `${styledCount}件を反映、${failedCount}件は監査NGのため採用原文を維持しました。`);
       await loadDrafts();
     } catch (styleError) {
       setError(styleError instanceof Error ? styleError.message : '本人文体への調整に失敗しました');
@@ -250,12 +260,6 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     } finally {
       setWorking(null);
     }
-  };
-
-  const toggleStyleField = (field: StyleField) => {
-    setStyleFields((current) => current.includes(field)
-      ? current.filter((value) => value !== field)
-      : [...current, field]);
   };
 
   return (
@@ -295,7 +299,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               </button>
               <button
                 type="button"
-                disabled={approvedCount === 0 || styleFields.length === 0 || !!working}
+                disabled={approvedCount === 0 || !!working}
                 onClick={styleApprovedDrafts}
                 className="h-10 shrink-0 rounded-[var(--radius-sm)] bg-purple-600 px-4 text-sm font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -318,15 +322,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               placeholder="テーマ・本文を検索"
               className="h-10 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-3 text-sm outline-none focus:border-purple-300 md:max-w-sm"
             />
-            <div className="flex flex-wrap items-center gap-2 text-xs text-[color:var(--color-text-secondary)]">
-              <span className="font-semibold">文体調整する欄：</span>
-              {STYLE_FIELD_OPTIONS.map((option) => (
-                <label key={option.value} className="flex cursor-pointer items-center gap-1 rounded-full border border-[color:var(--color-border)] bg-white px-2 py-1.5">
-                  <input type="checkbox" checked={styleFields.includes(option.value)} onChange={() => toggleStyleField(option.value)} />
-                  {option.label}
-                </label>
-              ))}
-            </div>
+            <p className="text-xs font-semibold text-purple-700">本人文体の対象：コメント1・2のみ（メイン投稿は変更しません）</p>
           </div>
         </div>
 
@@ -349,6 +345,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                 {drafts.map((draft) => {
                   const status = STATUS_META[draft.status];
                   const isSelected = draft.id === selectedDraft.id;
+                  const isDirty = dirtyDraftIds.has(draft.id);
                   const primarySource = draft.sources.find((source) => source.role === 'primary');
                   return (
                     <article key={draft.id} className={`rounded-[var(--radius-md)] border bg-white p-4 transition-shadow ${isSelected ? 'border-purple-300 shadow-sm ring-2 ring-purple-100' : 'border-[color:var(--color-border)] hover:shadow-sm'}`}>
@@ -359,6 +356,9 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                         </div>
                         <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-[color:var(--color-text-primary)]">{draft.theme}</h3>
                         <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-[color:var(--color-text-secondary)]">{draft.mainText}</p>
+                        <p className={`mt-2 text-[11px] font-semibold ${isDirty ? 'text-rose-600' : draft.manualSavedAt ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {isDirty ? '未保存の変更あり' : draft.manualSavedAt ? '下書き保存済み' : '下書き未保存'}
+                        </p>
                         {draft.lastError ? <p className="mt-2 text-[11px] font-semibold text-rose-600">要修正あり</p> : null}
                         <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-400">
                           <span className="truncate">{primarySource?.title || '元台本未設定'}</span>
@@ -390,7 +390,12 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                   <p className="text-xs font-semibold text-[color:var(--color-text-secondary)]">投稿 #{String(selectedDraft.number).padStart(2, '0')}を編集</p>
                   <input value={selectedDraft.theme} onChange={(event) => updateLocalDraft(selectedDraft.id, { theme: event.target.value })} className="mt-1 w-full border-0 bg-transparent p-0 text-base font-semibold text-[color:var(--color-text-primary)] outline-none" />
                 </div>
-                <span className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${STATUS_META[selectedDraft.status].className}`}>{STATUS_META[selectedDraft.status].label}</span>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-3 py-2 text-xs font-semibold ${dirtyDraftIds.has(selectedDraft.id) ? 'border-rose-200 bg-rose-50 text-rose-700' : selectedDraft.manualSavedAt ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
+                    {dirtyDraftIds.has(selectedDraft.id) ? '未保存の変更あり' : selectedDraft.manualSavedAt ? '下書き保存済み' : '下書き未保存'}
+                  </span>
+                  <span className={`rounded-full border px-3 py-2 text-xs font-semibold ${STATUS_META[selectedDraft.status].className}`}>{STATUS_META[selectedDraft.status].label}</span>
+                </div>
               </div>
 
               {selectedDraft.lastError ? (
@@ -418,7 +423,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                   ['comment2', 'コメント欄2', selectedDraft.comment2, 10],
                 ] as const).map(([field, label, value, rows]) => (
                   <label key={field} className="block text-xs font-medium text-[color:var(--color-text-secondary)]">
-                    {selectedDraft.status === 'style_review' ? `本人文体版・${label}` : label}
+                    {selectedDraft.status === 'style_review' && field !== 'mainText' ? `本人文体版・${label}` : label}
                     <textarea value={value} rows={rows} onChange={(event) => updateLocalDraft(selectedDraft.id, { [field]: event.target.value })} className="mt-2 w-full resize-y rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-3 text-sm leading-6 text-[color:var(--color-text-primary)] outline-none transition focus:border-purple-300 focus:ring-2 focus:ring-purple-100" />
                     <span className="mt-1 block text-right text-[11px] text-slate-400">{countText(value)}文字</span>
                   </label>
@@ -426,7 +431,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2 border-t border-[color:var(--color-border)] pt-4">
-                <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, {}, '下書きを保存')} className="h-10 rounded-lg border border-[color:var(--color-border)] bg-white px-4 text-sm font-semibold text-[color:var(--color-text-primary)] hover:bg-slate-50 disabled:opacity-40">下書き保存</button>
+                <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, {}, '下書きを保存', { markSaved: true })} className="h-10 rounded-lg border border-[color:var(--color-border)] bg-white px-4 text-sm font-semibold text-[color:var(--color-text-primary)] hover:bg-slate-50 disabled:opacity-40">下書き保存</button>
                 {(['review', 'stock', 'discarded'] as DraftStatus[]).includes(selectedDraft.status) ? (
                   <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, { status: 'approved' }, '内容を採用')} className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40">内容採用</button>
                 ) : null}

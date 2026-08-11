@@ -8,7 +8,7 @@ import { YOKO_ANALYCA_USER_ID } from '@/lib/yoko-notion-ledger';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const ALLOWED_FIELDS = new Set<ThreadsContentField>(['main_text', 'comment1', 'comment2']);
+const ALLOWED_FIELDS = new Set<ThreadsContentField>(['comment1', 'comment2']);
 
 export async function POST(request: NextRequest) {
   try {

@@ -42,6 +42,7 @@ export type ThreadsContentDraft = {
   scheduleId: string | null;
   threadId: string | null;
   lastError: string | null;
+  manualSavedAt: string | null;
   createdAt: string;
   updatedAt: string;
   sources: ThreadsContentSource[];
@@ -109,6 +110,7 @@ const TABLE_SCHEMAS = {
     { name: 'schedule_id', type: 'STRING', mode: 'NULLABLE' },
     { name: 'thread_id', type: 'STRING', mode: 'NULLABLE' },
     { name: 'last_error', type: 'STRING', mode: 'NULLABLE' },
+    { name: 'manual_saved_at', type: 'TIMESTAMP', mode: 'NULLABLE' },
     { name: 'created_at', type: 'TIMESTAMP', mode: 'REQUIRED' },
     { name: 'updated_at', type: 'TIMESTAMP', mode: 'REQUIRED' },
   ],
@@ -157,6 +159,9 @@ async function ensureTables(): Promise<void> {
           if (!message.includes('Already Exists')) throw error;
         }
       }
+      await client.query({
+        query: `ALTER TABLE \`${projectId}.${DATASET}.${DRAFT_TABLE}\` ADD COLUMN IF NOT EXISTS manual_saved_at TIMESTAMP`,
+      });
     })().catch((error) => {
       ensureTablesPromise = null;
       throw error;
@@ -699,6 +704,7 @@ export async function listThreadsContentDrafts(input: {
         scheduleId: plain(row.schedule_id) || null,
         threadId: plain(row.thread_id) || null,
         lastError: plain(row.last_error) || null,
+        manualSavedAt: plain(row.manual_saved_at) || null,
         createdAt: plain(row.created_at),
         updatedAt: plain(row.updated_at),
         sources: sourcesByDraft.get(id) || [],
@@ -762,6 +768,7 @@ async function getDraft(draftId: string): Promise<ThreadsContentDraft> {
     scheduleId: plain(row.schedule_id) || null,
     threadId: plain(row.thread_id) || null,
     lastError: plain(row.last_error) || null,
+    manualSavedAt: plain(row.manual_saved_at) || null,
     createdAt: plain(row.created_at),
     updatedAt: plain(row.updated_at),
     sources: sourceRows.map((source) => ({
@@ -783,6 +790,7 @@ export async function updateThreadsContentDraft(input: {
   comment1?: string;
   comment2?: string;
   status?: ThreadsContentStatus;
+  markSaved?: boolean;
 }): Promise<ThreadsContentDraft> {
   await ensureTables();
   const current = await getDraft(input.draftId);
@@ -802,6 +810,7 @@ export async function updateThreadsContentDraft(input: {
         approved_main_text = IF(@takeSnapshot, @mainText, approved_main_text),
         approved_comment1 = IF(@takeSnapshot, @comment1, approved_comment1),
         approved_comment2 = IF(@takeSnapshot, @comment2, approved_comment2),
+        manual_saved_at = IF(@markSaved, CURRENT_TIMESTAMP(), manual_saved_at),
         last_error = NULL,
         updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @userId AND draft_id = @draftId
@@ -815,6 +824,7 @@ export async function updateThreadsContentDraft(input: {
       comment2: input.comment2 ?? current.comment2,
       status: nextStatus,
       takeSnapshot: takingApprovedSnapshot,
+      markSaved: input.markSaved === true,
     },
   });
   return getDraft(input.draftId);
@@ -867,12 +877,46 @@ function styleAuditSchema(): Record<string, unknown> {
   };
 }
 
+export function applySelectedStyleFields(
+  draft: Pick<ThreadsContentDraft, 'mainText' | 'comment1' | 'comment2'>,
+  transformed: Record<string, string>,
+  fields: ThreadsContentField[],
+): Pick<ThreadsContentDraft, 'mainText' | 'comment1' | 'comment2'> {
+  return {
+    mainText: fields.includes('main_text') ? transformed.main_text : draft.mainText,
+    comment1: fields.includes('comment1') ? transformed.comment1 : draft.comment1,
+    comment2: fields.includes('comment2') ? transformed.comment2 : draft.comment2,
+  };
+}
+
+function selectedStyleText(
+  draft: Pick<ThreadsContentDraft, 'mainText' | 'comment1' | 'comment2'>,
+  fields: ThreadsContentField[],
+): Partial<Record<ThreadsContentField, string>> {
+  return Object.fromEntries(fields.map((field) => [
+    field,
+    field === 'main_text' ? draft.mainText : draft[field],
+  ]));
+}
+
+async function setDraftError(draftId: string, message: string): Promise<ThreadsContentDraft> {
+  await client.query({
+    query: `
+      UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
+      SET last_error = @message, updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @userId AND draft_id = @draftId
+    `,
+    params: { userId: YOKO_ANALYCA_USER_ID, draftId, message },
+  });
+  return getDraft(draftId);
+}
+
 export async function styleYokoDrafts(input: {
   draftIds: string[];
   fields: ThreadsContentField[];
 }): Promise<ThreadsContentDraft[]> {
   openAIKey();
-  const fields = Array.from(new Set(input.fields));
+  const fields = Array.from(new Set(input.fields)).filter((field) => field === 'comment1' || field === 'comment2');
   if (fields.length === 0) throw new Error('文体調整する欄を選んでください');
   const drafts = await Promise.all(input.draftIds.map(getDraft));
   if (drafts.some((draft) => draft.status !== 'approved')) throw new Error('採用済みの投稿だけ文体調整できます');
@@ -884,7 +928,8 @@ export async function styleYokoDrafts(input: {
     schema: styleSchema(fields),
     instructions: [
       corePages.styleGuide.bodyText,
-      '承認済み原稿の内容・事実・構成・結論・CTAは変更しないでください。',
+      'メイン投稿は工藤さんが編集済みです。メイン投稿は出力せず、一字も変更しないでください。',
+      '承認済みコメントの事実・中心主張・論理の順序・結論・CTAは変更しないでください。',
       '指定された欄だけ、YOKO本人の文体に整えてください。指定外の欄は出力しないでください。',
       '語尾だけの機械的置換は禁止です。元台本の感情の流れ、文の長短、間、言い切り、問いかけを使ってください。',
       '出力は指定されたJSONスキーマだけにしてください。',
@@ -909,9 +954,7 @@ export async function styleYokoDrafts(input: {
     if (!item) throw new Error(`OpenAI omitted draft ${draft.id}`);
     return {
       draftId: draft.id,
-      mainText: fields.includes('main_text') ? item.main_text : draft.mainText,
-      comment1: fields.includes('comment1') ? item.comment1 : draft.comment1,
-      comment2: fields.includes('comment2') ? item.comment2 : draft.comment2,
+      ...applySelectedStyleFields(draft, item, fields),
     };
   });
   await recordUsage({ operation: 'style_transform', model, usage: result.usage, batchId: drafts[0]?.batchId });
@@ -924,7 +967,9 @@ export async function styleYokoDrafts(input: {
     instructions: [
       corePages.styleGuide.bodyText,
       'あなたは文体変換を実行した担当とは別の監査者です。修正はせず、合否だけを判定してください。',
-      '承認済み原文から事実、主張、順番、結論、CTAが増減・変更されていれば不合格です。',
+      '監査対象はselectedFieldsにあるコメント欄だけです。メイン投稿は監査対象外です。',
+      '承認済み原文から、事実・数値・主体・時期・頻度・本人属性・中心主張・結論・CTAが追加、削除、変更されていれば不合格です。',
+      '句読点、かぎ括弧、改行、文の分割、接続詞の変更だけを理由に不合格にしないでください。ただし意味や論理の順序が変わった場合は不合格です。',
       '自然な日本語というだけでは合格にせず、元台本の感情の流れ、文の長短、間、言い切り、問いかけが本人実文に沿うか確認してください。',
       '語尾だけの機械的置換、均一なテンポ、本人根拠のない「ね」「よ」「なんです」などの追加は不合格です。',
       '出力は指定されたJSONスキーマだけにしてください。',
@@ -933,12 +978,12 @@ export async function styleYokoDrafts(input: {
       selectedFields: fields,
       drafts: drafts.map((draft, index) => ({
         draftId: draft.id,
-        approved: draft.approvedSnapshot || {
+        approved: selectedStyleText(draft.approvedSnapshot || {
           mainText: draft.mainText,
           comment1: draft.comment1,
           comment2: draft.comment2,
-        },
-        transformed: projected[index],
+        }, fields),
+        transformed: selectedStyleText(projected[index], fields),
         primarySource: draft.sources.find((source) => source.role === 'primary') || null,
       })),
     }),
@@ -946,20 +991,18 @@ export async function styleYokoDrafts(input: {
   await recordUsage({ operation: 'style_audit', model: auditModel, usage: audit.usage, batchId: drafts[0]?.batchId });
   const auditRows = (audit.json as { drafts?: Array<{ draftId: string; pass: boolean; issues: string[] }> }).drafts || [];
   const auditById = new Map(auditRows.map((item) => [item.draftId, item]));
-  const failures = drafts.flatMap((draft) => {
-    const item = auditById.get(draft.id);
-    if (!item) return [`投稿${draft.number}: 監査結果がありません`];
-    return item.pass ? [] : [`投稿${draft.number}: ${item.issues.join('、') || '本人文体監査で不合格'}`];
-  });
-  if (failures.length) throw new Error(`本人文体監査で不合格になりました。DBへは反映していません。${failures.join(' / ')}`);
-
   const updated: ThreadsContentDraft[] = [];
   for (let index = 0; index < drafts.length; index += 1) {
     const draft = drafts[index];
     const item = projected[index];
+    const auditItem = auditById.get(draft.id);
+    if (!auditItem?.pass) {
+      const issues = auditItem?.issues.join('、') || '監査結果がありません';
+      updated.push(await setDraftError(draft.id, `本人文体監査NG: ${issues}`));
+      continue;
+    }
     updated.push(await updateThreadsContentDraft({
       draftId: draft.id,
-      mainText: item.mainText,
       comment1: item.comment1,
       comment2: item.comment2,
       status: 'style_review',

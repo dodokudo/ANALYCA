@@ -81,6 +81,13 @@ test('均一な説明文と硬い否定表現の連発を本人文体として�
   assert.match(issues.join(' / '), /硬い否定表現/);
 });
 
+test('「偽物でも加工でもありません」も硬い否定として止める', () => {
+  const lines = Array.from({ length: 10 }, (_, index) => (
+    index === 0 ? '偽物でも加工でもありません。' : '短い本人文体です。'
+  )).join('\n');
+  assert.match(validateYokoStyleCandidate({ comment1: lines, comment2: lines }).join(' / '), /硬い否定表現/);
+});
+
 test('短い改行と会話調の否定を含む本人文体候補を通す', () => {
   const conversationalLines = [
     'まず結論から言うと、',

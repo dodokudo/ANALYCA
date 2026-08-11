@@ -27,6 +27,7 @@ type CreationDraft = {
   lineMessageId: string | null;
   scheduleId: string | null;
   threadId: string | null;
+  lastError: string | null;
   createdAt: string;
   updatedAt: string;
   sources: CreationSource[];
@@ -358,6 +359,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                         </div>
                         <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-[color:var(--color-text-primary)]">{draft.theme}</h3>
                         <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-[color:var(--color-text-secondary)]">{draft.mainText}</p>
+                        {draft.lastError ? <p className="mt-2 text-[11px] font-semibold text-rose-600">要修正あり</p> : null}
                         <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-400">
                           <span className="truncate">{primarySource?.title || '元台本未設定'}</span>
                           <span>{countText(draft.mainText)}文字</span>
@@ -390,6 +392,13 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                 </div>
                 <span className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${STATUS_META[selectedDraft.status].className}`}>{STATUS_META[selectedDraft.status].label}</span>
               </div>
+
+              {selectedDraft.lastError ? (
+                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-xs leading-5 text-rose-700">
+                  <p className="font-semibold">文字数などの要修正があります。原稿は破棄せず保存しています。</p>
+                  <p className="mt-1">{selectedDraft.lastError}</p>
+                </div>
+              ) : null}
 
               {selectedDraft.status === 'style_review' && selectedDraft.approvedSnapshot ? (
                 <details className="mt-4 rounded-lg border border-purple-200 bg-purple-50 px-3 py-3 text-xs text-purple-800">

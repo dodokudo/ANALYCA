@@ -41,6 +41,7 @@ export type ThreadsContentDraft = {
   lineMessageId: string | null;
   scheduleId: string | null;
   threadId: string | null;
+  lastError: string | null;
   createdAt: string;
   updatedAt: string;
   sources: ThreadsContentSource[];
@@ -283,21 +284,13 @@ function responseUsage(response: Record<string, unknown>): OpenAIUsage {
   };
 }
 
-function addUsage(left: OpenAIUsage, right: OpenAIUsage): OpenAIUsage {
-  return {
-    inputTokens: left.inputTokens + right.inputTokens,
-    outputTokens: left.outputTokens + right.outputTokens,
-    cachedTokens: left.cachedTokens + right.cachedTokens,
-    reasoningTokens: left.reasoningTokens + right.reasoningTokens,
-  };
-}
-
 async function callOpenAI(input: {
   model: string;
   instructions: string;
   prompt: string;
   schemaName: string;
   schema: Record<string, unknown>;
+  verbosity?: 'low' | 'medium' | 'high';
 }): Promise<{ json: unknown; usage: OpenAIUsage; responseId: string }> {
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -312,7 +305,7 @@ async function callOpenAI(input: {
       input: input.prompt,
       store: false,
       text: {
-        verbosity: 'low',
+        verbosity: input.verbosity || 'low',
         format: {
           type: 'json_schema',
           name: input.schemaName,
@@ -349,7 +342,7 @@ function estimatedCost(usage: OpenAIUsage): number | null {
 }
 
 async function recordUsage(input: {
-  operation: 'draft_generation' | 'style_transform' | 'style_audit';
+  operation: 'draft_generation' | 'draft_repair' | 'style_transform' | 'style_audit';
   model: string;
   usage: OpenAIUsage;
   batchId?: string;
@@ -417,9 +410,10 @@ export function validateGeneratedDrafts(drafts: GeneratedDraft[], count: number)
     const mainLength = contentLength(draft.mainText);
     const comment1Length = contentLength(draft.comment1);
     const comment2Length = contentLength(draft.comment2);
-    if (mainLength < 35 || mainLength > 70) errors.push(`${label}: メインが${mainLength}文字です`);
-    if (comment1Length < 400 || comment1Length > 500) errors.push(`${label}: コメント1が${comment1Length}文字です`);
-    if (comment2Length < 400 || comment2Length > 500) errors.push(`${label}: コメント2が${comment2Length}文字です`);
+    if (!draft.mainText.trim()) errors.push(`${label}: メインが空です`);
+    if (mainLength > 50) errors.push(`${label}: メインが${mainLength}文字です`);
+    if (comment1Length < 370 || comment1Length > 500) errors.push(`${label}: コメント1が${comment1Length}文字です`);
+    if (comment2Length < 370 || comment2Length > 500) errors.push(`${label}: コメント2が${comment2Length}文字です`);
     const normalized = normalizeForDuplicateCheck(`${draft.mainText}${draft.comment1}${draft.comment2}`);
     if (normalizedBodies.has(normalized)) errors.push(`${label}: 生成本文が別投稿と重複しています`);
     normalizedBodies.add(normalized);
@@ -454,58 +448,78 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
   }));
   const normalizedExisting = existing.map(normalizeForDuplicateCheck).filter(Boolean);
   const model = process.env.OPENAI_DRAFT_MODEL || 'gpt-5.6-terra';
+  const batchId = randomUUID();
   const generationInstructions = [
     corePages.generationPrompt.bodyText,
     'これは第1工程の内容確認用初稿です。本人文体への調整は行わないでください。',
     '候補から既存Threadsと意味が重複しない6件を選び、各元台本につき1投稿だけ作ってください。',
     '新規台本は最大1件です。新規台本が非重複なら優先し、残りは既存の未使用台本から選んでください。',
     'sourcePageIdは入力値を完全一致で返してください。',
+    'この実行では、メインは最低文字数なし・最大50文字を最優先ルールとします。1行だけでも構いません。',
+    'コメント1とコメント2は各370〜500文字、狙いは420〜460文字とします。',
     '出力は指定されたJSONスキーマだけにしてください。',
   ].join('\n\n');
   const generationPrompt = JSON.stringify({
     task: '6件の内容確認用初稿を作成する',
     successCriteria: [
       '元台本の事実・中心主張・価値観を維持する',
-      'メイン35〜70文字、コメント1と2は各400〜500文字',
+      'メインは最大50文字、コメント1と2は各370〜500文字',
       'コメント1末尾とコメント2冒頭を接続する',
       '既存投稿と中心主張・説明事実・結論が重複する候補は選ばない',
     ],
     sources: sourcePayload,
     existingNormalizedTexts: normalizedExisting,
   });
-  let result = await callOpenAI({
+  const result = await callOpenAI({
     model,
     schemaName: 'yoko_threads_drafts',
     schema: generationSchema(count),
     instructions: generationInstructions,
     prompt: generationPrompt,
+    verbosity: 'medium',
   });
+  await recordUsage({ operation: 'draft_generation', model, usage: result.usage, batchId });
   let generated = (result.json as { drafts?: GeneratedDraft[] }).drafts || [];
   let validationErrors = validateGeneratedDrafts(generated, count);
   if (validationErrors.length) {
-    const repaired = await callOpenAI({
-      model,
-      schemaName: 'yoko_threads_drafts_repaired',
-      schema: generationSchema(count),
-      instructions: `${generationInstructions}\n\n前回出力の品質エラーだけを修正し、事実や中心主張は変えないでください。`,
-      prompt: JSON.stringify({
-        originalRequest: JSON.parse(generationPrompt),
-        previousOutput: generated,
-        validationErrors,
-      }),
-    });
-    result = { ...repaired, usage: addUsage(result.usage, repaired.usage) };
-    generated = (repaired.json as { drafts?: GeneratedDraft[] }).drafts || [];
-    validationErrors = validateGeneratedDrafts(generated, count);
+    try {
+      const repaired = await callOpenAI({
+        model,
+        schemaName: 'yoko_threads_drafts_repaired',
+        schema: generationSchema(count),
+        instructions: `${generationInstructions}\n\n前回出力の品質エラーだけを修正し、事実や中心主張は変えないでください。文字数不足は内容の具体化で補い、水増しや同じ説明の反復は禁止です。`,
+        prompt: JSON.stringify({
+          previousOutput: generated,
+          validationErrors,
+          targetLengths: { mainText: '1〜50文字', comment1: '420〜460文字', comment2: '420〜460文字' },
+        }),
+        verbosity: 'medium',
+      });
+      await recordUsage({ operation: 'draft_repair', model, usage: repaired.usage, batchId });
+      const repairedDrafts = (repaired.json as { drafts?: GeneratedDraft[] }).drafts || [];
+      const repairedErrors = validateGeneratedDrafts(repairedDrafts, count);
+      const repairedHasStructuralError = repairedErrors.some((error) =>
+        /生成数|sourcePageId|同じ元台本|テーマが空|生成本文が別投稿と重複/.test(error));
+      if (!repairedHasStructuralError) {
+        generated = repairedDrafts;
+        validationErrors = repairedErrors;
+      } else {
+        validationErrors = [...validationErrors, '自動修正結果の構造が不正だったため初稿を保存しました'];
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '自動修正に失敗しました';
+      validationErrors = [...validationErrors, `自動修正エラー: ${message}`];
+    }
   }
-  if (validationErrors.length) throw new Error(`生成結果の品質チェックに失敗しました: ${validationErrors.join(' / ')}`);
+  const structuralErrors = validationErrors.filter((error) =>
+    /生成数|sourcePageId|同じ元台本|テーマが空|生成本文が別投稿と重複/.test(error));
+  if (structuralErrors.length) throw new Error(`生成結果の構造チェックに失敗しました: ${structuralErrors.join(' / ')}`);
   const candidateById = new Map(candidates.map((source) => [source.notion_page_id, source]));
   const selected = generated.map((draft) => candidateById.get(draft.sourcePageId)).filter((source): source is YokoNotionSourceRecord => !!source);
   if (selected.length !== count) throw new Error('OpenAIが候補外の元台本を返しました');
   if (selected.filter((source) => source.source_origin === 'new').length > 1) throw new Error('新規台本が2件以上選ばれました');
   const generatedBySource = new Map(generated.map((draft) => [draft.sourcePageId, draft]));
 
-  const batchId = randomUUID();
   const now = new Date().toISOString();
   const draftRows = selected.map((source, index) => {
     const generatedDraft = generatedBySource.get(source.notion_page_id)!;
@@ -525,7 +539,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
       line_message_id: null,
       schedule_id: null,
       thread_id: null,
-      last_error: null,
+      last_error: validationErrors.length ? validationErrors.join(' / ') : null,
       created_at: now,
       updated_at: now,
     };
@@ -533,7 +547,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
   await client.dataset(DATASET).table(BATCH_TABLE).insert([{
     batch_id: batchId,
     user_id: YOKO_ANALYCA_USER_ID,
-    status: 'generated',
+    status: validationErrors.length ? 'generated_with_warnings' : 'generated',
     requested_count: count,
     created_count: count,
     created_by: 'analyca-ui',
@@ -578,7 +592,6 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
     });
   }
   await client.dataset(DATASET).table(SOURCE_TABLE).insert(sourceRows);
-  await recordUsage({ operation: 'draft_generation', model, usage: result.usage, batchId });
   return (await listThreadsContentDrafts({ pageSize: count, batchId })).drafts;
 }
 
@@ -659,6 +672,7 @@ export async function listThreadsContentDrafts(input: {
         lineMessageId: plain(row.line_message_id) || null,
         scheduleId: plain(row.schedule_id) || null,
         threadId: plain(row.thread_id) || null,
+        lastError: plain(row.last_error) || null,
         createdAt: plain(row.created_at),
         updatedAt: plain(row.updated_at),
         sources: sourcesByDraft.get(id) || [],
@@ -721,6 +735,7 @@ async function getDraft(draftId: string): Promise<ThreadsContentDraft> {
     lineMessageId: plain(row.line_message_id) || null,
     scheduleId: plain(row.schedule_id) || null,
     threadId: plain(row.thread_id) || null,
+    lastError: plain(row.last_error) || null,
     createdAt: plain(row.created_at),
     updatedAt: plain(row.updated_at),
     sources: sourceRows.map((source) => ({
@@ -761,6 +776,7 @@ export async function updateThreadsContentDraft(input: {
         approved_main_text = IF(@takeSnapshot, @mainText, approved_main_text),
         approved_comment1 = IF(@takeSnapshot, @comment1, approved_comment1),
         approved_comment2 = IF(@takeSnapshot, @comment2, approved_comment2),
+        last_error = NULL,
         updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @userId AND draft_id = @draftId
     `,

@@ -12,7 +12,7 @@ const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
 const DATASET = 'analyca';
 const BATCH_TABLE = 'threads_content_batches';
-const DRAFT_TABLE = 'threads_content_drafts';
+const DRAFT_TABLE = 'threads_content_drafts_v2';
 const SOURCE_TABLE = 'threads_content_draft_sources';
 const USAGE_TABLE = 'threads_ai_usage';
 
@@ -554,7 +554,33 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
     created_at: now,
     updated_at: now,
   }]);
-  await client.dataset(DATASET).table(DRAFT_TABLE).insert(draftRows);
+  await client.query({
+    query: `
+      INSERT INTO \`${projectId}.${DATASET}.${DRAFT_TABLE}\` (
+        draft_id, batch_id, user_id, draft_number, theme, main_text, comment1, comment2,
+        approved_main_text, approved_comment1, approved_comment2, status,
+        line_message_id, schedule_id, thread_id, last_error, created_at, updated_at
+      )
+      SELECT
+        draft_id, batch_id, user_id, draft_number, theme, main_text, comment1, comment2,
+        NULLIF(approved_main_text, ''), NULLIF(approved_comment1, ''), NULLIF(approved_comment2, ''), status,
+        NULLIF(line_message_id, ''), NULLIF(schedule_id, ''), NULLIF(thread_id, ''), NULLIF(last_error, ''),
+        TIMESTAMP(created_at), TIMESTAMP(updated_at)
+      FROM UNNEST(@rows)
+    `,
+    params: {
+      rows: draftRows.map((row) => ({
+        ...row,
+        approved_main_text: row.approved_main_text || '',
+        approved_comment1: row.approved_comment1 || '',
+        approved_comment2: row.approved_comment2 || '',
+        line_message_id: row.line_message_id || '',
+        schedule_id: row.schedule_id || '',
+        thread_id: row.thread_id || '',
+        last_error: row.last_error || '',
+      })),
+    },
+  });
   const sourceRows: Array<Record<string, unknown>> = [];
   for (let index = 0; index < selected.length; index += 1) {
     const source = selected[index];

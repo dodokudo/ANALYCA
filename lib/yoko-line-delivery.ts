@@ -20,6 +20,10 @@ export type YokoLinePreviewDraft = ThreadsContentDraft & {
 
 type LineMessage = Record<string, unknown> & { type: 'flex' };
 
+const GUARDIAN_SEND_THREAD_MESSAGE_URL =
+  process.env.GUARDIAN_SEND_THREAD_MESSAGE_URL
+  || 'https://guardian-webhook-383002618526.asia-northeast1.run.app/send-thread-message';
+
 function jstDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tokyo',
@@ -166,6 +170,35 @@ export async function getYokoLinePreview(draftIds: string[]): Promise<YokoLinePr
     ...draft,
     candidateScheduledAtJst: dates[index],
   }));
+}
+
+export async function validateYokoLinePreview(drafts: YokoLinePreviewDraft[]) {
+  const apiKey = process.env.THREADS_LINE_API_KEY || '';
+  if (!apiKey) throw new Error('LINE送信APIが未設定です');
+  const message = buildYokoLineFlex(drafts.map((draft, index) => ({
+    draft,
+    scheduledAtJst: draft.candidateScheduledAtJst,
+    scheduleToken: `preview-schedule-${index + 1}`,
+    changeToken: `preview-change-${index + 1}`,
+  })));
+  const response = await fetch(GUARDIAN_SEND_THREAD_MESSAGE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      groupId: YOKO_LINE_GROUP.groupId,
+      expectedGroupName: YOKO_LINE_GROUP.name,
+      validateOnly: true,
+      messages: [message],
+    }),
+  });
+  const result = await response.json() as { success?: boolean; validated?: boolean; groupName?: string; error?: string };
+  if (!response.ok || !result.success || !result.validated) {
+    throw new Error(result.error || `LINE Flexの検証に失敗しました（${response.status}）`);
+  }
+  return result.groupName || YOKO_LINE_GROUP.name;
 }
 
 function scheduleId(requestId: string, draftId: string) {

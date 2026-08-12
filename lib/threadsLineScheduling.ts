@@ -128,6 +128,37 @@ export function isThreadsLineOperator(config: ThreadsLineGroupConfig, lineUserId
   return Boolean(lineUserId && config.operatorLineUserIds.includes(lineUserId));
 }
 
+export async function bindThreadsLineMessage(input: {
+  lineMessageId: string;
+  groupId: string;
+  analycaUserId: string;
+  scheduleIds: string[];
+}) {
+  await ensureTable(BINDINGS_TABLE, BINDINGS_SCHEMA);
+  for (let index = 0; index < input.scheduleIds.length; index += 1) {
+    await client.query({
+      query: `
+        MERGE \`${projectId}.${DATASET}.${BINDINGS_TABLE}\` target
+        USING (SELECT @lineMessageId line_message_id, @scheduleId schedule_id) source
+        ON target.line_message_id = source.line_message_id
+          AND target.schedule_id = source.schedule_id
+        WHEN NOT MATCHED THEN
+          INSERT (line_message_id, group_id, schedule_id, analyca_user_id, card_index, card_count, created_at)
+          VALUES (@lineMessageId, @groupId, @scheduleId, @analycaUserId, @cardIndex, @cardCount, CURRENT_TIMESTAMP())
+      `,
+      params: {
+        lineMessageId: input.lineMessageId,
+        groupId: input.groupId,
+        scheduleId: input.scheduleIds[index],
+        analycaUserId: input.analycaUserId,
+        cardIndex: index + 1,
+        cardCount: input.scheduleIds.length,
+      },
+      types: { cardIndex: 'INT64', cardCount: 'INT64' },
+    });
+  }
+}
+
 export function extractThreadsCommandLine(message: LineTextMessage): string {
   if (message.type !== 'text' || typeof message.text !== 'string') return '';
   const mention = (message.mention?.mentionees || [])

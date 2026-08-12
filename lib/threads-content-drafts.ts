@@ -1184,11 +1184,54 @@ export async function styleYokoDrafts(input: {
   return updated;
 }
 
+export function isDraftReadyForLine(draft: Pick<ThreadsContentDraft, 'status' | 'lineMessageId' | 'scheduleId' | 'threadId'>) {
+  return draft.status === 'ready' && !draft.lineMessageId && !draft.scheduleId && !draft.threadId;
+}
+
 export async function getReadyDraftsForLine(draftIds?: string[]): Promise<ThreadsContentDraft[]> {
   const result = await listThreadsContentDrafts({ status: 'ready', pageSize: 100 });
-  if (!draftIds?.length) return result.drafts;
+  const eligible = result.drafts.filter(isDraftReadyForLine);
+  if (!draftIds?.length) return eligible;
   const requested = new Set(draftIds);
-  const selected = result.drafts.filter((draft) => requested.has(draft.id));
-  if (selected.length !== requested.size) throw new Error('完成状態ではない投稿が含まれています');
+  const selected = eligible.filter((draft) => requested.has(draft.id));
+  if (selected.length !== requested.size) {
+    throw new Error('完成前、LINE送信済み、予約済み、または公開済みの投稿が含まれています');
+  }
   return selected;
+}
+
+export async function linkThreadsContentDraftDelivery(input: {
+  draftId: string;
+  scheduleId: string;
+  lineMessageId: string;
+}): Promise<ThreadsContentDraft> {
+  await client.query({
+    query: `
+      UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
+      SET schedule_id = @scheduleId,
+        line_message_id = @lineMessageId,
+        status = 'line_sent',
+        last_error = NULL,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @userId
+        AND draft_id = @draftId
+        AND status = 'ready'
+        AND schedule_id IS NULL
+        AND line_message_id IS NULL
+        AND thread_id IS NULL
+    `,
+    params: {
+      userId: YOKO_ANALYCA_USER_ID,
+      draftId: input.draftId,
+      scheduleId: input.scheduleId,
+      lineMessageId: input.lineMessageId,
+    },
+  });
+  const updated = await getDraft(input.draftId);
+  if (updated.status !== 'line_sent'
+    || updated.scheduleId !== input.scheduleId
+    || updated.lineMessageId !== input.lineMessageId) {
+    throw new Error(`投稿${updated.number}のLINE送信結果を保存できませんでした`);
+  }
+  return updated;
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applySelectedStyleFields,
+  isDraftReadyForLine,
   selectYokoVoiceEvidence,
   validateGeneratedDrafts,
   validateYokoStyleCandidate,
@@ -105,4 +106,13 @@ test('短い改行と会話調の否定を含む本人文体候補を通す', ()
     comment1: conversationalLines,
     comment2: conversationalLines,
   }), []);
+});
+
+test('予約・公開・LINE送信済みの完成稿をLINE対象から外す', () => {
+  const ready = { status: 'ready' as const, lineMessageId: null, scheduleId: null, threadId: null };
+  assert.equal(isDraftReadyForLine(ready), true);
+  assert.equal(isDraftReadyForLine({ ...ready, scheduleId: 'schedule-1' }), false);
+  assert.equal(isDraftReadyForLine({ ...ready, threadId: 'thread-1' }), false);
+  assert.equal(isDraftReadyForLine({ ...ready, lineMessageId: 'line-1' }), false);
+  assert.equal(isDraftReadyForLine({ ...ready, status: 'style_review' }), false);
 });

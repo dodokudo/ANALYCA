@@ -148,7 +148,7 @@ export async function confirmThreadsScheduleApproval(
   if (approval.status === 'used') {
     return { ok: false, message: 'この予約ボタンはすでに使用されています。' };
   }
-  if (options.mode === 'change' && current.status !== 'scheduled') {
+  if (options.mode === 'change' && current.status !== 'draft' && current.status !== 'scheduled') {
     return { ok: false, message: `この投稿は予約変更できない状態です（${current.status}）。` };
   }
   if (options.mode !== 'change' && current.status !== 'draft') {
@@ -159,7 +159,7 @@ export async function confirmThreadsScheduleApproval(
     return { ok: false, message: '予約日時が過ぎているため、予約できませんでした。' };
   }
 
-  const mutation = options.mode === 'change'
+  const mutation = options.mode === 'change' && current.status === 'scheduled'
     ? await changeScheduledPostAt(current.schedule_id, current.user_id, requestedTimeIso)
     : await scheduleDraftAt(current.schedule_id, current.user_id, requestedTimeIso);
   if (!mutation.ok || !mutation.post) return { ok: false, message: mutation.message };

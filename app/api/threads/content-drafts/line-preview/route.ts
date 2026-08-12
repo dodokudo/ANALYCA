@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { getReadyDraftsForLine } from '@/lib/threads-content-drafts';
+import { getYokoLinePreview, YOKO_LINE_GROUP } from '@/lib/yoko-line-delivery';
 import { YOKO_ANALYCA_USER_ID } from '@/lib/yoko-notion-ledger';
 
 export const dynamic = 'force-dynamic';
@@ -10,14 +11,12 @@ export async function POST(request: NextRequest) {
     if (body.userId !== YOKO_ANALYCA_USER_ID) {
       return NextResponse.json({ error: '対象外のアカウントです' }, { status: 403 });
     }
-    const drafts = await getReadyDraftsForLine(body.draftIds);
+    const drafts = await getYokoLinePreview(body.draftIds || []);
     return NextResponse.json({
-      destination: {
-        name: '山路さん　サポートグループ',
-        groupId: 'C4dfd78b05242f78ca28fddae7c88d861',
-      },
+      destination: YOKO_LINE_GROUP,
       format: '1 Flex message / carousel / one bubble per draft / size giga',
       drafts,
+      requestId: randomUUID(),
       requiresExplicitApproval: true,
       sent: false,
     });

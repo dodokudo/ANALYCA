@@ -92,7 +92,8 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
   const [linePreview, setLinePreview] = useState<null | {
     destination: { name: string; groupId: string };
     format: string;
-    drafts: CreationDraft[];
+    requestId: string;
+    drafts: Array<CreationDraft & { candidateScheduledAtJst: string }>;
   }>(null);
   const [config, setConfig] = useState<null | {
     notion: { connected: boolean };
@@ -135,7 +136,10 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
 
   const selectedDraft = drafts.find((draft) => draft.id === selectedId) || drafts[0] || null;
   const approvedCount = drafts.filter((draft) => draft.status === 'approved').length;
-  const readyCount = drafts.filter((draft) => draft.status === 'ready').length;
+  const readyForLine = drafts.filter((draft) => (
+    draft.status === 'ready' && !draft.lineMessageId && !draft.scheduleId && !draft.threadId
+  ));
+  const readyCount = readyForLine.length;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const updateLocalDraft = (id: string, patch: Partial<CreationDraft>) => {
@@ -236,7 +240,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
   };
 
   const prepareLinePreview = async () => {
-    const draftIds = drafts.filter((draft) => draft.status === 'ready').map((draft) => draft.id);
+    const draftIds = readyForLine.map((draft) => draft.id);
     setWorking('line');
     setError(null);
     try {
@@ -248,15 +252,46 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
       const payload = await response.json() as {
         destination?: { name: string; groupId: string };
         format?: string;
-        drafts?: CreationDraft[];
+        requestId?: string;
+        drafts?: Array<CreationDraft & { candidateScheduledAtJst: string }>;
         error?: string;
       };
-      if (!response.ok || !payload.destination || !payload.drafts || !payload.format) {
+      if (!response.ok || !payload.destination || !payload.drafts || !payload.format || !payload.requestId) {
         throw new Error(apiError(payload, 'LINEプレビューの作成に失敗しました'));
       }
-      setLinePreview({ destination: payload.destination, format: payload.format, drafts: payload.drafts });
+      setLinePreview({ destination: payload.destination, format: payload.format, requestId: payload.requestId, drafts: payload.drafts });
     } catch (previewError) {
       setError(previewError instanceof Error ? previewError.message : 'LINEプレビューの作成に失敗しました');
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const sendLinePreview = async () => {
+    if (!linePreview) return;
+    if (!window.confirm(`${linePreview.destination.name}へ${linePreview.drafts.length}件を送信します。よろしいですか？`)) return;
+    setWorking('line-send');
+    setError(null);
+    try {
+      const response = await fetch('/api/threads/content-drafts/line-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          requestId: linePreview.requestId,
+          draftIds: linePreview.drafts.map((draft) => draft.id),
+        }),
+      });
+      const payload = await response.json() as { sent?: boolean; lineMessageId?: string; error?: string };
+      if (!response.ok || !payload.sent || !payload.lineMessageId) {
+        throw new Error(apiError(payload, 'LINE送信に失敗しました'));
+      }
+      const count = linePreview.drafts.length;
+      setLinePreview(null);
+      setNotice(`${count}件をLINEへ送信しました。`);
+      await loadDrafts();
+    } catch (sendError) {
+      setError(sendError instanceof Error ? sendError.message : 'LINE送信に失敗しました');
     } finally {
       setWorking(null);
     }
@@ -354,6 +389,9 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                           <span className="text-xs font-bold text-[color:var(--color-text-secondary)]">投稿 #{String(draft.number).padStart(2, '0')}</span>
                           <span className={`rounded-full border px-2 py-1 text-[11px] font-semibold ${status.className}`}>{status.shortLabel}</span>
                         </div>
+                        {draft.threadId ? <p className="mt-2 text-[11px] font-semibold text-slate-600">投稿済み</p>
+                          : draft.scheduleId ? <p className="mt-2 text-[11px] font-semibold text-amber-700">予約・送信処理済み</p>
+                            : null}
                         <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-[color:var(--color-text-primary)]">{draft.theme}</h3>
                         <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-[color:var(--color-text-secondary)]">{draft.mainText}</p>
                         <p className={`mt-2 text-[11px] font-semibold ${isDirty ? 'text-rose-600' : draft.manualSavedAt ? 'text-emerald-600' : 'text-slate-400'}`}>
@@ -505,16 +543,23 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               </div>
               <button type="button" onClick={() => setLinePreview(null)} className="rounded-lg border px-3 py-2 text-sm">閉じる</button>
             </div>
-            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">これはプレビューです。ローカル確認中のためLINEへは送信しません。</p>
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">予約・公開済みの投稿は除外済みです。内容と送信先を確認してから、下の送信ボタンを押してください。</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {linePreview.drafts.map((draft) => (
                 <article key={draft.id} className="rounded-xl border border-[color:var(--color-border)] p-4">
                   <h4 className="text-sm font-semibold">投稿 #{String(draft.number).padStart(2, '0')}｜{draft.theme}</h4>
+                  <p className="mt-2 text-xs font-semibold text-purple-700">予約候補：{new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: false }).format(new Date(draft.candidateScheduledAtJst))}</p>
                   <p className="mt-3 whitespace-pre-wrap text-xs leading-5">{draft.mainText}</p>
                   <p className="mt-3 whitespace-pre-wrap border-t pt-3 text-xs leading-5">{draft.comment1}</p>
                   <p className="mt-3 whitespace-pre-wrap border-t pt-3 text-xs leading-5">{draft.comment2}</p>
                 </article>
               ))}
+            </div>
+            <div className="mt-5 flex justify-end gap-2 border-t pt-4">
+              <button type="button" disabled={working === 'line-send'} onClick={() => setLinePreview(null)} className="h-10 rounded-lg border px-4 text-sm font-semibold disabled:opacity-40">閉じる</button>
+              <button type="button" disabled={working === 'line-send'} onClick={() => void sendLinePreview()} className="h-10 rounded-lg bg-[#06C755] px-5 text-sm font-semibold text-white disabled:opacity-40">
+                {working === 'line-send' ? 'LINEへ送信中…' : `この${linePreview.drafts.length}件をLINEへ送信`}
+              </button>
             </div>
           </div>
         </div>

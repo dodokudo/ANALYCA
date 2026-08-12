@@ -13,6 +13,11 @@ import {
   YAMAZAKI_ANALYCA_USER_ID,
   YAMAZAKI_THREADS_USERNAME,
 } from '@/lib/yamazaki-agency-metrics';
+import {
+  getYokoAgencyMetrics,
+  YOKO_ANALYCA_USER_ID,
+  YOKO_THREADS_USERNAME,
+} from '@/lib/yoko-agency-metrics';
 import { evaluateDashboardAccess } from '@/lib/subscription-access';
 import { evaluateThreadsGrandprixAccess } from '@/lib/threads-grandprix-access';
 import { getSubscription } from '@/lib/univapay/client';
@@ -226,6 +231,10 @@ export async function GET(
       userId === YAMAZAKI_ANALYCA_USER_ID || userRecord?.threads_username === YAMAZAKI_THREADS_USERNAME
         ? await getYamazakiAgencyMetrics()
         : null;
+    const yokoAgency =
+      userId === YOKO_ANALYCA_USER_ID || userRecord?.threads_username === YOKO_THREADS_USERNAME
+        ? await getYokoAgencyMetrics()
+        : null;
 
     // データを統合ダッシュボード形式に変換
     const dashboardData = {
@@ -346,6 +355,7 @@ export async function GET(
         threadsFollowersCount: visibleThreadsDailyMetrics[0]?.followers_count || 0,
       },
       yamazakiAgency,
+      yokoAgency,
     };
 
     return NextResponse.json({

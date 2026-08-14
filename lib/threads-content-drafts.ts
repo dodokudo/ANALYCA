@@ -73,6 +73,17 @@ type OpenAIUsage = {
   reasoningTokens: number;
 };
 
+const OPENAI_MODEL_PRICING_USD_PER_MILLION: Record<string, {
+  input: number;
+  cachedInput: number;
+  output: number;
+}> = {
+  'gpt-5.6-sol': { input: 5, cachedInput: 0.5, output: 30 },
+  'gpt-5.6': { input: 5, cachedInput: 0.5, output: 30 },
+  'gpt-5.6-terra': { input: 2.5, cachedInput: 0.25, output: 15 },
+  'gpt-5.6-luna': { input: 1, cachedInput: 0.1, output: 6 },
+};
+
 type GeneratedDraft = {
   sourcePageId: string;
   theme: string;
@@ -343,13 +354,15 @@ async function callOpenAI(input: {
   };
 }
 
-function estimatedCost(usage: OpenAIUsage): number | null {
-  const inputRate = Number(process.env.OPENAI_INPUT_USD_PER_MILLION || '');
-  const cachedInputRate = Number(process.env.OPENAI_CACHED_INPUT_USD_PER_MILLION || '');
-  const outputRate = Number(process.env.OPENAI_OUTPUT_USD_PER_MILLION || '');
+export function estimateOpenAICost(model: string, usage: OpenAIUsage): number | null {
+  const modelPricing = OPENAI_MODEL_PRICING_USD_PER_MILLION[model];
+  const inputRate = modelPricing?.input ?? Number(process.env.OPENAI_INPUT_USD_PER_MILLION || '');
+  const cachedInputRate = modelPricing?.cachedInput ?? Number(process.env.OPENAI_CACHED_INPUT_USD_PER_MILLION || '');
+  const outputRate = modelPricing?.output ?? Number(process.env.OPENAI_OUTPUT_USD_PER_MILLION || '');
   if (!Number.isFinite(inputRate) || !Number.isFinite(cachedInputRate) || !Number.isFinite(outputRate)) return null;
+  const uncachedTokens = Math.max(usage.inputTokens - usage.cachedTokens, 0);
   return (
-    (usage.inputTokens - usage.cachedTokens) * inputRate
+    uncachedTokens * inputRate
     + usage.cachedTokens * cachedInputRate
     + usage.outputTokens * outputRate
   ) / 1_000_000;
@@ -374,7 +387,7 @@ async function recordUsage(input: {
     output_tokens: input.usage.outputTokens,
     cached_tokens: input.usage.cachedTokens,
     reasoning_tokens: input.usage.reasoningTokens,
-    estimated_cost_usd: estimatedCost(input.usage),
+    estimated_cost_usd: estimateOpenAICost(input.model, input.usage),
     created_at: new Date().toISOString(),
   }]);
 }
@@ -461,7 +474,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
     })),
   }));
   const normalizedExisting = existing.map(normalizeForDuplicateCheck).filter(Boolean);
-  const model = process.env.OPENAI_DRAFT_MODEL || 'gpt-5.6-terra';
+  const model = process.env.OPENAI_DRAFT_MODEL || 'gpt-5.6-luna';
   const batchId = randomUUID();
   const generationInstructions = [
     corePages.generationPrompt.bodyText,
@@ -1121,7 +1134,7 @@ export async function styleYokoDrafts(input: {
   ]));
   await recordUsage({ operation: 'style_transform', model, usage: result.usage, batchId: drafts[0]?.batchId });
 
-  const auditModel = process.env.OPENAI_AUDIT_MODEL || model;
+  const auditModel = process.env.OPENAI_AUDIT_MODEL || 'gpt-5.6-luna';
   const audit = await callOpenAI({
     model: auditModel,
     schemaName: 'yoko_style_audit',

@@ -2,12 +2,24 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applySelectedStyleFields,
+  estimateOpenAICost,
   isDraftReadyForLine,
   selectYokoVoiceEvidence,
   validateGeneratedDrafts,
   validateYokoStyleCandidate,
   type YokoVoiceEvidence,
 } from '../threads-content-drafts';
+
+test('モデルごとの単価でAPI料金を計算する', () => {
+  const usage = {
+    inputTokens: 1_000_000,
+    cachedTokens: 100_000,
+    outputTokens: 100_000,
+    reasoningTokens: 0,
+  };
+  assert.equal(estimateOpenAICost('gpt-5.6-terra', usage), 3.775);
+  assert.equal(estimateOpenAICost('gpt-5.6-luna', usage), 1.51);
+});
 
 function draft(overrides: Partial<{
   sourcePageId: string;

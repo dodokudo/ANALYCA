@@ -97,7 +97,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
   }>(null);
   const [config, setConfig] = useState<null | {
     notion: { connected: boolean };
-    openai: { configured: boolean; draftModel: string; styleModel: string };
+    openai: { configured: boolean; draftModel: string; styleModel: string; auditModel: string };
   }>(null);
 
   const loadDrafts = useCallback(async () => {
@@ -529,7 +529,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
           <span className={`rounded-full border px-3 py-2 ${config?.openai.configured ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
             OpenAI API {config?.openai.configured ? '設定済み' : '未設定'}
           </span>
-          {config?.openai.configured ? <span className="rounded-full border border-[color:var(--color-border)] bg-slate-50 px-3 py-2 text-slate-500">生成 {config.openai.draftModel} / 文体 {config.openai.styleModel}</span> : null}
+          {config?.openai.configured ? <span className="rounded-full border border-[color:var(--color-border)] bg-slate-50 px-3 py-2 text-slate-500">生成 {config.openai.draftModel} / 文体 {config.openai.styleModel} / 監査 {config.openai.auditModel}</span> : null}
         </div>
       </section>
 

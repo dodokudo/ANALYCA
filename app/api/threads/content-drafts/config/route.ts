@@ -13,8 +13,9 @@ export async function GET(request: NextRequest) {
     notion,
     openai: {
       configured: Boolean(process.env.OPENAI_API_KEY),
-      draftModel: process.env.OPENAI_DRAFT_MODEL || 'gpt-5.6-terra',
+      draftModel: process.env.OPENAI_DRAFT_MODEL || 'gpt-5.6-luna',
       styleModel: process.env.OPENAI_STYLE_MODEL || 'gpt-5.6-terra',
+      auditModel: process.env.OPENAI_AUDIT_MODEL || 'gpt-5.6-luna',
     },
   });
 }

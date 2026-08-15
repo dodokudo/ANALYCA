@@ -25,7 +25,6 @@ const GUARDIAN_SEND_THREAD_MESSAGE_URL =
   || 'https://guardian-webhook-383002618526.asia-northeast1.run.app/send-thread-message';
 
 const YOKO_LINE_POSTING_TIMES = ['06:00', '18:00'] as const;
-const YOKO_LINE_POSTS_PER_DAY = YOKO_LINE_POSTING_TIMES.length;
 
 function jstDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -44,46 +43,26 @@ function addDays(date: string, amount: number) {
   return jstDateParts(parsed);
 }
 
-function jstTimeParts(date: Date) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Tokyo',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date);
-  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || '';
-  return `${value('hour')}:${value('minute')}`;
-}
-
 export function assignYokoLineCandidateDates(
   occupiedScheduledAtJst: string[],
   count: number,
   now = new Date(),
 ) {
-  const occupiedCounts = new Map<string, number>();
-  const occupiedSlots = new Set<string>();
-  for (const value of occupiedScheduledAtJst) {
-    const scheduled = new Date(value);
-    if (Number.isNaN(scheduled.getTime())) continue;
-    const date = jstDateParts(scheduled);
-    occupiedCounts.set(date, (occupiedCounts.get(date) || 0) + 1);
-    occupiedSlots.add(`${date}T${jstTimeParts(scheduled)}`);
-  }
-
-  let cursor = jstDateParts(now);
+  const today = jstDateParts(now);
+  const occupiedDates = occupiedScheduledAtJst
+    .map((value) => new Date(value))
+    .filter((scheduled) => !Number.isNaN(scheduled.getTime()))
+    .map(jstDateParts);
+  const latestOccupiedDate = occupiedDates.filter((date) => date >= today).sort().at(-1);
+  let cursor = latestOccupiedDate ? addDays(latestOccupiedDate, 1) : today;
   const result: string[] = [];
   while (result.length < count) {
-    let dailyCount = occupiedCounts.get(cursor) || 0;
     for (const time of YOKO_LINE_POSTING_TIMES) {
-      if (result.length >= count || dailyCount >= YOKO_LINE_POSTS_PER_DAY) break;
-      const slotKey = `${cursor}T${time}`;
-      const candidate = `${slotKey}:00+09:00`;
-      if (occupiedSlots.has(slotKey) || new Date(candidate).getTime() <= now.getTime()) continue;
+      if (result.length >= count) break;
+      const candidate = `${cursor}T${time}:00+09:00`;
+      if (new Date(candidate).getTime() <= now.getTime()) continue;
       result.push(candidate);
-      occupiedSlots.add(slotKey);
-      dailyCount += 1;
     }
-    occupiedCounts.set(cursor, dailyCount);
     cursor = addDays(cursor, 1);
   }
   return result;

@@ -91,6 +91,59 @@ function textMessage(text: string): LineMessage {
   return { type: 'text', text };
 }
 
+function buildChangeConfirmationMessage(token: string, scheduledTimeIso: string): LineMessage {
+  const confirmData = new URLSearchParams({
+    action: 'threads_schedule',
+    mode: 'change',
+    confirm: '1',
+    token,
+    scheduledTime: scheduledTimeIso,
+  }).toString();
+  const cancelData = new URLSearchParams({
+    action: 'threads_schedule',
+    mode: 'cancel_change',
+    token,
+  }).toString();
+  return {
+    type: 'flex',
+    altText: 'Threads予約変更の最終確認',
+    contents: {
+      type: 'bubble',
+      size: 'kilo',
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        paddingAll: '18px',
+        contents: [
+          { type: 'text', text: '予約日時を変更しますか？', weight: 'bold', wrap: true },
+          { type: 'text', text: formatScheduledAtJst(scheduledTimeIso), size: 'lg', weight: 'bold', color: '#8A6A2F' },
+          { type: 'text', text: '「変更を確定」を押すまで予約日時は変わりません。', size: 'sm', color: '#666666', wrap: true },
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: '14px',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#9A7437',
+            action: { type: 'postback', label: '変更を確定', data: confirmData },
+          },
+          {
+            type: 'button',
+            style: 'secondary',
+            action: { type: 'postback', label: 'キャンセル', data: cancelData },
+          },
+        ],
+      },
+    },
+  };
+}
+
 function preview(text: string) {
   const normalized = text.replace(/\s+/g, ' ').trim();
   return normalized.length > 78 ? `${normalized.slice(0, 78)}…` : normalized;
@@ -250,15 +303,37 @@ async function handleMessageEvent(
 async function handlePostbackEvent(event: LineEvent, groupId: string) {
   const params = new URLSearchParams(event.postback?.data || '');
   const token = params.get('token') || '';
-  const mode = params.get('mode') === 'change' ? 'change' : 'schedule';
+  const requestedMode = params.get('mode');
+  if (requestedMode === 'cancel_change') {
+    await sendLineMessages(groupId, [textMessage('予約変更をキャンセルしました。')], event.replyToken);
+    return { ok: true, cancelled: true, message: '予約変更をキャンセルしました。' };
+  }
+  const mode = requestedMode === 'change' ? 'change' : 'schedule';
+  const confirmed = params.get('confirm') === '1';
   const dateTime = event.postback?.params?.datetime;
-  const requestedDate = dateTime ? new Date(`${dateTime}:00+09:00`) : undefined;
+  const confirmedTime = params.get('scheduledTime');
+  const requestedDate = dateTime
+    ? new Date(`${dateTime}:00+09:00`)
+    : confirmedTime
+      ? new Date(confirmedTime)
+      : undefined;
   const requestedTimeIso = requestedDate && !Number.isNaN(requestedDate.getTime())
     ? requestedDate.toISOString()
     : undefined;
   if (!token) return { ok: false, message: '予約情報が不足しています。' };
   if (dateTime && !requestedTimeIso) {
     return { ok: false, message: '予約日時を読み取れませんでした。' };
+  }
+  if (mode === 'change' && dateTime && !confirmed && requestedTimeIso) {
+    await sendLineMessages(
+      groupId,
+      [buildChangeConfirmationMessage(token, requestedTimeIso)],
+      event.replyToken,
+    );
+    return { ok: true, pendingConfirmation: true, message: '予約変更の確認待ちです。' };
+  }
+  if (mode === 'change' && (!confirmed || !requestedTimeIso)) {
+    return { ok: false, message: '予約変更の確認情報が不足しています。もう一度変更日時を選択してください。' };
   }
   const result = await confirmThreadsScheduleApproval(token, groupId, {
     requestedTimeIso,
@@ -293,7 +368,16 @@ export async function POST(request: NextRequest) {
       }
 
       if (event.type === 'postback') {
-        results.push(await handlePostbackEvent(event, groupId));
+        const result = await handlePostbackEvent(event, groupId);
+        console.info('[line/threads-schedule] postback handled', {
+          groupId,
+          actorUserId,
+          ok: result.ok,
+          scheduleId: 'scheduleId' in result ? result.scheduleId : undefined,
+          pendingConfirmation: 'pendingConfirmation' in result ? result.pendingConfirmation : false,
+          cancelled: 'cancelled' in result ? result.cancelled : false,
+        });
+        results.push(result);
       } else if (event.type === 'message' && event.message?.type === 'text') {
         results.push(await handleMessageEvent(event, groupId, config));
       }

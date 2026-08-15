@@ -61,6 +61,11 @@ export type ThreadsScheduleMutationResult = {
   post?: ScheduledPostRow;
 };
 
+export type ThreadsScheduleSlotCounts = {
+  exactTimeCount: number;
+  sameDayCount: number;
+};
+
 type LineTextMessage = {
   type?: string;
   text?: string;
@@ -92,6 +97,53 @@ function plain(value: unknown): string {
     return String((value as { value?: unknown }).value ?? '');
   }
   return String(value ?? '');
+}
+
+export function validateThreadsScheduleSlotAvailability(counts: ThreadsScheduleSlotCounts) {
+  if (counts.exactTimeCount > 0) {
+    return '同じ日時に別の投稿が予約されています。別の日時を選択してください。';
+  }
+  if (counts.sameDayCount >= 2) {
+    return 'この日はすでに2件の投稿があります。別の日を選択してください。';
+  }
+  return undefined;
+}
+
+async function getThreadsScheduleSlotCounts(
+  scheduleId: string,
+  userId: string,
+  scheduledTime: Date,
+): Promise<ThreadsScheduleSlotCounts> {
+  const [rows] = await client.query({
+    query: `
+      SELECT
+        COUNTIF(
+          TIMESTAMP_TRUNC(scheduled_time, MINUTE) = TIMESTAMP_TRUNC(@scheduledTime, MINUTE)
+        ) AS exact_time_count,
+        COUNT(*) AS same_day_count
+      FROM \`${projectId}.${DATASET}.scheduled_posts\`
+      WHERE user_id = @userId
+        AND schedule_id != @scheduleId
+        AND status IN ('draft', 'scheduled', 'partial', 'processing', 'posted')
+        AND DATE(scheduled_time, 'Asia/Tokyo') = DATE(@scheduledTime, 'Asia/Tokyo')
+    `,
+    params: { scheduleId, userId, scheduledTime },
+    types: { scheduledTime: 'TIMESTAMP' },
+  });
+  const row = rows[0] as Record<string, unknown> | undefined;
+  return {
+    exactTimeCount: Number(plain(row?.exact_time_count) || 0),
+    sameDayCount: Number(plain(row?.same_day_count) || 0),
+  };
+}
+
+async function validateThreadsScheduleSlot(
+  scheduleId: string,
+  userId: string,
+  scheduledTime: Date,
+) {
+  const counts = await getThreadsScheduleSlotCounts(scheduleId, userId, scheduledTime);
+  return validateThreadsScheduleSlotAvailability(counts);
 }
 
 export async function getThreadsLineGroupConfig(groupId: string): Promise<ThreadsLineGroupConfig | undefined> {
@@ -377,12 +429,15 @@ export async function scheduleDraftAt(
   userId: string,
   scheduledTimeIso: string,
 ): Promise<ThreadsScheduleMutationResult> {
-  if (new Date(scheduledTimeIso).getTime() <= Date.now()) {
+  const scheduledTime = new Date(scheduledTimeIso);
+  if (scheduledTime.getTime() <= Date.now()) {
     return { ok: false, message: '過去の日時は指定できません。' };
   }
+  const slotError = await validateThreadsScheduleSlot(scheduleId, userId, scheduledTime);
+  if (slotError) return { ok: false, message: slotError };
   await client.query({
     query: `
-      UPDATE \`${projectId}.${DATASET}.scheduled_posts\`
+      UPDATE \`${projectId}.${DATASET}.scheduled_posts\` AS target
       SET scheduled_time = @scheduledTime,
           status = 'scheduled',
           updated_at = CURRENT_TIMESTAMP(),
@@ -390,12 +445,30 @@ export async function scheduleDraftAt(
       WHERE schedule_id = @scheduleId
         AND user_id = @userId
         AND status = 'draft'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM \`${projectId}.${DATASET}.scheduled_posts\` AS other
+          WHERE other.user_id = @userId
+            AND other.schedule_id != @scheduleId
+            AND other.status IN ('draft', 'scheduled', 'partial', 'processing', 'posted')
+            AND TIMESTAMP_TRUNC(other.scheduled_time, MINUTE) = TIMESTAMP_TRUNC(@scheduledTime, MINUTE)
+        )
+        AND (
+          SELECT COUNT(*)
+          FROM \`${projectId}.${DATASET}.scheduled_posts\` AS other
+          WHERE other.user_id = @userId
+            AND other.schedule_id != @scheduleId
+            AND other.status IN ('draft', 'scheduled', 'partial', 'processing', 'posted')
+            AND DATE(other.scheduled_time, 'Asia/Tokyo') = DATE(@scheduledTime, 'Asia/Tokyo')
+        ) < 2
     `,
-    params: { scheduleId, userId, scheduledTime: new Date(scheduledTimeIso) },
+    params: { scheduleId, userId, scheduledTime },
     types: { scheduledTime: 'TIMESTAMP' },
   });
   const post = await getScheduledPostById(scheduleId);
-  if (!post || post.status !== 'scheduled' || new Date(post.scheduled_time).getTime() !== new Date(scheduledTimeIso).getTime()) {
+  if (!post || post.status !== 'scheduled' || new Date(post.scheduled_time).getTime() !== scheduledTime.getTime()) {
+    const conflict = await validateThreadsScheduleSlot(scheduleId, userId, scheduledTime);
+    if (conflict) return { ok: false, message: conflict };
     return { ok: false, message: '予約処理に失敗しました。投稿の状態を確認してください。' };
   }
   return { ok: true, message: `${formatScheduledAtJst(post.scheduled_time)}で予約しました。`, post };
@@ -406,12 +479,15 @@ export async function changeScheduledPostAt(
   userId: string,
   scheduledTimeIso: string,
 ): Promise<ThreadsScheduleMutationResult> {
-  if (new Date(scheduledTimeIso).getTime() <= Date.now()) {
+  const scheduledTime = new Date(scheduledTimeIso);
+  if (scheduledTime.getTime() <= Date.now()) {
     return { ok: false, message: '過去の日時は指定できません。' };
   }
+  const slotError = await validateThreadsScheduleSlot(scheduleId, userId, scheduledTime);
+  if (slotError) return { ok: false, message: slotError };
   await client.query({
     query: `
-      UPDATE \`${projectId}.${DATASET}.scheduled_posts\`
+      UPDATE \`${projectId}.${DATASET}.scheduled_posts\` AS target
       SET scheduled_time = @scheduledTime,
           updated_at = CURRENT_TIMESTAMP(),
           error_message = NULL
@@ -419,12 +495,30 @@ export async function changeScheduledPostAt(
         AND user_id = @userId
         AND status = 'scheduled'
         AND scheduled_time > CURRENT_TIMESTAMP()
+        AND NOT EXISTS (
+          SELECT 1
+          FROM \`${projectId}.${DATASET}.scheduled_posts\` AS other
+          WHERE other.user_id = @userId
+            AND other.schedule_id != @scheduleId
+            AND other.status IN ('draft', 'scheduled', 'partial', 'processing', 'posted')
+            AND TIMESTAMP_TRUNC(other.scheduled_time, MINUTE) = TIMESTAMP_TRUNC(@scheduledTime, MINUTE)
+        )
+        AND (
+          SELECT COUNT(*)
+          FROM \`${projectId}.${DATASET}.scheduled_posts\` AS other
+          WHERE other.user_id = @userId
+            AND other.schedule_id != @scheduleId
+            AND other.status IN ('draft', 'scheduled', 'partial', 'processing', 'posted')
+            AND DATE(other.scheduled_time, 'Asia/Tokyo') = DATE(@scheduledTime, 'Asia/Tokyo')
+        ) < 2
     `,
-    params: { scheduleId, userId, scheduledTime: new Date(scheduledTimeIso) },
+    params: { scheduleId, userId, scheduledTime },
     types: { scheduledTime: 'TIMESTAMP' },
   });
   const post = await getScheduledPostById(scheduleId);
-  if (!post || post.status !== 'scheduled' || new Date(post.scheduled_time).getTime() !== new Date(scheduledTimeIso).getTime()) {
+  if (!post || post.status !== 'scheduled' || new Date(post.scheduled_time).getTime() !== scheduledTime.getTime()) {
+    const conflict = await validateThreadsScheduleSlot(scheduleId, userId, scheduledTime);
+    if (conflict) return { ok: false, message: conflict };
     return { ok: false, message: '予約変更に失敗しました。投稿の状態を確認してください。' };
   }
   return { ok: true, message: `${formatScheduledAtJst(post.scheduled_time)}へ予約を変更しました。`, post };

@@ -24,6 +24,9 @@ const GUARDIAN_SEND_THREAD_MESSAGE_URL =
   process.env.GUARDIAN_SEND_THREAD_MESSAGE_URL
   || 'https://guardian-webhook-383002618526.asia-northeast1.run.app/send-thread-message';
 
+const YOKO_LINE_POSTING_TIMES = ['06:00', '18:00'] as const;
+const YOKO_LINE_POSTS_PER_DAY = YOKO_LINE_POSTING_TIMES.length;
+
 function jstDateParts(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tokyo',
@@ -41,17 +44,46 @@ function addDays(date: string, amount: number) {
   return jstDateParts(parsed);
 }
 
+function jstTimeParts(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Tokyo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || '';
+  return `${value('hour')}:${value('minute')}`;
+}
+
 export function assignYokoLineCandidateDates(
-  occupiedDates: string[],
+  occupiedScheduledAtJst: string[],
   count: number,
-  todayJst = jstDateParts(new Date()),
+  now = new Date(),
 ) {
-  const occupied = new Set(occupiedDates);
-  const latest = occupiedDates.filter((date) => date >= todayJst).sort().at(-1);
-  let cursor = latest ? addDays(latest, 1) : addDays(todayJst, 1);
+  const occupiedCounts = new Map<string, number>();
+  const occupiedSlots = new Set<string>();
+  for (const value of occupiedScheduledAtJst) {
+    const scheduled = new Date(value);
+    if (Number.isNaN(scheduled.getTime())) continue;
+    const date = jstDateParts(scheduled);
+    occupiedCounts.set(date, (occupiedCounts.get(date) || 0) + 1);
+    occupiedSlots.add(`${date}T${jstTimeParts(scheduled)}`);
+  }
+
+  let cursor = jstDateParts(now);
   const result: string[] = [];
   while (result.length < count) {
-    if (!occupied.has(cursor)) result.push(`${cursor}T06:00:00+09:00`);
+    let dailyCount = occupiedCounts.get(cursor) || 0;
+    for (const time of YOKO_LINE_POSTING_TIMES) {
+      if (result.length >= count || dailyCount >= YOKO_LINE_POSTS_PER_DAY) break;
+      const slotKey = `${cursor}T${time}`;
+      const candidate = `${slotKey}:00+09:00`;
+      if (occupiedSlots.has(slotKey) || new Date(candidate).getTime() <= now.getTime()) continue;
+      result.push(candidate);
+      occupiedSlots.add(slotKey);
+      dailyCount += 1;
+    }
+    occupiedCounts.set(cursor, dailyCount);
     cursor = addDays(cursor, 1);
   }
   return result;
@@ -159,8 +191,8 @@ async function candidateDates(count: number) {
   const schedules = await listScheduledPosts(YOKO_ANALYCA_USER_ID, { startDate: today });
   const occupied = schedules
     .filter((schedule) => ['draft', 'scheduled', 'partial', 'processing', 'posted'].includes(schedule.status))
-    .map((schedule) => schedule.scheduled_date);
-  return assignYokoLineCandidateDates(occupied, count, today);
+    .map((schedule) => schedule.scheduled_at_jst);
+  return assignYokoLineCandidateDates(occupied, count);
 }
 
 export async function getYokoLinePreview(draftIds: string[]): Promise<YokoLinePreviewDraft[]> {

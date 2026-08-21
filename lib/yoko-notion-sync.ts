@@ -1,5 +1,6 @@
 import {
   getYokoNotionCorePages,
+  getYokoNotionDataSourceIndex,
   getYokoNotionDataSourceIndexes,
   hydrateYokoNotionPage,
   type YokoNotionPageContent,
@@ -106,14 +107,13 @@ export async function syncYokoNotionContentBatch(
   limit = 75,
 ): Promise<YokoNotionBatchSyncResult> {
   const batchLimit = Math.min(Math.max(Math.floor(limit), 1), 100);
-  const indexes = await getYokoNotionDataSourceIndexes();
-  const pages = sourceType === 'instagram_script' ? indexes.instagramScripts : indexes.gemKnowledge;
+  const pages = await getYokoNotionDataSourceIndex(sourceType);
   const previousRows = await getYokoNotionLedgerRows(sourceType);
   const previousById = new Map(previousRows.map((row) => [row.notion_page_id, row]));
   const pendingPages = pages.filter((page) => {
     const previous = previousById.get(page.id);
     return !previous?.body_text || previous.notion_last_edited_time !== page.lastEditedTime;
-  });
+  }).sort((left, right) => Date.parse(right.lastEditedTime) - Date.parse(left.lastEditedTime));
   const selectedPages = pendingPages.slice(0, batchLimit);
   const entries: YokoNotionPageContent[] = [];
   for (const page of selectedPages) entries.push(await hydrateYokoNotionSourcePage(sourceType, page));

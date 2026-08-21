@@ -202,7 +202,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
       if (!response.ok) throw new Error(apiError(payload, '6件の投稿作成に失敗しました'));
       setFilter('all');
       setPage(1);
-      setNotice('新規台本を最大1件、既存の未使用台本を残りに使って6件作成しました。');
+      setNotice('最新のNotion台本を同期し、新規台本を最大1件、既存の未使用台本を残りに使って6件作成しました。');
       await loadDrafts();
     } catch (generateError) {
       setError(generateError instanceof Error ? generateError.message : '6件の投稿作成に失敗しました');
@@ -330,7 +330,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                 onClick={generateDrafts}
                 className="h-10 shrink-0 rounded-[var(--radius-sm)] bg-[color:var(--color-accent)] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {working === 'generate' ? '6件を作成中…' : '投稿作成'}
+                {working === 'generate' ? '同期・6件作成中…' : '投稿作成'}
               </button>
               <button
                 type="button"

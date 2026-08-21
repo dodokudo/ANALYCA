@@ -392,7 +392,7 @@ async function recordUsage(input: {
   }]);
 }
 
-function generationSchema(count: number): Record<string, unknown> {
+function generationSchema(count: number, allowedSourceIds: readonly string[]): Record<string, unknown> {
   return {
     type: 'object',
     additionalProperties: false,
@@ -407,7 +407,7 @@ function generationSchema(count: number): Record<string, unknown> {
           additionalProperties: false,
           required: ['sourcePageId', 'theme', 'mainText', 'comment1', 'comment2'],
           properties: {
-            sourcePageId: { type: 'string' },
+            sourcePageId: { type: 'string', enum: [...allowedSourceIds] },
             theme: { type: 'string' },
             mainText: { type: 'string' },
             comment1: { type: 'string' },
@@ -423,14 +423,22 @@ function contentLength(value: string): number {
   return Array.from(value.replace(/[\s\u3000]/g, '')).length;
 }
 
-export function validateGeneratedDrafts(drafts: GeneratedDraft[], count: number): string[] {
+export function validateGeneratedDrafts(
+  drafts: GeneratedDraft[],
+  count: number,
+  allowedSourceIds: readonly string[] = [],
+): string[] {
   const errors: string[] = [];
+  const allowedSourceIdSet = new Set(allowedSourceIds);
   if (drafts.length !== count) errors.push(`生成数が${count}件ではありません`);
   const sourceIds = new Set<string>();
   const normalizedBodies = new Set<string>();
   drafts.forEach((draft, index) => {
     const label = `投稿${index + 1}`;
     if (!draft.sourcePageId) errors.push(`${label}: sourcePageIdがありません`);
+    if (allowedSourceIdSet.size > 0 && !allowedSourceIdSet.has(draft.sourcePageId)) {
+      errors.push(`${label}: sourcePageIdが候補外です`);
+    }
     if (sourceIds.has(draft.sourcePageId)) errors.push(`${label}: 同じ元台本が重複しています`);
     sourceIds.add(draft.sourcePageId);
     if (!draft.theme.trim()) errors.push(`${label}: テーマが空です`);
@@ -463,6 +471,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
   if (candidates.length < count) {
     throw new Error(`生成可能な未使用台本が${candidates.length}件しかありません。Notion同期またはストック状態を確認してください。`);
   }
+  const allowedSourceIds = candidates.map((source) => source.notion_page_id);
   const sourcePayload = candidates.map((script) => ({
     sourcePageId: script.notion_page_id,
     title: script.source_title,
@@ -500,31 +509,32 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
   const result = await callOpenAI({
     model,
     schemaName: 'yoko_threads_drafts',
-    schema: generationSchema(count),
+    schema: generationSchema(count, allowedSourceIds),
     instructions: generationInstructions,
     prompt: generationPrompt,
     verbosity: 'medium',
   });
   await recordUsage({ operation: 'draft_generation', model, usage: result.usage, batchId });
   let generated = (result.json as { drafts?: GeneratedDraft[] }).drafts || [];
-  let validationErrors = validateGeneratedDrafts(generated, count);
+  let validationErrors = validateGeneratedDrafts(generated, count, allowedSourceIds);
   if (validationErrors.length) {
     try {
       const repaired = await callOpenAI({
         model,
         schemaName: 'yoko_threads_drafts_repaired',
-        schema: generationSchema(count),
-        instructions: `${generationInstructions}\n\n前回出力の品質エラーだけを修正し、事実や中心主張は変えないでください。文字数不足は内容の具体化で補い、水増しや同じ説明の反復は禁止です。`,
+        schema: generationSchema(count, allowedSourceIds),
+        instructions: `${generationInstructions}\n\n前回出力の品質エラーだけを修正し、事実や中心主張は変えないでください。sourcePageIdは許可されたIDから変更しないでください。文字数不足は内容の具体化で補い、水増しや同じ説明の反復は禁止です。`,
         prompt: JSON.stringify({
           previousOutput: generated,
           validationErrors,
+          allowedSourceIds,
           targetLengths: { mainText: '1〜50文字', comment1: '420〜460文字', comment2: '420〜460文字' },
         }),
         verbosity: 'medium',
       });
       await recordUsage({ operation: 'draft_repair', model, usage: repaired.usage, batchId });
       const repairedDrafts = (repaired.json as { drafts?: GeneratedDraft[] }).drafts || [];
-      const repairedErrors = validateGeneratedDrafts(repairedDrafts, count);
+      const repairedErrors = validateGeneratedDrafts(repairedDrafts, count, allowedSourceIds);
       const repairedHasStructuralError = repairedErrors.some((error) =>
         /生成数|sourcePageId|同じ元台本|テーマが空|生成本文が別投稿と重複/.test(error));
       if (!repairedHasStructuralError) {

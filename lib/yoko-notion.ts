@@ -435,3 +435,13 @@ export async function getYokoNotionDataSourceIndexes() {
     gemKnowledge,
   };
 }
+
+export async function getYokoNotionDataSourceIndex(
+  sourceType: 'instagram_script' | 'gem_knowledge',
+): Promise<YokoNotionPageIndex[]> {
+  return queryDataSourceIndex(
+    sourceType === 'instagram_script'
+      ? YOKO_NOTION_IDS.instagramScripts
+      : YOKO_NOTION_IDS.gemKnowledge,
+  );
+}

@@ -50,6 +50,14 @@ test('コメントは370〜500文字を許可する', () => {
   assert.match(validateGeneratedDrafts([draft({ comment2: 'い'.repeat(501) })], 1).join(' / '), /コメント2が501文字/);
 });
 
+test('生成結果の元台本IDを候補一覧に限定する', () => {
+  assert.deepEqual(validateGeneratedDrafts([draft()], 1, ['source-1']), []);
+  assert.match(
+    validateGeneratedDrafts([draft({ sourcePageId: 'outside-source' })], 1, ['source-1']).join(' / '),
+    /sourcePageIdが候補外/,
+  );
+});
+
 test('コメントだけの文体調整ではメイン投稿を変更しない', () => {
   const result = applySelectedStyleFields(
     { mainText: '工藤さんが編集したメイン', comment1: '元コメント1', comment2: '元コメント2' },

@@ -63,6 +63,8 @@ const FILTERS: Array<{ key: 'all' | DraftStatus; label: string }> = [
   { key: 'line_sent', label: '送信済み' },
 ];
 
+const STORED_STYLE_AUDIT_ERROR_PREFIX = '本人文体監査NG（監査案保存済み）:';
+
 function countText(value: string) {
   return Array.from(value.replace(/[\s\u3000]/g, '')).length;
 }
@@ -152,7 +154,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     draft: CreationDraft,
     patch: Partial<CreationDraft>,
     actionLabel: string,
-    options: { markSaved?: boolean } = {},
+    options: { markSaved?: boolean; preserveError?: boolean } = {},
   ) => {
     setWorking(draft.id);
     setError(null);
@@ -170,6 +172,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
           comment2: patch.comment2 ?? draft.comment2,
           ...(patch.status ? { status: patch.status } : {}),
           ...(options.markSaved ? { markSaved: true } : {}),
+          ...(options.preserveError ? { preserveError: true } : {}),
         }),
       });
       const payload = await response.json() as { draft?: CreationDraft; error?: string };
@@ -230,10 +233,51 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
       setPage(1);
       setNotice(failedCount === 0
         ? `${styledCount}件のコメント1・2だけを本人文体へ調整しました。メイン投稿は変更していません。`
-        : `${styledCount}件を反映、${failedCount}件は監査NGのため採用原文を維持しました。`);
+        : `${styledCount}件を反映、${failedCount}件は監査NGです。監査対象の本人文体案を編集欄に保存し、採用原文は別に保持しています。`);
       await loadDrafts();
     } catch (styleError) {
       setError(styleError instanceof Error ? styleError.message : '本人文体への調整に失敗しました');
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const restyleDraft = async (draft: CreationDraft) => {
+    setWorking(draft.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const saveResponse = await fetch('/api/threads/content-drafts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          draftId: draft.id,
+          theme: draft.theme,
+          mainText: draft.mainText,
+          comment1: draft.comment1,
+          comment2: draft.comment2,
+          markSaved: true,
+          preserveError: true,
+        }),
+      });
+      const savePayload = await saveResponse.json() as { draft?: CreationDraft; error?: string };
+      if (!saveResponse.ok || !savePayload.draft) throw new Error(apiError(savePayload, '修正案の保存に失敗しました'));
+
+      const styleResponse = await fetch('/api/threads/content-drafts/style', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, draftIds: [draft.id], fields: ['comment1', 'comment2'] }),
+      });
+      const stylePayload = await styleResponse.json() as { drafts?: CreationDraft[]; error?: string };
+      if (!styleResponse.ok) throw new Error(apiError(stylePayload, '修正案の再調整・監査に失敗しました'));
+      const result = stylePayload.drafts?.[0];
+      setNotice(result?.status === 'style_review'
+        ? '修正内容を本人文体へ再調整し、監査に合格しました。'
+        : '再監査はNGでした。新しい監査対象案と指摘を表示しています。');
+      await loadDrafts();
+    } catch (styleError) {
+      setError(styleError instanceof Error ? styleError.message : '修正案の再調整・監査に失敗しました');
     } finally {
       setWorking(null);
     }
@@ -438,12 +482,14 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
 
               {selectedDraft.lastError ? (
                 <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-xs leading-5 text-rose-700">
-                  <p className="font-semibold">文字数などの要修正があります。原稿は破棄せず保存しています。</p>
+                  <p className="font-semibold">{selectedDraft.lastError.startsWith(STORED_STYLE_AUDIT_ERROR_PREFIX)
+                    ? '下のコメント1・2は、監査NGになった本人文体案です。指摘箇所を直接修正できます。'
+                    : '以前の監査エラーです。「修正内容で再調整・監査」を押すと、指摘と一致する本人文体案を表示します。'}</p>
                   <p className="mt-1">{selectedDraft.lastError}</p>
                 </div>
               ) : null}
 
-              {selectedDraft.status === 'style_review' && selectedDraft.approvedSnapshot ? (
+              {(selectedDraft.status === 'style_review' || selectedDraft.lastError) && selectedDraft.approvedSnapshot ? (
                 <details className="mt-4 rounded-lg border border-purple-200 bg-purple-50 px-3 py-3 text-xs text-purple-800">
                   <summary className="cursor-pointer font-semibold">採用済み原文を確認（変更されません）</summary>
                   <div className="mt-2 space-y-2 whitespace-pre-wrap rounded-md bg-white/70 p-3 leading-5">
@@ -461,7 +507,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                   ['comment2', 'コメント欄2', selectedDraft.comment2, 10],
                 ] as const).map(([field, label, value, rows]) => (
                   <label key={field} className="block text-xs font-medium text-[color:var(--color-text-secondary)]">
-                    {selectedDraft.status === 'style_review' && field !== 'mainText' ? `本人文体版・${label}` : label}
+                    {(selectedDraft.status === 'style_review' || selectedDraft.lastError?.startsWith(STORED_STYLE_AUDIT_ERROR_PREFIX)) && field !== 'mainText' ? `本人文体版・${label}` : label}
                     <textarea value={value} rows={rows} onChange={(event) => updateLocalDraft(selectedDraft.id, { [field]: event.target.value })} className="mt-2 w-full resize-y rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-3 text-sm leading-6 text-[color:var(--color-text-primary)] outline-none transition focus:border-purple-300 focus:ring-2 focus:ring-purple-100" />
                     <span className="mt-1 block text-right text-[11px] text-slate-400">{countText(value)}文字</span>
                   </label>
@@ -469,7 +515,22 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2 border-t border-[color:var(--color-border)] pt-4">
-                <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, {}, '下書きを保存', { markSaved: true })} className="h-10 rounded-lg border border-[color:var(--color-border)] bg-white px-4 text-sm font-semibold text-[color:var(--color-text-primary)] hover:bg-slate-50 disabled:opacity-40">下書き保存</button>
+                <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, {}, '下書きを保存', {
+                  markSaved: true,
+                  preserveError: selectedDraft.lastError?.startsWith(STORED_STYLE_AUDIT_ERROR_PREFIX) === true,
+                })} className="h-10 rounded-lg border border-[color:var(--color-border)] bg-white px-4 text-sm font-semibold text-[color:var(--color-text-primary)] hover:bg-slate-50 disabled:opacity-40">下書き保存</button>
+                {selectedDraft.status === 'approved' && selectedDraft.lastError ? (
+                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void restyleDraft(selectedDraft)} className="h-10 rounded-lg bg-purple-600 px-4 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-40">
+                    {working === selectedDraft.id ? '再調整・監査中…' : '修正内容で再調整・監査'}
+                  </button>
+                ) : null}
+                {selectedDraft.status === 'approved' && selectedDraft.lastError && selectedDraft.approvedSnapshot ? (
+                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, {
+                    mainText: selectedDraft.approvedSnapshot!.mainText,
+                    comment1: selectedDraft.approvedSnapshot!.comment1,
+                    comment2: selectedDraft.approvedSnapshot!.comment2,
+                  }, '採用原文へ戻す')} className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40">採用原文へ戻す</button>
+                ) : null}
                 {(['review', 'stock', 'discarded'] as DraftStatus[]).includes(selectedDraft.status) ? (
                   <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, { status: 'approved' }, '内容を採用')} className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40">内容採用</button>
                 ) : null}

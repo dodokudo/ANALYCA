@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applySelectedStyleFields,
+  currentStyleBaseline,
   estimateOpenAICost,
   isDraftReadyForLine,
+  hasStoredStyleAuditCandidate,
   selectYokoVoiceEvidence,
+  styleAuditBaseline,
   validateGeneratedDrafts,
   validateYokoStyleCandidate,
   type YokoVoiceEvidence,
@@ -67,6 +70,40 @@ test('コメントだけの文体調整ではメイン投稿を変更しない',
   assert.equal(result.mainText, '工藤さんが編集したメイン');
   assert.equal(result.comment1, '本人文体コメント1');
   assert.equal(result.comment2, '本人文体コメント2');
+});
+
+test('文体調整は古い採用スナップショットではなく最新保存稿を基準にする', () => {
+  const result = currentStyleBaseline({
+    mainText: '最新メイン',
+    comment1: '最新コメント1',
+    comment2: '最新コメント2',
+  });
+  assert.deepEqual(result, {
+    mainText: '最新メイン',
+    comment1: '最新コメント1',
+    comment2: '最新コメント2',
+  });
+});
+
+test('監査対象案を保存した新形式のエラーだけを識別する', () => {
+  assert.equal(hasStoredStyleAuditCandidate('本人文体監査NG（監査案保存済み）: 指摘'), true);
+  assert.equal(hasStoredStyleAuditCandidate('本人文体監査NG: 旧形式の指摘'), false);
+  assert.equal(hasStoredStyleAuditCandidate(null), false);
+});
+
+test('再監査でも内容保持は退避した採用原文を基準にする', () => {
+  const result = styleAuditBaseline({
+    mainText: '監査NG案のメイン',
+    comment1: '監査NG案コメント1',
+    comment2: '監査NG案コメント2',
+    approvedSnapshot: {
+      mainText: '採用原文メイン',
+      comment1: '採用原文コメント1',
+      comment2: '採用原文コメント2',
+    },
+  });
+  assert.equal(result.comment1, '採用原文コメント1');
+  assert.equal(result.comment2, '採用原文コメント2');
 });
 
 test('投稿テーマに近い本人コメントをVOICE_EVIDENCEとして優先する', () => {

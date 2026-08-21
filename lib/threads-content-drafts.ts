@@ -15,6 +15,7 @@ const BATCH_TABLE = 'threads_content_batches';
 const DRAFT_TABLE = 'threads_content_drafts_v2';
 const SOURCE_TABLE = 'threads_content_draft_sources';
 const USAGE_TABLE = 'threads_ai_usage';
+const STORED_STYLE_AUDIT_ERROR_PREFIX = '本人文体監査NG（監査案保存済み）:';
 
 export type ThreadsContentStatus = 'review' | 'approved' | 'style_review' | 'stock' | 'discarded' | 'ready' | 'line_sent';
 export type ThreadsContentField = 'main_text' | 'comment1' | 'comment2';
@@ -823,6 +824,7 @@ export async function updateThreadsContentDraft(input: {
   comment2?: string;
   status?: ThreadsContentStatus;
   markSaved?: boolean;
+  preserveError?: boolean;
 }): Promise<ThreadsContentDraft> {
   await ensureTables();
   const current = await getDraft(input.draftId);
@@ -843,7 +845,7 @@ export async function updateThreadsContentDraft(input: {
         approved_comment1 = IF(@takeSnapshot, @comment1, approved_comment1),
         approved_comment2 = IF(@takeSnapshot, @comment2, approved_comment2),
         manual_saved_at = IF(@markSaved, CURRENT_TIMESTAMP(), manual_saved_at),
-        last_error = NULL,
+        last_error = IF(@preserveError, last_error, NULL),
         updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @userId AND draft_id = @draftId
     `,
@@ -857,6 +859,7 @@ export async function updateThreadsContentDraft(input: {
       status: nextStatus,
       takeSnapshot: takingApprovedSnapshot,
       markSaved: input.markSaved === true,
+      preserveError: input.preserveError === true,
     },
   });
   return getDraft(input.draftId);
@@ -932,7 +935,7 @@ export function selectYokoVoiceEvidence(
   limit = 6,
 ): YokoVoiceEvidence[] {
   const primary = draft.sources.find((source) => source.role === 'primary');
-  const approved = draft.approvedSnapshot || draft;
+  const approved = currentStyleBaseline(draft);
   const queryGrams = characterNgrams([
     draft.theme,
     draft.mainText,
@@ -962,6 +965,26 @@ export function selectYokoVoiceEvidence(
     if (selected.length >= limit) break;
   }
   return selected;
+}
+
+export function currentStyleBaseline(
+  draft: Pick<ThreadsContentDraft, 'mainText' | 'comment1' | 'comment2'>,
+): Pick<ThreadsContentDraft, 'mainText' | 'comment1' | 'comment2'> {
+  return {
+    mainText: draft.mainText,
+    comment1: draft.comment1,
+    comment2: draft.comment2,
+  };
+}
+
+export function styleAuditBaseline(
+  draft: Pick<ThreadsContentDraft, 'mainText' | 'comment1' | 'comment2' | 'approvedSnapshot'>,
+): Pick<ThreadsContentDraft, 'mainText' | 'comment1' | 'comment2'> {
+  return draft.approvedSnapshot || currentStyleBaseline(draft);
+}
+
+export function hasStoredStyleAuditCandidate(lastError: string | null): boolean {
+  return Boolean(lastError?.startsWith(STORED_STYLE_AUDIT_ERROR_PREFIX));
 }
 
 async function listYokoVoiceEvidence(): Promise<YokoVoiceEvidence[]> {
@@ -1042,16 +1065,53 @@ export function validateYokoStyleCandidate(
   return issues;
 }
 
-async function setDraftError(draftId: string, message: string): Promise<ThreadsContentDraft> {
+async function setDraftStyleAuditError(
+  draftId: string,
+  message: string,
+  candidate: Pick<ThreadsContentDraft, 'comment1' | 'comment2'>,
+): Promise<ThreadsContentDraft> {
   await client.query({
     query: `
       UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
-      SET last_error = @message, updated_at = CURRENT_TIMESTAMP()
+      SET comment1 = @comment1,
+        comment2 = @comment2,
+        last_error = @message,
+        updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @userId AND draft_id = @draftId
     `,
-    params: { userId: YOKO_ANALYCA_USER_ID, draftId, message },
+    params: {
+      userId: YOKO_ANALYCA_USER_ID,
+      draftId,
+      message,
+      comment1: candidate.comment1,
+      comment2: candidate.comment2,
+    },
   });
   return getDraft(draftId);
+}
+
+async function syncApprovedStyleBaseline(draft: ThreadsContentDraft): Promise<ThreadsContentDraft> {
+  await client.query({
+    query: `
+      UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
+      SET approved_main_text = @mainText,
+        approved_comment1 = @comment1,
+        approved_comment2 = @comment2,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @userId AND draft_id = @draftId
+    `,
+    params: {
+      userId: YOKO_ANALYCA_USER_ID,
+      draftId: draft.id,
+      mainText: draft.mainText,
+      comment1: draft.comment1,
+      comment2: draft.comment2,
+    },
+  });
+  return {
+    ...draft,
+    approvedSnapshot: currentStyleBaseline(draft),
+  };
 }
 
 export async function styleYokoDrafts(input: {
@@ -1061,8 +1121,11 @@ export async function styleYokoDrafts(input: {
   openAIKey();
   const fields = Array.from(new Set(input.fields)).filter((field) => field === 'comment1' || field === 'comment2');
   if (fields.length === 0) throw new Error('文体調整する欄を選んでください');
-  const drafts = await Promise.all(input.draftIds.map(getDraft));
-  if (drafts.some((draft) => draft.status !== 'approved')) throw new Error('採用済みの投稿だけ文体調整できます');
+  const loadedDrafts = await Promise.all(input.draftIds.map(getDraft));
+  if (loadedDrafts.some((draft) => draft.status !== 'approved')) throw new Error('採用済みの投稿だけ文体調整できます');
+  const drafts = await Promise.all(loadedDrafts.map((draft) => (
+    hasStoredStyleAuditCandidate(draft.lastError) ? draft : syncApprovedStyleBaseline(draft)
+  )));
   const [corePages, voiceCorpus] = await Promise.all([
     getYokoNotionCorePages(),
     listYokoVoiceEvidence(),
@@ -1100,11 +1163,7 @@ export async function styleYokoDrafts(input: {
       fields,
       drafts: drafts.map((draft) => ({
         draftId: draft.id,
-        approved: draft.approvedSnapshot || {
-          mainText: draft.mainText,
-          comment1: draft.comment1,
-          comment2: draft.comment2,
-        },
+        approved: currentStyleBaseline(draft),
         previousAuditError: draft.lastError,
         primarySource: draft.sources.find((source) => source.role === 'primary') || null,
         voiceEvidence: voiceByDraft.get(draft.id),
@@ -1170,11 +1229,7 @@ export async function styleYokoDrafts(input: {
       selectedFields: fields,
       drafts: drafts.map((draft, index) => ({
         draftId: draft.id,
-        approved: selectedStyleText(draft.approvedSnapshot || {
-          mainText: draft.mainText,
-          comment1: draft.comment1,
-          comment2: draft.comment2,
-        }, fields),
+        approved: selectedStyleText(styleAuditBaseline(draft), fields),
         transformed: selectedStyleText(projected[index], fields),
         primarySource: draft.sources.find((source) => source.role === 'primary') || null,
         usedVoiceEvidenceIds: projected[index].voiceEvidenceIds,
@@ -1194,7 +1249,7 @@ export async function styleYokoDrafts(input: {
     const deterministicIssues = deterministicIssuesById.get(draft.id) || [];
     if (deterministicIssues.length || !auditItem?.contentPreserved || !auditItem.styleMatches || !auditItem.evidenceGrounded) {
       const issues = [...deterministicIssues, ...(auditItem?.issues || [])].join('、') || '監査結果がありません';
-      updated.push(await setDraftError(draft.id, `本人文体監査NG: ${issues}`));
+      updated.push(await setDraftStyleAuditError(draft.id, `${STORED_STYLE_AUDIT_ERROR_PREFIX} ${issues}`, item));
       continue;
     }
     updated.push(await updateThreadsContentDraft({

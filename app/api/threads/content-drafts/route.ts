@@ -44,6 +44,7 @@ export async function PATCH(request: NextRequest) {
       ...(typeof body.comment2 === 'string' ? { comment2: body.comment2 } : {}),
       ...(typeof body.status === 'string' ? { status: body.status as ThreadsContentStatus } : {}),
       ...(body.markSaved === true ? { markSaved: true } : {}),
+      ...(body.preserveError === true ? { preserveError: true } : {}),
     });
     return NextResponse.json({ draft });
   } catch (error) {

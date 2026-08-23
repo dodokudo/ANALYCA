@@ -65,6 +65,10 @@ const FILTERS: Array<{ key: 'all' | DraftStatus; label: string }> = [
 
 const STORED_STYLE_AUDIT_ERROR_PREFIX = '本人文体監査NG（監査案保存済み）:';
 
+function isGenerationValidationError(lastError: string): boolean {
+  return /^投稿\d+:/.test(lastError);
+}
+
 function countText(value: string) {
   return Array.from(value.replace(/[\s\u3000]/g, '')).length;
 }
@@ -484,7 +488,9 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                 <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-xs leading-5 text-rose-700">
                   <p className="font-semibold">{selectedDraft.lastError.startsWith(STORED_STYLE_AUDIT_ERROR_PREFIX)
                     ? '下のコメント1・2は、監査NGになった本人文体案です。指摘箇所を直接修正できます。'
-                    : '以前の監査エラーです。「修正内容で再調整・監査」を押すと、指摘と一致する本人文体案を表示します。'}</p>
+                    : isGenerationValidationError(selectedDraft.lastError)
+                      ? '生成時の品質チェックです。下の該当箇所を修正して「下書き保存」を押してください。'
+                      : '以前の監査エラーです。「修正内容で再調整・監査」を押すと、指摘と一致する本人文体案を表示します。'}</p>
                   <p className="mt-1">{selectedDraft.lastError}</p>
                 </div>
               ) : null}

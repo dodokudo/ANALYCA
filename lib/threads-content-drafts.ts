@@ -16,6 +16,7 @@ const DRAFT_TABLE = 'threads_content_drafts_v2';
 const SOURCE_TABLE = 'threads_content_draft_sources';
 const USAGE_TABLE = 'threads_ai_usage';
 const STORED_STYLE_AUDIT_ERROR_PREFIX = '本人文体監査NG（監査案保存済み）:';
+const MAX_GENERATION_REPAIR_ATTEMPTS = 2;
 
 export type ThreadsContentStatus = 'review' | 'approved' | 'style_review' | 'stock' | 'discarded' | 'ready' | 'line_sent';
 export type ThreadsContentField = 'main_text' | 'comment1' | 'comment2';
@@ -424,6 +425,21 @@ function contentLength(value: string): number {
   return Array.from(value.replace(/[\s\u3000]/g, '')).length;
 }
 
+function isGenerationRefusal(draft: GeneratedDraft): boolean {
+  const text = `${draft.theme}\n${draft.mainText}\n${draft.comment1}\n${draft.comment2}`;
+  return [
+    /(?:元|入力された|候補)台本[\s\S]{0,80}(?:含まれていません|ありません|確認する必要があります)/,
+    /投稿を(?:完成|作成)することはできません/,
+    /(?:元台本|候補台本|宝石ノウハウ)を指定してください/,
+    /(?:既存|新規).{0,12}台本に基づく投稿/,
+  ].some((pattern) => pattern.test(text));
+}
+
+export function validationErrorsForDraft(errors: readonly string[], draftNumber: number): string[] {
+  const prefix = `投稿${draftNumber}:`;
+  return errors.filter((error) => error.startsWith(prefix));
+}
+
 export function validateGeneratedDrafts(
   drafts: GeneratedDraft[],
   count: number,
@@ -450,6 +466,7 @@ export function validateGeneratedDrafts(
     if (mainLength > 50) errors.push(`${label}: メインが${mainLength}文字です`);
     if (comment1Length < 370 || comment1Length > 500) errors.push(`${label}: コメント1が${comment1Length}文字です`);
     if (comment2Length < 370 || comment2Length > 500) errors.push(`${label}: コメント2が${comment2Length}文字です`);
+    if (isGenerationRefusal(draft)) errors.push(`${label}: 元台本に基づく投稿ではなく生成不能の説明文になっています`);
     const normalized = normalizeForDuplicateCheck(`${draft.mainText}${draft.comment1}${draft.comment2}`);
     if (normalizedBodies.has(normalized)) errors.push(`${label}: 生成本文が別投稿と重複しています`);
     normalizedBodies.add(normalized);
@@ -493,7 +510,8 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
     '新規台本は最大1件です。新規台本が非重複なら優先し、残りは既存の未使用台本から選んでください。',
     'sourcePageIdは入力値を完全一致で返してください。',
     'この実行では、メインは最低文字数なし・最大50文字を最優先ルールとします。1行だけでも構いません。',
-    'コメント1とコメント2は各370〜500文字、狙いは420〜460文字とします。',
+    'コメント1とコメント2は、空白・改行・全角空白を除外して各370〜500文字、狙いは420〜460文字とします。',
+    '入力不足・作成不能・元台本の指定依頼など、システム向けの説明を投稿本文に書いてはいけません。必ず選んだsourcePageIdのscriptに基づく投稿を完成させてください。',
     '出力は指定されたJSONスキーマだけにしてください。',
   ].join('\n\n');
   const generationPrompt = JSON.stringify({
@@ -518,13 +536,14 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
   await recordUsage({ operation: 'draft_generation', model, usage: result.usage, batchId });
   let generated = (result.json as { drafts?: GeneratedDraft[] }).drafts || [];
   let validationErrors = validateGeneratedDrafts(generated, count, allowedSourceIds);
-  if (validationErrors.length) {
+  const repairFailures: string[] = [];
+  for (let attempt = 1; validationErrors.length && attempt <= MAX_GENERATION_REPAIR_ATTEMPTS; attempt += 1) {
     try {
       const repaired = await callOpenAI({
         model,
         schemaName: 'yoko_threads_drafts_repaired',
         schema: generationSchema(count, allowedSourceIds),
-        instructions: `${generationInstructions}\n\n前回出力の品質エラーだけを修正し、事実や中心主張は変えないでください。sourcePageIdは許可されたIDから変更しないでください。文字数不足は内容の具体化で補い、水増しや同じ説明の反復は禁止です。`,
+        instructions: `${generationInstructions}\n\n自動修正${attempt}/${MAX_GENERATION_REPAIR_ATTEMPTS}です。前回出力の品質エラーをすべて修正し、事実や中心主張は変えないでください。sourcePageIdは許可されたIDから変更しないでください。文字数は空白・改行・全角空白を除外して数え、コメント1・2を各420〜460文字に収めてください。文字数不足は元台本にある内容の具体化で補い、水増しや同じ説明の反復は禁止です。生成不能の説明文は、選択済みsourcePageIdのscriptに基づく完成稿へ置き換えてください。`,
         prompt: JSON.stringify({
           previousOutput: generated,
           validationErrors,
@@ -542,11 +561,11 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
         generated = repairedDrafts;
         validationErrors = repairedErrors;
       } else {
-        validationErrors = [...validationErrors, '自動修正結果の構造が不正だったため初稿を保存しました'];
+        repairFailures.push(`自動修正${attempt}回目の構造が不正でした`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '自動修正に失敗しました';
-      validationErrors = [...validationErrors, `自動修正エラー: ${message}`];
+      repairFailures.push(`自動修正${attempt}回目のエラー: ${message}`);
     }
   }
   const structuralErrors = validationErrors.filter((error) =>
@@ -557,6 +576,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
   if (selected.length !== count) throw new Error('OpenAIが候補外の元台本を返しました');
   if (selected.filter((source) => source.source_origin === 'new').length > 1) throw new Error('新規台本が2件以上選ばれました');
   const generatedBySource = new Map(generated.map((draft) => [draft.sourcePageId, draft]));
+  const generationWarnings = validationErrors.length ? [...validationErrors, ...repairFailures] : [];
 
   const now = new Date().toISOString();
   const draftRows = selected.map((source, index) => {
@@ -577,7 +597,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
       line_message_id: null,
       schedule_id: null,
       thread_id: null,
-      last_error: validationErrors.length ? validationErrors.join(' / ') : null,
+      last_error: validationErrorsForDraft(validationErrors, index + 1).join(' / ') || null,
       created_at: now,
       updated_at: now,
     };
@@ -585,7 +605,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
   await client.dataset(DATASET).table(BATCH_TABLE).insert([{
     batch_id: batchId,
     user_id: YOKO_ANALYCA_USER_ID,
-    status: validationErrors.length ? 'generated_with_warnings' : 'generated',
+    status: generationWarnings.length ? 'generated_with_warnings' : 'generated',
     requested_count: count,
     created_count: count,
     created_by: 'analyca-ui',

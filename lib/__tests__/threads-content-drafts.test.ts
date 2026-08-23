@@ -10,6 +10,7 @@ import {
   styleAuditBaseline,
   validateGeneratedDrafts,
   validateYokoStyleCandidate,
+  validationErrorsForDraft,
   type YokoVoiceEvidence,
 } from '../threads-content-drafts';
 
@@ -51,6 +52,21 @@ test('コメントは370〜500文字を許可する', () => {
   assert.deepEqual(validateGeneratedDrafts([draft()], 1), []);
   assert.match(validateGeneratedDrafts([draft({ comment1: 'あ'.repeat(369) })], 1).join(' / '), /コメント1が369文字/);
   assert.match(validateGeneratedDrafts([draft({ comment2: 'い'.repeat(501) })], 1).join(' / '), /コメント2が501文字/);
+});
+
+test('生成不能の説明文を投稿として受け入れない', () => {
+  const errors = validateGeneratedDrafts([draft({
+    theme: '既存未使用台本に基づく投稿',
+    comment1: `入力された元台本には本文がありません。${'あ'.repeat(370)}`,
+  })], 1);
+  assert.match(errors.join(' / '), /生成不能の説明文/);
+});
+
+test('生成エラーは該当する投稿だけに割り当てる', () => {
+  const errors = ['投稿2: コメント1が369文字です', '投稿6: 生成不能の説明文になっています'];
+  assert.deepEqual(validationErrorsForDraft(errors, 1), []);
+  assert.deepEqual(validationErrorsForDraft(errors, 2), ['投稿2: コメント1が369文字です']);
+  assert.deepEqual(validationErrorsForDraft(errors, 6), ['投稿6: 生成不能の説明文になっています']);
 });
 
 test('生成結果の元台本IDを候補一覧に限定する', () => {

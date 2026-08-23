@@ -163,7 +163,7 @@ test('「偽物でも加工でもありません」も硬い否定として止�
 });
 
 test('短い改行と会話調の否定を含む本人文体候補を通す', () => {
-  const conversationalLines = [
+  const conversationalBlock = [
     'まず結論から言うと、',
     'ここだけは見てください。',
     '同じに見えても、',
@@ -174,11 +174,21 @@ test('短い改行と会話調の否定を含む本人文体候補を通す', ()
     '全部ダメって意味じゃないです。',
     '大事なのは、',
     '何を優先するかです。',
-  ].join('\n');
+  ];
+  const conversationalLines = Array.from({ length: 5 }, () => conversationalBlock).flat().join('\n');
   assert.deepEqual(validateYokoStyleCandidate({
     comment1: conversationalLines,
     comment2: conversationalLines,
   }), []);
+});
+
+test('本人文体候補もコメントごとの370〜500文字を必須にする', () => {
+  const shortLines = Array.from({ length: 20 }, () => '短い本人文体です。').join('\n');
+  const validLines = Array.from({ length: 45 }, () => '短い本人文体です。').join('\n');
+  assert.match(validateYokoStyleCandidate({
+    comment1: shortLines,
+    comment2: validLines,
+  }).join(' / '), /コメント1が規定の370〜500文字外/);
 });
 
 test('予約・公開・LINE送信済みの完成稿をLINE対象から外す', () => {

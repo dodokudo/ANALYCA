@@ -1064,6 +1064,7 @@ export function validateYokoStyleCandidate(
   draft: Pick<ThreadsContentDraft, 'comment1' | 'comment2'>,
 ): string[] {
   const combined = `${draft.comment1}\n${draft.comment2}`;
+  const commentLengths = [draft.comment1, draft.comment2].map(contentLength);
   const lines = combined.split('\n').map((line) => line.trim()).filter(Boolean);
   const commentLineCounts = [draft.comment1, draft.comment2].map((comment) => (
     comment.split('\n').map((line) => line.trim()).filter(Boolean).length
@@ -1076,6 +1077,11 @@ export function validateYokoStyleCandidate(
     : 0;
   const formalNegatives = combined.match(/ではありません|でもありません|わけではありません|必要はありません|限りません/g) || [];
   const issues: string[] = [];
+  commentLengths.forEach((length, index) => {
+    if (length < 370 || length > 500) {
+      issues.push(`コメント${index + 1}が規定の370〜500文字外です（${length}文字）`);
+    }
+  });
   if (commentLineCounts.some((count) => count < 10)) {
     issues.push(`本人実文より改行が少なすぎます（コメント別${commentLineCounts.join('行・')}行）`);
   }
@@ -1170,7 +1176,8 @@ export async function styleYokoDrafts(input: {
       '「ただし」「一方で」「もちろん」を段落ごとに機械的に置く説明文は禁止です。必要な接続だけ残し、「でも」「逆に」「つまり」「だからこそ」や短い言い切りを、voiceEvidenceで実際に使われている範囲で使ってください。',
       '変換後に自分で、各コメントの非空行数、平均行長、24文字以下の行の割合、硬い否定表現0件を数えてから出力してください。条件を満たさない稿は出力しないでください。',
       'メイン投稿は工藤さんが編集済みです。メイン投稿は出力せず、一字も変更しないでください。',
-      '承認済みコメントの事実・中心主張・論理の順序・結論・CTAは変更しないでください。',
+      'approvedは内容保持の正本です。事実・中心主張・論理の順序・結論・CTAは一つも追加・削除・変更しないでください。',
+      'currentCandidateは、前回の監査NG案または利用者が直接修正した案です。表現と改行の出発点にはできますが、approvedと照合し、欠けた内容は必ず戻してください。',
       'primarySourceは文の長短、間、テンポの参考だけに使い、承認済みコメントにない自己開示・事実・主張・具体表現を持ち込まないでください。',
       '指定された欄だけ、YOKO本人の文体に整えてください。指定外の欄は出力しないでください。',
       '語尾だけの機械的置換は禁止です。元台本の感情の流れ、文の長短、間、言い切り、問いかけを使ってください。',
@@ -1183,7 +1190,8 @@ export async function styleYokoDrafts(input: {
       fields,
       drafts: drafts.map((draft) => ({
         draftId: draft.id,
-        approved: currentStyleBaseline(draft),
+        approved: styleAuditBaseline(draft),
+        currentCandidate: currentStyleBaseline(draft),
         previousAuditError: draft.lastError,
         primarySource: draft.sources.find((source) => source.role === 'primary') || null,
         voiceEvidence: voiceByDraft.get(draft.id),

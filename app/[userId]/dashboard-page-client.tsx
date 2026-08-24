@@ -1543,15 +1543,19 @@ function ThreadsContent({
 
   const yokoAgencyMetrics = useMemo(() => {
     const daily = data?.yokoAgency?.daily || [];
+    const currentRows = daily.filter((row) => isDateInRange(row.date, dateRange));
+    const previousRows = daily.filter((row) => isDateInRange(row.date, previousDateRange));
     return {
-      linkClicks: daily
-        .filter((row) => isDateInRange(row.date, dateRange))
-        .reduce((sum, row) => sum + (row.linkClicks || 0), 0),
-      previousLinkClicks: daily
-        .filter((row) => isDateInRange(row.date, previousDateRange))
-        .reduce((sum, row) => sum + (row.linkClicks || 0), 0),
-      lineRegistrations: data?.yokoAgency?.lineRegistrations || 0,
-      previousLineRegistrations: data?.yokoAgency?.previousLineRegistrations || 0,
+      linkClicks: currentRows.reduce((sum, row) => sum + (row.linkClicks || 0), 0),
+      previousLinkClicks: previousRows.reduce((sum, row) => sum + (row.linkClicks || 0), 0),
+      lineRegistrations: currentRows.reduce(
+        (sum, row) => sum + (row.lineRegistrations || 0),
+        0,
+      ),
+      previousLineRegistrations: previousRows.reduce(
+        (sum, row) => sum + (row.lineRegistrations || 0),
+        0,
+      ),
     };
   }, [data?.yokoAgency, dateRange, previousDateRange]);
 
@@ -1998,7 +2002,7 @@ function ThreadsContent({
                 </dt>
                 <dd className="mt-1 md:mt-2 truncate text-sm md:text-2xl font-semibold text-[color:var(--color-text-primary)]">{displayedLineMetric.toLocaleString()}</dd>
                 <p className={`mt-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                  {isYamazakiDashboard ? `CVR: ${formatRate(lineCvr)} / ` : isYokoDashboard ? '前回取得比: ' : '前期間比: '}
+                  {isYamazakiDashboard ? `CVR: ${formatRate(lineCvr)} / ` : '前期間比: '}
                   {formatSigned(lineRegistrationDelta)}
                 </p>
                 <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[9px] font-medium md:text-xs ${lineRegistrationDelta >= 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>

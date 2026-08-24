@@ -6,8 +6,8 @@ import {
   LINK_LINE_OPTION_CODE,
   LINK_LINE_OPTION_NAME,
   LINK_LINE_OPTION_PRICE,
-  optionHasAccess,
   upsertLinkLineOptionSubscription,
+  userHasLinkLineOptionAccess,
 } from '@/lib/link-line-option';
 import { createSubscriptionFromToken } from '@/lib/univapay/client';
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ success: false, error: 'ユーザーが見つかりません' }, { status: 404 });
     }
-    if (optionHasAccess(currentOption)) {
+    if (userHasLinkLineOptionAccess(userId, currentOption)) {
       return NextResponse.json({
         success: true,
         alreadyActive: true,

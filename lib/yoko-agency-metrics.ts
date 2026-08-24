@@ -35,6 +35,11 @@ interface RegistrationSnapshotRow {
   registrations: unknown;
 }
 
+interface DailyRegistrationRow {
+  date: unknown;
+  registrations: unknown;
+}
+
 function parseCredentials(json: string): Record<string, unknown> {
   try {
     return JSON.parse(json);
@@ -68,6 +73,7 @@ function toDateString(value: unknown): string {
 
 export function summarizeYokoMetrics(
   clickRows: ClickRow[],
+  dailyRegistrationRows: DailyRegistrationRow[],
   registrationRows: RegistrationSnapshotRow[],
 ): YokoAgencyMetrics {
   const registrations = registrationRows
@@ -77,7 +83,15 @@ export function summarizeYokoMetrics(
     }))
     .filter((row) => row.date)
     .sort((a, b) => b.date.localeCompare(a.date));
-  const registrationByDate = new Map(registrations.map((row) => [row.date, row.registrations]));
+  const dailyRegistrations = dailyRegistrationRows
+    .map((row) => ({
+      date: toDateString(row.date),
+      registrations: toNumber(row.registrations),
+    }))
+    .filter((row) => row.date);
+  const registrationByDate = new Map(
+    dailyRegistrations.map((row) => [row.date, row.registrations]),
+  );
   const dailyMap = new Map<string, YokoAgencyDailyMetric>();
 
   for (const row of clickRows) {
@@ -89,7 +103,7 @@ export function summarizeYokoMetrics(
       lineRegistrations: registrationByDate.get(date) ?? toNumber(row.line_registrations),
     });
   }
-  for (const row of registrations) {
+  for (const row of dailyRegistrations) {
     const existing = dailyMap.get(row.date);
     dailyMap.set(row.date, {
       date: row.date,
@@ -109,7 +123,7 @@ export function summarizeYokoMetrics(
 }
 
 export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
-  const [clickResult, registrationResult] = await Promise.all([
+  const [clickResult, dailyRegistrationResult, registrationResult] = await Promise.all([
     bigquery.query({
       query: `
         SELECT
@@ -129,6 +143,27 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
     }),
     bigquery.query({
       query: `
+        WITH first_tagged AS (
+          SELECT
+            user_id,
+            MIN(snapshot_date) AS date
+          FROM \`${projectId}.${LSTEP_DATASET}.user_tags\`
+          WHERE tag_name = @tagName
+            AND tag_flag = 1
+          GROUP BY user_id
+        )
+        SELECT
+          date,
+          COUNT(*) AS registrations
+        FROM first_tagged
+        WHERE date >= DATE_SUB(CURRENT_DATE("Asia/Tokyo"), INTERVAL 365 DAY)
+        GROUP BY date
+        ORDER BY date
+      `,
+      params: { tagName: YOKO_TAG_NAME },
+    }),
+    bigquery.query({
+      query: `
         SELECT
           snapshot_date,
           COUNT(DISTINCT IF(tag_flag = 1, user_id, NULL)) AS registrations
@@ -144,6 +179,7 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
 
   return summarizeYokoMetrics(
     clickResult[0] as ClickRow[],
+    dailyRegistrationResult[0] as DailyRegistrationRow[],
     registrationResult[0] as RegistrationSnapshotRow[],
   );
 }

@@ -3,11 +3,11 @@ import {
   createOptionShortLink,
   getLinkLineOptionRecord,
   listOptionShortLinks,
-  optionHasAccess,
+  userHasLinkLineOptionAccess,
 } from '@/lib/link-line-option';
 
 async function requireOptionAccess(userId: string): Promise<boolean> {
-  return optionHasAccess(await getLinkLineOptionRecord(userId));
+  return userHasLinkLineOptionAccess(userId, await getLinkLineOptionRecord(userId));
 }
 
 export async function GET(request: NextRequest) {

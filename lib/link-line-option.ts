@@ -5,6 +5,10 @@ export const LINK_LINE_OPTION_CODE = 'link-line';
 export const LINK_LINE_OPTION_PRICE = 4980;
 export const LINK_LINE_OPTION_NAME = 'リンク計測・LINE連携オプション';
 
+const COMPLIMENTARY_LINK_LINE_USER_IDS = new Set([
+  '33833959932919231',
+]);
+
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID || 'mark-454114';
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
 const datasetName = 'analyca';
@@ -244,6 +248,14 @@ export function optionHasAccess(record: LinkLineOptionRecord | null, now = new D
   return !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime();
 }
 
+export function userHasLinkLineOptionAccess(
+  userId: string,
+  record: LinkLineOptionRecord | null,
+  now = new Date(),
+): boolean {
+  return COMPLIMENTARY_LINK_LINE_USER_IDS.has(userId) || optionHasAccess(record, now);
+}
+
 export async function getLinkLineOptionRecord(userId: string): Promise<LinkLineOptionRecord | null> {
   await ensureLinkLineOptionTables();
   const rows = await runQuery(
@@ -419,17 +431,19 @@ export async function getLinkLineOptionStatus(userId: string): Promise<LinkLineO
       : toNumber(row.line_followers),
   }));
   const latestLine = latestLineRows[0];
+  const hasAccess = userHasLinkLineOptionAccess(userId, record);
+  const isComplimentary = COMPLIMENTARY_LINK_LINE_USER_IDS.has(userId) && !optionHasAccess(record);
 
   return {
     optionCode: LINK_LINE_OPTION_CODE,
     name: LINK_LINE_OPTION_NAME,
     price: LINK_LINE_OPTION_PRICE,
-    status: record?.status || 'none',
+    status: record?.status || (isComplimentary ? 'complimentary' : 'none'),
     subscriptionId: record?.subscriptionId || null,
     startedAt: record?.startedAt || null,
     expiresAt: record?.expiresAt || null,
     canceledAt: record?.canceledAt || null,
-    hasAccess: optionHasAccess(record),
+    hasAccess,
     isCancelScheduled: record?.status.toLowerCase() === 'canceled' && optionHasAccess(record),
     lineConfigured: Boolean(settings?.token_verified_at),
     lineAccountName: settings?.line_account_name ? String(settings.line_account_name) : null,

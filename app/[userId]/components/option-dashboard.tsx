@@ -217,7 +217,11 @@ export default function OptionDashboard({
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      {option.isCancelScheduled ? '解約受付済み' : '利用中'}
+                      {option.status === 'complimentary'
+                        ? '無償付与'
+                        : option.isCancelScheduled
+                          ? '解約受付済み'
+                          : '利用中'}
                     </span>
                     {option.lineConfigured && (
                       <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -226,7 +230,9 @@ export default function OptionDashboard({
                     )}
                   </div>
                   <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">
-                    {option.isCancelScheduled
+                    {option.status === 'complimentary'
+                      ? 'このアカウントには無償で付与されています'
+                      : option.isCancelScheduled
                       ? `${formatDate(option.expiresAt)}まで利用できます`
                       : `次回更新の目安: ${formatDate(option.expiresAt)}`}
                   </p>
@@ -239,7 +245,7 @@ export default function OptionDashboard({
                   >
                     リンク登録を開く
                   </button>
-                  {!option.isCancelScheduled && (
+                  {!option.isCancelScheduled && option.status !== 'complimentary' && (
                     <button
                       type="button"
                       onClick={() => setShowCancelConfirm(true)}

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getLinkLineOptionRecord,
   getLinkLineOptionStatus,
-  optionHasAccess,
   saveLineAccessToken,
   syncLineFriendsForUser,
+  userHasLinkLineOptionAccess,
   validateLineAccessToken,
 } from '@/lib/link-line-option';
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const option = await getLinkLineOptionRecord(userId);
-    if (!optionHasAccess(option)) {
+    if (!userHasLinkLineOptionAccess(userId, option)) {
       return NextResponse.json(
         { success: false, error: 'この機能を使うにはオプション契約が必要です' },
         { status: 403 },

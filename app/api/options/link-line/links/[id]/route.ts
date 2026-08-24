@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   deactivateOptionShortLink,
   getLinkLineOptionRecord,
-  optionHasAccess,
   updateOptionShortLink,
+  userHasLinkLineOptionAccess,
 } from '@/lib/link-line-option';
 
 interface RouteContext {
@@ -17,7 +17,7 @@ async function parseAuthorizedRequest(request: NextRequest): Promise<{
   const body = await request.json() as Record<string, unknown>;
   const userId = typeof body.userId === 'string' ? body.userId.trim() : '';
   if (!userId) throw new Error('userId is required');
-  if (!optionHasAccess(await getLinkLineOptionRecord(userId))) {
+  if (!userHasLinkLineOptionAccess(userId, await getLinkLineOptionRecord(userId))) {
     throw new Error('この機能を使うにはオプション契約が必要です');
   }
   return { userId, body };

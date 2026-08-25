@@ -11,6 +11,12 @@ import {
   YOKO_ANALYCA_USER_ID,
   type YokoNotionSourceRecord,
 } from '@/lib/yoko-notion-ledger';
+import {
+  isEditableStyleAuditState,
+  manualStyleAuditFailureMessage,
+  MANUAL_STYLE_AUDIT_PENDING_PREFIX,
+  STORED_STYLE_AUDIT_ERROR_PREFIX,
+} from '@/lib/yoko-style-review';
 
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
@@ -19,7 +25,6 @@ const BATCH_TABLE = 'threads_content_batches';
 const DRAFT_TABLE = 'threads_content_drafts_v2';
 const SOURCE_TABLE = 'threads_content_draft_sources';
 const USAGE_TABLE = 'threads_ai_usage';
-const STORED_STYLE_AUDIT_ERROR_PREFIX = '本人文体監査NG（監査案保存済み）:';
 const MAX_GENERATION_REPAIR_ATTEMPTS = 2;
 
 export type ThreadsContentStatus = 'review' | 'approved' | 'style_review' | 'stock' | 'discarded' | 'ready' | 'line_sent';
@@ -857,6 +862,18 @@ export async function updateThreadsContentDraft(input: {
   }
   const nextStatus = input.status || current.status;
   const takingApprovedSnapshot = current.status !== 'approved' && nextStatus === 'approved';
+  const nextCandidate = {
+    comment1: input.comment1 ?? current.comment1,
+    comment2: input.comment2 ?? current.comment2,
+  };
+  const savingStyleCorrection = input.markSaved === true
+    && current.status === 'approved'
+    && current.approvedSnapshot !== null
+    && hasStoredStyleAuditCandidate(current.lastError);
+  const correctionIssues = savingStyleCorrection ? validateYokoStyleCandidate(nextCandidate) : [];
+  const pendingAuditMessage = correctionIssues.length
+    ? `${MANUAL_STYLE_AUDIT_PENDING_PREFIX} ${correctionIssues.join('、')}`
+    : `${MANUAL_STYLE_AUDIT_PENDING_PREFIX} 文字数・改行・表現の自動チェックは通過しました。保存した本文をそのまま再監査してください。`;
   await client.query({
     query: `
       UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
@@ -869,7 +886,7 @@ export async function updateThreadsContentDraft(input: {
         approved_comment1 = IF(@takeSnapshot, @comment1, approved_comment1),
         approved_comment2 = IF(@takeSnapshot, @comment2, approved_comment2),
         manual_saved_at = IF(@markSaved, CURRENT_TIMESTAMP(), manual_saved_at),
-        last_error = IF(@preserveError, last_error, NULL),
+        last_error = IF(@savingStyleCorrection, @pendingAuditMessage, IF(@preserveError, last_error, NULL)),
         updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @userId AND draft_id = @draftId
     `,
@@ -884,6 +901,8 @@ export async function updateThreadsContentDraft(input: {
       takeSnapshot: takingApprovedSnapshot,
       markSaved: input.markSaved === true,
       preserveError: input.preserveError === true,
+      savingStyleCorrection,
+      pendingAuditMessage,
     },
   });
   return getDraft(input.draftId);
@@ -1008,7 +1027,7 @@ export function styleAuditBaseline(
 }
 
 export function hasStoredStyleAuditCandidate(lastError: string | null): boolean {
-  return Boolean(lastError?.startsWith(STORED_STYLE_AUDIT_ERROR_PREFIX));
+  return isEditableStyleAuditState(lastError);
 }
 
 async function listYokoVoiceEvidence(): Promise<YokoVoiceEvidence[]> {
@@ -1120,6 +1139,26 @@ async function setDraftStyleAuditError(
   return getDraft(draftId);
 }
 
+async function setDraftAuditErrorWithoutChangingContent(
+  draftId: string,
+  message: string,
+): Promise<ThreadsContentDraft> {
+  await client.query({
+    query: `
+      UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
+      SET last_error = @message,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @userId AND draft_id = @draftId
+    `,
+    params: {
+      userId: YOKO_ANALYCA_USER_ID,
+      draftId,
+      message,
+    },
+  });
+  return getDraft(draftId);
+}
+
 async function syncApprovedStyleBaseline(draft: ThreadsContentDraft): Promise<ThreadsContentDraft> {
   await client.query({
     query: `
@@ -1153,9 +1192,10 @@ export async function styleYokoDrafts(input: {
   if (fields.length === 0) throw new Error('文体調整する欄を選んでください');
   const loadedDrafts = await Promise.all(input.draftIds.map(getDraft));
   if (loadedDrafts.some((draft) => draft.status !== 'approved')) throw new Error('採用済みの投稿だけ文体調整できます');
-  const drafts = await Promise.all(loadedDrafts.map((draft) => (
-    hasStoredStyleAuditCandidate(draft.lastError) ? draft : syncApprovedStyleBaseline(draft)
-  )));
+  if (loadedDrafts.some((draft) => hasStoredStyleAuditCandidate(draft.lastError))) {
+    throw new Error('修正稿はAIで書き換えず、「保存した修正稿を監査」から確認してください');
+  }
+  const drafts = await Promise.all(loadedDrafts.map(syncApprovedStyleBaseline));
   const [corePages, voiceCorpus] = await Promise.all([
     getYokoNotionCorePages(),
     listYokoVoiceEvidence(),
@@ -1292,6 +1332,91 @@ export async function styleYokoDrafts(input: {
     }));
   }
   return updated;
+}
+
+export async function auditSavedYokoDraft(draftId: string): Promise<ThreadsContentDraft> {
+  const draft = await getDraft(draftId);
+  if (draft.status !== 'approved' || !draft.approvedSnapshot) {
+    throw new Error('採用済みの修正稿だけ再監査できます');
+  }
+
+  const deterministicIssues = validateYokoStyleCandidate(draft);
+  if (deterministicIssues.length) {
+    return setDraftAuditErrorWithoutChangingContent(
+      draft.id,
+      manualStyleAuditFailureMessage(deterministicIssues),
+    );
+  }
+
+  openAIKey();
+
+  const [corePages, voiceCorpus] = await Promise.all([
+    getYokoNotionCorePages(),
+    listYokoVoiceEvidence(),
+  ]);
+  const voiceEvidence = selectYokoVoiceEvidence(draft, voiceCorpus);
+  if (voiceEvidence.length < 3) {
+    throw new Error(`投稿${draft.number}: 本人実文の根拠が3件未満です`);
+  }
+
+  const auditModel = process.env.OPENAI_AUDIT_MODEL || 'gpt-5.6-luna';
+  const audit = await callOpenAI({
+    model: auditModel,
+    schemaName: 'yoko_saved_style_audit',
+    schema: styleAuditSchema(),
+    instructions: [
+      corePages.styleGuide.bodyText,
+      'あなたは保存済みの修正稿を監査する担当者です。文章は修正・再生成せず、合否だけを判定してください。',
+      '監査対象はcurrentのcomment1とcomment2だけです。メイン投稿は対象外です。',
+      'contentPreservedはapprovedとcurrentの意味を比較します。新しい事実・数値・本人属性・中心主張・結論・CTAが追加、削除、変更された時だけfalseにしてください。',
+      '370〜500文字に整えるための言い換え、言葉の補足、理由の明文化は、新しい事実や主張を加えていない限りcontentPreservedの不合格理由にしないでください。',
+      'styleMatchesはvoiceEvidenceの本人実文とcurrentを直接比較し、改行、呼吸、文の長短、言い切り、問いかけが合うかを判定してください。',
+      'evidenceGroundedはvoiceEvidenceの最低3件に本人文体の具体的な根拠がある場合だけtrueにしてください。',
+      '句読点、かぎ括弧、改行、文の分割、接続詞、語尾の変更は、意味と論理の順序が同じなら不合格理由にしないでください。',
+      'issuesには、falseにした具体的な理由とcurrentの該当箇所だけを書いてください。',
+      '出力は指定されたJSONスキーマだけにしてください。',
+    ].join('\n\n'),
+    prompt: JSON.stringify({
+      drafts: [{
+        draftId: draft.id,
+        approved: selectedStyleText(styleAuditBaseline(draft), ['comment1', 'comment2']),
+        current: selectedStyleText(draft, ['comment1', 'comment2']),
+        primarySource: draft.sources.find((source) => source.role === 'primary') || null,
+        voiceEvidence,
+        deterministicIssues,
+      }],
+    }),
+  });
+  await recordUsage({
+    operation: 'style_audit',
+    model: auditModel,
+    usage: audit.usage,
+    batchId: draft.batchId,
+    draftId: draft.id,
+  });
+
+  const auditItem = (audit.json as {
+    drafts?: Array<{
+      draftId: string;
+      contentPreserved: boolean;
+      styleMatches: boolean;
+      evidenceGrounded: boolean;
+      issues: string[];
+    }>;
+  }).drafts?.find((item) => item.draftId === draft.id);
+  if (!auditItem?.contentPreserved || !auditItem.styleMatches || !auditItem.evidenceGrounded) {
+    return setDraftAuditErrorWithoutChangingContent(
+      draft.id,
+      manualStyleAuditFailureMessage(auditItem?.issues || []),
+    );
+  }
+
+  return updateThreadsContentDraft({
+    draftId: draft.id,
+    comment1: draft.comment1,
+    comment2: draft.comment2,
+    status: 'style_review',
+  });
 }
 
 export { isDraftReadyForLine, selectReadyDraftsForLine };

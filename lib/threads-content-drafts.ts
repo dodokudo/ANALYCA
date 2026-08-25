@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { BigQuery } from '@google-cloud/bigquery';
+import {
+  isDraftReadyForLine,
+  selectReadyDraftsForLine,
+} from '@/lib/line-draft-selection';
 import { getYokoNotionCorePages } from '@/lib/yoko-notion';
 import {
   listYokoNotionSources,
@@ -1290,20 +1294,11 @@ export async function styleYokoDrafts(input: {
   return updated;
 }
 
-export function isDraftReadyForLine(draft: Pick<ThreadsContentDraft, 'status' | 'lineMessageId' | 'scheduleId' | 'threadId'>) {
-  return draft.status === 'ready' && !draft.lineMessageId && !draft.scheduleId && !draft.threadId;
-}
+export { isDraftReadyForLine, selectReadyDraftsForLine };
 
 export async function getReadyDraftsForLine(draftIds?: string[]): Promise<ThreadsContentDraft[]> {
   const result = await listThreadsContentDrafts({ status: 'ready', pageSize: 100 });
-  const eligible = result.drafts.filter(isDraftReadyForLine);
-  if (!draftIds?.length) return eligible;
-  const requested = new Set(draftIds);
-  const selected = eligible.filter((draft) => requested.has(draft.id));
-  if (selected.length !== requested.size) {
-    throw new Error('完成前、LINE送信済み、予約済み、または公開済みの投稿が含まれています');
-  }
-  return selected;
+  return selectReadyDraftsForLine(result.drafts, draftIds);
 }
 
 export async function linkThreadsContentDraftDelivery(input: {

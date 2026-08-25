@@ -80,6 +80,10 @@ function apiError(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+function canSendDraftToLine(draft: CreationDraft): boolean {
+  return draft.status === 'ready' && !draft.lineMessageId && !draft.scheduleId && !draft.threadId;
+}
+
 export default function ThreadsContentCreationTab({ userId }: { userId: string }) {
   const [drafts, setDrafts] = useState<CreationDraft[]>([]);
   const [filter, setFilter] = useState<'all' | DraftStatus>('all');
@@ -101,6 +105,9 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     requestId: string;
     drafts: Array<CreationDraft & { candidateScheduledAtJst: string }>;
   }>(null);
+  const [linePickerOpen, setLinePickerOpen] = useState(false);
+  const [lineCandidates, setLineCandidates] = useState<CreationDraft[]>([]);
+  const [selectedLineDraftIds, setSelectedLineDraftIds] = useState<string[]>([]);
   const [config, setConfig] = useState<null | {
     notion: { connected: boolean };
     openai: { configured: boolean; draftModel: string; styleModel: string; auditModel: string };
@@ -142,10 +149,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
 
   const selectedDraft = drafts.find((draft) => draft.id === selectedId) || drafts[0] || null;
   const approvedCount = drafts.filter((draft) => draft.status === 'approved').length;
-  const readyForLine = drafts.filter((draft) => (
-    draft.status === 'ready' && !draft.lineMessageId && !draft.scheduleId && !draft.threadId
-  ));
-  const readyCount = readyForLine.length;
+  const readyCount = statusCounts.ready || drafts.filter(canSendDraftToLine).length;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   const updateLocalDraft = (id: string, patch: Partial<CreationDraft>) => {
@@ -287,8 +291,44 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     }
   };
 
-  const prepareLinePreview = async () => {
-    const draftIds = readyForLine.map((draft) => draft.id);
+  const openLinePicker = async () => {
+    setWorking('line-picker');
+    setError(null);
+    setNotice(null);
+    try {
+      const params = new URLSearchParams({
+        userId,
+        status: 'ready',
+        page: '1',
+        pageSize: '100',
+      });
+      const response = await fetch(`/api/threads/content-drafts?${params}`, { cache: 'no-store' });
+      const payload = await response.json() as ListResponse | { error?: string };
+      if (!response.ok) throw new Error(apiError(payload, '完成稿の取得に失敗しました'));
+      const candidates = (payload as ListResponse).drafts.filter(canSendDraftToLine);
+      if (candidates.length === 0) throw new Error('LINEへ送れる完成稿がありません');
+      setLineCandidates(candidates);
+      setSelectedLineDraftIds([]);
+      setLinePickerOpen(true);
+    } catch (pickerError) {
+      setError(pickerError instanceof Error ? pickerError.message : '完成稿の取得に失敗しました');
+    } finally {
+      setWorking(null);
+    }
+  };
+
+  const toggleLineDraft = (draftId: string) => {
+    setSelectedLineDraftIds((current) => current.includes(draftId)
+      ? current.filter((id) => id !== draftId)
+      : [...current, draftId]);
+  };
+
+  const selectFirstLineDrafts = (count: number) => {
+    setSelectedLineDraftIds(lineCandidates.slice(0, count).map((draft) => draft.id));
+  };
+
+  const prepareLinePreview = async (draftIds: string[]) => {
+    if (draftIds.length === 0) return;
     setWorking('line');
     setError(null);
     try {
@@ -307,6 +347,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
       if (!response.ok || !payload.destination || !payload.drafts || !payload.format || !payload.requestId) {
         throw new Error(apiError(payload, 'LINEプレビューの作成に失敗しました'));
       }
+      setLinePickerOpen(false);
       setLinePreview({ destination: payload.destination, format: payload.format, requestId: payload.requestId, drafts: payload.drafts });
     } catch (previewError) {
       setError(previewError instanceof Error ? previewError.message : 'LINEプレビューの作成に失敗しました');
@@ -391,10 +432,10 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               <button
                 type="button"
                 disabled={readyCount === 0 || !!working}
-                onClick={prepareLinePreview}
+                onClick={() => void openLinePicker()}
                 className="h-10 shrink-0 rounded-[var(--radius-sm)] bg-[#06C755] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {working === 'line' ? 'プレビュー作成中…' : `${readyCount}件をLINEへ送る`}
+                {working === 'line-picker' ? '完成稿を読込中…' : 'LINE送信分を選ぶ'}
               </button>
             </div>
           </div>
@@ -599,6 +640,73 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
           {config?.openai.configured ? <span className="rounded-full border border-[color:var(--color-border)] bg-slate-50 px-3 py-2 text-slate-500">生成 {config.openai.draftModel} / 文体 {config.openai.styleModel} / 監査 {config.openai.auditModel}</span> : null}
         </div>
       </section>
+
+      {linePickerOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="line-picker-title">
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="border-b border-[color:var(--color-border)] p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 id="line-picker-title" className="text-base font-semibold text-[color:var(--color-text-primary)]">今回LINEへ送る投稿を選択</h3>
+                  <p className="mt-1 text-xs leading-5 text-[color:var(--color-text-secondary)]">
+                    完成済み{lineCandidates.length}件のうち、クライアントに確認してもらう分だけ選びます。選ばなかった投稿は「完成」のまま残ります。
+                  </p>
+                </div>
+                <button type="button" disabled={working === 'line'} onClick={() => setLinePickerOpen(false)} className="shrink-0 rounded-lg border px-3 py-2 text-sm disabled:opacity-40">閉じる</button>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[#06C755]/10 px-3 py-2 text-xs font-bold text-emerald-700">選択中 {selectedLineDraftIds.length}件</span>
+                <button type="button" disabled={lineCandidates.length < 4 || working === 'line'} onClick={() => selectFirstLineDrafts(4)} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:opacity-40">先頭4件</button>
+                <button type="button" disabled={lineCandidates.length < 5 || working === 'line'} onClick={() => selectFirstLineDrafts(5)} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:opacity-40">先頭5件</button>
+                <button type="button" disabled={selectedLineDraftIds.length === 0 || working === 'line'} onClick={() => setSelectedLineDraftIds([])} className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-xs font-semibold text-[color:var(--color-text-secondary)] disabled:opacity-40">選択を解除</button>
+              </div>
+              {error ? <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p> : null}
+            </div>
+
+            <div className="overflow-y-auto p-5">
+              <div className="grid gap-3 md:grid-cols-2">
+                {lineCandidates.map((draft) => {
+                  const selectionIndex = selectedLineDraftIds.indexOf(draft.id);
+                  const isSelectedForLine = selectionIndex >= 0;
+                  return (
+                    <label key={draft.id} className={`cursor-pointer rounded-xl border p-4 transition ${isSelectedForLine ? 'border-emerald-400 bg-emerald-50/60 ring-2 ring-emerald-100' : 'border-[color:var(--color-border)] bg-white hover:border-emerald-200'}`}>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelectedForLine}
+                          disabled={working === 'line'}
+                          onChange={() => toggleLineDraft(draft.id)}
+                          className="mt-1 h-4 w-4 rounded border-slate-300 accent-emerald-600"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-[color:var(--color-text-secondary)]">投稿 #{String(draft.number).padStart(2, '0')}</span>
+                            {isSelectedForLine ? <span className="rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white">送信 {selectionIndex + 1}</span> : null}
+                          </div>
+                          <p className="mt-2 text-sm font-semibold text-[color:var(--color-text-primary)]">{draft.theme}</p>
+                          <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-[color:var(--color-text-secondary)]">{draft.mainText}</p>
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-[color:var(--color-border)] bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-[color:var(--color-text-secondary)]">次の画面で、送信先・内容・予約候補日時を確認できます。</p>
+              <button
+                type="button"
+                disabled={selectedLineDraftIds.length === 0 || working === 'line'}
+                onClick={() => void prepareLinePreview(selectedLineDraftIds)}
+                className="h-10 shrink-0 rounded-lg bg-[#06C755] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {working === 'line' ? 'プレビュー作成中…' : `選んだ${selectedLineDraftIds.length}件を確認`}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {linePreview ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true">

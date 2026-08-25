@@ -675,6 +675,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get('tab') as Channel | null;
   const isSyncing = searchParams?.get('syncing') === 'true';
+  const suppressLineRegistrationModal = userId === YOKO_ANALYCA_USER_ID;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -698,6 +699,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   // 初回起動なら1分経過後・2回目以降の起動なら即時に表示する。
   // 閉じたら同セッション中は再表示しない。
   useEffect(() => {
+    if (suppressLineRegistrationModal) return;
     if (!user || user.line_linked !== false) return; // null(判定不能)時は出さない
     const isPaid = user.subscription_status === 'current' || user.subscription_status === 'trial' || user.subscription_status === 'active';
     if (!isPaid) return;
@@ -1158,7 +1160,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       </aside>
 
       {/* LINE登録促進モーダル(有料会員・LINE未紐付けのみ) */}
-      {showLineModal && (
+      {!suppressLineRegistrationModal && showLineModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={dismissLineModal} />
           <div className="relative bg-[color:var(--color-surface)] rounded-2xl shadow-xl max-w-md w-full p-6 text-center">

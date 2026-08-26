@@ -1,4 +1,5 @@
 import { BigQuery } from '@google-cloud/bigquery';
+import { scheduledPostTextLengthErrors, validateThreadsTextLength } from '@/lib/threads-text-length';
 
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
@@ -296,6 +297,19 @@ export async function insertScheduledPost(params: {
   comment7?: string;
 }) {
   await ensureTable();
+  const textErrors = scheduledPostTextLengthErrors({
+    mainText: params.mainText,
+    comment1: params.comment1,
+    comment2: params.comment2,
+    comment3: params.comment3,
+    comment4: params.comment4,
+    comment5: params.comment5,
+    comment6: params.comment6,
+    comment7: params.comment7,
+  });
+  if (textErrors.length > 0) {
+    throw new Error(`予約保存前チェックNG: ${textErrors.join('、')}`);
+  }
   const sql = `
     INSERT INTO \`${projectId}.${DATASET}.${TABLE}\`
     (schedule_id, user_id, scheduled_time, status, main_text,
@@ -374,6 +388,24 @@ export async function updateScheduledPost(
   },
 ) {
   await ensureTable();
+  const textFieldsToValidate = [
+    ['メイン投稿', params.mainText],
+    ['コメント1', params.comment1],
+    ['コメント2', params.comment2],
+    ['コメント3', params.comment3],
+    ['コメント4', params.comment4],
+    ['コメント5', params.comment5],
+    ['コメント6', params.comment6],
+    ['コメント7', params.comment7],
+  ] as const;
+  const textErrors = textFieldsToValidate.flatMap(([label, value]) => {
+    if (value === undefined || value === null) return [];
+    const error = validateThreadsTextLength(label, value);
+    return error ? [error] : [];
+  });
+  if (textErrors.length > 0) {
+    throw new Error(`予約更新前チェックNG: ${textErrors.join('、')}`);
+  }
   const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP()'];
   const queryParams: Record<string, unknown> = { scheduleId };
   const types: Record<string, string> = {};

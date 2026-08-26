@@ -84,6 +84,10 @@ function mapItem(raw: Record<string, unknown>): ScheduledPost {
     comment5: String(raw.comment5 ?? ''),
     comment6: String(raw.comment6 ?? ''),
     comment7: String(raw.comment7 ?? ''),
+    mainThreadId: raw.main_thread_id ? String(raw.main_thread_id) : null,
+    comment1ThreadId: raw.comment1_thread_id ? String(raw.comment1_thread_id) : null,
+    comment2ThreadId: raw.comment2_thread_id ? String(raw.comment2_thread_id) : null,
+    errorMessage: raw.error_message ? String(raw.error_message) : null,
     createdAt: String(raw.created_at ?? ''),
     updatedAt: String(raw.updated_at ?? ''),
   };

@@ -22,6 +22,10 @@ export type ScheduledPost = {
   comment5: string;
   comment6: string;
   comment7: string;
+  mainThreadId: string | null;
+  comment1ThreadId: string | null;
+  comment2ThreadId: string | null;
+  errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
 };

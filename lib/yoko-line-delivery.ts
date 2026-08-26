@@ -6,6 +6,7 @@ import {
   listScheduledPosts,
 } from '@/lib/bigqueryScheduledPosts';
 import { createThreadsScheduleApproval } from '@/lib/threadsScheduleApprovals';
+import { countThreadsText } from '@/lib/threads-text-length';
 import { formatDateTimePickerValue } from '@/lib/threadsLineScheduling';
 import { YOKO_ANALYCA_USER_ID } from '@/lib/yoko-notion-ledger';
 
@@ -81,7 +82,7 @@ function formatCandidateLabel(value: string) {
 }
 
 function countText(value: string) {
-  return Array.from(value.replace(/[\s\u3000]/g, '')).length;
+  return countThreadsText(value);
 }
 
 function bodySection(label: string, value: string) {

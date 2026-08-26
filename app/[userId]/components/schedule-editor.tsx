@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SchedulePreviewData, ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
 import { classNames } from '@/lib/classNames';
+import { countThreadsText, THREADS_TEXT_LIMIT } from '@/lib/threads-text-length';
 
-const MAX_LENGTH = 500;
+const MAX_LENGTH = THREADS_TEXT_LIMIT;
 const MAX_MEDIA_ITEMS = 10;
 const MAX_COMMENT_MEDIA_ITEMS = 2;
 
@@ -113,14 +114,17 @@ export function ScheduleEditor({
     setError(null);
   }, [selectedDate, selectedItem]);
 
-  const mainLength = mainText.length;
-  const comment1Length = comment1.length;
-  const comment2Length = comment2.length;
-  const comment3Length = comment3.length;
-  const comment4Length = comment4.length;
-  const comment5Length = comment5.length;
-  const comment6Length = comment6.length;
-  const comment7Length = comment7.length;
+  const mainLength = countThreadsText(mainText);
+  const comment1Length = countThreadsText(comment1);
+  const comment2Length = countThreadsText(comment2);
+  const comment3Length = countThreadsText(comment3);
+  const comment4Length = countThreadsText(comment4);
+  const comment5Length = countThreadsText(comment5);
+  const comment6Length = countThreadsText(comment6);
+  const comment7Length = countThreadsText(comment7);
+  const hasPublishedPart = Boolean(
+    selectedItem?.mainThreadId || selectedItem?.comment1ThreadId || selectedItem?.comment2ThreadId,
+  );
 
   useEffect(() => {
     if (!onPreviewChange) return;
@@ -257,6 +261,13 @@ export function ScheduleEditor({
       setError('未入力または文字数超過の項目があります。');
       return;
     }
+    if (status === 'scheduled') {
+      const scheduledDate = new Date(`${scheduledAt}:00+09:00`);
+      if (Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now()) {
+        setError('予約日時を現在より後に変更してください。');
+        return;
+      }
+    }
     setError(null);
     await onSave({
       scheduleId: selectedItem?.scheduleId,
@@ -366,6 +377,13 @@ export function ScheduleEditor({
         </p>
       </header>
 
+      {hasPublishedPart ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+          メイン投稿またはコメント1は投稿済みです。「今すぐ投稿」は新しい親投稿を作るため使用できません。
+          不足コメントを500文字以内に修正し、予約日時を未来に変更して「続きを予約」を押してください。
+        </div>
+      ) : null}
+
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-xs font-medium text-gray-500">
@@ -386,15 +404,16 @@ export function ScheduleEditor({
                 disabled={isSaving || isPublishing || uploadingMedia}
                 onClick={() => handleSubmit('scheduled')}
               >
-                {isSaving ? '登録中...' : '予約登録'}
+                {isSaving ? '登録中...' : hasPublishedPart ? '続きを予約' : '予約登録'}
               </button>
               <button
                 type="button"
                 className="h-[42px] rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                disabled={isPublishing || isSaving || uploadingMedia}
+                disabled={hasPublishedPart || isPublishing || isSaving || uploadingMedia}
                 onClick={handlePublishNow}
+                title={hasPublishedPart ? '一部投稿済みのため、新しい親投稿は作成できません' : undefined}
               >
-                {isPublishing ? '投稿中...' : '今すぐ投稿'}
+                {isPublishing ? '投稿中...' : hasPublishedPart ? '新規投稿は不可' : '今すぐ投稿'}
               </button>
             </div>
           </div>

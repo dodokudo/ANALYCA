@@ -3,7 +3,7 @@ export const MANUAL_STYLE_AUDIT_PENDING_PREFIX = '修正稿保存済み（再監
 export const MANUAL_STYLE_AUDIT_ERROR_PREFIX = '本人文体監査NG（修正稿は保持）:';
 
 export function countYokoText(value: string): number {
-  return Array.from(value.replace(/[\s\u3000]/g, '')).length;
+  return Array.from(value).length;
 }
 
 export function isEditableStyleAuditState(lastError: string | null): boolean {

@@ -1,6 +1,7 @@
 import { ThreadsAPI } from '@/lib/threads';
 import { getUserById } from '@/lib/bigquery';
 import { parseThreadsMediaColumns, type ThreadsMediaItem } from '@/lib/threadsMedia';
+import { scheduledPostTextLengthErrors } from '@/lib/threads-text-length';
 import {
   listAllPendingPosts,
   updateScheduledPost,
@@ -78,7 +79,9 @@ async function fetchOnePendingPost(): Promise<ScheduledPostRow | undefined> {
       );
       await updateScheduledPost(item.schedule_id, {
         status: 'failed',
-        errorMessage: `Skipped: scheduled time exceeded ${MAX_SCHEDULE_DELAY_MS / 60000}min delay threshold (cron likely stalled)`,
+        errorMessage: item.error_message
+          ? `${item.error_message} / 再試行期限${MAX_SCHEDULE_DELAY_MS / 60000}分を超過しました`
+          : `予約時刻から${MAX_SCHEDULE_DELAY_MS / 60000}分を超過したため実行しませんでした`,
       });
       continue;
     }
@@ -125,6 +128,23 @@ async function executeScheduledPost(post: ScheduledPostRow): Promise<{
   const startedAt = Date.now();
   const errors: string[] = [];
   const commentThreadIds: Record<number, string | undefined> = {};
+
+  const textErrors = scheduledPostTextLengthErrors({
+    mainText: post.main_text,
+    comment1: post.comment1,
+    comment2: post.comment2,
+    comment3: post.comment3,
+    comment4: post.comment4,
+    comment5: post.comment5,
+    comment6: post.comment6,
+    comment7: post.comment7,
+  });
+  if (textErrors.length > 0) {
+    const errorMessage = `投稿前チェックNG: ${textErrors.join('、')}`;
+    console.error(`[scheduledPostsWorker] ${post.schedule_id} ${errorMessage}`);
+    await updateScheduledPost(post.schedule_id, { status: 'failed', errorMessage });
+    return { success: false, commentThreadIds, error: errorMessage };
+  }
 
   // ユーザーのThreadsトークンを取得
   const user = await getUserById(post.user_id);
@@ -250,6 +270,7 @@ async function executeScheduledPost(post: ScheduledPostRow): Promise<{
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[scheduledPostsWorker] Comment${comment.index} failed: ${post.schedule_id}`, errorMessage);
       errors.push(`Comment${comment.index}: ${errorMessage}`);
+      break;
     }
   }
 

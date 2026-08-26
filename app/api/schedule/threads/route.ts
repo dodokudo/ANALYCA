@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { insertScheduledPost, listScheduledPosts, toJstIsoString } from '@/lib/bigqueryScheduledPosts';
 import { MAX_COMMENT_MEDIA_ITEMS, MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
+import { validateThreadsTextLength } from '@/lib/threads-text-length';
 
 function validateTextLength(label: string, value?: string) {
-  if (!value || value.trim().length === 0) {
-    return `${label}は必須です`;
-  }
-  if (value.length > 500) {
-    return `${label}は500文字以内である必要があります`;
-  }
-  return null;
+  return validateThreadsTextLength(label, value, { required: true });
 }
 
 function validateOptionalTextLength(label: string, value?: string) {
-  if (!value) return null;
-  if (value.length > 500) {
-    return `${label}は500文字以内である必要があります`;
-  }
-  return null;
+  return validateThreadsTextLength(label, value);
 }
 
 export async function GET(request: NextRequest) {

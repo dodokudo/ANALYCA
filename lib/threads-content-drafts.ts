@@ -4,6 +4,7 @@ import {
   isDraftReadyForLine,
   selectReadyDraftsForLine,
 } from '@/lib/line-draft-selection';
+import { countThreadsText, validateThreadsTextLength } from '@/lib/threads-text-length';
 import { getYokoNotionCorePages } from '@/lib/yoko-notion';
 import {
   listYokoNotionSources,
@@ -431,7 +432,7 @@ function generationSchema(count: number, allowedSourceIds: readonly string[]): R
 }
 
 function contentLength(value: string): number {
-  return Array.from(value.replace(/[\s\u3000]/g, '')).length;
+  return countThreadsText(value);
 }
 
 function isGenerationRefusal(draft: GeneratedDraft): boolean {
@@ -519,7 +520,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
     '新規台本は最大1件です。新規台本が非重複なら優先し、残りは既存の未使用台本から選んでください。',
     'sourcePageIdは入力値を完全一致で返してください。',
     'この実行では、メインは最低文字数なし・最大50文字を最優先ルールとします。1行だけでも構いません。',
-    'コメント1とコメント2は、空白・改行・全角空白を除外して各370〜500文字、狙いは420〜460文字とします。',
+    'コメント1とコメント2は、Threadsの投稿制限と同じく空白・改行・全角空白を含めて各370〜500文字、狙いは420〜460文字とします。',
     '入力不足・作成不能・元台本の指定依頼など、システム向けの説明を投稿本文に書いてはいけません。必ず選んだsourcePageIdのscriptに基づく投稿を完成させてください。',
     '出力は指定されたJSONスキーマだけにしてください。',
   ].join('\n\n');
@@ -552,7 +553,7 @@ export async function generateYokoDraftBatch(count = 6): Promise<ThreadsContentD
         model,
         schemaName: 'yoko_threads_drafts_repaired',
         schema: generationSchema(count, allowedSourceIds),
-        instructions: `${generationInstructions}\n\n自動修正${attempt}/${MAX_GENERATION_REPAIR_ATTEMPTS}です。前回出力の品質エラーをすべて修正し、事実や中心主張は変えないでください。sourcePageIdは許可されたIDから変更しないでください。文字数は空白・改行・全角空白を除外して数え、コメント1・2を各420〜460文字に収めてください。文字数不足は元台本にある内容の具体化で補い、水増しや同じ説明の反復は禁止です。生成不能の説明文は、選択済みsourcePageIdのscriptに基づく完成稿へ置き換えてください。`,
+        instructions: `${generationInstructions}\n\n自動修正${attempt}/${MAX_GENERATION_REPAIR_ATTEMPTS}です。前回出力の品質エラーをすべて修正し、事実や中心主張は変えないでください。sourcePageIdは許可されたIDから変更しないでください。文字数はThreadsと同じく空白・改行・全角空白を含めて数え、コメント1・2を各420〜460文字に収めてください。文字数不足は元台本にある内容の具体化で補い、水増しや同じ説明の反復は禁止です。生成不能の説明文は、選択済みsourcePageIdのscriptに基づく完成稿へ置き換えてください。`,
         prompt: JSON.stringify({
           previousOutput: generated,
           validationErrors,
@@ -1423,7 +1424,19 @@ export { isDraftReadyForLine, selectReadyDraftsForLine };
 
 export async function getReadyDraftsForLine(draftIds?: string[]): Promise<ThreadsContentDraft[]> {
   const result = await listThreadsContentDrafts({ status: 'ready', pageSize: 100 });
-  return selectReadyDraftsForLine(result.drafts, draftIds);
+  const drafts = selectReadyDraftsForLine(result.drafts, draftIds);
+  for (const draft of drafts) {
+    const fields = [
+      ['メイン投稿', draft.mainText],
+      ['コメント1', draft.comment1],
+      ['コメント2', draft.comment2],
+    ] as const;
+    for (const [label, value] of fields) {
+      const error = validateThreadsTextLength(`投稿${draft.number}の${label}`, value, { required: true });
+      if (error) throw new Error(`LINE送信前チェックNG: ${error}`);
+    }
+  }
+  return drafts;
 }
 
 export async function linkThreadsContentDraftDelivery(input: {

@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteScheduledPost, getScheduledPostById, toJstIsoString, updateScheduledPost } from '@/lib/bigqueryScheduledPosts';
 import { MAX_COMMENT_MEDIA_ITEMS, MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
+import { validateThreadsTextLength } from '@/lib/threads-text-length';
 
 function validateTextLength(label: string, value?: string) {
-  if (!value) return null;
-  if (value.length > 500) {
-    return `${label}は500文字以内である必要があります`;
-  }
-  return null;
+  return validateThreadsTextLength(label, value);
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -101,9 +98,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       ['コメント7', comment7],
     ] as const) {
       if (typeof value !== 'string') continue;
-      if (value.length > 500) {
-        return NextResponse.json({ error: `${label}は500文字以内である必要があります` }, { status: 400 });
-      }
+      const error = validateThreadsTextLength(label, value);
+      if (error) return NextResponse.json({ error }, { status: 400 });
     }
 
     const scheduledTimeIso =

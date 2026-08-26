@@ -60,7 +60,7 @@ export function ScheduleCalendar({
   onDeleteItem,
 }: ScheduleCalendarProps) {
   const [detailItem, setDetailItem] = useState<ScheduledPost | null>(null);
-  const [listFilter, setListFilter] = useState<'all' | 'scheduled' | 'posted'>('scheduled');
+  const [listFilter, setListFilter] = useState<'all' | 'scheduled' | 'posted'>('all');
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -212,6 +212,7 @@ export function ScheduleCalendar({
                         item.status === 'draft' && 'bg-amber-50 text-amber-700',
                         item.status === 'scheduled' && 'bg-blue-50 text-blue-700',
                         item.status === 'processing' && 'bg-purple-50 text-purple-700',
+                        item.status === 'partial' && 'bg-orange-50 text-orange-700',
                         item.status === 'posted' && 'bg-green-50 text-green-700',
                         item.status === 'failed' && 'bg-red-50 text-red-700',
                       )}
@@ -219,11 +220,12 @@ export function ScheduleCalendar({
                       {item.status === 'draft' && '下書き'}
                       {item.status === 'scheduled' && '予約済み'}
                       {item.status === 'processing' && '投稿中'}
+                      {item.status === 'partial' && '一部投稿・要対応'}
                       {item.status === 'posted' && '投稿完了'}
                       {item.status === 'failed' && '失敗'}
                     </span>
                   </div>
-                  {(item.status === 'draft' || item.status === 'scheduled' || item.status === 'failed') && (
+                  {(item.status === 'draft' || item.status === 'scheduled' || item.status === 'partial' || item.status === 'failed') && (
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -245,6 +247,11 @@ export function ScheduleCalendar({
                 <p className="text-xs text-gray-500 line-clamp-2">
                   {item.mainText}
                 </p>
+                {item.errorMessage ? (
+                  <p className="rounded-md bg-rose-50 px-2 py-1 text-[11px] leading-4 text-rose-700">
+                    {item.errorMessage}
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>

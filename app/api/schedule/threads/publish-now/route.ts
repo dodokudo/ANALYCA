@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserById } from '@/lib/bigquery';
 import { ThreadsAPI } from '@/lib/threads';
 import { MAX_COMMENT_MEDIA_ITEMS, MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, type ThreadsMediaItem } from '@/lib/threadsMedia';
+import { validateThreadsTextLength } from '@/lib/threads-text-length';
 
 interface PublishNowRequest {
   mainText: string;
@@ -18,21 +19,11 @@ interface PublishNowRequest {
 }
 
 function validateTextLength(text: string, fieldName: string): string | null {
-  if (!text || text.trim().length === 0) {
-    return `${fieldName}は必須です`;
-  }
-  if (text.length > 500) {
-    return `${fieldName}は500文字以内である必要があります`;
-  }
-  return null;
+  return validateThreadsTextLength(fieldName, text, { required: true });
 }
 
 function validateOptionalTextLength(text: string | undefined, fieldName: string): string | null {
-  if (!text) return null;
-  if (text.length > 500) {
-    return `${fieldName}は500文字以内である必要があります`;
-  }
-  return null;
+  return validateThreadsTextLength(fieldName, text);
 }
 
 export async function POST(request: NextRequest) {
@@ -83,9 +74,9 @@ export async function POST(request: NextRequest) {
       ['コメント6', comment6],
       ['コメント7', comment7],
     ] as const) {
-      if (typeof value === 'string' && value.length > 500) {
-        return NextResponse.json({ error: `${label}は500文字以内である必要があります` }, { status: 400 });
-      }
+      if (typeof value !== 'string') continue;
+      const error = validateThreadsTextLength(label, value);
+      if (error) return NextResponse.json({ error }, { status: 400 });
     }
 
     console.log(`[schedule/threads/publish-now] Starting immediate publish for user ${userId}...`);

@@ -175,7 +175,7 @@ test('短い改行と会話調の否定を含む本人文体候補を通す', ()
     '大事なのは、',
     '何を優先するかです。',
   ];
-  const conversationalLines = Array.from({ length: 5 }, () => conversationalBlock).flat().join('\n');
+  const conversationalLines = Array.from({ length: 4 }, () => conversationalBlock).flat().join('\n');
   assert.deepEqual(validateYokoStyleCandidate({
     comment1: conversationalLines,
     comment2: conversationalLines,

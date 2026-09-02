@@ -1523,6 +1523,7 @@ export default function Dashboard() {
                               <col className="w-[90px]" />
                               <col className="w-[80px]" />
                               <col className="w-[80px]" />
+                              <col className="w-[80px]" />
                               <col className="w-[100px]" />
                               <col className="w-[110px]" />
                               <col className="w-[80px]" />
@@ -1536,6 +1537,7 @@ export default function Dashboard() {
                                 <th className="px-3 py-2 text-right">リーチ</th>
                                 <th className="px-3 py-2 text-right">クリック</th>
                                 <th className="px-3 py-2 text-right">LINE</th>
+                                <th className="px-3 py-2 text-right" title="LINE登録 ÷ クリック">CVR</th>
                                 <th className="px-3 py-2 text-right">ストーリー投稿</th>
                                 <th className="px-3 py-2 text-right">ストーリー閲覧</th>
                                 <th className="px-3 py-2 text-right">閲覧率</th>
@@ -1554,7 +1556,9 @@ export default function Dashboard() {
                                 const posts = String(row[5] || '0').replace(/,/g, '');
                                 const reach = String(row[6] || '0').replace(/,/g, '');
                                 const clicks = String(row[11] || '0').replace(/,/g, '');
+                                const clickCount = parseInt(clicks) || 0;
                                 const lineRegs = parseInt(String(row[14] || '0').replace(/,/g, '')) || 0;
+                                const cvr = clickCount > 0 ? (lineRegs / clickCount) * 100 : null;
                                 const storyPosts = String(row[19] || '0').replace(/,/g, '');
                                 const storyViews = String(row[20] || '0').replace(/,/g, '');
                                 const storyRate = String(row[21] || '-');
@@ -1579,12 +1583,15 @@ export default function Dashboard() {
                                       {parseInt(reach).toLocaleString()}
                                     </td>
                                     <td className="px-3 py-2 text-right tabular-nums text-gray-900">
-                                      {parseInt(clicks).toLocaleString()}
+                                      {clickCount.toLocaleString()}
                                     </td>
                                     <td className="px-3 py-2 text-right tabular-nums">
                                       <span className={lineRegs > 0 ? 'text-amber-600' : 'text-gray-500'}>
                                         {lineRegs > 0 ? `+${lineRegs.toLocaleString()}` : '0'}
                                       </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums font-medium text-gray-900">
+                                      {cvr === null ? '-' : `${cvr.toFixed(1)}%`}
                                     </td>
                                     <td className="px-3 py-2 text-right tabular-nums text-gray-500">
                                       {parseInt(storyPosts).toLocaleString()}

@@ -59,7 +59,7 @@ export default function LoginPage() {
     const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
-    const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
+    const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_profile_discovery,threads_keyword_search';
 
     window.location.href = `https://threads.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code`;
   };

@@ -23,7 +23,7 @@ window.location.href = `https://threads.net/oauth/authorize?...`
 https://threads.net/oauth/authorize
   ?client_id={NEXT_PUBLIC_THREADS_APP_ID}
   &redirect_uri={APP_URL}/api/auth/threads/callback
-  &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies
+  &scope=threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_profile_discovery,threads_keyword_search
   &response_type=code
   &state={pendingUserId等のJSON（任意）}
 ```

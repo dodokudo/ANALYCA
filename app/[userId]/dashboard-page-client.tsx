@@ -16,6 +16,8 @@ import OptionDashboard, {
   type LinkLineOptionView,
 } from './components/option-dashboard';
 import LinkRegistrationTab from './components/link-registration-tab';
+import ResearchTab from './components/research-tab';
+import { isResearchAllowed } from '@/lib/research-access';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
 import { safeLocalStorage, safeSessionStorage } from '@/lib/safe-storage';
 import {
@@ -98,6 +100,15 @@ function OptionIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function ResearchIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="11" cy="11" r="7" strokeWidth={2} />
+      <path strokeLinecap="round" strokeWidth={2} d="M20 20l-3.5-3.5" />
+    </svg>
+  );
+}
+
 function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -125,7 +136,7 @@ function SidebarToggleIcon() {
 }
 
 // ============ 型定義 ============
-type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate' | 'options';
+type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate' | 'options' | 'research';
 
 type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
@@ -911,8 +922,17 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       Icon: OptionIcon,
       locked: false,
     });
+    // 競合リサーチは開発中のため、対象ダッシュボードにだけタブを出す
+    if (isResearchAllowed(userId)) {
+      items.push({
+        value: 'research',
+        label: '競合リサーチ',
+        Icon: ResearchIcon,
+        locked: false,
+      });
+    }
     return items;
-  }, [planId]);
+  }, [planId, userId]);
 
   // プランで制限されているチャンネルかどうか
   const isChannelLocked = (channel: Channel): boolean => {
@@ -938,12 +958,13 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
     if (tabParam === 'instagram') return 'instagram';
     if (tabParam === 'affiliate') return 'affiliate';
     if (tabParam === 'options') return 'options';
+    if (tabParam === 'research' && isResearchAllowed(userId)) return 'research';
     if (!tabParam) {
       if (planId === 'light-threads' || channels.threads) return 'threads';
       if (planId === 'light-instagram' || channels.instagram) return 'instagram';
     }
     return 'threads';
-  }, [tabParam, channels, planId]);
+  }, [tabParam, channels, planId, userId]);
 
   const setActiveChannel = (channel: Channel) => {
     // 履歴を汚さないようタブ変更は置き換え
@@ -1315,6 +1336,9 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
           )}
           {activeChannel === 'affiliate' && (
             <AffiliateDashboard userId={userId} initialData={affiliateDashboardData} />
+          )}
+          {activeChannel === 'research' && isResearchAllowed(userId) && (
+            <ResearchTab userId={userId} />
           )}
           {activeChannel === 'options' && (
             <OptionDashboard
@@ -2892,7 +2916,7 @@ function ConnectCard({ channel, userId }: { channel: 'threads' | 'instagram'; us
     if (isThreads) {
       const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
       const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
-      const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies';
+      const scope = 'threads_basic,threads_content_publish,threads_manage_insights,threads_manage_replies,threads_read_replies,threads_profile_discovery,threads_keyword_search';
       window.location.href = `https://threads.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
     } else {
       const clientId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID || '1238454094361851';

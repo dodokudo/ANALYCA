@@ -16,6 +16,11 @@ const SUCCESS_REDIRECT_URLS = {
   installment: 'https://liff.line.me/2007350099-K9dE2l1E/landing?follow=%40118dgavc&lp=SI1zjn&liff_id=2007350099-K9dE2l1E',
 };
 
+const TAMS_SUCCESS_REDIRECT_URLS = {
+  full: 'https://liff.line.me/2007350099-K9dE2l1E/landing?follow=%40118dgavc&lp=oAEXDe&liff_id=2007350099-K9dE2l1E',
+  installment: 'https://liff.line.me/2007350099-K9dE2l1E/landing?follow=%40118dgavc&lp=AIBU2k&liff_id=2007350099-K9dE2l1E',
+};
+
 function CourseCheckoutContent() {
   const searchParams = useSearchParams();
   const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -25,7 +30,8 @@ function CourseCheckoutContent() {
   const formRef = useRef<HTMLFormElement>(null);
   const paymentType = searchParams.get('payment') === 'installment' ? 'installment' : 'full';
   const isInstallment = paymentType === 'installment';
-  const successRedirectUrl = SUCCESS_REDIRECT_URLS[paymentType];
+  const isTams = searchParams.get('source') === 'tams';
+  const successRedirectUrl = (isTams ? TAMS_SUCCESS_REDIRECT_URLS : SUCCESS_REDIRECT_URLS)[paymentType];
 
   // UnivaPay設定を取得
   useEffect(() => {
@@ -93,7 +99,7 @@ function CourseCheckoutContent() {
             <div className="border-t border-gray-100 pt-4 mt-4">
               <p className="text-sm text-gray-600">
                 分割決済に対応していないカードの場合は、分割決済を行うことができません。
-                <a href="/checkout/course?payment=full" className="font-semibold text-purple-600 underline underline-offset-2">
+                <a href={isTams ? '/checkout/course?payment=full&source=tams' : '/checkout/course?payment=full'} className="font-semibold text-purple-600 underline underline-offset-2">
                   一括決済はこちら
                 </a>
               </p>

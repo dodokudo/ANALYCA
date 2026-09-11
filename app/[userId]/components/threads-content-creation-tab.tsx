@@ -435,7 +435,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               <button
                 type="button"
                 disabled={!!working}
-                onClick={filter === 'ready' ? () => setManualCreateOpen(true) : generateDrafts}
+                onClick={generateDrafts}
                 className="h-10 shrink-0 rounded-[var(--radius-sm)] bg-[color:var(--color-accent)] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {working === 'generate' ? '同期・6件作成中…' : '投稿作成'}
@@ -459,12 +459,24 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
             </div>
           </div>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <input
-              value={search}
-              onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-              placeholder="テーマ・本文を検索"
-              className="h-10 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-3 text-sm outline-none focus:border-purple-300 md:max-w-sm"
-            />
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={search}
+                onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+                placeholder="テーマ・本文を検索"
+                className="h-10 w-full rounded-lg border border-[color:var(--color-border)] bg-white px-3 text-sm outline-none focus:border-purple-300 md:max-w-sm"
+              />
+              {filter === 'ready' ? (
+                <button
+                  type="button"
+                  disabled={!!working}
+                  onClick={() => setManualCreateOpen(true)}
+                  className="h-10 shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  自分で投稿を作成
+                </button>
+              ) : null}
+            </div>
             <p className="text-xs font-semibold text-purple-700">本人文体の対象：コメント1・2のみ（メイン投稿は変更しません）</p>
           </div>
         </div>

@@ -12,7 +12,7 @@ const ALLOWED_FIELDS = new Set<ThreadsContentField>(['comment1', 'comment2']);
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as { userId?: string; draftIds?: unknown; fields?: unknown };
+    const body = await request.json() as { userId?: string; draftIds?: unknown; fields?: unknown; retrySaved?: boolean };
     if (body.userId !== YOKO_ANALYCA_USER_ID) {
       return NextResponse.json({ error: '対象外のアカウントです' }, { status: 403 });
     }
@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
       ? body.fields.filter((value): value is ThreadsContentField => typeof value === 'string' && ALLOWED_FIELDS.has(value as ThreadsContentField))
       : [];
     if (draftIds.length === 0) return NextResponse.json({ error: '採用済み投稿を選んでください' }, { status: 400 });
-    const drafts = await styleYokoDrafts({ draftIds, fields });
+    if (new Set(draftIds).size > 6) return NextResponse.json({ error: '本人文体の調整は6件ずつ行ってください' }, { status: 400 });
+    const drafts = await styleYokoDrafts({ draftIds, fields, retrySaved: body.retrySaved === true });
     return NextResponse.json({ drafts });
   } catch (error) {
     console.error('[threads/content-drafts/style] failed', error);

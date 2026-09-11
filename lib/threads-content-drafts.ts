@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { parseManualDraft, MANUAL_DRAFT_BATCH_PREFIX } from '@/lib/yoko-manual-draft';
+import { runYokoStyleRepair, STYLE_CONTENT_RULES, STYLE_LENGTH_RULE, type StyleCandidate, type StyleAudit, type StyleRepairResult } from '@/lib/yoko-style-pipeline';
 import { BigQuery } from '@google-cloud/bigquery';
 import {
   isDraftReadyForLine,
@@ -328,9 +330,11 @@ async function callOpenAI(input: {
   schemaName: string;
   schema: Record<string, unknown>;
   verbosity?: 'low' | 'medium' | 'high';
+  timeoutMs?: number;
 }): Promise<{ json: unknown; usage: OpenAIUsage; responseId: string }> {
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
+    ...(input.timeoutMs ? { signal: AbortSignal.timeout(input.timeoutMs) } : {}),
     headers: {
       Authorization: `Bearer ${openAIKey()}`,
       'Content-Type': 'application/json',
@@ -381,7 +385,7 @@ export function estimateOpenAICost(model: string, usage: OpenAIUsage): number | 
 }
 
 async function recordUsage(input: {
-  operation: 'draft_generation' | 'draft_repair' | 'style_transform' | 'style_audit';
+  operation: 'draft_generation' | 'draft_repair' | 'style_transform' | 'style_repair' | 'style_audit';
   model: string;
   usage: OpenAIUsage;
   batchId?: string;
@@ -909,6 +913,38 @@ export async function updateThreadsContentDraft(input: {
   return getDraft(input.draftId);
 }
 
+export async function createManualReadyDraft(input: Record<string, unknown>): Promise<ThreadsContentDraft> {
+  const text = parseManualDraft(input);
+  await ensureTables();
+  await client.query({
+    query: `
+      MERGE \`${projectId}.${DATASET}.${DRAFT_TABLE}\` target
+      USING (SELECT @draftId AS draft_id, @userId AS user_id) source
+      ON target.draft_id = source.draft_id AND target.user_id = source.user_id
+      WHEN NOT MATCHED THEN INSERT (
+        draft_id, batch_id, user_id, draft_number, theme, main_text, comment1, comment2,
+        status, manual_saved_at, created_at, updated_at
+      ) VALUES (
+        @draftId, @batchId, @userId, 1, @theme, @mainText, @comment1, @comment2,
+        'ready', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+      )
+    `,
+    params: {
+      draftId: text.requestId,
+      batchId: `${MANUAL_DRAFT_BATCH_PREFIX}${text.requestId}`,
+      userId: YOKO_ANALYCA_USER_ID,
+      theme: text.theme, mainText: text.mainText, comment1: text.comment1, comment2: text.comment2,
+    },
+  });
+  const draft = await getDraft(text.requestId);
+  if (draft.batchId !== `${MANUAL_DRAFT_BATCH_PREFIX}${text.requestId}`
+    || draft.theme !== text.theme || draft.mainText !== text.mainText
+    || draft.comment1 !== text.comment1 || draft.comment2 !== text.comment2) {
+    throw new Error('同じ作成情報で別の投稿が保存されています。一覧を確認して投稿作成を開き直してください');
+  }
+  return draft;
+}
+
 function styleSchema(fields: ThreadsContentField[]): Record<string, unknown> {
   return {
     type: 'object',
@@ -1115,31 +1151,6 @@ export function validateYokoStyleCandidate(
   return issues;
 }
 
-async function setDraftStyleAuditError(
-  draftId: string,
-  message: string,
-  candidate: Pick<ThreadsContentDraft, 'comment1' | 'comment2'>,
-): Promise<ThreadsContentDraft> {
-  await client.query({
-    query: `
-      UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
-      SET comment1 = @comment1,
-        comment2 = @comment2,
-        last_error = @message,
-        updated_at = CURRENT_TIMESTAMP()
-      WHERE user_id = @userId AND draft_id = @draftId
-    `,
-    params: {
-      userId: YOKO_ANALYCA_USER_ID,
-      draftId,
-      message,
-      comment1: candidate.comment1,
-      comment2: candidate.comment2,
-    },
-  });
-  return getDraft(draftId);
-}
-
 async function setDraftAuditErrorWithoutChangingContent(
   draftId: string,
   message: string,
@@ -1160,177 +1171,169 @@ async function setDraftAuditErrorWithoutChangingContent(
   return getDraft(draftId);
 }
 
-async function syncApprovedStyleBaseline(draft: ThreadsContentDraft): Promise<ThreadsContentDraft> {
-  await client.query({
-    query: `
-      UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
-      SET approved_main_text = @mainText,
-        approved_comment1 = @comment1,
-        approved_comment2 = @comment2,
-        updated_at = CURRENT_TIMESTAMP()
-      WHERE user_id = @userId AND draft_id = @draftId
-    `,
-    params: {
-      userId: YOKO_ANALYCA_USER_ID,
-      draftId: draft.id,
-      mainText: draft.mainText,
-      comment1: draft.comment1,
-      comment2: draft.comment2,
+/** Build and audit candidates without changing draft text; usage recording is injectable for verification. */
+export async function repairYokoStyleCandidates(
+  drafts: ThreadsContentDraft[],
+  fields: ThreadsContentField[],
+  trackUsage: typeof recordUsage = recordUsage,
+): Promise<StyleRepairResult[]> {
+  const deadline = Date.now() + 230_000;
+  const timeoutMs = () => {
+    const remaining = deadline - Date.now();
+    if (remaining < 1_000) throw new Error('文体調整の実行時間を超えました');
+    return Math.min(60_000, remaining);
+  };
+  const [corePages, voiceCorpus] = await Promise.all([getYokoNotionCorePages(), listYokoVoiceEvidence()]);
+  const byId = new Map(drafts.map(draft => [draft.id, draft]));
+  const voiceById = new Map(drafts.map(draft => [draft.id, selectYokoVoiceEvidence(draft, voiceCorpus)]));
+  if (drafts.some(draft => (voiceById.get(draft.id)?.length || 0) < 3)) {
+    throw new Error('本人実文の根拠が3件未満の投稿があります');
+  }
+  const model = process.env.OPENAI_STYLE_MODEL || 'gpt-5.6-terra';
+  const auditModel = process.env.OPENAI_AUDIT_MODEL || 'gpt-5.6-luna';
+  return runYokoStyleRepair({
+    jobs: drafts.map(draft => ({
+      id: draft.id,
+      candidate: { ...currentStyleBaseline(draft), voiceEvidenceIds: [] },
+      issues: draft.lastError ? [draft.lastError] : [],
+    })),
+    transform: async (jobs, attempt) => {
+      const result = await callOpenAI({
+        model, timeoutMs: timeoutMs(), schemaName: 'yoko_style_transform', schema: styleSchema(fields),
+        instructions: [
+          corePages.styleGuide.bodyText,
+          STYLE_CONTENT_RULES,
+          STYLE_LENGTH_RULE,
+          '本人実文voiceEvidenceの最低3件を参考に、文の長短、改行、間、言い切りを整えてください。voiceEvidenceIdsには実際に使ったIDを3〜6件入れてください。',
+          '各コメントは非空行10行以上、2コメント全体で平均1行38文字以下、24文字以下の短い行35%以上にします。意味のまとまりで自然に改行してください。',
+          '「ではありません」「でもありません」「わけではありません」「必要はありません」「とは限りません」や「してはいけません」などの硬い言い回しは、「じゃないです」「とは限らないです」「しないでください」など自然な会話調にしてください。',
+          'メイン投稿は出力せず、一字も変更しないでください。指定されたコメント欄だけを調整してください。',
+          'previousIssuesに指摘がある場合は、その問題を修正してください。ただし、approvedに元からある内容を「追加」とする指摘には従わず、approvedに沿ってください。',
+          'currentCandidateは修正の出発点です。採用原文approvedの意味を保持しながら修正し、元台本や本人実文の内容へ置き換えないでください。',
+          '内容を省くのではなく、同じ意味の簡潔な表現で文字数を調整してください。出力はJSONのみ。',
+        ].join('\n\n'),
+        prompt: JSON.stringify({
+          fields, attempt: attempt + 1,
+          drafts: jobs.map(job => ({
+            draftId: job.id,
+            approved: selectedStyleText(styleAuditBaseline(byId.get(job.id)!), fields),
+            currentCandidate: selectedStyleText(job.candidate, fields),
+            currentLengths: { comment1: contentLength(job.candidate.comment1), comment2: contentLength(job.candidate.comment2) },
+            previousIssues: job.issues,
+            voiceEvidence: voiceById.get(job.id),
+          })),
+        }),
+      });
+      await trackUsage({ operation: attempt === 0 ? 'style_transform' : 'style_repair', model, usage: result.usage, batchId: drafts[0]?.batchId });
+      const rows = (result.json as { drafts?: Array<{ draftId: string; comment1?: string; comment2?: string; voiceEvidenceIds?: string[] }> }).drafts || [];
+      const candidates = new Map<string, StyleCandidate>();
+      for (const job of jobs) {
+        const matches = rows.filter(row => row.draftId === job.id);
+        if (matches.length !== 1) continue;
+        const row = matches[0];
+        candidates.set(job.id, {
+          ...applySelectedStyleFields(byId.get(job.id)!, { comment1: row.comment1 || '', comment2: row.comment2 || '' }, fields),
+          voiceEvidenceIds: Array.isArray(row.voiceEvidenceIds) ? Array.from(new Set(row.voiceEvidenceIds)) : [],
+        });
+      }
+      return candidates;
+    },
+    validate: (candidate, id) => {
+      const issues = validateYokoStyleCandidate(candidate);
+      const allowed = new Set((voiceById.get(id) || []).map(item => item.id));
+      if (candidate.voiceEvidenceIds.length < 3 || candidate.voiceEvidenceIds.some(evidenceId => !allowed.has(evidenceId))) {
+        issues.push('本人実文の根拠IDが不足または不正です');
+      }
+      return issues;
+    },
+    audit: async jobs => {
+      const result = await callOpenAI({
+        model: auditModel, timeoutMs: timeoutMs(), schemaName: 'yoko_style_audit', schema: styleAuditSchema(),
+        instructions: [
+          corePages.styleGuide.bodyText,
+          STYLE_CONTENT_RULES,
+          'あなたは文体変換担当とは別の監査者です。修正はせず、合否を判定してください。',
+          'contentPreservedはapprovedとtransformedだけを比較します。voiceEvidenceの内容や元台本との違いは不合格理由になりません。',
+          '文体調整による言い換え、短縮、句読点、改行、接続詞、語尾の変化は、意味が同じなら合格です。',
+          'styleMatchesとevidenceGroundedは、本人実文から自然な口調・文の長短・改行・言い切りが反映されているかを判定します。語彙や内容が本人実文と違うという理由では不合格にしないでください。',
+          '文字数・改行数・短い行の割合はコードで確認済みです。数え直しによる指摘や、短い行が多いことだけで不合格にしないでください。',
+          'メイン投稿は監査対象外です。issuesには不合格の理由と該当する一節を具体的に書いてください。内容の不一致はapprovedとtransformedの両方の一節を示してください。抽象的な好みだけで不合格にしないでください。',
+          '出力はJSONのみ。',
+        ].join('\n\n'),
+        prompt: JSON.stringify({
+          selectedFields: fields,
+          drafts: jobs.map(job => ({
+            draftId: job.id,
+            approved: selectedStyleText(styleAuditBaseline(byId.get(job.id)!), fields),
+            transformed: selectedStyleText(job.candidate, fields),
+            usedVoiceEvidenceIds: job.candidate.voiceEvidenceIds,
+            voiceEvidence: voiceById.get(job.id),
+          })),
+        }),
+      });
+      await trackUsage({ operation: 'style_audit', model: auditModel, usage: result.usage, batchId: drafts[0]?.batchId });
+      const rows = (result.json as { drafts?: Array<StyleAudit & { draftId: string }> }).drafts || [];
+      return new Map(rows.filter(row => rows.filter(other => other.draftId === row.draftId).length === 1).map(row => [row.draftId, row]));
     },
   });
-  return {
-    ...draft,
-    approvedSnapshot: currentStyleBaseline(draft),
-  };
+}
+
+async function saveYokoStyleResult(
+  original: ThreadsContentDraft,
+  baseline: { mainText: string; comment1: string; comment2: string },
+  candidate: StyleCandidate | null,
+  passed: boolean,
+  issues: string[],
+): Promise<ThreadsContentDraft> {
+  const [rows] = await client.query({
+    query: `
+      UPDATE \`${projectId}.${DATASET}.${DRAFT_TABLE}\`
+      SET comment1 = @comment1, comment2 = @comment2,
+        approved_main_text = @approvedMain, approved_comment1 = @approvedComment1, approved_comment2 = @approvedComment2,
+        status = @status, last_error = NULLIF(@lastError, ''), updated_at = CURRENT_TIMESTAMP()
+      WHERE user_id = @userId AND draft_id = @draftId AND status = 'approved'
+        AND updated_at = TIMESTAMP(@updatedAt);
+      SELECT @@row_count AS affected;
+    `,
+    params: {
+      userId: YOKO_ANALYCA_USER_ID, draftId: original.id, updatedAt: original.updatedAt,
+      comment1: candidate?.comment1 ?? original.comment1, comment2: candidate?.comment2 ?? original.comment2,
+      approvedMain: baseline.mainText, approvedComment1: baseline.comment1, approvedComment2: baseline.comment2,
+      status: passed ? 'style_review' : 'approved',
+      lastError: passed ? '' : `${STORED_STYLE_AUDIT_ERROR_PREFIX} ${issues.join('、') || 'AIの調整を完了できませんでした'}`,
+    },
+  });
+  if (integer(rows[0]?.affected) !== 1) throw new Error(`投稿${original.number}は処理中に変更されました。最新の編集内容を保護するため、AIの結果は反映していません。一覧を読み直してください。`);
+  return getDraft(original.id);
 }
 
 export async function styleYokoDrafts(input: {
   draftIds: string[];
   fields: ThreadsContentField[];
+  retrySaved?: boolean;
 }): Promise<ThreadsContentDraft[]> {
   openAIKey();
-  const fields = Array.from(new Set(input.fields)).filter((field) => field === 'comment1' || field === 'comment2');
+  const ids = Array.from(new Set(input.draftIds));
+  if (ids.length === 0 || ids.length > 6) throw new Error('本人文体の調整は1〜6件ずつ行ってください');
+  const fields = Array.from(new Set(input.fields)).filter(field => field === 'comment1' || field === 'comment2');
   if (fields.length === 0) throw new Error('文体調整する欄を選んでください');
-  const loadedDrafts = await Promise.all(input.draftIds.map(getDraft));
-  if (loadedDrafts.some((draft) => draft.status !== 'approved')) throw new Error('採用済みの投稿だけ文体調整できます');
-  if (loadedDrafts.some((draft) => hasStoredStyleAuditCandidate(draft.lastError))) {
-    throw new Error('修正稿はAIで書き換えず、「保存した修正稿を監査」から確認してください');
+  const originals = await Promise.all(ids.map(getDraft));
+  if (originals.some(draft => draft.status !== 'approved')) throw new Error('採用済みの投稿だけ文体調整できます');
+  if (!input.retrySaved && originals.some(draft => draft.lastError)) {
+    throw new Error('修正稿は「AIで再調整」または「保存した修正稿を監査」から確認してください');
   }
-  const drafts = await Promise.all(loadedDrafts.map(syncApprovedStyleBaseline));
-  const [corePages, voiceCorpus] = await Promise.all([
-    getYokoNotionCorePages(),
-    listYokoVoiceEvidence(),
-  ]);
-  const voiceByDraft = new Map(drafts.map((draft) => [draft.id, selectYokoVoiceEvidence(draft, voiceCorpus)]));
-  const missingEvidence = drafts.filter((draft) => (voiceByDraft.get(draft.id)?.length || 0) < 3);
-  if (missingEvidence.length) {
-    throw new Error(`本人実文が3件未満の投稿があります: ${missingEvidence.map((draft) => `投稿${draft.number}`).join('、')}`);
+  if (input.retrySaved && originals.some(draft => !hasStoredStyleAuditCandidate(draft.lastError) || !draft.approvedSnapshot)) {
+    throw new Error('本人文体の調整で止まった投稿だけ再調整できます');
   }
-  const model = process.env.OPENAI_STYLE_MODEL || 'gpt-5.6-terra';
-  const result = await callOpenAI({
-    model,
-    schemaName: 'yoko_style_transform',
-    schema: styleSchema(fields),
-    instructions: [
-      corePages.styleGuide.bodyText,
-      '文体ガイドの頻度表だけで文章を作らず、各投稿のvoiceEvidenceにあるYOKO本人の実文を最優先してください。',
-      'voiceEvidenceから、驚き、事実説明、本音、反論、共感、判断、問いかけに近い実文を最低3件選び、その文の長短、改行、間、言い切りを移してください。',
-      '最重要: 長い説明文を段落のまま残さないでください。承認稿の一文を意味の区切りで分け、1行1メッセージにします。各コメントは非空行10行以上、平均1行38文字以下、24文字以下の短い行を全体の35%以上にしてください。',
-      '各コメントは370〜500文字を維持してください。短く切るために事実や結論を削らず、文を分けて改行してください。',
-      '「〜という話ではありません」「〜でもありません」「〜わけではありません」「〜必要はありません」「〜とは限りません」のような硬い否定は禁止です。本人実文に合わせて「〜って話じゃないです」「〜って意味じゃないです」「〜でもないです」「〜必要はないです」「〜とは限らないです」のような会話調にしてください。',
-      '「ただし」「一方で」「もちろん」を段落ごとに機械的に置く説明文は禁止です。必要な接続だけ残し、「でも」「逆に」「つまり」「だからこそ」や短い言い切りを、voiceEvidenceで実際に使われている範囲で使ってください。',
-      '変換後に自分で、各コメントの非空行数、平均行長、24文字以下の行の割合、硬い否定表現0件を数えてから出力してください。条件を満たさない稿は出力しないでください。',
-      'メイン投稿は工藤さんが編集済みです。メイン投稿は出力せず、一字も変更しないでください。',
-      'approvedは内容保持の正本です。事実・中心主張・論理の順序・結論・CTAは一つも追加・削除・変更しないでください。',
-      'currentCandidateは、前回の監査NG案または利用者が直接修正した案です。表現と改行の出発点にはできますが、approvedと照合し、欠けた内容は必ず戻してください。',
-      'primarySourceは文の長短、間、テンポの参考だけに使い、承認済みコメントにない自己開示・事実・主張・具体表現を持ち込まないでください。',
-      '指定された欄だけ、YOKO本人の文体に整えてください。指定外の欄は出力しないでください。',
-      '語尾だけの機械的置換は禁止です。元台本の感情の流れ、文の長短、間、言い切り、問いかけを使ってください。',
-      '承認済み原文にない共感や断定を作る「ね」「よ」「なんです」などは追加しないでください。',
-      'previousAuditErrorがある場合は、その指摘を繰り返さずに修正してください。',
-      'voiceEvidenceIdsには実際に文体根拠として使用したvoiceEvidenceのidを3〜6件入れてください。',
-      '出力は指定されたJSONスキーマだけにしてください。',
-    ].join('\n\n'),
-    prompt: JSON.stringify({
-      fields,
-      drafts: drafts.map((draft) => ({
-        draftId: draft.id,
-        approved: styleAuditBaseline(draft),
-        currentCandidate: currentStyleBaseline(draft),
-        previousAuditError: draft.lastError,
-        primarySource: draft.sources.find((source) => source.role === 'primary') || null,
-        voiceEvidence: voiceByDraft.get(draft.id),
-      })),
-    }),
-  });
-  type StyleTransformRow = {
-    draftId: string;
-    main_text?: string;
-    comment1?: string;
-    comment2?: string;
-    voiceEvidenceIds: string[];
-  };
-  const transformed = (result.json as { drafts?: StyleTransformRow[] }).drafts || [];
-  const byId = new Map(transformed.map((item) => [item.draftId, item]));
-  const projected = drafts.map((draft) => {
-    const item = byId.get(draft.id);
-    if (!item) throw new Error(`OpenAI omitted draft ${draft.id}`);
-    const allowedEvidenceIds = new Set((voiceByDraft.get(draft.id) || []).map((evidence) => evidence.id));
-    const usedEvidenceIds = Array.from(new Set(item.voiceEvidenceIds));
-    if (usedEvidenceIds.length < 3 || usedEvidenceIds.some((id) => !allowedEvidenceIds.has(id))) {
-      throw new Error(`投稿${draft.number}: 本人実文の根拠IDが不足または不正です`);
-    }
-    return {
-      draftId: draft.id,
-      ...applySelectedStyleFields(draft, {
-        main_text: item.main_text || '',
-        comment1: item.comment1 || '',
-        comment2: item.comment2 || '',
-      }, fields),
-      voiceEvidenceIds: usedEvidenceIds,
-    };
-  });
-  const deterministicIssuesById = new Map(projected.map((draft) => [
-    draft.draftId,
-    validateYokoStyleCandidate(draft),
-  ]));
-  await recordUsage({ operation: 'style_transform', model, usage: result.usage, batchId: drafts[0]?.batchId });
-
-  const auditModel = process.env.OPENAI_AUDIT_MODEL || 'gpt-5.6-luna';
-  const audit = await callOpenAI({
-    model: auditModel,
-    schemaName: 'yoko_style_audit',
-    schema: styleAuditSchema(),
-    instructions: [
-      corePages.styleGuide.bodyText,
-      'あなたは文体変換を実行した担当とは別の監査者です。修正はせず、合否だけを判定してください。',
-      '文体ガイドの頻度ではなく、voiceEvidenceの本人実文と変換稿を直接比較してください。',
-      '監査対象はselectedFieldsにあるコメント欄だけです。メイン投稿は監査対象外です。',
-      'contentPreservedは内容保持だけの判定です。事実・数値・主体・時期・頻度・本人属性・中心主張・結論・CTAが追加、削除、変更された場合だけfalseにしてください。',
-      '句読点、かぎ括弧、改行、文の分割、接続詞、語尾、言い切り方の変更は文体調整の目的そのものです。意味と論理の順序が同じならcontentPreservedをfalseにしないでください。',
-      'styleMatchesは本人文体だけの判定です。元台本の感情の流れ、文の長短、間、言い切り、問いかけが本人実文に沿うか確認してください。',
-      'evidenceGroundedは、usedVoiceEvidenceIdsで指定された最低3件の実文から、改行、呼吸、文の長短、言い切りの具体的な根拠が確認できる場合だけtrueにしてください。IDを列挙しただけならfalseです。',
-      'primarySourceの自己開示や固有表現が承認稿にない場合、それを追加していないことをstyleMatchesの不合格理由にしてはいけません。承認稿にある内容だけで作れるリズムとテンポを評価してください。',
-      '語尾だけの機械的置換、均一なテンポ、本人根拠のない「ね」「よ」「なんです」などの追加があればstyleMatchesをfalseにしてください。',
-      '各コメントが非空行10行以上、平均1行38文字以下、24文字以下の短い行35%以上、硬い否定表現0件を満たさない場合はstyleMatchesをfalseにしてください。',
-      '短い改行は本人実文に実在する文体要素です。deterministicIssuesが空なら、短く改行されていること自体や短い行が多いことだけを理由にstyleMatchesをfalseにしないでください。意味が途中で切れて不自然な箇所がある場合だけ、その箇所を引用して不合格にしてください。',
-      '「テンポが均一」「細切れ」のような抽象的理由だけで不合格にしないでください。本人実文との差を示す変換稿の具体的な一節をissuesへ必ず引用してください。',
-      'issuesにはcontentPreservedまたはstyleMatchesをfalseにした具体的理由だけを書いてください。単なる表現差はissuesに書かないでください。',
-      '出力は指定されたJSONスキーマだけにしてください。',
-    ].join('\n\n'),
-    prompt: JSON.stringify({
-      selectedFields: fields,
-      drafts: drafts.map((draft, index) => ({
-        draftId: draft.id,
-        approved: selectedStyleText(styleAuditBaseline(draft), fields),
-        transformed: selectedStyleText(projected[index], fields),
-        primarySource: draft.sources.find((source) => source.role === 'primary') || null,
-        usedVoiceEvidenceIds: projected[index].voiceEvidenceIds,
-        voiceEvidence: voiceByDraft.get(draft.id),
-        deterministicIssues: deterministicIssuesById.get(draft.id),
-      })),
-    }),
-  });
-  await recordUsage({ operation: 'style_audit', model: auditModel, usage: audit.usage, batchId: drafts[0]?.batchId });
-  const auditRows = (audit.json as { drafts?: Array<{ draftId: string; contentPreserved: boolean; styleMatches: boolean; evidenceGrounded: boolean; issues: string[] }> }).drafts || [];
-  const auditById = new Map(auditRows.map((item) => [item.draftId, item]));
+  const drafts = originals.map(draft => ({
+    ...draft,
+    approvedSnapshot: input.retrySaved ? draft.approvedSnapshot : currentStyleBaseline(draft),
+  }));
+  const results = await repairYokoStyleCandidates(drafts, fields);
   const updated: ThreadsContentDraft[] = [];
-  for (let index = 0; index < drafts.length; index += 1) {
-    const draft = drafts[index];
-    const item = projected[index];
-    const auditItem = auditById.get(draft.id);
-    const deterministicIssues = deterministicIssuesById.get(draft.id) || [];
-    if (deterministicIssues.length || !auditItem?.contentPreserved || !auditItem.styleMatches || !auditItem.evidenceGrounded) {
-      const issues = [...deterministicIssues, ...(auditItem?.issues || [])].join('、') || '監査結果がありません';
-      updated.push(await setDraftStyleAuditError(draft.id, `${STORED_STYLE_AUDIT_ERROR_PREFIX} ${issues}`, item));
-      continue;
-    }
-    updated.push(await updateThreadsContentDraft({
-      draftId: draft.id,
-      comment1: item.comment1,
-      comment2: item.comment2,
-      status: 'style_review',
-    }));
+  for (let index = 0; index < originals.length; index += 1) {
+    const result = results[index];
+    updated.push(await saveYokoStyleResult(originals[index], styleAuditBaseline(drafts[index]), result.candidate, result.passed, result.issues));
   }
   return updated;
 }
@@ -1367,6 +1370,7 @@ export async function auditSavedYokoDraft(draftId: string): Promise<ThreadsConte
     schema: styleAuditSchema(),
     instructions: [
       corePages.styleGuide.bodyText,
+      STYLE_CONTENT_RULES,
       'あなたは保存済みの修正稿を監査する担当者です。文章は修正・再生成せず、合否だけを判定してください。',
       '監査対象はcurrentのcomment1とcomment2だけです。メイン投稿は対象外です。',
       'contentPreservedはapprovedとcurrentの意味を比較します。新しい事実・数値・本人属性・中心主張・結論・CTAが追加、削除、変更された時だけfalseにしてください。',
@@ -1382,7 +1386,6 @@ export async function auditSavedYokoDraft(draftId: string): Promise<ThreadsConte
         draftId: draft.id,
         approved: selectedStyleText(styleAuditBaseline(draft), ['comment1', 'comment2']),
         current: selectedStyleText(draft, ['comment1', 'comment2']),
-        primarySource: draft.sources.find((source) => source.role === 'primary') || null,
         voiceEvidence,
         deterministicIssues,
       }],

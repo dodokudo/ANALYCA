@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import ManualReadyDraftDialog from './manual-ready-draft-dialog';
+import { MANUAL_DRAFT_BATCH_PREFIX, type ManualDraftText } from '@/lib/yoko-manual-draft';
 import {
   countYokoText,
   hasStaleStyleLengthError,
@@ -111,6 +113,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     drafts: Array<CreationDraft & { candidateScheduledAtJst: string }>;
   }>(null);
   const [linePickerOpen, setLinePickerOpen] = useState(false);
+  const [manualCreateOpen, setManualCreateOpen] = useState(false);
   const [lineCandidates, setLineCandidates] = useState<CreationDraft[]>([]);
   const [selectedLineDraftIds, setSelectedLineDraftIds] = useState<string[]>([]);
   const [config, setConfig] = useState<null | {
@@ -118,12 +121,13 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     openai: { configured: boolean; draftModel: string; styleModel: string; auditModel: string };
   }>(null);
 
-  const loadDrafts = useCallback(async () => {
+  const loadDrafts = useCallback(async (options?: { status?: 'all' | DraftStatus; page?: number; search?: string }) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ userId, status: filter, page: String(page), pageSize: String(pageSize) });
-      if (search.trim()) params.set('search', search.trim());
+      const params = new URLSearchParams({ userId, status: options?.status ?? filter, page: String(options?.page ?? page), pageSize: String(pageSize) });
+      const query = options?.search ?? search;
+      if (query.trim()) params.set('search', query.trim());
       const response = await fetch(`/api/threads/content-drafts?${params}`, { cache: 'no-store' });
       const payload = await response.json() as ListResponse | { error?: string };
       if (!response.ok) throw new Error(apiError(payload, '投稿一覧の取得に失敗しました'));
@@ -153,7 +157,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
   }, [userId]);
 
   const selectedDraft = drafts.find((draft) => draft.id === selectedId) || drafts[0] || null;
-  const approvedCount = drafts.filter((draft) => draft.status === 'approved' && !draft.lastError).length;
+  const approvedCount = drafts.filter((draft) => draft.status === 'approved' && !draft.lastError && !dirtyDraftIds.has(draft.id)).length;
   const readyCount = statusCounts.ready || drafts.filter(canSendDraftToLine).length;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
@@ -203,6 +207,22 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     }
   };
 
+  const addManualDraft = async (input: ManualDraftText & { requestId: string }) => {
+    const response = await fetch('/api/threads/content-drafts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, ...input }),
+    });
+    const payload = await response.json() as { draft?: CreationDraft; error?: string };
+    if (!response.ok || !payload.draft) throw new Error(apiError(payload, '投稿の保存に失敗しました'));
+    setFilter('ready');
+    setPage(1);
+    setSearch('');
+    await loadDrafts({ status: 'ready', page: 1, search: '' });
+    setSelectedId(payload.draft.id);
+    setManualCreateOpen(false);
+    setNotice('完成に投稿を追加しました。LINEへ送る際は「LINE送信分を選ぶ」を押してください。');
+  };
+
   const generateDrafts = async () => {
     setWorking('generate');
     setError(null);
@@ -226,33 +246,44 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
     }
   };
 
-  const styleApprovedDrafts = async () => {
-    const draftIds = drafts.filter((draft) => draft.status === 'approved' && !draft.lastError).map((draft) => draft.id);
+  const styleDrafts = async (draftIds: string[], retrySaved = false) => {
+    if (draftIds.length === 0) return;
     setWorking('style');
     setError(null);
     setNotice(null);
+    let styledCount = 0;
+    let failedCount = 0;
+    let failureMessage: string | null = null;
     try {
-      const response = await fetch('/api/threads/content-drafts/style', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, draftIds, fields: ['comment1', 'comment2'] }),
-      });
-      const payload = await response.json() as { drafts?: CreationDraft[]; error?: string };
-      if (!response.ok) throw new Error(apiError(payload, '本人文体への調整に失敗しました'));
-      const styledCount = payload.drafts?.filter((draft) => draft.status === 'style_review').length || 0;
-      const failedCount = (payload.drafts?.length || 0) - styledCount;
-      setFilter(failedCount === 0 ? 'style_review' : 'all');
-      setPage(1);
-      setNotice(failedCount === 0
-        ? `${styledCount}件のコメント1・2だけを本人文体へ調整しました。メイン投稿は変更していません。`
-        : `${styledCount}件を反映、${failedCount}件は監査NGです。監査対象の本人文体案を編集欄に保存し、採用原文は別に保持しています。`);
-      await loadDrafts();
+      for (let offset = 0; offset < draftIds.length; offset += 6) {
+        const response = await fetch('/api/threads/content-drafts/style', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, draftIds: draftIds.slice(offset, offset + 6), fields: ['comment1', 'comment2'], retrySaved }),
+        });
+        const payload = await response.json() as { drafts?: CreationDraft[]; error?: string };
+        if (!response.ok) throw new Error(apiError(payload, '本人文体への調整に失敗しました'));
+        const passed = payload.drafts?.filter(draft => draft.status === 'style_review').length || 0;
+        styledCount += passed;
+        failedCount += (payload.drafts?.length || 0) - passed;
+      }
     } catch (styleError) {
-      setError(styleError instanceof Error ? styleError.message : '本人文体への調整に失敗しました');
+      failureMessage = styleError instanceof Error ? styleError.message : '本人文体への調整に失敗しました';
     } finally {
+      const nextFilter = failedCount || failureMessage ? 'approved' : 'style_review';
+      setFilter(nextFilter);
+      setPage(1);
+      setSearch('');
+      await loadDrafts({ status: nextFilter, page: 1, search: '' });
+      setNotice(failedCount || failureMessage
+        ? `${styledCount}件を文体確認へ移しました。${failedCount}件は自動修正後も確認が必要です。`
+        : `${styledCount}件を本人文体に整えて文体確認へ移しました。内容を確認して「文体OK・完成」を押してください。`);
+      if (failureMessage) setError(failureMessage);
       setWorking(null);
     }
   };
+
+  const styleApprovedDrafts = () => styleDrafts(drafts.filter(draft => draft.status === 'approved' && !draft.lastError && !dirtyDraftIds.has(draft.id)).map(draft => draft.id));
 
   const auditSavedDraft = async (draft: CreationDraft) => {
     setWorking(draft.id);
@@ -375,6 +406,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
 
   return (
     <div className="space-y-4">
+      {manualCreateOpen ? <ManualReadyDraftDialog onClose={() => setManualCreateOpen(false)} onCreate={addManualDraft} /> : null}
       <section className="ui-card overflow-hidden">
         <div className="space-y-3 border-b border-[color:var(--color-border)] p-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -403,7 +435,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               <button
                 type="button"
                 disabled={!!working}
-                onClick={generateDrafts}
+                onClick={filter === 'ready' ? () => setManualCreateOpen(true) : generateDrafts}
                 className="h-10 shrink-0 rounded-[var(--radius-sm)] bg-[color:var(--color-accent)] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {working === 'generate' ? '同期・6件作成中…' : '投稿作成'}
@@ -414,7 +446,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                 onClick={styleApprovedDrafts}
                 className="h-10 shrink-0 rounded-[var(--radius-sm)] bg-purple-600 px-4 text-sm font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {working === 'style' ? '本人文体へ調整中…' : `${approvedCount}件を本人文体に整える`}
+                {working === 'style' ? '本人文体を調整・確認中…' : `${approvedCount}件を本人文体に整える`}
               </button>
               <button
                 type="button"
@@ -475,16 +507,16 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                         </p>
                         {draft.lastError ? <p className="mt-2 text-[11px] font-semibold text-rose-600">要修正あり</p> : null}
                         <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                          <span className="truncate">{primarySource?.title || '元台本未設定'}</span>
+                          <span className="truncate">{primarySource?.title || (draft.batchId.startsWith(MANUAL_DRAFT_BATCH_PREFIX) ? '手動作成' : '元台本未設定')}</span>
                           <span>{countText(draft.mainText)}文字</span>
                         </div>
                       </button>
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         {(['review', 'stock', 'discarded'] as DraftStatus[]).includes(draft.status) ? (
-                          <button type="button" disabled={working === draft.id} onClick={() => void persistDraft(draft, { status: 'approved' }, '内容を採用')} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-40">採用</button>
+                          <button type="button" disabled={!!working} onClick={() => void persistDraft(draft, { status: 'approved' }, '内容を採用')} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-40">採用</button>
                         ) : null}
                         {draft.status !== 'stock' && draft.status !== 'line_sent' ? (
-                          <button type="button" disabled={working === draft.id} onClick={() => void persistDraft(draft, { status: 'stock' }, 'ストックへ移動')} className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-40">ストック</button>
+                          <button type="button" disabled={!!working} onClick={() => void persistDraft(draft, { status: 'stock' }, 'ストックへ移動')} className="rounded-lg border border-cyan-200 bg-cyan-50 px-2 py-2 text-xs font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-40">ストック</button>
                         ) : null}
                       </div>
                     </article>
@@ -502,7 +534,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-[color:var(--color-text-secondary)]">投稿 #{String(selectedDraft.number).padStart(2, '0')}を編集</p>
-                  <input value={selectedDraft.theme} onChange={(event) => updateLocalDraft(selectedDraft.id, { theme: event.target.value })} className="mt-1 w-full border-0 bg-transparent p-0 text-base font-semibold text-[color:var(--color-text-primary)] outline-none" />
+                  <input disabled={!!working} value={selectedDraft.theme} onChange={(event) => updateLocalDraft(selectedDraft.id, { theme: event.target.value })} className="mt-1 w-full border-0 bg-transparent p-0 text-base font-semibold text-[color:var(--color-text-primary)] outline-none" />
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <span className={`rounded-full border px-3 py-2 text-xs font-semibold ${dirtyDraftIds.has(selectedDraft.id) ? 'border-rose-200 bg-rose-50 text-rose-700' : selectedDraft.manualSavedAt ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
@@ -519,7 +551,7 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                     : selectedDraft.lastError.startsWith(MANUAL_STYLE_AUDIT_PENDING_PREFIX)
                       ? '修正稿を保存しました。本文は変更せず、このまま再監査できます。'
                       : isEditableStyleAuditState(selectedDraft.lastError)
-                        ? '下のコメント1・2が現在の修正対象です。監査NGでも本文は上書きしません。'
+                        ? '本人文体の調整後、確認が必要な点があります。「AIで再調整」で採用内容を保って修正できます。手で直した場合は保存してから再監査してください。'
                     : isGenerationValidationError(selectedDraft.lastError)
                       ? '生成時の品質チェックです。下の該当箇所を修正して「下書き保存」を押してください。'
                       : '以前の監査エラーです。修正稿を保存してから再監査してください。'}</p>
@@ -546,20 +578,23 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                 ] as const).map(([field, label, value, rows]) => (
                   <label key={field} className="block text-xs font-medium text-[color:var(--color-text-secondary)]">
                     {(selectedDraft.status === 'style_review' || isEditableStyleAuditState(selectedDraft.lastError)) && field !== 'mainText' ? `本人文体版・${label}` : label}
-                    <textarea value={value} rows={rows} onChange={(event) => updateLocalDraft(selectedDraft.id, { [field]: event.target.value })} className="mt-2 w-full resize-y rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-3 text-sm leading-6 text-[color:var(--color-text-primary)] outline-none transition focus:border-purple-300 focus:ring-2 focus:ring-purple-100" />
-                    <span className={`mt-1 block text-right text-[11px] ${field !== 'mainText' && (countText(value) < 370 || countText(value) > 500) ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>
-                      {field === 'mainText' ? `${countText(value)}文字` : yokoCommentLengthGuide(value)}
+                    <textarea disabled={!!working} value={value} rows={rows} onChange={(event) => updateLocalDraft(selectedDraft.id, { [field]: event.target.value })} className="mt-2 w-full resize-y rounded-lg border border-[color:var(--color-border)] bg-white px-3 py-3 text-sm leading-6 text-[color:var(--color-text-primary)] outline-none transition focus:border-purple-300 focus:ring-2 focus:ring-purple-100" />
+                    <span className={`mt-1 block text-right text-[11px] ${field !== 'mainText' && ((!selectedDraft.batchId.startsWith(MANUAL_DRAFT_BATCH_PREFIX) && countText(value) < 370) || countText(value) > 500) ? 'font-semibold text-rose-600' : 'text-slate-400'}`}>
+                      {field === 'mainText' ? `${countText(value)}文字` : selectedDraft.batchId.startsWith(MANUAL_DRAFT_BATCH_PREFIX) ? `${countText(value)} / 500文字` : yokoCommentLengthGuide(value)}
                     </span>
                   </label>
                 ))}
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2 border-t border-[color:var(--color-border)] pt-4">
-                <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, {}, isEditableStyleAuditState(selectedDraft.lastError) ? '修正稿を保存' : '下書きを保存', {
+                {selectedDraft.status === 'approved' && isEditableStyleAuditState(selectedDraft.lastError) ? (
+                  <button type="button" disabled={!!working || dirtyDraftIds.has(selectedDraft.id)} onClick={() => void styleDrafts([selectedDraft.id], true)} className="h-10 rounded-lg bg-purple-600 px-4 text-sm font-semibold text-white disabled:opacity-40">AIで再調整</button>
+                ) : null}
+                <button type="button" disabled={!!working} onClick={() => void persistDraft(selectedDraft, {}, isEditableStyleAuditState(selectedDraft.lastError) ? '修正稿を保存' : '下書きを保存', {
                   markSaved: true,
                 })} className="h-10 rounded-lg border border-[color:var(--color-border)] bg-white px-4 text-sm font-semibold text-[color:var(--color-text-primary)] hover:bg-slate-50 disabled:opacity-40">{isEditableStyleAuditState(selectedDraft.lastError) ? '修正稿を保存' : '下書き保存'}</button>
                 {selectedDraft.status === 'approved' && selectedDraft.lastError ? (
-                  <button type="button" disabled={working === selectedDraft.id || dirtyDraftIds.has(selectedDraft.id)} onClick={() => void auditSavedDraft(selectedDraft)} className="h-10 rounded-lg bg-purple-600 px-4 text-sm font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40">
+                  <button type="button" disabled={!!working || dirtyDraftIds.has(selectedDraft.id)} onClick={() => void auditSavedDraft(selectedDraft)} className="h-10 rounded-lg bg-purple-600 px-4 text-sm font-semibold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-40">
                     {working === selectedDraft.id ? '修正稿を監査中…' : '保存した修正稿を監査'}
                   </button>
                 ) : null}
@@ -567,26 +602,26 @@ export default function ThreadsContentCreationTab({ userId }: { userId: string }
                   <p className="w-full text-xs font-medium text-amber-700">先に「修正稿を保存」を押してください。再監査で本文は書き換えません。</p>
                 ) : null}
                 {selectedDraft.status === 'approved' && selectedDraft.lastError && selectedDraft.approvedSnapshot ? (
-                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, {
+                  <button type="button" disabled={!!working} onClick={() => void persistDraft(selectedDraft, {
                     mainText: selectedDraft.approvedSnapshot!.mainText,
                     comment1: selectedDraft.approvedSnapshot!.comment1,
                     comment2: selectedDraft.approvedSnapshot!.comment2,
                   }, '採用原文へ戻す')} className="h-10 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40">採用原文へ戻す</button>
                 ) : null}
                 {(['review', 'stock', 'discarded'] as DraftStatus[]).includes(selectedDraft.status) ? (
-                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, { status: 'approved' }, '内容を採用')} className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40">内容採用</button>
+                  <button type="button" disabled={!!working} onClick={() => void persistDraft(selectedDraft, { status: 'approved' }, '内容を採用')} className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40">内容採用</button>
                 ) : null}
                 {selectedDraft.status === 'style_review' ? (
-                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, { status: 'ready' }, '文体OK・完成に変更')} className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40">文体OK・完成</button>
+                  <button type="button" disabled={!!working} onClick={() => void persistDraft(selectedDraft, { status: 'ready' }, '文体OK・完成に変更')} className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40">文体OK・完成</button>
                 ) : null}
                 {selectedDraft.status !== 'stock' && selectedDraft.status !== 'line_sent' ? (
-                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, { status: 'stock' }, 'ストックへ移動')} className="h-10 rounded-lg border border-cyan-200 bg-cyan-50 px-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-40">ストック</button>
+                  <button type="button" disabled={!!working} onClick={() => void persistDraft(selectedDraft, { status: 'stock' }, 'ストックへ移動')} className="h-10 rounded-lg border border-cyan-200 bg-cyan-50 px-4 text-sm font-semibold text-cyan-700 hover:bg-cyan-100 disabled:opacity-40">ストック</button>
                 ) : null}
                 {selectedDraft.status !== 'discarded' && selectedDraft.status !== 'line_sent' ? (
-                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, { status: 'discarded' }, '完全ボツへ移動')} className="h-10 rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40">完全ボツ</button>
+                  <button type="button" disabled={!!working} onClick={() => void persistDraft(selectedDraft, { status: 'discarded' }, '完全ボツへ移動')} className="h-10 rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-40">完全ボツ</button>
                 ) : null}
                 {(selectedDraft.status === 'ready' || selectedDraft.status === 'line_sent') ? (
-                  <button type="button" disabled={working === selectedDraft.id} onClick={() => void persistDraft(selectedDraft, { status: selectedDraft.status === 'line_sent' ? 'ready' : 'style_review' }, '文体確認へ戻す')} className="h-10 rounded-lg border border-purple-200 bg-purple-50 px-4 text-sm font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-40">文体確認へ戻す</button>
+                  <button type="button" disabled={!!working} onClick={() => void persistDraft(selectedDraft, { status: selectedDraft.status === 'line_sent' ? 'ready' : 'style_review' }, '文体確認へ戻す')} className="h-10 rounded-lg border border-purple-200 bg-purple-50 px-4 text-sm font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-40">文体確認へ戻す</button>
                 ) : null}
               </div>
 

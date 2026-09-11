@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  createManualReadyDraft,
   listThreadsContentDrafts,
   updateThreadsContentDraft,
   type ThreadsContentStatus,
 } from '@/lib/threads-content-drafts';
 import { YOKO_ANALYCA_USER_ID } from '@/lib/yoko-notion-ledger';
+
+import { parseManualDraft } from '@/lib/yoko-manual-draft';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +29,24 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[threads/content-drafts] list failed', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : '投稿一覧の取得に失敗しました' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json() as Record<string, unknown>;
+    if (!isYoko(body?.userId)) return NextResponse.json({ error: '対象外のアカウントです' }, { status: 403 });
+    let input: ReturnType<typeof parseManualDraft>;
+    try {
+      input = parseManualDraft(body);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : '入力内容を確認してください' }, { status: 400 });
+    }
+    const draft = await createManualReadyDraft(input);
+    return NextResponse.json({ draft }, { status: 201 });
+  } catch (error) {
+    console.error('[threads/content-drafts] create manual draft failed', error);
+    return NextResponse.json({ error: '投稿を保存できませんでした。入力内容は保持しています。もう一度保存してください。' }, { status: 500 });
   }
 }
 

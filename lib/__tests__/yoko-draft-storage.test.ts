@@ -24,7 +24,9 @@ class FakeBigQuery {
     if (query.includes('c.comment_id AS evidence_id')) return [[1,2,3].map(i => ({ evidence_id: `voice${i}`, parent_post_id: `${i}`, parent_text: '宝石', comment_text: `本人の文体${i}`, permalink: '', created_at: '' }))];
     if (query.includes('SELECT @@row_count')) {
       const row = rows.get(id);
-      if (!row || row.updated_at !== params.updatedAt || row.status !== 'approved') return [[{ affected: 0 }]];
+      if (/\.\d{7,}Z$/.test(String(params.updatedAt))) throw new Error('Invalid timestamp');
+      const storedTimestamp = String(row?.updated_at).replace(/(\.\d{6})0+Z$/, '$1Z');
+      if (!row || storedTimestamp !== params.updatedAt || row.status !== 'approved') return [[{ affected: 0 }]];
       Object.assign(row, {
         comment1: params.comment1, comment2: params.comment2, status: params.status,
         approved_main_text: params.approvedMain, approved_comment1: params.approvedComment1, approved_comment2: params.approvedComment2,
@@ -123,3 +125,25 @@ test('保存済みのNG稿は明示的な再調整なしに書き換えない', 
     assert.equal(draft.approvedSnapshot?.comment1,'初回採用1');
   } finally { fetchMock.mock.restore(); }
 });
+
+for (const concurrentlyEdited of [false, true]) {
+  test(`9桁の日時で保存しマイクロ秒単位の競合も保護する: concurrent=${concurrentlyEdited}`, async () => {
+    const id = `timestamp-${concurrentlyEdited}`;
+    rows.set(id, { ...approved(id), updated_at: '2026-09-16T01:32:24.530380000Z' });
+    const fetchMock = stubAI(concurrentlyEdited ? () => {
+      Object.assign(rows.get(id)!, { comment1: '別画面の編集', updated_at: '2026-09-16T01:32:24.530381000Z' });
+    } : undefined);
+    try {
+      const operation = styleYokoDrafts({ draftIds: [id], fields: ['comment1', 'comment2'] });
+      if (concurrentlyEdited) {
+        await assert.rejects(operation, /処理中に変更/);
+        assert.equal(rows.get(id)?.comment1, '別画面の編集');
+      } else {
+        const [draft] = await operation;
+        assert.equal(draft.status, 'style_review');
+        assert.equal(draft.comment1, styled);
+        assert.equal(draft.approvedSnapshot?.comment1, '採用原文1');
+      }
+    } finally { fetchMock.mock.restore(); }
+  });
+}

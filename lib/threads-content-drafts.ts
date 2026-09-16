@@ -1296,7 +1296,10 @@ async function saveYokoStyleResult(
       SELECT @@row_count AS affected;
     `,
     params: {
-      userId: YOKO_ANALYCA_USER_ID, draftId: original.id, updatedAt: original.updatedAt,
+      userId: YOKO_ANALYCA_USER_ID, draftId: original.id,
+      // BigQuery returns zero-padded nanoseconds, but TIMESTAMP accepts microseconds.
+      // Preserve all six significant digits for the concurrent-edit guard.
+      updatedAt: original.updatedAt.replace(/(\.\d{6})0+(Z|[+-]\d{2}:\d{2})$/, '$1$2'),
       comment1: candidate?.comment1 ?? original.comment1, comment2: candidate?.comment2 ?? original.comment2,
       approvedMain: baseline.mainText, approvedComment1: baseline.comment1, approvedComment2: baseline.comment2,
       status: passed ? 'style_review' : 'approved',

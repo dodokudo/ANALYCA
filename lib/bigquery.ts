@@ -18,6 +18,9 @@ function parseCredentials(json: string): Record<string, unknown> {
 
 const bigquery = new BigQuery({
   projectId,
+  // The analyca dataset is in Tokyo. Set this before job creation so the SDK's
+  // retry/409 recovery can also look up the job in the correct region.
+  location: 'asia-northeast1',
   credentials: parseCredentials(credentialsJson),
 });
 

@@ -28,6 +28,7 @@ const dataset = bigquery.dataset('analyca');
 let ensureUserAccessLogsTablePromise: Promise<void> | null = null;
 let ensurePaymentAttemptsTablePromise: Promise<void> | null = null;
 let ensureSubscriptionUpgradeAttemptsTablePromise: Promise<void> | null = null;
+let ensureSubscriptionPaymentFailuresTablePromise: Promise<void> | null = null;
 
 /**
  * DML（INSERT/UPDATE/DELETE/MERGE）を確実に実行するヘルパー
@@ -96,6 +97,29 @@ async function ensurePaymentAttemptsTable(): Promise<void> {
   return ensurePaymentAttemptsTablePromise;
 }
 
+async function ensureSubscriptionPaymentFailuresTable(): Promise<void> {
+  if (!ensureSubscriptionPaymentFailuresTablePromise) {
+    ensureSubscriptionPaymentFailuresTablePromise = executeDML({
+      query: `
+        ALTER TABLE \`${projectId}.analyca.users\`
+        ADD COLUMN IF NOT EXISTS payment_failure_count INT64;
+
+        CREATE TABLE IF NOT EXISTS \`${projectId}.analyca.subscription_payment_failures\` (
+          charge_id STRING NOT NULL,
+          subscription_id STRING NOT NULL,
+          failed_at TIMESTAMP NOT NULL,
+          created_at TIMESTAMP NOT NULL
+        )
+      `,
+    }).catch((error) => {
+      ensureSubscriptionPaymentFailuresTablePromise = null;
+      throw error;
+    });
+  }
+
+  return ensureSubscriptionPaymentFailuresTablePromise;
+}
+
 async function ensureSubscriptionUpgradeAttemptsTable(): Promise<void> {
   if (!ensureSubscriptionUpgradeAttemptsTablePromise) {
     ensureSubscriptionUpgradeAttemptsTablePromise = executeDML({
@@ -149,6 +173,7 @@ export interface User {
   subscription_id?: string | null;
   plan_id?: string | null;
   subscription_status?: string | null;
+  payment_failure_count?: number | null;
   subscription_created_at?: Date | null;
   subscription_expires_at?: Date | null;
   recurring_token_id?: string | null;
@@ -604,6 +629,7 @@ export async function getUserById(userId: string): Promise<User | null> {
     subscription_id: row.subscription_id ?? null,
     plan_id: row.plan_id ?? null,
     subscription_status: row.subscription_status ?? null,
+    payment_failure_count: Number(row.payment_failure_count ?? 0),
     subscription_created_at: parseBigQueryDate(row.subscription_created_at),
     subscription_expires_at: parseBigQueryDate(row.subscription_expires_at),
     recurring_token_id: row.recurring_token_id ?? null,
@@ -2505,6 +2531,64 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
 /**
  * subscription_idでサブスクステータスを更新（Webhook用）
  */
+export async function recordSubscriptionPaymentFailure(
+  subscriptionId: string,
+  chargeId: string,
+  failedAt = new Date(),
+): Promise<void> {
+  await ensureSubscriptionPaymentFailuresTable();
+
+  await executeDML({
+    query: `
+      DECLARE is_new_failure BOOL DEFAULT NOT EXISTS (
+        SELECT 1
+        FROM \`${projectId}.analyca.subscription_payment_failures\`
+        WHERE charge_id = @charge_id
+      );
+
+      IF is_new_failure THEN
+        INSERT INTO \`${projectId}.analyca.subscription_payment_failures\`
+          (charge_id, subscription_id, failed_at, created_at)
+        VALUES
+          (@charge_id, @subscription_id, @failed_at, CURRENT_TIMESTAMP());
+      END IF;
+
+      UPDATE \`${projectId}.analyca.users\`
+      SET
+        payment_failure_count = CASE
+          WHEN is_new_failure THEN COALESCE(payment_failure_count, 0) + 1
+          ELSE COALESCE(payment_failure_count, 0)
+        END,
+        updated_at = CURRENT_TIMESTAMP()
+      WHERE subscription_id = @subscription_id;
+    `,
+    params: {
+      charge_id: chargeId,
+      subscription_id: subscriptionId,
+      failed_at: failedAt,
+    },
+    types: {
+      charge_id: 'STRING',
+      subscription_id: 'STRING',
+      failed_at: 'TIMESTAMP',
+    },
+  });
+}
+
+export async function resetSubscriptionPaymentFailures(subscriptionId: string): Promise<void> {
+  await ensureSubscriptionPaymentFailuresTable();
+
+  await executeDML({
+    query: `
+      UPDATE \`${projectId}.analyca.users\`
+      SET payment_failure_count = 0, updated_at = CURRENT_TIMESTAMP()
+      WHERE subscription_id = @subscription_id
+    `,
+    params: { subscription_id: subscriptionId },
+    types: { subscription_id: 'STRING' },
+  });
+}
+
 export async function updateSubscriptionStatusBySubId(subscriptionId: string, status: string): Promise<void> {
   // UnivaPay sends charge_finished for the 0 yen initial charge too.
   // Keep trial users in trial until trial_ends_at passes; the paid charge after

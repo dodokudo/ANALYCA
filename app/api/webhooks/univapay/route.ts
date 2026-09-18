@@ -5,6 +5,8 @@ import {
   findUserByPendingSubscriptionId,
   findUserBySubscriptionId,
   getUserById,
+  recordSubscriptionPaymentFailure,
+  resetSubscriptionPaymentFailures,
   updateSubscriptionStatusBySubId,
   updateUserSubscription,
 } from '@/lib/bigquery';
@@ -159,6 +161,9 @@ async function processWebhook(event: string | undefined, body: Record<string, un
         const subscriptionId = data.subscription_id as string
           || metadata.subscription_id as string;
         if (subscriptionId) {
+          await resetSubscriptionPaymentFailures(subscriptionId).catch((error) => {
+            console.error('[PAYMENT SUCCESS] Failed to reset failure count:', error);
+          });
           await updateStatusAndSync(subscriptionId, 'current', true);
           const user = await findUserBySubscriptionId(subscriptionId)
             || await findUserByPendingSubscriptionId(subscriptionId);
@@ -185,6 +190,10 @@ async function processWebhook(event: string | undefined, body: Record<string, un
       case 'charge_updated':
       case 'charge.failed': {
         const data = (body.data as Record<string, unknown>) || {};
+        const chargeStatus = typeof data.status === 'string' ? data.status.toLowerCase() : '';
+        if (event === 'charge_updated' && !['failed', 'error'].includes(chargeStatus)) {
+          break;
+        }
         const metadata = (data.metadata as Record<string, unknown>) || {};
         const upgradeAttemptId = metadata.attemptId as string | undefined;
         if (metadata.type === 'subscription_upgrade_diff' && upgradeAttemptId) {
@@ -193,6 +202,14 @@ async function processWebhook(event: string | undefined, body: Record<string, un
         }
         const subscriptionId = data.subscription_id as string || metadata.subscription_id as string;
         if (subscriptionId) {
+          const chargeId = typeof data.id === 'string' ? data.id : null;
+          if (chargeId) {
+            const failedAtValue = typeof data.created_on === 'string' ? new Date(data.created_on) : new Date();
+            const failedAt = Number.isNaN(failedAtValue.getTime()) ? new Date() : failedAtValue;
+            await recordSubscriptionPaymentFailure(subscriptionId, chargeId, failedAt);
+          } else {
+            console.warn(`[PAYMENT FAILED] Charge ID missing for subscription ${subscriptionId}`);
+          }
           await updateStatusAndSync(subscriptionId, 'unpaid');
           console.log(`[PAYMENT FAILED] SubID: ${subscriptionId}, Error: ${data.error}`);
         }
@@ -215,6 +232,9 @@ async function processWebhook(event: string | undefined, body: Record<string, un
         // 定期課金の支払い完了通知 → ステータスをcurrentに維持
         const subIdPayment = (body.data as Record<string, unknown>)?.id as string;
         if (subIdPayment) {
+          await resetSubscriptionPaymentFailures(subIdPayment).catch((error) => {
+            console.error('[SUBSCRIPTION PAYMENT] Failed to reset failure count:', error);
+          });
           await updateStatusAndSync(subIdPayment, 'current', true);
           console.log(`[SUBSCRIPTION PAYMENT] SubID: ${subIdPayment}`);
         }

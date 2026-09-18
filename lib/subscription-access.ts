@@ -27,6 +27,7 @@ export interface DashboardAccessResult {
 
 const CANCELED_STATUSES = new Set(['canceled', 'cancelled']);
 const PAYMENT_FAILED_STATUSES = new Set(['unpaid', 'unconfirmed']);
+const PAYMENT_FAILURE_LIMIT = 2;
 
 function asDate(value: Date | string | null | undefined): Date | null {
   if (!value) return null;
@@ -130,6 +131,18 @@ export function evaluateDashboardAccess(
       message: '再契約するとダッシュボードを再び確認できます。',
       actionLabel: '再契約する',
       actionType: 'reactivate',
+      status,
+      expiresAt,
+    };
+  }
+
+  if (
+    normalizedStatus === 'unpaid'
+    && Math.max(1, user.payment_failure_count ?? 1) < PAYMENT_FAILURE_LIMIT
+  ) {
+    return {
+      allowed: true,
+      state: 'allowed',
       status,
       expiresAt,
     };

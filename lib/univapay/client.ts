@@ -9,6 +9,7 @@ const UNIVAPAY_API_URL = process.env.UNIVAPAY_API_URL ?? 'https://api.univapay.c
 const UNIVAPAY_JWT = process.env.UNIVAPAY_JWT ?? '';
 const UNIVAPAY_SECRET = process.env.UNIVAPAY_SECRET ?? '';
 const UNIVAPAY_STORE_ID = process.env.UNIVAPAY_STORE_ID ?? '';
+const DEFAULT_SUBSCRIPTION_RETRY_INTERVAL = 'P1D';
 
 export interface UnivaPayCharge {
   id: string;
@@ -74,6 +75,7 @@ export interface CreateSubscriptionParams {
   schedule_settings?: {
     start_on?: string; // ISO date string (YYYY-MM-DD) - delays first charge until this date
     zone_id?: string;
+    retry_interval?: string;
   };
   metadata?: Record<string, string>;
   idempotencyKey?: string;
@@ -96,6 +98,7 @@ export interface UpdateSubscriptionParams {
   schedule_settings?: {
     start_on?: string;
     termination_mode?: 'immediate' | 'on_next_payment';
+    retry_interval?: string;
   };
   next_payment?: {
     amount?: number;
@@ -214,9 +217,10 @@ export async function createSubscription(
     metadata: params.metadata,
   };
 
-  if (params.schedule_settings) {
-    body.schedule_settings = params.schedule_settings;
-  }
+  body.schedule_settings = {
+    retry_interval: DEFAULT_SUBSCRIPTION_RETRY_INTERVAL,
+    ...params.schedule_settings,
+  };
 
   return fetchUnivaPay<UnivaPaySubscription>(
     `/subscriptions`,
@@ -423,6 +427,7 @@ export async function createSubscriptionFromToken(params: {
   schedule_settings?: {
     start_on?: string;
     zone_id?: string;
+    retry_interval?: string;
   };
   metadata?: Record<string, string>;
   idempotencyKey?: string;
@@ -442,7 +447,10 @@ export async function createSubscriptionFromToken(params: {
         initial_amount: params.initialAmount,
         currency: params.currency ?? 'JPY',
         period: params.period ?? 'monthly',
-        schedule_settings: params.schedule_settings,
+        schedule_settings: {
+          retry_interval: DEFAULT_SUBSCRIPTION_RETRY_INTERVAL,
+          ...params.schedule_settings,
+        },
         metadata: params.metadata,
       },
       idempotencyKey: params.idempotencyKey,

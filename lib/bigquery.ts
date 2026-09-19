@@ -1973,6 +1973,7 @@ export async function getIncompletePaymentAttempts(): Promise<Array<{
       FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', updated_at) AS updated_at
     FROM \`${projectId}.analyca.payment_attempts\`
     WHERE status != 'completed'
+      AND NOT ENDS_WITH(LOWER(TRIM(COALESCE(email, ''))), '@example.invalid')
       AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
     ORDER BY created_at DESC
     LIMIT 100

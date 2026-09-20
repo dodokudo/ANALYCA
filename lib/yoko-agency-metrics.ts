@@ -174,7 +174,6 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
           FROM first_seen_users
           JOIN \`${projectId}.${LSTEP_DATASET}.user_tags\` AS tags
             ON tags.user_id = first_seen_users.user_id
-            AND tags.snapshot_date = first_seen_users.date
           WHERE tags.tag_name IN UNNEST(@tagNames)
             AND tags.tag_flag = 1
           GROUP BY first_seen_users.date

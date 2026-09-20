@@ -4,7 +4,23 @@ const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID 
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
 const ANALYCA_DATASET = 'analyca';
 const LSTEP_DATASET = 'analyca_yoko_lstep';
-const YOKO_TAG_NAME = 'Threads';
+export const YOKO_LINE_REGISTRATION_TAG_NAMES = [
+  'Threads：固定',
+  'Threads',
+  'Threads：プロフィール',
+  '【流入経路】Threads',
+] as const;
+export const YOKO_LINE_REGISTRATION_BASELINE_DATE = '2026-09-20';
+// 2026-08-12以前は信頼できる日次スナップショットがないため、
+// Lステップの流入経路一覧で確認できた登録日を補完する。
+export const YOKO_LINE_REGISTRATION_BACKFILL_DATES = [
+  '2026-08-05',
+  '2026-08-11',
+  '2026-08-16',
+  '2026-08-17',
+  '2026-08-19',
+  '2026-08-22',
+] as const;
 const BOT_USER_AGENT_PATTERN = 'curl|notebot|bot|crawler|spider|preview';
 
 export const YOKO_ANALYCA_USER_ID = '33833959932919231';
@@ -143,24 +159,51 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
     }),
     bigquery.query({
       query: `
-        WITH first_tagged AS (
+        WITH first_seen_users AS (
           SELECT
             user_id,
             MIN(snapshot_date) AS date
-          FROM \`${projectId}.${LSTEP_DATASET}.user_tags\`
-          WHERE tag_name = @tagName
-            AND tag_flag = 1
+          FROM \`${projectId}.${LSTEP_DATASET}.user_core\`
           GROUP BY user_id
+          HAVING MIN(snapshot_date) > DATE(@baselineDate)
+        ),
+        observed_daily AS (
+          SELECT
+            first_seen_users.date,
+            COUNT(DISTINCT first_seen_users.user_id) AS registrations
+          FROM first_seen_users
+          JOIN \`${projectId}.${LSTEP_DATASET}.user_tags\` AS tags
+            ON tags.user_id = first_seen_users.user_id
+            AND tags.snapshot_date = first_seen_users.date
+          WHERE tags.tag_name IN UNNEST(@tagNames)
+            AND tags.tag_flag = 1
+          GROUP BY first_seen_users.date
+        ),
+        historical_daily AS (
+          SELECT
+            DATE(date_string) AS date,
+            COUNT(*) AS registrations
+          FROM UNNEST(@backfillDates) AS date_string
+          GROUP BY date
+        ),
+        combined_daily AS (
+          SELECT * FROM observed_daily
+          UNION ALL
+          SELECT * FROM historical_daily
         )
         SELECT
           date,
-          COUNT(*) AS registrations
-        FROM first_tagged
+          SUM(registrations) AS registrations
+        FROM combined_daily
         WHERE date >= DATE_SUB(CURRENT_DATE("Asia/Tokyo"), INTERVAL 365 DAY)
         GROUP BY date
         ORDER BY date
       `,
-      params: { tagName: YOKO_TAG_NAME },
+      params: {
+        tagNames: [...YOKO_LINE_REGISTRATION_TAG_NAMES],
+        baselineDate: YOKO_LINE_REGISTRATION_BASELINE_DATE,
+        backfillDates: [...YOKO_LINE_REGISTRATION_BACKFILL_DATES],
+      },
     }),
     bigquery.query({
       query: `
@@ -168,12 +211,12 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
           snapshot_date,
           COUNT(DISTINCT IF(tag_flag = 1, user_id, NULL)) AS registrations
         FROM \`${projectId}.${LSTEP_DATASET}.user_tags\`
-        WHERE tag_name = @tagName
+        WHERE tag_name IN UNNEST(@tagNames)
           AND snapshot_date >= DATE_SUB(CURRENT_DATE("Asia/Tokyo"), INTERVAL 365 DAY)
         GROUP BY snapshot_date
         ORDER BY snapshot_date DESC
       `,
-      params: { tagName: YOKO_TAG_NAME },
+      params: { tagNames: [...YOKO_LINE_REGISTRATION_TAG_NAMES] },
     }),
   ]);
 

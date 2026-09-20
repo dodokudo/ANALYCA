@@ -4,7 +4,7 @@ const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID 
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
 const ANALYCA_DATASET = 'analyca';
 const LSTEP_DATASET = 'analyca_yoko_lstep';
-const YOKO_TAG_NAME = 'Threads';
+export const YOKO_LINE_REGISTRATION_TAG_NAME = '【流入経路】Threads';
 const BOT_USER_AGENT_PATTERN = 'curl|notebot|bot|crawler|spider|preview';
 
 export const YOKO_ANALYCA_USER_ID = '33833959932919231';
@@ -160,7 +160,7 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
         GROUP BY date
         ORDER BY date
       `,
-      params: { tagName: YOKO_TAG_NAME },
+      params: { tagName: YOKO_LINE_REGISTRATION_TAG_NAME },
     }),
     bigquery.query({
       query: `
@@ -173,7 +173,7 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
         GROUP BY snapshot_date
         ORDER BY snapshot_date DESC
       `,
-      params: { tagName: YOKO_TAG_NAME },
+      params: { tagName: YOKO_LINE_REGISTRATION_TAG_NAME },
     }),
   ]);
 

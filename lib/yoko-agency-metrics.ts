@@ -10,17 +10,6 @@ export const YOKO_LINE_REGISTRATION_TAG_NAMES = [
   'Threads：プロフィール',
   '【流入経路】Threads',
 ] as const;
-export const YOKO_LINE_REGISTRATION_BASELINE_DATE = '2026-09-20';
-// 2026-08-12以前は信頼できる日次スナップショットがないため、
-// Lステップの流入経路一覧で確認できた登録日を補完する。
-export const YOKO_LINE_REGISTRATION_BACKFILL_DATES = [
-  '2026-08-05',
-  '2026-08-11',
-  '2026-08-16',
-  '2026-08-17',
-  '2026-08-19',
-  '2026-08-22',
-] as const;
 const BOT_USER_AGENT_PATTERN = 'curl|notebot|bot|crawler|spider|preview';
 
 export const YOKO_ANALYCA_USER_ID = '33833959932919231';
@@ -85,6 +74,39 @@ function toDateString(value: unknown): string {
     return String((value as { value: unknown }).value).slice(0, 10);
   }
   return String(value ?? '').slice(0, 10);
+}
+
+export function buildYokoDailyLineRegistrationsQuery(): string {
+  return `
+    WITH latest_core AS (
+      SELECT MAX(snapshot_date) AS snapshot_date
+      FROM \`${projectId}.${LSTEP_DATASET}.user_core\`
+    ),
+    threads_users AS (
+      SELECT DISTINCT tags.user_id
+      FROM \`${projectId}.${LSTEP_DATASET}.user_tags\` AS tags
+      WHERE tags.tag_name IN UNNEST(@tagNames)
+        AND tags.tag_flag = 1
+    ),
+    registrations AS (
+      SELECT DISTINCT
+        DATE(SAFE.PARSE_DATETIME('%Y-%m-%d %H:%M:%S', core.friend_added_at)) AS date,
+        core.user_id
+      FROM \`${projectId}.${LSTEP_DATASET}.user_core\` AS core
+      JOIN latest_core
+        ON core.snapshot_date = latest_core.snapshot_date
+      JOIN threads_users
+        ON core.user_id = threads_users.user_id
+      WHERE core.friend_added_at IS NOT NULL
+    )
+    SELECT
+      date,
+      COUNT(DISTINCT user_id) AS registrations
+    FROM registrations
+    WHERE date >= DATE_SUB(CURRENT_DATE("Asia/Tokyo"), INTERVAL 365 DAY)
+    GROUP BY date
+    ORDER BY date
+  `;
 }
 
 export function summarizeYokoMetrics(
@@ -158,51 +180,8 @@ export async function getYokoAgencyMetrics(): Promise<YokoAgencyMetrics> {
       },
     }),
     bigquery.query({
-      query: `
-        WITH first_seen_users AS (
-          SELECT
-            user_id,
-            MIN(snapshot_date) AS date
-          FROM \`${projectId}.${LSTEP_DATASET}.user_core\`
-          GROUP BY user_id
-          HAVING MIN(snapshot_date) > DATE(@baselineDate)
-        ),
-        observed_daily AS (
-          SELECT
-            first_seen_users.date,
-            COUNT(DISTINCT first_seen_users.user_id) AS registrations
-          FROM first_seen_users
-          JOIN \`${projectId}.${LSTEP_DATASET}.user_tags\` AS tags
-            ON tags.user_id = first_seen_users.user_id
-          WHERE tags.tag_name IN UNNEST(@tagNames)
-            AND tags.tag_flag = 1
-          GROUP BY first_seen_users.date
-        ),
-        historical_daily AS (
-          SELECT
-            DATE(date_string) AS date,
-            COUNT(*) AS registrations
-          FROM UNNEST(@backfillDates) AS date_string
-          GROUP BY date
-        ),
-        combined_daily AS (
-          SELECT * FROM observed_daily
-          UNION ALL
-          SELECT * FROM historical_daily
-        )
-        SELECT
-          date,
-          SUM(registrations) AS registrations
-        FROM combined_daily
-        WHERE date >= DATE_SUB(CURRENT_DATE("Asia/Tokyo"), INTERVAL 365 DAY)
-        GROUP BY date
-        ORDER BY date
-      `,
-      params: {
-        tagNames: [...YOKO_LINE_REGISTRATION_TAG_NAMES],
-        baselineDate: YOKO_LINE_REGISTRATION_BASELINE_DATE,
-        backfillDates: [...YOKO_LINE_REGISTRATION_BACKFILL_DATES],
-      },
+      query: buildYokoDailyLineRegistrationsQuery(),
+      params: { tagNames: [...YOKO_LINE_REGISTRATION_TAG_NAMES] },
     }),
     bigquery.query({
       query: `

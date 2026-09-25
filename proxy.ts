@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 const CANONICAL_HOST = 'analyca.jp';
+const MEDIA_HOST = 'media.analyca.jp';
 const ALLOWED_HOSTS = new Set([CANONICAL_HOST, 'analyca.vercel.app']);
 
 export function proxy(request: NextRequest) {
@@ -9,6 +10,22 @@ export function proxy(request: NextRequest) {
 
   if (pathname.startsWith('/api/')) {
     return NextResponse.next();
+  }
+
+  if (host === MEDIA_HOST) {
+    if (
+      pathname.startsWith('/_next/')
+      || pathname.startsWith('/media')
+      || pathname === '/favicon.ico'
+      || pathname === '/favicon.svg'
+      || pathname === '/apple-icon.png'
+      || pathname.startsWith('/icon-')
+    ) {
+      return NextResponse.next();
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = pathname === '/' ? '/media' : `/media${pathname}`;
+    return NextResponse.rewrite(url);
   }
 
   if (!host || ALLOWED_HOSTS.has(host) || host === 'localhost') {
@@ -24,4 +41,3 @@ export function proxy(request: NextRequest) {
 
   return NextResponse.next();
 }
-

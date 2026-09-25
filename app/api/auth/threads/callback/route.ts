@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  configuredMediaAdminIds,
+  createMediaAdminSession,
+  MEDIA_ADMIN_SESSION_COOKIE,
+} from '@/lib/media/auth';
 import { ThreadsAPI } from '@/lib/threads';
 import {
   getUserById,
@@ -96,6 +101,16 @@ export async function GET(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 365,
       sameSite: 'lax',
     });
+    if (configuredMediaAdminIds().has(userId)) {
+      const mediaSession = createMediaAdminSession(userId);
+      response.cookies.set(MEDIA_ADMIN_SESSION_COOKIE, mediaSession.value, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: mediaSession.maxAge,
+      });
+    }
     return response;
   } catch (err) {
     console.error('Threads OAuth callback error:', err);

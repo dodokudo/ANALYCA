@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     const link = await createOptionShortLink({
       userId,
-      slug: String(body?.slug || ''),
+      slug: typeof body?.slug === 'string' ? body.slug : null,
       managementName: typeof body?.managementName === 'string' ? body.managementName : null,
       destinationUrl: String(body?.destinationUrl || ''),
       title: typeof body?.title === 'string' ? body.title : null,

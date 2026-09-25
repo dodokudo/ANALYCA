@@ -24,7 +24,6 @@ interface ShortLinkView {
 }
 
 interface LinkFormState {
-  slug: string;
   managementName: string;
   destinationUrl: string;
   title: string;
@@ -33,7 +32,6 @@ interface LinkFormState {
 }
 
 const EMPTY_FORM: LinkFormState = {
-  slug: '',
   managementName: '',
   destinationUrl: '',
   title: '',
@@ -143,7 +141,6 @@ export default function LinkRegistrationTab({
   const startEdit = (link: ShortLinkView) => {
     setEditingId(link.id);
     setForm({
-      slug: link.slug,
       managementName: link.managementName || '',
       destinationUrl: link.destinationUrl,
       title: link.title || '',
@@ -260,11 +257,11 @@ export default function LinkRegistrationTab({
             {editingId ? 'リンクを編集' : '計測リンクを新規発行'}
           </h3>
           <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
-            OGPはSNSでリンクをシェアしたときのタイトル・説明・画像です。
+            短いリンクIDは自動で発行され、全ユーザー間で重複しません。OGPはSNSでリンクをシェアしたときのタイトル・説明・画像です。
           </p>
         </div>
         <form onSubmit={saveLink} className="mt-5 grid gap-4 md:grid-cols-2">
-          <label className="text-sm font-medium text-[color:var(--color-text-secondary)]">
+          <label className="text-sm font-medium text-[color:var(--color-text-secondary)] md:col-span-2">
             管理名
             <input
               value={form.managementName}
@@ -272,20 +269,6 @@ export default function LinkRegistrationTab({
               placeholder="例: Threadsプロフィール"
               className="mt-1.5 h-11 w-full rounded-xl border border-[color:var(--color-border)] px-3"
             />
-          </label>
-          <label className="text-sm font-medium text-[color:var(--color-text-secondary)]">
-            リンクID
-            <div className="mt-1.5 flex h-11 overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-white">
-              <span className="flex items-center bg-slate-50 px-3 text-xs text-slate-500">/l/{userId}/</span>
-              <input
-                value={form.slug}
-                onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))}
-                placeholder="profile"
-                disabled={Boolean(editingId)}
-                required
-                className="min-w-0 flex-1 px-3 text-sm disabled:bg-slate-50"
-              />
-            </div>
           </label>
           <label className="text-sm font-medium text-[color:var(--color-text-secondary)] md:col-span-2">
             遷移先URL

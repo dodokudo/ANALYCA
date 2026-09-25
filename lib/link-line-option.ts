@@ -1,4 +1,5 @@
 import { BigQuery } from '@google-cloud/bigquery';
+import { randomBytes } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 
 export const LINK_LINE_OPTION_CODE = 'link-line';
@@ -12,6 +13,9 @@ const COMPLIMENTARY_LINK_LINE_USER_IDS = new Set([
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID || 'mark-454114';
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}';
 const datasetName = 'analyca';
+const SHORT_LINK_CODE_ALPHABET = '23456789abcdefghijkmnpqrstuvwxyz';
+const SHORT_LINK_CODE_LENGTH = 7;
+const SHORT_LINK_CODE_GENERATION_ATTEMPTS = 10;
 
 function parseCredentials(json: string): Record<string, unknown> {
   try {
@@ -652,13 +656,38 @@ function normalizeSlug(slug: string): string {
   return slug.trim().replace(/^\/+|\/+$/g, '');
 }
 
+export function generateShortLinkCode(): string {
+  const bytes = randomBytes(SHORT_LINK_CODE_LENGTH);
+  return Array.from(bytes, (byte) => SHORT_LINK_CODE_ALPHABET[byte & 31]).join('');
+}
+
+export async function resolveShortLinkCode(
+  requestedSlug: string | null,
+  isTaken: (code: string) => Promise<boolean>,
+  generate: () => string = generateShortLinkCode,
+): Promise<string> {
+  if (requestedSlug) {
+    if (await isTaken(requestedSlug)) {
+      throw new Error('この短縮IDは既に使用されています');
+    }
+    return requestedSlug;
+  }
+
+  for (let attempt = 0; attempt < SHORT_LINK_CODE_GENERATION_ATTEMPTS; attempt += 1) {
+    const candidate = generate();
+    if (!await isTaken(candidate)) return candidate;
+  }
+
+  throw new Error('短縮IDを発行できませんでした。もう一度お試しください');
+}
+
 export function validateShortLinkInput(params: {
-  slug: string;
+  slug?: string | null;
   destinationUrl: string;
   ogpImageUrl?: string | null;
-}): { slug: string; destinationUrl: string; ogpImageUrl: string | null } {
-  const slug = normalizeSlug(params.slug);
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(slug)) {
+}): { slug: string | null; destinationUrl: string; ogpImageUrl: string | null } {
+  const slug = params.slug?.trim() ? normalizeSlug(params.slug) : null;
+  if (slug && !/^[a-zA-Z0-9_-]{1,64}$/.test(slug)) {
     throw new Error('リンクIDは半角英数字・ハイフン・アンダーバーで入力してください');
   }
 
@@ -705,7 +734,7 @@ export async function listOptionShortLinks(userId: string): Promise<OptionShortL
 
 export async function createOptionShortLink(params: {
   userId: string;
-  slug: string;
+  slug?: string | null;
   managementName?: string | null;
   destinationUrl: string;
   title?: string | null;
@@ -714,26 +743,25 @@ export async function createOptionShortLink(params: {
 }): Promise<OptionShortLink> {
   await ensureLinkLineOptionTables();
   const validated = validateShortLinkInput(params);
-  const shortCode = `${params.userId}/${validated.slug}`;
-  const existing = await runQuery(
-    `
-      SELECT id
-      FROM \`${projectId}.${datasetName}.option_short_links\`
-      WHERE short_code = @shortCode
-      LIMIT 1
-    `,
-    { shortCode },
-  );
-  if (existing.length > 0) {
-    throw new Error('このリンクIDは既に登録されています');
-  }
+  const shortCode = await resolveShortLinkCode(validated.slug, async (candidate) => {
+    const existing = await runQuery(
+      `
+        SELECT id
+        FROM \`${projectId}.${datasetName}.option_short_links\`
+        WHERE short_code = @shortCode
+        LIMIT 1
+      `,
+      { shortCode: candidate },
+    );
+    return existing.length > 0;
+  });
 
   const id = uuidv4();
   await dataset.table('option_short_links').insert([{
     id,
     user_id: params.userId,
     short_code: shortCode,
-    slug: validated.slug,
+    slug: shortCode,
     management_name: params.managementName?.trim() || null,
     destination_url: validated.destinationUrl,
     title: params.title?.trim() || null,
@@ -748,7 +776,7 @@ export async function createOptionShortLink(params: {
     id,
     userId: params.userId,
     shortCode,
-    slug: validated.slug,
+    slug: shortCode,
     managementName: params.managementName?.trim() || null,
     destinationUrl: validated.destinationUrl,
     title: params.title?.trim() || null,

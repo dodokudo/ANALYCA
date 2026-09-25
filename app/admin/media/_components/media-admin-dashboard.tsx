@@ -56,7 +56,7 @@ export function MediaAdminDashboard({
     }
   };
 
-  const uploadLineBanner = async (file: File) => {
+  const uploadSettingImage = async (file: File, key: 'lineBannerImageUrl' | 'authorImageUrl') => {
     setUploading(true);
     setNotice('');
     try {
@@ -65,7 +65,7 @@ export function MediaAdminDashboard({
       const response = await fetch('/api/admin/media/upload', { method: 'POST', body });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || 'アップロードできませんでした');
-      update('lineBannerImageUrl', payload.url);
+      update(key, payload.url);
       setNotice('画像を設定しました。「設定を保存」を押してください。');
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'アップロードできませんでした');
@@ -145,6 +145,17 @@ export function MediaAdminDashboard({
           <Field label="既定の著者名" value={settings.authorName} onChange={(value) => update('authorName', value)} />
           <Field label="サイト説明" value={settings.siteDescription} onChange={(value) => update('siteDescription', value)} area />
           <Field label="著者プロフィール" value={settings.authorBio} onChange={(value) => update('authorBio', value)} area />
+          <div>
+            <Field label="著者の顔写真URL" value={settings.authorImageUrl} onChange={(value) => update('authorImageUrl', value)} />
+            <label className="mt-2 inline-flex cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-xs font-bold">
+              {uploading ? 'アップロード中…' : '顔写真を選択'}
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading} className="sr-only" onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadSettingImage(file, 'authorImageUrl');
+                event.target.value = '';
+              }} />
+            </label>
+          </div>
           <Field label="LINE URL" value={settings.lineUrl} onChange={(value) => update('lineUrl', value)} />
           <Field label="LINEボタン文言" value={settings.lineLabel} onChange={(value) => update('lineLabel', value)} />
           <Field label="LINE見出し" value={settings.lineHeadline} onChange={(value) => update('lineHeadline', value)} />
@@ -155,7 +166,7 @@ export function MediaAdminDashboard({
               {uploading ? 'アップロード中…' : 'バナー画像を選択'}
               <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploading} className="sr-only" onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (file) void uploadLineBanner(file);
+                if (file) void uploadSettingImage(file, 'lineBannerImageUrl');
                 event.target.value = '';
               }} />
             </label>

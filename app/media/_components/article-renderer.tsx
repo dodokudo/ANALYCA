@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Script from 'next/script';
+import { Fragment, type ReactNode } from 'react';
 import type { MediaContentBlock } from '@/lib/media/types';
 import { TrackedLink } from './tracked-link';
 import styles from '../media.module.css';
@@ -15,83 +16,103 @@ function youtubeId(url: string): string {
   }
 }
 
-export function ArticleRenderer({ blocks, articleId }: { blocks: MediaContentBlock[]; articleId?: string }) {
+export function ArticleRenderer({
+  blocks,
+  articleId,
+  compact = false,
+  insert,
+}: {
+  blocks: MediaContentBlock[];
+  articleId?: string;
+  compact?: boolean;
+  // 本文の途中に差し込む要素（index番目のブロックの直前に表示）
+  insert?: { beforeIndex: number; node: ReactNode };
+}) {
   const usesInstagram = blocks.some((block) => block.type === 'embed' && block.provider === 'instagram');
   const usesThreads = blocks.some((block) => block.type === 'embed' && block.provider === 'threads');
   return (
-    <div className={styles.articleBody}>
+    <div className={compact ? styles.embedStack : styles.articleBody}>
       {blocks.map((block, index) => {
-        const anchor = `section-${index + 1}`;
-        if (block.type === 'heading') {
-          return block.level === 3
-            ? <h3 id={anchor} key={block.id}>{block.text}</h3>
-            : <h2 id={anchor} key={block.id}>{block.text}</h2>;
+        const rendered = renderBlock(block, index);
+        if (insert && insert.beforeIndex === index) {
+          return <Fragment key={`insert-${block.id}`}>{insert.node}{rendered}</Fragment>;
         }
-        if (block.type === 'paragraph') return <p key={block.id}>{block.text}</p>;
-        if (block.type === 'list') return <ul key={block.id}>{block.items.map((item, itemIndex) => <li key={`${block.id}-${itemIndex}`}>{item}</li>)}</ul>;
-        if (block.type === 'quote') {
-          return <blockquote className={styles.quote} key={block.id}>{block.text}{block.source && <cite>{block.source}</cite>}</blockquote>;
-        }
-        if (block.type === 'image') {
-          if (!block.url) return null;
-          return (
-            <figure className={styles.bodyImage} key={block.id}>
-              <Image src={block.url} alt={block.alt} width={1200} height={675} unoptimized sizes="(max-width: 900px) calc(100vw - 28px), 760px" />
-              {block.caption && <figcaption className={styles.caption}>{block.caption}</figcaption>}
-            </figure>
-          );
-        }
-        if (block.type === 'cta') {
-          if (!block.url) return null;
-          return (
-            <section className={styles.cta} key={block.id}>
-              <h3>{block.headline}</h3>
-              {block.body && <p>{block.body}</p>}
-              <TrackedLink
-                className={styles.button}
-                href={block.url}
-                articleId={articleId}
-                placement={block.placement || 'article-inline'}
-              >
-                {block.label || '詳しく見る'}
-              </TrackedLink>
-            </section>
-          );
-        }
-        if (block.type === 'embed') {
-          if (!block.url) return null;
-          const videoId = block.provider === 'youtube' ? youtubeId(block.url) : '';
-          return (
-            <figure className={styles.embed} key={block.id}>
-              {block.provider === 'youtube' && videoId ? (
-                <div className={styles.videoFrame}>
-                  <iframe
-                    src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}`}
-                    title={block.caption || 'YouTube動画'}
-                    loading="lazy"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
-              ) : block.provider === 'instagram' ? (
-                <blockquote className="instagram-media" data-instgrm-permalink={block.url} data-instgrm-version="14">
-                  <a href={block.url}>Instagramで投稿を見る</a>
-                </blockquote>
-              ) : block.provider === 'threads' ? (
-                <blockquote className="text-post-media" data-text-post-permalink={block.url}>
-                  <a href={block.url}>Threadsで投稿を見る</a>
-                </blockquote>
-              ) : (
-                <a className={styles.socialFallback} href={block.url}>投稿を開く</a>
-              )}
-              {block.caption && <figcaption className={styles.caption}>{block.caption}</figcaption>}
-            </figure>
-          );
-        }
-        return null;
+        return rendered;
       })}
       {usesInstagram && <Script id="instagram-embed" src="https://www.instagram.com/embed.js" strategy="lazyOnload" />}
       {usesThreads && <Script id="threads-embed" src="https://www.threads.net/embed.js" strategy="lazyOnload" />}
     </div>
   );
+
+  function renderBlock(block: MediaContentBlock, index: number) {
+    const anchor = `section-${index + 1}`;
+    if (block.type === 'heading') {
+      return block.level === 3
+        ? <h3 id={anchor} key={block.id}>{block.text}</h3>
+        : <h2 id={anchor} key={block.id}>{block.text}</h2>;
+    }
+    if (block.type === 'paragraph') return <p key={block.id}>{block.text}</p>;
+    if (block.type === 'list') return <ul key={block.id}>{block.items.map((item, itemIndex) => <li key={`${block.id}-${itemIndex}`}>{item}</li>)}</ul>;
+    if (block.type === 'quote') {
+      return <blockquote className={styles.quote} key={block.id}>{block.text}{block.source && <cite>{block.source}</cite>}</blockquote>;
+    }
+    if (block.type === 'image') {
+      if (!block.url) return null;
+      return (
+        <figure className={styles.bodyImage} key={block.id}>
+          <Image src={block.url} alt={block.alt} width={1200} height={675} unoptimized sizes="(max-width: 900px) calc(100vw - 28px), 760px" />
+          {block.caption && <figcaption className={styles.caption}>{block.caption}</figcaption>}
+        </figure>
+      );
+    }
+    if (block.type === 'cta') {
+      if (!block.url) return null;
+      const isLine = /(^|\.)line\.me\/|lin\.ee\//.test(block.url);
+      return (
+        <section className={isLine ? `${styles.cta} ${styles.ctaLine}` : styles.cta} key={block.id}>
+          <h3>{block.headline}</h3>
+          {block.body && <p>{block.body}</p>}
+          <TrackedLink
+            className={isLine ? styles.buttonLine : styles.buttonGradient}
+            href={block.url}
+            articleId={articleId}
+            placement={block.placement || 'article-inline'}
+          >
+            {block.label || '詳しく見る'}
+          </TrackedLink>
+        </section>
+      );
+    }
+    if (block.type === 'embed') {
+      if (!block.url) return null;
+      const videoId = block.provider === 'youtube' ? youtubeId(block.url) : '';
+      return (
+        <figure className={styles.embed} key={block.id}>
+          {block.provider === 'youtube' && videoId ? (
+            <div className={styles.videoFrame}>
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}`}
+                title={block.caption || 'YouTube動画'}
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          ) : block.provider === 'instagram' ? (
+            <blockquote className="instagram-media" data-instgrm-permalink={block.url} data-instgrm-version="14">
+              <a href={block.url}>Instagramで投稿を見る</a>
+            </blockquote>
+          ) : block.provider === 'threads' ? (
+            <blockquote className="text-post-media" data-text-post-permalink={block.url}>
+              <a href={block.url}>Threadsで投稿を見る</a>
+            </blockquote>
+          ) : (
+            <a className={styles.socialFallback} href={block.url}>投稿を開く</a>
+          )}
+          {block.caption && <figcaption className={styles.caption}>{block.caption}</figcaption>}
+        </figure>
+      );
+    }
+    return null;
+  }
 }

@@ -149,6 +149,7 @@ export function normalizeMediaSettings(raw: unknown): MediaSettings {
     lineBannerImageUrl: validUrl(value.lineBannerImageUrl),
     authorName: text(value.authorName, 200) || DEFAULT_MEDIA_SETTINGS.authorName,
     authorBio: text(value.authorBio, 1_000) || DEFAULT_MEDIA_SETTINGS.authorBio,
+    authorImageUrl: validUrl(value.authorImageUrl),
     instagramAccountUrl: validUrl(value.instagramAccountUrl),
     youtubeAccountUrl: validUrl(value.youtubeAccountUrl),
     threadsAccountUrl: validUrl(value.threadsAccountUrl),

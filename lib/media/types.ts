@@ -64,6 +64,7 @@ export type MediaSettings = {
   lineBannerImageUrl: string;
   authorName: string;
   authorBio: string;
+  authorImageUrl: string;
   instagramAccountUrl: string;
   youtubeAccountUrl: string;
   threadsAccountUrl: string;
@@ -87,6 +88,7 @@ export const DEFAULT_MEDIA_SETTINGS: MediaSettings = {
   lineBannerImageUrl: '',
   authorName: 'ANALYCA編集部',
   authorBio: 'SNS運用とデータ分析の実践情報を発信します。',
+  authorImageUrl: '',
   instagramAccountUrl: '',
   youtubeAccountUrl: '',
   threadsAccountUrl: '',

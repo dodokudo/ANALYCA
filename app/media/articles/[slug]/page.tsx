@@ -10,11 +10,12 @@ import {
   listMediaArticles,
 } from '@/lib/media/repository';
 import { DEFAULT_MEDIA_SETTINGS } from '@/lib/media/types';
-import { mediaUrl } from '@/lib/media/site';
+import { ANALYCA_SIGNUP_URL, mediaUrl } from '@/lib/media/site';
 import { ArticleRenderer } from '../../_components/article-renderer';
 import { MediaArticleCard } from '../../_components/media-article-card';
 import { MediaPageView } from '../../_components/tracking';
-import { MediaSidebar } from '../../_components/media-sidebar';
+import { MediaLineBanner, MediaSidebar } from '../../_components/media-sidebar';
+import { TrackedLink } from '../../_components/tracked-link';
 import styles from '../../media.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -64,13 +65,21 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
     getPopularMediaArticles(5).catch(() => []),
     listMediaArticles({ publicOnly: true, limit: 12 }).catch(() => []),
   ]);
-  const related = candidates
-    .filter((candidate) => candidate.id !== article.id && candidate.tags.some((tag) => article.tags.includes(tag)))
-    .slice(0, 3);
+  const others = candidates.filter((candidate) => candidate.id !== article.id);
+  const sameTag = others.filter((candidate) => candidate.tags.some((tag) => article.tags.includes(tag)));
+  const related = [...sameTag, ...others.filter((candidate) => !sameTag.includes(candidate))].slice(0, 3);
   const recent = candidates.filter((candidate) => candidate.id !== article.id).slice(0, 5);
   const headings = article.blocks
     .map((block, index) => ({ block, index }))
     .filter(({ block }) => block.type === 'heading' && block.level === 2);
+  // 記事の途中（後半最初の見出しの直前）にLINE誘導を1回入れる。前半に既にCTAがある記事は入れない
+  const half = Math.floor(article.blocks.length / 2);
+  const hasEarlyCta = article.blocks.slice(0, half).some((block) => block.type === 'cta');
+  const midIndex = article.blocks.findIndex((block, index) => index >= half && block.type === 'heading' && block.level === 2);
+  const midInsert = settings.lineUrl && !hasEarlyCta && midIndex > 0
+    ? { beforeIndex: midIndex, node: <MediaLineBanner settings={settings} articleId={article.id} placement="article-mid-line" /> }
+    : undefined;
+  const authorImageUrl = article.authorName === settings.authorName ? settings.authorImageUrl : '';
   const url = mediaUrl(`/articles/${article.slug}`);
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -87,9 +96,17 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
   return (
     <main className={styles.articleGrid}>
       <MediaPageView articleId={article.id} />
-      <article>
+      <article className={styles.article}>
         <div className={styles.breadcrumb}>
-          <Link href={mediaUrl('/')}>トップ</Link> / 記事
+          <Link href={mediaUrl('/')}>トップ</Link>
+          <span aria-hidden="true">›</span>
+          <Link href={mediaUrl('/articles')}>記事一覧</Link>
+          {article.tags[0] && (
+            <>
+              <span aria-hidden="true">›</span>
+              <Link href={mediaUrl(`/?tag=${encodeURIComponent(article.tags[0])}`)}>{article.tags[0]}</Link>
+            </>
+          )}
         </div>
         <div className={styles.tags}>
           {article.tags.map((tag) => <Link className={styles.tag} href={mediaUrl(`/?tag=${encodeURIComponent(tag)}`)} key={tag}>{tag}</Link>)}
@@ -97,9 +114,16 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
         <h1 className={styles.articleTitle}>{article.title}</h1>
         <p className={styles.articleLead}>{article.description}</p>
         <div className={styles.byline}>
-          <span>執筆：{article.authorName}</span>
-          <time dateTime={article.publishedAt || article.updatedAt}>公開：{dateLabel(article.publishedAt || article.updatedAt)}</time>
-          {article.publishedAt !== article.updatedAt && <time dateTime={article.updatedAt}>更新：{dateLabel(article.updatedAt)}</time>}
+          <span className={styles.avatar} aria-hidden="true">
+            {authorImageUrl && <Image src={authorImageUrl} alt="" fill unoptimized sizes="40px" />}
+          </span>
+          <div>
+            <span className={styles.bylineName}>{article.authorName}</span>
+            <span className={styles.bylineDates}>
+              <time dateTime={article.publishedAt || article.updatedAt}>公開 {dateLabel(article.publishedAt || article.updatedAt)}</time>
+              {article.publishedAt !== article.updatedAt && <time dateTime={article.updatedAt}>更新 {dateLabel(article.updatedAt)}</time>}
+            </span>
+          </div>
         </div>
         {article.coverImageUrl && (
           <div className={styles.cover}>
@@ -123,7 +147,16 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
             </ol>
           </nav>
         )}
-        <ArticleRenderer blocks={article.blocks} articleId={article.id} />
+        <ArticleRenderer blocks={article.blocks} articleId={article.id} insert={midInsert} />
+        <section className={styles.analycaEnd}>
+          <div>
+            <h2>この記事の数字、ANALYCAなら自動で集計できます</h2>
+            <p>InstagramとThreadsのインサイトを自動で取得し、投稿パフォーマンスやフォロワー推移をダッシュボードで確認できます。</p>
+          </div>
+          <TrackedLink className={styles.buttonGradient} href={ANALYCA_SIGNUP_URL} articleId={article.id} placement="article-end-analyca">
+            ANALYCAを無料で始める
+          </TrackedLink>
+        </section>
         {article.sources.length > 0 && (
           <section className={styles.sources}>
             <h2>参考情報</h2>
@@ -138,8 +171,14 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
           </section>
         )}
         <section className={styles.authorBox}>
-          <h2>{article.authorName}</h2>
-          <p>{article.authorBio || settings.authorBio}</p>
+          <span className={styles.avatarLarge} aria-hidden="true">
+            {authorImageUrl && <Image src={authorImageUrl} alt="" fill unoptimized sizes="72px" />}
+          </span>
+          <div>
+            <p className={styles.authorLabel}>この記事を書いた人</p>
+            <h2>{article.authorName}</h2>
+            <p>{article.authorBio || settings.authorBio}</p>
+          </div>
         </section>
         {related.length > 0 && (
           <section>

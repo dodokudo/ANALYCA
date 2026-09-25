@@ -38,12 +38,14 @@ export function MediaSidebar({
   settings,
   articleId,
   searchQuery = '',
+  hideRanking = false,
 }: {
   popularArticles: MediaArticleWithViews[];
   recentArticles: MediaArticle[];
   settings: MediaSettings;
   articleId?: string;
   searchQuery?: string;
+  hideRanking?: boolean;
 }) {
   const accounts = [
     ['Instagram', settings.instagramAccountUrl],
@@ -68,8 +70,8 @@ export function MediaSidebar({
         <MediaSearchForm defaultValue={searchQuery} />
       </div>
       <MediaLineBanner settings={settings} articleId={articleId} placement="sidebar-line" />
-      {ranked.length > 0 && (
-        <section className={styles.sidebarCard} id="ranking">
+      {!hideRanking && ranked.length > 0 && (
+        <section className={styles.sidebarCard} id={articleId ? undefined : 'ranking'}>
           <h2 className={styles.sidebarHeading}>人気記事ランキング</h2>
           <div className={styles.ranking}>
             {ranked.map((article, index) => (

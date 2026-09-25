@@ -178,40 +178,38 @@ async function assertUniqueSlug(slug: string, exceptId = ''): Promise<void> {
 }
 
 async function saveRevision(article: MediaArticle, createdBy: string): Promise<void> {
-  await client.dataset(DATASET).table(REVISIONS_TABLE).insert([{
-    revision_id: randomUUID(),
-    article_id: article.id,
+  await executeDml(`
+    INSERT INTO \`${projectId}.${DATASET}.${REVISIONS_TABLE}\`
+      (revision_id, article_id, revision, snapshot_json, created_by, created_at)
+    VALUES
+      (@revisionId, @articleId, @revision, @snapshotJson, @createdBy, CURRENT_TIMESTAMP())
+  `, {
+    revisionId: randomUUID(),
+    articleId: article.id,
     revision: article.revision,
-    snapshot_json: JSON.stringify(article),
-    created_by: createdBy,
-    created_at: new Date().toISOString(),
-  }]);
+    snapshotJson: JSON.stringify(article),
+    createdBy,
+  });
 }
 
 export async function createMediaArticle(input: MediaArticleInput, createdBy: string): Promise<MediaArticle> {
   await ensureMediaTables();
   await assertUniqueSlug(input.slug);
   const id = input.id || randomUUID();
-  await client.dataset(DATASET).table(ARTICLES_TABLE).insert([{
-    article_id: id,
-    slug: input.slug,
-    title: input.title,
-    description: input.description,
-    cover_image_url: input.coverImageUrl,
-    cover_image_alt: input.coverImageAlt,
-    blocks_json: JSON.stringify(input.blocks),
-    tags_json: JSON.stringify(input.tags),
-    sources_json: JSON.stringify(input.sources),
-    status: input.status,
-    author_name: input.authorName,
-    author_bio: input.authorBio,
-    scheduled_at: input.scheduledAt,
-    published_at: input.status === 'published' ? input.publishedAt || new Date().toISOString() : input.publishedAt,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    revision: 1,
-    ai_metadata_json: input.aiMetadata ? JSON.stringify(input.aiMetadata) : null,
-  }]);
+  const params = articleParams(input);
+  await executeDml(`
+    INSERT INTO \`${projectId}.${DATASET}.${ARTICLES_TABLE}\` (
+      article_id, slug, title, description, cover_image_url, cover_image_alt,
+      blocks_json, tags_json, sources_json, status, author_name, author_bio,
+      scheduled_at, published_at, created_at, updated_at, revision, ai_metadata_json
+    ) VALUES (
+      @id, @slug, @title, @description, NULLIF(@coverImageUrl, ''), NULLIF(@coverImageAlt, ''),
+      @blocksJson, @tagsJson, @sourcesJson, @status, NULLIF(@authorName, ''), NULLIF(@authorBio, ''),
+      SAFE_CAST(NULLIF(@scheduledAt, '') AS TIMESTAMP),
+      CASE WHEN @status = 'published' THEN COALESCE(SAFE_CAST(NULLIF(@publishedAt, '') AS TIMESTAMP), CURRENT_TIMESTAMP()) ELSE SAFE_CAST(NULLIF(@publishedAt, '') AS TIMESTAMP) END,
+      CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), 1, NULLIF(@aiMetadataJson, '')
+    )
+  `, { id, ...params });
   const article = await getMediaArticleById(id);
   if (!article) throw new Error('記事の保存後読み込みに失敗しました');
   await saveRevision(article, createdBy);
@@ -249,10 +247,10 @@ export async function updateMediaArticle(
         status = @status,
         author_name = NULLIF(@authorName, ''),
         author_bio = NULLIF(@authorBio, ''),
-        scheduled_at = TIMESTAMP(NULLIF(@scheduledAt, '')),
+        scheduled_at = SAFE_CAST(NULLIF(@scheduledAt, '') AS TIMESTAMP),
         published_at = CASE
           WHEN @shouldPublishNow THEN CURRENT_TIMESTAMP()
-          WHEN NULLIF(@publishedAt, '') IS NOT NULL THEN TIMESTAMP(@publishedAt)
+          WHEN NULLIF(@publishedAt, '') IS NOT NULL THEN SAFE_CAST(@publishedAt AS TIMESTAMP)
           ELSE published_at
         END,
         ai_metadata_json = NULLIF(@aiMetadataJson, ''),

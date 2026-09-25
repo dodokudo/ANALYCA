@@ -1,17 +1,19 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import type { MediaArticleWithViews, MediaSettings } from '@/lib/media/types';
+import type { MediaArticle, MediaArticleWithViews, MediaSettings } from '@/lib/media/types';
 import { mediaUrl } from '@/lib/media/site';
 import { TrackedLink } from './tracked-link';
 import { ArticleRenderer } from './article-renderer';
 import styles from '../media.module.css';
 
 export function MediaSidebar({
-  articles,
+  popularArticles,
+  recentArticles,
   settings,
   articleId,
 }: {
-  articles: MediaArticleWithViews[];
+  popularArticles: MediaArticleWithViews[];
+  recentArticles: MediaArticle[];
   settings: MediaSettings;
   articleId?: string;
 }) {
@@ -23,17 +25,38 @@ export function MediaSidebar({
   const embeddedPosts = settings.sidebarEmbedUrls.map((url, index) => ({
     id: `sidebar-embed-${index}-${url}`,
     type: 'embed' as const,
-    provider: url.includes('instagram.com') ? 'instagram' as const : url.includes('threads.net') ? 'threads' as const : 'youtube' as const,
+    provider: url.includes('instagram.com')
+      ? 'instagram' as const
+      : url.includes('threads.net') || url.includes('threads.com')
+        ? 'threads' as const
+        : 'youtube' as const,
     url,
     caption: '',
   }));
   return (
     <aside className={styles.sidebar}>
-      {articles.length > 0 && (
+      {recentArticles.length > 0 && (
+        <section className={styles.sidebarSection}>
+          <h2>新着記事</h2>
+          <div className={styles.recentList}>
+            {recentArticles.slice(0, 5).map((article) => (
+              <Link className={styles.recentItem} href={mediaUrl(`/articles/${article.slug}`)} key={article.id}>
+                <span className={styles.recentTitle}>{article.title}</span>
+                <time dateTime={article.publishedAt || article.updatedAt}>
+                  {new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Tokyo' })
+                    .format(new Date(article.publishedAt || article.updatedAt))}
+                </time>
+              </Link>
+            ))}
+          </div>
+          <Link className={styles.sidebarMore} href={mediaUrl('/articles')}>記事一覧を見る →</Link>
+        </section>
+      )}
+      {popularArticles.some((article) => article.views > 0) && (
         <section className={styles.sidebarSection}>
           <h2>よく読まれている記事</h2>
           <div className={styles.ranking}>
-            {articles.map((article, index) => (
+            {popularArticles.filter((article) => article.views > 0).map((article, index) => (
               <Link className={styles.rankingItem} href={mediaUrl(`/articles/${article.slug}`)} key={article.id}>
                 <span className={styles.rank}>{index + 1}</span>
                 <span className={styles.rankingTitle}>{article.title}</span>

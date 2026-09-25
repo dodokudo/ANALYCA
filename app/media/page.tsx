@@ -53,7 +53,7 @@ export default async function MediaHomePage({
             <p className={styles.empty}>公開中の記事はまだありません。管理画面で記事を承認・公開すると、ここに表示されます。</p>
           )}
         </section>
-        <MediaSidebar articles={popular} settings={settings} />
+        <MediaSidebar popularArticles={popular} recentArticles={articles.slice(0, 5)} settings={settings} />
       </div>
     </main>
   );

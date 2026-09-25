@@ -16,7 +16,7 @@ export function MediaShell({ children, settings }: { children: ReactNode; settin
           </Link>
           <nav className={styles.nav} aria-label="メインナビゲーション">
             <Link href={mediaUrl('/')}>新着記事</Link>
-            <Link href={mediaUrl('/?view=all')}>記事一覧</Link>
+            <Link href={mediaUrl('/articles')}>記事一覧</Link>
             <a href="https://analyca.jp">ANALYCA</a>
           </nav>
         </div>

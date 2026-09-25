@@ -22,7 +22,10 @@ export function MediaArticleCard({ article }: { article: MediaArticle }) {
             sizes="(max-width: 620px) calc(100vw - 28px), 230px"
           />
         ) : (
-          <div className={styles.thumbFallback}>ANALYCA</div>
+          <div className={styles.thumbFallback}>
+            <span>{article.tags[0] || 'ANALYCA'}</span>
+            <small>ANALYCA MEDIA</small>
+          </div>
         )}
       </div>
       <div>

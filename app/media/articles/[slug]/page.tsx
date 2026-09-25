@@ -67,6 +67,7 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
   const related = candidates
     .filter((candidate) => candidate.id !== article.id && candidate.tags.some((tag) => article.tags.includes(tag)))
     .slice(0, 3);
+  const recent = candidates.filter((candidate) => candidate.id !== article.id).slice(0, 5);
   const headings = article.blocks
     .map((block, index) => ({ block, index }))
     .filter(({ block }) => block.type === 'heading' && block.level === 2);
@@ -148,7 +149,7 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
         )}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       </article>
-      <MediaSidebar articles={popular} settings={settings} articleId={article.id} />
+      <MediaSidebar popularArticles={popular} recentArticles={recent} settings={settings} articleId={article.id} />
     </main>
   );
 }

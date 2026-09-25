@@ -17,7 +17,7 @@ export default async function MediaAdminLayout({ children }: { children: ReactNo
           </Link>
           <nav className="flex items-center gap-4 text-sm font-semibold text-slate-600">
             <Link href="/admin/media/new" className="rounded-lg bg-blue-600 px-4 py-2 text-white">新しい記事</Link>
-            <a href="https://media.analyca.jp" target="_blank" rel="noreferrer">公開サイト</a>
+            <a href="/media" target="_blank" rel="noreferrer">公開サイト</a>
             <Link href="/admin">管理トップ</Link>
           </nav>
         </div>

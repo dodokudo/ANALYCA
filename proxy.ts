@@ -15,7 +15,6 @@ export function proxy(request: NextRequest) {
   if (host === MEDIA_HOST) {
     if (
       pathname.startsWith('/_next/')
-      || pathname.startsWith('/media')
       || pathname === '/favicon.ico'
       || pathname === '/favicon.svg'
       || pathname === '/apple-icon.png'
@@ -24,8 +23,12 @@ export function proxy(request: NextRequest) {
       return NextResponse.next();
     }
     const url = request.nextUrl.clone();
-    url.pathname = pathname === '/' ? '/media' : `/media${pathname}`;
-    return NextResponse.rewrite(url);
+    url.protocol = 'https:';
+    url.host = CANONICAL_HOST;
+    url.port = '';
+    url.pathname = pathname === '/' ? '/media'
+      : pathname === '/media' || pathname.startsWith('/media/') ? pathname : `/media${pathname}`;
+    return NextResponse.redirect(url, 308);
   }
 
   if (!host || ALLOWED_HOSTS.has(host) || host === 'localhost') {

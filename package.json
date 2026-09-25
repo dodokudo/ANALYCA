@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test:schedule-preview": "node --test scripts/schedule-preview.test.mjs",
     "test:yoko-drafts": "node --experimental-test-module-mocks --import ./scripts/register-ts-tests.mjs --test lib/__tests__/yoko-draft-storage.test.ts lib/__tests__/yoko-draft-flow.test.ts lib/__tests__/threads-content-drafts.test.ts lib/yoko-style-review.test.mjs lib/line-draft-selection.test.mjs lib/threads-text-length.test.mjs",
-    "test:media": "node --experimental-strip-types --import ./scripts/register-ts-tests.mjs --test lib/media/validation.test.mjs",
+    "test:media": "node --experimental-strip-types --import ./scripts/register-ts-tests.mjs --test lib/media/validation.test.mjs lib/media/routing.test.mjs",
     "threads:line-actions": "node scripts/threads-line-actions.js"
   },
   "dependencies": {

@@ -78,7 +78,9 @@ export default async function MediaHomePage({
       <div className={styles.articleGrid}>
         <section>
           <div className={styles.sectionHeader}>
-            <h2>{query ? `「${query}」の検索結果` : tag ? `「${tag}」の記事` : '新着記事'}</h2>
+            {filtered
+              ? <h1>{query ? `「${query}」の検索結果` : `「${tag}」の記事`}</h1>
+              : <h2>新着記事</h2>}
             {filtered && <span className={styles.articleMeta}>{articles.length}件</span>}
           </div>
           {listed.length > 0 ? (

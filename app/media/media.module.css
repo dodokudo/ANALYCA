@@ -355,6 +355,7 @@
   margin: 0 0 18px;
 }
 
+.sectionHeader h1,
 .sectionHeader h2 {
   display: flex;
   align-items: center;
@@ -364,6 +365,7 @@
   font-weight: 700;
 }
 
+.sectionHeader h1::before,
 .sectionHeader h2::before {
   content: "";
   width: 4px;

@@ -30,13 +30,9 @@ export function MediaShell({ children, settings }: { children: ReactNode; settin
         <div className={styles.headerInner}>
           <Link href={mediaUrl('/')} className={styles.brand} aria-label={`${settings.siteName} トップ`}>
             <AnalycaMark />
-            <span className={styles.brandName}>ANALYCA</span>
-            <span className={styles.brandLabel}>Media</span>
+            <span className={styles.brandName}>ANALYCA<span className={styles.brandMedia}> Media</span></span>
           </Link>
-          <nav className={styles.nav} aria-label="メインナビゲーション">
-            {NAV_ITEMS.map((item) => <Link href={item.href} key={item.label}>{item.label}</Link>)}
-            <a href="https://analyca.jp">ANALYCAとは</a>
-          </nav>
+          <p className={styles.tagline}>Threads運用の専用メディア</p>
           <div className={styles.headerActions}>
             <TrackedLink className={styles.buttonOutline} href={ANALYCA_SIGNUP_URL} placement="header-analyca">
               ANALYCAを無料で始める

@@ -303,8 +303,12 @@ export default function HomePage() {
             <a href="#reasons" className="text-gray-600 hover:text-gray-900 transition-colors">選ばれる理由</a>
             <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors">料金プラン</a>
             <a href="#faq" className="text-gray-600 hover:text-gray-900 transition-colors">よくある質問</a>
+            <Link href="/media" className="text-gray-600 hover:text-gray-900 transition-colors">Threads運用メディア</Link>
           </nav>
           <div className="flex items-center gap-3">
+            <Link href="/media" className="md:hidden text-sm text-gray-600 hover:text-gray-900 transition-colors">
+              メディア
+            </Link>
             <Link href="/demo" className="hidden md:block text-sm text-gray-600 hover:text-gray-900 transition-colors">
               デモを見る
             </Link>
@@ -696,6 +700,7 @@ export default function HomePage() {
                 <li><a href="#features" className="hover:text-white transition-colors">機能</a></li>
                 <li><a href="#pricing" className="hover:text-white transition-colors">料金プラン</a></li>
                 <li><Link href="/demo" className="hover:text-white transition-colors">デモ</Link></li>
+                <li><Link href="/media" className="hover:text-white transition-colors">Threads運用メディア</Link></li>
               </ul>
             </div>
 

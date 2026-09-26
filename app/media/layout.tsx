@@ -11,14 +11,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getMediaSettings().catch(() => DEFAULT_MEDIA_SETTINGS);
   return {
     metadataBase: new URL(MEDIA_ORIGIN),
-    title: { default: settings.siteName, template: `%s | ${settings.siteName}` },
+    title: { default: `${settings.siteName}｜Threads運用の専用メディア`, template: `%s | ${settings.siteName}` },
     description: settings.siteDescription,
     alternates: { canonical: MEDIA_ORIGIN },
     openGraph: {
       type: 'website',
       locale: 'ja_JP',
       siteName: settings.siteName,
-      title: settings.siteName,
+      title: `${settings.siteName}｜Threads運用の専用メディア`,
       description: settings.siteDescription,
       url: MEDIA_ORIGIN,
     },

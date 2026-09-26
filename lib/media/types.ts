@@ -80,14 +80,14 @@ export type MediaArticleWithViews = MediaArticle & {
 
 export const DEFAULT_MEDIA_SETTINGS: MediaSettings = {
   siteName: 'ANALYCA Media',
-  siteDescription: 'SNS運用とWebマーケティングを、実践に変えるためのメディア。',
+  siteDescription: 'Threads運用の専用メディア。Threadsの伸ばし方、運用ノウハウ、最新情報を発信します。',
   lineUrl: '',
   lineLabel: 'LINEで最新情報を受け取る',
   lineHeadline: '運用に使える情報をLINEで',
   lineBody: '新着記事や実践ノウハウをまとめてお届けします。',
   lineBannerImageUrl: '',
   authorName: 'ANALYCA編集部',
-  authorBio: 'SNS運用とデータ分析の実践情報を発信します。',
+  authorBio: 'Threads運用の実践ノウハウと最新情報を発信します。',
   authorImageUrl: '',
   instagramAccountUrl: '',
   youtubeAccountUrl: '',
@@ -95,7 +95,7 @@ export const DEFAULT_MEDIA_SETTINGS: MediaSettings = {
   sidebarEmbedUrls: [],
   rankingDays: 30,
   pinnedArticleIds: [],
-  footerText: 'ANALYCAが、SNS運用の判断と実行を支えます。',
+  footerText: 'Threads運用の専用メディア by ANALYCA',
 };
 
 export function createMediaBlock(type: MediaContentBlock['type']): MediaContentBlock {

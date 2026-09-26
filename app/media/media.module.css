@@ -825,6 +825,14 @@
 .embedStack {
   display: grid;
   gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Instagramの埋め込みは読み込み直後に横幅が広がることがあるため、枠内に収める */
+.embed :global(iframe),
+.embedStack :global(iframe) {
+  max-width: 100% !important;
 }
 
 .embedStack .embed {

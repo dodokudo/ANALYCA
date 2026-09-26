@@ -832,6 +832,8 @@
 /* Instagramの埋め込みは読み込み直後に横幅が広がることがあるため、枠内に収める */
 .embed :global(iframe),
 .embedStack :global(iframe) {
+  width: 100% !important;
+  min-width: 0 !important;
   max-width: 100% !important;
 }
 
@@ -987,7 +989,9 @@
 /* ---------- 右カラム ---------- */
 .sidebar {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
+  min-width: 0;
 }
 
 .searchForm {

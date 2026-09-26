@@ -93,8 +93,7 @@
 .headerInner,
 .footerInner,
 .heroInner,
-.articleGrid,
-.tagChipsInner {
+.articleGrid {
   width: var(--container);
   margin: 0 auto;
 }
@@ -195,47 +194,6 @@
 
 .mobileMenu {
   display: none;
-}
-
-/* ---------- タグのチップ ---------- */
-.tagChips {
-  border-bottom: 1px solid var(--line-soft);
-  background: #ffffff;
-}
-
-.tagChipsInner {
-  display: flex;
-  gap: 8px;
-  padding: 12px 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tagChipsInner::-webkit-scrollbar {
-  display: none;
-}
-
-.tagChipsInner a {
-  flex: none;
-  padding: 5px 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.tagChipsInner a:hover {
-  border-color: var(--purple);
-  color: var(--purple-deep);
-}
-
-.tagChipsInner a.tagChipActive {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: #ffffff;
 }
 
 /* ---------- トップのピックアップ（自動で切り替わるスライダー） ---------- */
@@ -599,7 +557,7 @@
 }
 
 .articleCardTitle {
-  margin: 8px 0 6px;
+  margin: 0 0 6px;
   font-size: 1.0625rem;
   font-weight: 700;
   line-height: 1.55;
@@ -619,35 +577,14 @@
   overflow: hidden;
 }
 
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag,
-.tagStrong {
-  display: inline-flex;
-  align-items: center;
+.pickupBadge {
+  align-self: flex-start;
   padding: 2px 10px;
   border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.tag {
-  background: var(--purple-soft);
-  color: var(--purple-deep);
-}
-
-a.tag:hover {
-  background: var(--purple-tint);
-}
-
-.tagStrong {
   background: var(--grad);
   color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 /* ---------- 記事ページ ---------- */
@@ -1455,10 +1392,6 @@ a.tag:hover {
     text-decoration: none;
   }
 
-  .tagChipsInner {
-    padding: 10px 0;
-  }
-
   .heroInner {
     padding: 16px 0 18px;
   }
@@ -1561,10 +1494,6 @@ a.tag:hover {
   .articleCard > time {
     grid-column: 2;
     margin-top: -4px;
-  }
-
-  .articleCard .tags {
-    display: none;
   }
 
   .articleCardTitle {

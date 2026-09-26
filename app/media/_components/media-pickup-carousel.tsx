@@ -76,16 +76,12 @@ export function MediaPickupCarousel({ articles }: { articles: MediaArticle[] }) 
                   />
                 ) : (
                   <div className={styles.thumbFallback}>
-                    <span>{article.tags[0] || 'ANALYCA'}</span>
-                    <small>ANALYCA MEDIA</small>
+                    <span>ANALYCA Media</span>
                   </div>
                 )}
               </div>
               <div className={styles.carouselBody}>
-                <div className={styles.tags}>
-                  <span className={styles.tagStrong}>ピックアップ</span>
-                  {article.tags.slice(0, 2).map((tag) => <span className={styles.tag} key={tag}>{tag}</span>)}
-                </div>
+                <span className={styles.pickupBadge}>ピックアップ</span>
                 <h2 className={styles.carouselTitle}>{article.title}</h2>
                 <p className={styles.carouselDescription}>{article.description}</p>
                 <time className={styles.articleDate} dateTime={article.publishedAt || article.updatedAt}>{dateLabel(article)}</time>

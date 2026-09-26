@@ -23,15 +23,11 @@ export function MediaArticleCard({ article }: { article: MediaArticle }) {
           />
         ) : (
           <div className={styles.thumbFallback}>
-            <span>{article.tags[0] || 'ANALYCA'}</span>
-            <small>ANALYCA MEDIA</small>
+            <span>ANALYCA Media</span>
           </div>
         )}
       </div>
       <div>
-        <div className={styles.tags}>
-          {article.tags.slice(0, 3).map((tag) => <span className={styles.tag} key={tag}>{tag}</span>)}
-        </div>
         <h2 className={styles.articleCardTitle}>{article.title}</h2>
         <p className={styles.articleCardDescription}>{article.description}</p>
       </div>

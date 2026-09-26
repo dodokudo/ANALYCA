@@ -6,14 +6,13 @@ import { mediaUrl } from '@/lib/media/site';
 import { MediaArticleCard } from '../_components/media-article-card';
 import { MediaPageView } from '../_components/tracking';
 import { MediaSidebar } from '../_components/media-sidebar';
-import { MediaTagChips } from '../_components/media-tag-chips';
 import styles from '../media.module.css';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: '記事一覧',
-  description: 'ANALYCA MediaのSNS運用・Webマーケティング記事一覧です。',
+  description: 'ANALYCA Mediaの記事一覧です。',
   alternates: { canonical: mediaUrl('/articles') },
 };
 
@@ -35,7 +34,6 @@ export default async function MediaArticlesPage({
   return (
     <main>
       <MediaPageView />
-      <MediaTagChips articles={allArticles} activeTag={tag} />
       <div className={styles.articleGrid}>
         <section>
           <div className={styles.breadcrumb}><Link href={mediaUrl('/')}>トップ</Link><span aria-hidden="true">›</span>記事一覧</div>

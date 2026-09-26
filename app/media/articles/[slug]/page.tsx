@@ -101,15 +101,6 @@ export default async function MediaArticlePage({ params }: { params: Promise<{ s
           <Link href={mediaUrl('/')}>トップ</Link>
           <span aria-hidden="true">›</span>
           <Link href={mediaUrl('/articles')}>記事一覧</Link>
-          {article.tags[0] && (
-            <>
-              <span aria-hidden="true">›</span>
-              <Link href={mediaUrl(`/?tag=${encodeURIComponent(article.tags[0])}`)}>{article.tags[0]}</Link>
-            </>
-          )}
-        </div>
-        <div className={styles.tags}>
-          {article.tags.map((tag) => <Link className={styles.tag} href={mediaUrl(`/?tag=${encodeURIComponent(tag)}`)} key={tag}>{tag}</Link>)}
         </div>
         <h1 className={styles.articleTitle}>{article.title}</h1>
         <p className={styles.articleLead}>{article.description}</p>

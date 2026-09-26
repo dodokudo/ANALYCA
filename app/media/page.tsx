@@ -8,7 +8,6 @@ import { MediaArticleCard } from './_components/media-article-card';
 import { MediaPickupCarousel } from './_components/media-pickup-carousel';
 import { MediaPageView } from './_components/tracking';
 import { MediaSidebar } from './_components/media-sidebar';
-import { MediaTagChips } from './_components/media-tag-chips';
 import styles from './media.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +41,6 @@ export default async function MediaHomePage({
     <main>
       <MediaPageView />
       {!filtered && <h1 className={styles.visuallyHidden}>{settings.siteName}</h1>}
-      <MediaTagChips articles={allArticles} activeTag={tag} />
       {pickups.length > 0 && (
         <section className={styles.hero}>
           <div className={styles.heroInner}>
@@ -63,7 +61,7 @@ export default async function MediaHomePage({
                       {article.coverImageUrl ? (
                         <Image src={article.coverImageUrl} alt={article.coverImageAlt || ''} fill unoptimized sizes="(max-width: 760px) 112px, 280px" />
                       ) : (
-                        <div className={styles.thumbFallback}><span>{article.tags[0] || 'ANALYCA'}</span></div>
+                        <div className={styles.thumbFallback}><span>ANALYCA Media</span></div>
                       )}
                     </div>
                     <h3 className={styles.popularTitle}>{article.title}</h3>

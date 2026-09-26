@@ -38,6 +38,27 @@ function ChevronDownIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+// 作った人の実績欄。掲載する数字と顔写真が確定するまで非表示
+const SHOW_MAKER_SECTION = false;
+
+// ============ 機能一覧のアイコン（線のアイコン） ============
+const FEATURE_ICON_PATHS: Record<string, string> = {
+  ranking: 'M8 21h8m-4-4v4m-5-9V4h10v8a5 5 0 01-10 0zM7 6H4v2a3 3 0 003 3m10-5h3v2a3 3 0 01-3 3',
+  followers: 'M3 17l6-6 4 4 8-8m0 0v6m0-6h-6',
+  transition: 'M8 10h8M8 14h5m-9 6l2.5-3H19a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v11.5',
+  engagement: 'M4 20V10m6 10V4m6 16v-7m4 7H2',
+  schedule: 'M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zm7 9v3l2 1',
+  instagram: 'M4 8a4 4 0 014-4h8a4 4 0 014 4v8a4 4 0 01-4 4H8a4 4 0 01-4-4V8zm12 4a4 4 0 11-8 0 4 4 0 018 0zm1.5-5.5h.01',
+};
+
+function FeatureIcon({ name }: { name: string }) {
+  return (
+    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={FEATURE_ICON_PATHS[name]} />
+    </svg>
+  );
+}
+
 // ============ モックアップコンポーネント ============
 function DashboardMockup() {
   return (
@@ -97,7 +118,7 @@ const PRICING_PLANS = [
     yearlyMonthlyPrice: 3980,
     yearlyTotal: 47760,
     features: ['Threads分析', '投稿パフォーマンス追跡', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 30件/月'],
-    popular: false,
+    popular: true,
   },
   {
     id: 'standard',
@@ -108,7 +129,7 @@ const PRICING_PLANS = [
     yearlyMonthlyPrice: 7840,
     yearlyTotal: 94080,
     features: ['Instagram + Threads両方', 'クロスプラットフォーム分析', '全投稿タイプ対応', 'フォロワー推移グラフ', 'エンゲージメント分析', '予約投稿 100件/月'],
-    popular: true,
+    popular: false,
   },
   {
     id: 'pro',
@@ -134,7 +155,7 @@ function PricingSection() {
             料金プラン
           </h2>
           <p className="text-gray-600 text-lg">
-            SNS分析で成果を最大化しましょう
+            7日間は無料。合わなければ期間中に解約できます
           </p>
         </div>
 
@@ -178,7 +199,7 @@ function PricingSection() {
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                   {plan.popular ? (
                     <span className="bg-gradient-to-r from-purple-500 to-emerald-400 text-white text-sm font-semibold px-5 py-1.5 rounded-full shadow-md whitespace-nowrap">
-                      人気 - 7日間無料
+                      おすすめ - 7日間無料
                     </span>
                   ) : (
                     <span className="bg-emerald-500 text-white text-sm font-medium px-4 py-1 rounded-full whitespace-nowrap">
@@ -222,7 +243,7 @@ function PricingSection() {
 
         <div className="mt-8 mx-auto flex max-w-5xl flex-col gap-4 rounded-2xl border border-pink-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-bold text-gray-900">Instagramだけ使いたい方</p>
+            <p className="flex items-center gap-2 font-bold text-gray-900"><InstagramIcon className="w-4 h-4 text-pink-500" />Instagramだけ使いたい方</p>
             <p className="mt-1 text-sm text-gray-600">Instagram分析 Lightプラン（月額4,980円・税込）</p>
           </div>
           <Link
@@ -320,12 +341,12 @@ export default function HomePage() {
                 ダッシュボード
               </Link>
             ) : null}
-            <Link
-              href="/pricing"
+            <a
+              href="#pricing"
               className="bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all"
             >
-              無料で始める
-            </Link>
+              7日間無料で試す
+            </a>
           </div>
         </div>
       </header>
@@ -337,28 +358,27 @@ export default function HomePage() {
             {/* 左側：テキスト */}
             <div>
               <div className="inline-flex items-center gap-2 bg-purple-100 text-purple-700 text-sm font-medium px-3 py-1 rounded-full mb-6">
-                <InstagramIcon className="w-4 h-4" />
-                <span>+</span>
                 <ThreadsIcon className="w-4 h-4" />
-                <span>SNS分析ツール</span>
+                <span>Threads専用の分析ツール</span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight mb-6">
-                SNSデータを
-                <span className="bg-gradient-to-r from-purple-500 to-emerald-400 bg-clip-text text-transparent">見える化</span>
-                して、<br />
-                成果を最大化する
+              <h1 className="text-[2rem] md:text-[2.35rem] font-bold text-gray-900 leading-snug mb-6">
+                <span className="whitespace-nowrap">Threadsの</span>
+                <span className="whitespace-nowrap"><span className="bg-gradient-to-r from-purple-500 to-emerald-400 bg-clip-text text-transparent">「なぜ伸びた？」</span>を、</span>
+                <br />
+                <span className="whitespace-nowrap">数字で答えられる</span>
+                <span className="whitespace-nowrap">ようにする。</span>
               </h1>
               <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-                InstagramとThreadsのインサイトを自動で取得・分析。
-                投稿パフォーマンスやフォロワー推移をダッシュボードで一目で確認できます。
+                投稿ごとの閲覧数・いいね・コメント欄からの遷移を自動で集計。
+                伸びた投稿と伸びなかった投稿を、ダッシュボードで並べて比べられます。
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link
-                  href="/pricing"
+                <a
+                  href="#pricing"
                   className="inline-flex items-center justify-center bg-gradient-to-r from-purple-500 to-emerald-400 hover:from-purple-600 hover:to-emerald-500 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-lg shadow-purple-500/25"
                 >
-                  無料で始める
-                </Link>
+                  7日間無料で試す
+                </a>
                 <Link
                   href="/demo"
                   className="inline-flex items-center justify-center border-2 border-gray-200 text-gray-700 font-semibold px-8 py-4 rounded-xl hover:bg-gray-50 transition-colors"
@@ -366,6 +386,9 @@ export default function HomePage() {
                   デモダッシュボードを見る
                 </Link>
               </div>
+              <p className="mt-4 text-sm text-gray-500">
+                無料期間中はいつでも解約できます。8日目から課金が始まります。
+              </p>
             </div>
 
             {/* 右側：モックアップ */}
@@ -381,10 +404,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              SNS運用の課題を解決する
+              Threads運用、こんな状態になっていませんか
             </h2>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              手作業でのデータ収集や分析にかかる時間を削減し、より戦略的なSNS運用を実現します
+              どの投稿が伸びたのか説明できない。数字を集めるのが面倒。コメント欄からの誘導が効いているかわからない。ANALYCAはこの3つを解決します
             </p>
           </div>
 
@@ -396,9 +419,9 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">作業時間を90%削減</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">手作業の集計が不要に</h3>
               <p className="text-gray-600">
-                スクリーンショットや手入力でのデータ収集は不要。APIで自動取得し、分析までワンストップで完結します。
+                スクリーンショットや手入力での数字集めは不要。ログインするだけで、投稿の数字を自動で取得します。
               </p>
             </div>
 
@@ -409,9 +432,9 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">過去データを蓄積・比較</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">過去の投稿データも残る</h3>
               <p className="text-gray-600">
-                Instagram標準インサイトでは90日で消えるデータも、ANALYCAなら無期限で保存。長期トレンドの分析が可能です。
+                取得したデータはANALYCAに蓄積され、消えません。先月・半年前の投稿とも、いつでも比べられます。
               </p>
             </div>
 
@@ -422,14 +445,40 @@ export default function HomePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">直感的なダッシュボード</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">伸びた投稿がひと目でわかる</h3>
               <p className="text-gray-600">
-                複雑な設定は不要。見やすいグラフとランキングで、どの投稿が効果的かが一目でわかります。
+                閲覧数・いいね順のランキングと、コメント欄からの遷移率で、どの投稿が効いたかを確認できます。
               </p>
             </div>
           </div>
         </div>
       </section>
+
+      {/* ============ 作った人の実績 ============ */}
+      {SHOW_MAKER_SECTION && (
+      <section className="py-16 md:py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="rounded-3xl border border-purple-100 bg-gradient-to-br from-purple-50 via-white to-emerald-50 p-8 md:p-10 grid md:grid-cols-[auto_1fr] gap-8 items-center">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-200 to-emerald-200 flex items-center justify-center text-xs text-gray-500 text-center">
+              顔写真
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-purple-700 mb-2">ANALYCAを作った人</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                Threadsで伸ばしてきた運用者が、自分のために作った分析ツールです
+              </h2>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {['Threadsの実績（確認後に掲載）', 'フォロワー数など（確認後に掲載）', '運用歴など（確認後に掲載）'].map((label) => (
+                  <div key={label} className="rounded-xl border border-dashed border-purple-200 bg-white/70 px-4 py-3 text-sm text-gray-500">
+                    {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      )}
 
       {/* ============ 機能紹介 ============ */}
       <section id="features" className="py-16 md:py-24 bg-gray-50">
@@ -439,21 +488,23 @@ export default function HomePage() {
               主な機能
             </h2>
             <p className="text-gray-600 text-lg">
-              Instagram・Threadsの分析に必要な機能を網羅
+              Threads運用に必要な数字を、ひとつのダッシュボードに
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: '📊', title: 'フォロワー推移グラフ', desc: '日別のフォロワー増減を可視化。成長トレンドを把握' },
-              { icon: '🏆', title: '投稿ランキング', desc: '閲覧数・いいね数で投稿をランキング表示' },
-              { icon: '📈', title: 'エンゲージメント分析', desc: 'いいね、コメント、保存数からエンゲージメント率を算出' },
-              { icon: '🎬', title: 'リール分析', desc: '再生数、リーチ、平均視聴時間などを詳細分析' },
-              { icon: '📱', title: 'ストーリー分析', desc: '閲覧率、返信数、離脱率などを計測' },
-              { icon: '🧵', title: 'Threads分析', desc: 'コメント欄の遷移率など、Threads独自の指標を分析' },
+              { icon: 'ranking', title: '投稿ランキング', desc: '閲覧数・いいね数で投稿をランキング表示。伸びた投稿がすぐわかる' },
+              { icon: 'followers', title: 'フォロワー推移グラフ', desc: '日別のフォロワー増減を可視化。どの日の投稿で増えたかを把握' },
+              { icon: 'transition', title: 'コメント欄の遷移率', desc: 'コメント欄からの遷移など、Threads独自の指標を分析' },
+              { icon: 'engagement', title: 'エンゲージメント分析', desc: 'いいね・コメント・リポストからエンゲージメント率を算出' },
+              { icon: 'schedule', title: '予約投稿', desc: '投稿を日時指定で予約。Lightプランは月30件まで' },
+              { icon: 'instagram', title: 'Instagramも分析（Standard）', desc: 'リール・ストーリーを含むInstagramの分析も、同じ画面で追加できます' },
             ].map((feature, i) => (
               <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 hover:shadow-lg transition-shadow">
-                <div className="text-3xl mb-4">{feature.icon}</div>
+                <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center mb-4">
+                  <FeatureIcon name={feature.icon} />
+                </div>
                 <h3 className="text-lg font-bold text-gray-900 mb-2">{feature.title}</h3>
                 <p className="text-gray-600 text-sm">{feature.desc}</p>
               </div>
@@ -530,14 +581,14 @@ export default function HomePage() {
               <div className="text-4xl font-bold text-purple-300">01</div>
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Meta公式APIを使用</h3>
-                <p className="text-gray-600">Instagram Graph API、Threads APIを正式に利用。安全かつ正確なデータを取得します。</p>
+                <p className="text-gray-600">Threads API（InstagramはInstagram Graph API）を正式に利用。安全かつ正確なデータを取得します。</p>
               </div>
             </div>
             <div className="flex gap-6 items-start p-6 rounded-2xl bg-emerald-50 border border-emerald-100">
               <div className="text-4xl font-bold text-emerald-300">02</div>
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">設定かんたん、すぐ使える</h3>
-                <p className="text-gray-600">アクセストークンを入力するだけで設定完了。複雑な初期設定は不要です。</p>
+                <p className="text-gray-600">Threadsのアカウントでログインするだけ。複雑な初期設定は不要です。</p>
               </div>
             </div>
             <div className="flex gap-6 items-start p-6 rounded-2xl bg-blue-50 border border-blue-100">
@@ -589,8 +640,8 @@ export default function HomePage() {
               <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl font-bold text-emerald-600">2</span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">SNSアカウントでログイン</h3>
-              <p className="text-gray-600 text-sm">ThreadsまたはInstagramのアカウントで認証するだけ。面倒な設定は不要です。</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Threadsでログイン</h3>
+              <p className="text-gray-600 text-sm">Threadsのアカウントで認証するだけ。面倒な設定は不要です。</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -618,19 +669,23 @@ export default function HomePage() {
           <div className="divide-y divide-gray-200">
             <FAQItem
               question="ANALYCAとはどのようなサービスですか？"
-              answer="ANALYCAは、InstagramとThreadsのインサイトデータを自動で取得・分析するSNS分析ツールです。投稿のパフォーマンス、フォロワー推移、エンゲージメント率などを可視化し、効果的なSNS運用をサポートします。"
+              answer="ANALYCAは、Threadsのインサイトデータを自動で取得・分析するThreads専用の分析ツールです。投稿のパフォーマンス、フォロワー推移、コメント欄からの遷移率などを可視化します。Standardプランでは、Instagramの分析も追加できます。"
             />
             <FAQItem
               question="どのプランを選べばいいですか？"
-              answer="Threadsのみ分析したい場合は「Light」プランをお選びください。Instagram・Threads両方を分析したい場合は「Standard」プランがおすすめです。予約投稿を無制限に使いたい場合は「Pro」プランをどうぞ。すべてのプランに7日間の無料体験がついています。"
+              answer="Threadsを分析したい方は「Light」プランがおすすめです。Instagramも一緒に分析したい場合は「Standard」、予約投稿を無制限に使いたい場合は「Pro」をお選びください。すべてのプランに7日間の無料体験がついています。"
             />
             <FAQItem
               question="登録に必要なものは何ですか？"
-              answer="各プラットフォームのアクセストークンが必要です。取得方法は登録時のガイドで詳しく説明しています。Metaビジネスアカウントをお持ちであれば、数分で設定できます。"
+              answer="Threadsのアカウントとクレジットカードです。申し込み後、Threadsのアカウントでログインするだけで使い始められます。"
+            />
+            <FAQItem
+              question="無料期間中に解約したら、料金はかかりますか？"
+              answer="かかりません。7日間の無料期間中に解約すれば請求は発生しません。8日目から課金が始まります。"
             />
             <FAQItem
               question="データはどのくらいの期間保存されますか？"
-              answer="ANALYCAでは、取得したデータを無期限で保存します。Instagram標準のインサイトは90日で消えてしまいますが、ANALYCAなら過去のデータもいつでも参照・比較できます。"
+              answer="ANALYCAでは、取得したデータを無期限で保存します。過去の投稿データも、いつでも参照・比較できます。"
             />
             <FAQItem
               question="解約はいつでもできますか？"
@@ -648,19 +703,19 @@ export default function HomePage() {
       <section className="py-16 md:py-24 bg-gradient-to-br from-purple-600 to-emerald-500">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            今すぐSNS分析を始めましょう
+            Threadsの数字を、今日から貯めはじめる
           </h2>
           <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
             まずはデモアカウントで、ANALYCAのダッシュボードをお試しください。
             サンプルデータで全ての機能をご確認いただけます。
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/pricing"
+            <a
+              href="#pricing"
               className="inline-flex items-center justify-center bg-white text-purple-600 font-semibold px-8 py-4 rounded-xl hover:bg-gray-100 transition-colors shadow-lg"
             >
-              プランを選んで始める
-            </Link>
+              7日間無料で試す
+            </a>
             <Link
               href="/demo"
               className="inline-flex items-center justify-center border-2 border-white text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/10 transition-colors"
@@ -670,6 +725,11 @@ export default function HomePage() {
           </div>
           <p className="text-white/70 text-sm mt-6">
             デモアカウントは登録不要・無料でご利用いただけます
+          </p>
+          <p className="text-white/90 text-sm mt-3">
+            まずは情報から見たい方は
+            <Link href="/media" className="underline underline-offset-4 font-semibold mx-1">Threads運用メディア</Link>
+            へ
           </p>
         </div>
       </section>
@@ -689,7 +749,7 @@ export default function HomePage() {
                 <span className="text-white font-bold">ANALYCA</span>
               </div>
               <p className="text-sm">
-                Instagram & Threads分析ツール
+                Threads専用の分析ツール
               </p>
             </div>
 

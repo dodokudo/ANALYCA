@@ -819,10 +819,12 @@
 }
 
 .embed {
+  position: relative;
   margin: 28px 0;
 }
 
 .embedStack {
+  position: relative;
   display: grid;
   gap: 12px;
   min-width: 0;

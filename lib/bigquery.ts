@@ -1,5 +1,6 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { v4 as uuidv4 } from 'uuid';
+import type { InstagramDailyContentStat } from './instagram-daily';
 
 // BigQuery設定
 // 環境変数名のフォールバック対応（ローカル: GOOGLE_CLOUD_PROJECT_ID、Vercel: PROJECT_ID）
@@ -1539,6 +1540,40 @@ export async function upsertInstagramReels(reels: InstagramReel[]): Promise<{ ne
 }
 
 // 統合ダッシュボードデータ取得
+// Aggregate independently of the 50-item lists so busy months are not truncated.
+export async function getUserInstagramDailyContentStats(userId: string): Promise<InstagramDailyContentStat[]> {
+  const query = `
+    WITH content AS (
+      SELECT DATE(timestamp, 'Asia/Tokyo') AS date,
+        COUNT(DISTINCT instagram_id) AS post_count,
+        0 AS story_post_count, CAST(NULL AS INT64) AS story_reach
+      FROM \`mark-454114.analyca.instagram_reels\`
+      WHERE user_id = @user_id AND timestamp IS NOT NULL
+      GROUP BY date
+      UNION ALL
+      SELECT DATE(timestamp, 'Asia/Tokyo') AS date,
+        0 AS post_count, COUNT(DISTINCT instagram_id) AS story_post_count,
+        MAX(reach) AS story_reach
+      FROM \`mark-454114.analyca.instagram_stories\`
+      WHERE user_id = @user_id AND timestamp IS NOT NULL
+      GROUP BY date
+    )
+    SELECT FORMAT_DATE('%Y-%m-%d', date) AS date,
+      SUM(post_count) AS post_count, SUM(story_post_count) AS story_post_count,
+      MAX(story_reach) AS story_reach
+    FROM content
+    GROUP BY date
+    ORDER BY date DESC
+  `;
+  const [rows] = await bigquery.query({ query, params: { user_id: userId } });
+  return rows.map((row) => ({
+    date: String(row.date),
+    postCount: Number(row.post_count),
+    storyPostCount: Number(row.story_post_count),
+    storyReach: row.story_reach == null ? null : Number(row.story_reach),
+  }));
+}
+
 export async function getUserDashboardData(userId: string): Promise<{
   reels: InstagramReel[];
   stories: InstagramStory[];
@@ -1548,15 +1583,17 @@ export async function getUserDashboardData(userId: string): Promise<{
   threadsComments: ThreadsComment[];
   threadsDailyMetrics: ThreadsDailyMetrics[];
   threadsDailyPostStats: ThreadsDailyPostStats[];
+  instagramDailyContentStats: InstagramDailyContentStat[];
 }> {
-  const [reels, stories, insights, lineData, threadsPosts, threadsDailyMetrics, threadsDailyPostStats] = await Promise.all([
+  const [reels, stories, insights, lineData, threadsPosts, threadsDailyMetrics, threadsDailyPostStats, instagramDailyContentStats] = await Promise.all([
     getUserReels(userId, 50),
     getUserStories(userId, 50),
-    getUserInsights(userId, 30),
+    getUserInsights(userId, 1000),
     getUserLineData(userId, 30),
     getUserThreadsPosts(userId, 5000),
     getUserThreadsDailyMetrics(userId, 1000),
     getUserThreadsDailyPostStats(userId, 1000),
+    getUserInstagramDailyContentStats(userId),
   ]);
 
   const threadsComments = await getThreadsCommentsForPosts(
@@ -1564,7 +1601,7 @@ export async function getUserDashboardData(userId: string): Promise<{
     threadsPosts.map((post) => post.threads_id)
   );
 
-  return { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats };
+  return { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats, instagramDailyContentStats };
 }
 
 // 管理者用: 全ユーザー一覧取得（統計付き）

@@ -221,7 +221,7 @@ export async function GET(
     }
 
     // ダッシュボードデータを取得
-    const { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats } = await getUserDashboardData(userId);
+    const { reels, stories, insights, lineData, threadsPosts, threadsComments, threadsDailyMetrics, threadsDailyPostStats, instagramDailyContentStats } = await getUserDashboardData(userId);
     const threadsDataAllowed = threadsAccess?.allowed !== false;
     const visibleThreadsPosts = threadsDataAllowed ? threadsPosts : [];
     const visibleThreadsComments = threadsDataAllowed ? threadsComments : [];
@@ -238,6 +238,7 @@ export async function GET(
 
     // データを統合ダッシュボード形式に変換
     const dashboardData = {
+      instagramDailyContentStats: { data: instagramDailyContentStats },
       reels: {
         total: reels.length,
         totalViews: reels.reduce((sum, reel) => sum + (reel.views || 0), 0),

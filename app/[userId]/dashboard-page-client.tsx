@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
+import { buildInstagramDailyRows, type InstagramDailyContentStat } from '@/lib/instagram-daily';
+import { InstagramDailyTable } from './components/instagram-daily-table';
 import { ScheduleTab } from './components/schedule-tab';
 import ThreadsContentCreationTab from './components/threads-content-creation-tab';
 import { ThreadsInsights } from './components/threads-insights';
@@ -334,6 +336,7 @@ function buildContactLineUrl(user: UserInfo | null): string {
 }
 
 interface DashboardData {
+  instagramDailyContentStats?: { data: InstagramDailyContentStat[] };
   threads?: {
     total: number;
     totalViews: number;
@@ -2371,7 +2374,11 @@ function InstagramContent({
   const allReels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
   const allStories: InstagramStory[] = (data?.stories?.data || []) as InstagramStory[];
   const allInsights: InstagramInsight[] = ((data?.insights as { data?: InstagramInsight[] })?.data || []) as InstagramInsight[];
-  const latestInsight = allInsights[0] || null;
+  const dailyRows = useMemo(
+    () => buildInstagramDailyRows(allInsights, data?.instagramDailyContentStats?.data),
+    [allInsights, data?.instagramDailyContentStats?.data],
+  );
+  const latestInsight = dailyRows[0] || null;
   const followersCount = latestInsight?.followers_count || 0;
 
   // 日付範囲でフィルタリング（今日のデータも含める）
@@ -2386,8 +2393,8 @@ function InstagramContent({
   }, [allStories, dateRange]);
 
   const insights = useMemo(() => {
-    return allInsights.filter(i => isDateInRange(i.date, dateRange));
-  }, [allInsights, dateRange]);
+    return dailyRows.filter(i => isDateInRange(`${i.date}T00:00:00`, dateRange));
+  }, [dailyRows, dateRange]);
 
   const summary = useMemo(() => {
     const totalReach = insights.reduce((sum, d) => sum + (d.reach || 0), 0);
@@ -2397,9 +2404,7 @@ function InstagramContent({
     const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
     const totalStoriesViews = stories.reduce((sum, s) => sum + (s.reach || 0), 0);
     // フォロワー増減を計算（日別データから）
-    const followerGrowth = insights.length > 1
-      ? (insights[0]?.followers_count || 0) - (insights[insights.length - 1]?.followers_count || 0)
-      : 0;
+    const followerGrowth = insights.reduce((sum, row) => sum + (row.followerGrowth ?? 0), 0);
     return { totalReach, totalProfileViews, totalWebClicks, totalReelsViews, totalReelsLikes, totalStoriesViews, followerGrowth };
   }, [insights, reels, stories]);
 
@@ -2550,40 +2555,8 @@ function InstagramContent({
               <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">パフォーマンス推移</h3>
               <p className="mt-1 text-sm text-[color:var(--color-text-secondary)] mb-4">日別のパフォーマンス</p>
               {/* デイリーテーブル */}
-              <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)] mb-6">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-                      <th className="px-3 py-2">日付</th>
-                      <th className="px-3 py-2 text-right">フォロワー</th>
-                      <th className="px-3 py-2 text-right">増減</th>
-                      <th className="px-3 py-2 text-right">リーチ</th>
-                      <th className="px-3 py-2 text-right">プロフ表示</th>
-                      <th className="px-3 py-2 text-right">クリック</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[color:var(--color-border)]">
-                    {[...insights].reverse().map((row, idx, arr) => {
-                      // 増減を計算（前日との差分）
-                      const prevRow = arr[idx + 1];
-                      const growth = prevRow ? (row.followers_count || 0) - (prevRow.followers_count || 0) : 0;
-                      return (
-                        <tr key={row.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
-                          <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{row.date || '-'}</td>
-                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.followers_count || 0).toLocaleString()}</td>
-                          <td className="px-3 py-2 text-right">
-                            <span className={growth > 0 ? 'text-green-600' : growth < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>
-                              {growth > 0 ? `+${growth}` : growth}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.reach || 0).toLocaleString()}</td>
-                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.profile_views || 0).toLocaleString()}</td>
-                          <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{(row.website_clicks || 0).toLocaleString()}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="mb-6">
+                <InstagramDailyTable rows={insights} />
               </div>
               {/* 最大・最小値表示 */}
               <div className="flex gap-6 mb-3 text-sm">
@@ -2861,29 +2834,8 @@ function InstagramContent({
           {/* デイリーテーブル */}
           <div className="ui-card p-6">
             <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">デイリーデータ</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[color:var(--color-border)] text-left">
-                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] whitespace-nowrap">日付</th>
-                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">フォロワー</th>
-                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">リーチ</th>
-                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">プロフ表示</th>
-                    <th className="px-3 py-3 font-semibold text-[color:var(--color-text-primary)] text-right whitespace-nowrap">リンククリック</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[color:var(--color-border)]">
-                  {insights.map((row, idx) => (
-                    <tr key={row.date || idx} className="hover:bg-[color:var(--color-surface-muted)]">
-                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] whitespace-nowrap">{row.date || '-'}</td>
-                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.followers_count || 0).toLocaleString()}</td>
-                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.reach || 0).toLocaleString()}</td>
-                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.profile_views || 0).toLocaleString()}</td>
-                      <td className="px-3 py-3 text-[color:var(--color-text-primary)] text-right whitespace-nowrap">{(row.website_clicks || 0).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              <InstagramDailyTable rows={insights} />
               {insights.length === 0 && (
                 <p className="text-center text-[color:var(--color-text-muted)] py-8">デイリーデータがありません</p>
               )}

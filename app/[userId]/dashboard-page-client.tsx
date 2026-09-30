@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { buildInstagramDailyRows, type InstagramDailyContentStat } from '@/lib/instagram-daily';
 import { InstagramDailyTable } from './components/instagram-daily-table';
+import { InstagramReelsTab } from './components/instagram-reels-tab';
 import { ScheduleTab } from './components/schedule-tab';
 import ThreadsContentCreationTab from './components/threads-content-creation-tab';
 import { ThreadsInsights } from './components/threads-insights';
@@ -2366,9 +2367,9 @@ function InstagramContent({
   username: string;
   profilePicture: string | undefined;
 }) {
-  const [activeTab, setActiveTab] = useState<IGTab>('overview');
+  const instagramSearchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<IGTab>(() => instagramSearchParams.get('igTab') === 'reels' ? 'reels' : 'overview');
   const [datePreset, setDatePreset] = useState<DatePreset>('7d');
-  const [reelSortBy, setReelSortBy] = useState('views');
   const [storySortBy, setStorySortBy] = useState('views');
 
   const allReels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
@@ -2408,15 +2409,7 @@ function InstagramContent({
     return { totalReach, totalProfileViews, totalWebClicks, totalReelsViews, totalReelsLikes, totalStoriesViews, followerGrowth };
   }, [insights, reels, stories]);
 
-  const sortedReels = useMemo(() => {
-    return [...reels].sort((a, b) => {
-      if (reelSortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
-      if (reelSortBy === 'views') return (b.views || 0) - (a.views || 0);
-      if (reelSortBy === 'likes') return (b.like_count || 0) - (a.like_count || 0);
-      if (reelSortBy === 'saves') return (b.saved || 0) - (a.saved || 0);
-      return 0;
-    });
-  }, [reels, reelSortBy]);
+  const sortedReels = useMemo(() => [...reels].sort((a, b) => (b.views || 0) - (a.views || 0)), [reels]);
 
   const sortedStories = useMemo(() => {
     return [...stories].sort((a, b) => {
@@ -2688,57 +2681,7 @@ function InstagramContent({
 
       {/* リールタブ */}
       {activeTab === 'reels' && (
-        <div className="ui-card p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">リール一覧</h2>
-              <p className="text-xs text-[color:var(--color-text-muted)]">表示件数 {sortedReels.length}</p>
-            </div>
-            <select value={reelSortBy} onChange={(e) => setReelSortBy(e.target.value)} className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]">
-              <option value="date">日付</option>
-              <option value="views">再生数</option>
-              <option value="likes">いいね</option>
-              <option value="saves">保存</option>
-            </select>
-          </div>
-          <div className="space-y-4">
-            {sortedReels.map((reel) => (
-              <div key={reel.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
-                <div className="relative w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">
-                  <div className="aspect-[9/16]">
-                    {reel.thumbnail_url ? (
-                      <img src={reel.thumbnail_url} alt="" className="h-full w-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center text-[color:var(--color-text-muted)]">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 space-y-3">
-                  <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(reel.timestamp)}</p>
-                  {reel.caption && <p className="text-sm text-[color:var(--color-text-primary)] line-clamp-2">{reel.caption}</p>}
-                  <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
-                    <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.views || 0).toLocaleString()}</dd></div>
-                    <div><dt className="text-[color:var(--color-text-muted)]">いいね</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.like_count || 0).toLocaleString()}</dd></div>
-                    <div><dt className="text-[color:var(--color-text-muted)]">コメント</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.comments_count || 0).toLocaleString()}</dd></div>
-                    <div><dt className="text-[color:var(--color-text-muted)]">保存</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(reel.saved || 0).toLocaleString()}</dd></div>
-                  </dl>
-                  {reel.permalink && (
-                    <a href={reel.permalink} target="_blank" rel="noopener noreferrer" className="text-xs text-[color:var(--color-accent)] hover:underline">
-                      Instagramで見る →
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-            {sortedReels.length === 0 && (
-              <p className="text-center text-[color:var(--color-text-muted)] py-8">リールがありません</p>
-            )}
-          </div>
-        </div>
+        <InstagramReelsTab key={userId} userId={userId} reels={reels} allReels={allReels} />
       )}
 
       {/* ストーリータブ */}

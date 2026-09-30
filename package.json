@@ -13,6 +13,7 @@
     "threads:line-actions": "node scripts/threads-line-actions.js"
   },
   "dependencies": {
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@google-cloud/bigquery": "^8.1.1",
     "@google-cloud/storage": "^7.18.0",
     "@sentry/nextjs": "^10.40.0",

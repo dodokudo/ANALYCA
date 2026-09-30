@@ -2,6 +2,10 @@ const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["@ffprobe-installer/ffprobe"],
+  outputFileTracingIncludes: {
+    "/api/dashboard/*/instagram-reels": ["./node_modules/@ffprobe-installer/**/*"],
+  },
   turbopack: {
     root: __dirname,
   },

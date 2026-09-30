@@ -258,7 +258,9 @@ export async function GET(
           saved: reel.saved ?? 0,
           shares: reel.shares ?? 0,
           total_interactions: reel.total_interactions ?? 0,
-          avg_watch_time_seconds: reel.avg_watch_time_seconds ?? 0,
+          avg_watch_time_seconds: reel.avg_watch_time_seconds ?? null,
+          video_view_total_time_hours: reel.video_view_total_time_hours ?? null,
+          metrics: reel.metrics ?? null,
           thumbnail_url: reel.thumbnail_url,
         }))
       },

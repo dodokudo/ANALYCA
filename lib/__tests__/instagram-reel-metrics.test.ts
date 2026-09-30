@@ -4,7 +4,7 @@ import { normalizeReelMetrics, readInsightValues, compareNullableMetrics, rateRe
 import { fetchReelInsightValues } from '../instagram-reel-metrics-server';
 
 test('watch times use milliseconds; skip percentage is not scaled; rate denominators match AutoStudio', () => {
-  const row = normalizeReelMetrics('1', { views: 2000, saved: 14, ig_reels_avg_watch_time: 21488, ig_reels_video_view_total_time: 38313292, reels_skip_rate: 42.4 }, 68.288, null);
+  const row = normalizeReelMetrics('1', { views: 2000, saved: 14, ig_reels_avg_watch_time: 21488, ig_reels_video_view_total_time: 38313292, reels_skip_rate: 42.4 }, 68.288);
   assert.equal(row.avgWatchSeconds, 21.488);
   assert.equal(row.totalWatchSeconds, 38313.292);
   assert.equal(row.skipRate, 42.4);
@@ -14,12 +14,12 @@ test('watch times use milliseconds; skip percentage is not scaled; rate denomina
 
 test('missing, real zero and undefined ratios remain distinct; replay retention can exceed 100%', () => {
   const values = readInsightValues([{ name: 'views', values: [{ value: 0 }] }, { name: 'reach', values: [] }, { name: 'saved', total_value: { value: 0 } }, { name: 'likes', values: [{ value: null }] }]);
-  const row = normalizeReelMetrics('1', values, 0, null);
+  const row = normalizeReelMetrics('1', values, 0);
   assert.equal(row.views, 0); assert.equal(row.saved, 0);
   assert.equal(row.reach, null); assert.equal(row.likes, null);
   assert.equal(row.avgWatchSeconds, null); assert.equal(row.saveRate, null); assert.equal(row.retentionRate, null);
-  assert.equal(normalizeReelMetrics('1', { ig_reels_avg_watch_time: 12000 }, 10, null).retentionRate, 120);
-  assert.equal(normalizeReelMetrics('1', { ig_reels_avg_watch_time: 0 }, 10, null).retentionRate, 0);
+  assert.equal(normalizeReelMetrics('1', { ig_reels_avg_watch_time: 12000 }, 10).retentionRate, 120);
+  assert.equal(normalizeReelMetrics('1', { ig_reels_avg_watch_time: 0 }, 10).retentionRate, 0);
 });
 
 test('skip rating is inverted; ties share rank; missing samples excluded', () => {
@@ -52,4 +52,17 @@ test('auth or rate errors do not fan out into per-metric retries or become zero'
   t.mock.method(globalThis, 'fetch', async () => { calls++; return Response.json({ error: { code: 190 } }, { status: 400 }); });
   assert.deepEqual(await fetchReelInsightValues('https://graph.instagram.com/v25.0', '1', 'fake-test-token'), {});
   assert.equal(calls, 2);
+});
+
+test('scheduled collection reuses DB duration and never refetches the video for existing reels', async t => {
+  const { collectReelMetrics } = await import('../instagram-reel-metrics-server');
+  t.mock.method(globalThis, 'fetch', async (input: URL) => {
+    assert.ok(input.pathname.endsWith('/insights'), 'video metadata must not be fetched when DB duration is known');
+    const names = input.searchParams.get('metric')!.split(',');
+    return Response.json({ data: names.map(name => ({ name, values: [{ value: name === 'ig_reels_avg_watch_time' ? 10000 : 100 }] })) });
+  });
+  const row = await collectReelMetrics('known-reel', 'fake', 'https://graph.instagram.com/v25.0', 50);
+  assert.equal(row.durationSeconds, 50);
+  assert.equal(row.retentionRate, 20);
+  assert.equal(row.status, 'complete');
 });

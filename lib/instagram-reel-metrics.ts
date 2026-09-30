@@ -13,7 +13,6 @@ export interface InstagramReelMetrics {
   durationSeconds: number | null;
   retentionRate: number | null;
   saveRate: number | null;
-  mediaUrl: string | null;
   fetchedAt: string;
   status: 'complete' | 'partial' | 'unavailable';
 }
@@ -33,7 +32,7 @@ export function readInsightValues(data: MediaInsight[]): Record<string, number> 
   return result;
 }
 
-export function normalizeReelMetrics(id: string, values: Record<string, number>, durationSeconds: number | null, mediaUrl: string | null): InstagramReelMetrics {
+export function normalizeReelMetrics(id: string, values: Record<string, number>, durationSeconds: number | null): InstagramReelMetrics {
   const value = (key: string) => Number.isFinite(values[key]) ? values[key] : null;
   const avgMs = value('ig_reels_avg_watch_time');
   const totalMs = value('ig_reels_video_view_total_time');
@@ -48,7 +47,7 @@ export function normalizeReelMetrics(id: string, values: Record<string, number>,
     skipRate: value('reels_skip_rate'), durationSeconds: duration,
     retentionRate: avgWatchSeconds !== null && duration !== null ? avgWatchSeconds / duration * 100 : null,
     saveRate: saved !== null && views !== null && views > 0 ? saved / views * 100 : null,
-    mediaUrl, fetchedAt: new Date().toISOString(),
+    fetchedAt: new Date().toISOString(),
     status: !Object.keys(values).length ? 'unavailable' : required.every(key => value(key) !== null) && duration !== null ? 'complete' : 'partial',
   };
 }
@@ -79,4 +78,35 @@ export function compareNullableMetrics(a: number | null, b: number | null, order
   if (a === null) return b === null ? 0 : 1;
   if (b === null) return -1;
   return order === 'desc' ? b - a : a - b;
+}
+
+/** The complete metric set travels in the initial dashboard response. */
+export interface SavedReelMetricSource {
+  id: string;
+  views?: number | null;
+  reach?: number | null;
+  like_count?: number | null;
+  comments_count?: number | null;
+  saved?: number | null;
+  shares?: number | null;
+  avg_watch_time_seconds?: number | null;
+  video_view_total_time_hours?: string | null;
+  metrics?: InstagramReelMetrics | null;
+}
+
+export function getSavedReelMetrics(reel: SavedReelMetricSource): InstagramReelMetrics {
+  if (reel.metrics) return reel.metrics;
+  const hours = reel.video_view_total_time_hours == null || reel.video_view_total_time_hours.trim() === ''
+    ? null : Number(reel.video_view_total_time_hours);
+  const values: Record<string, number> = {};
+  for (const [name, raw] of Object.entries({
+    views: reel.views, reach: reel.reach, likes: reel.like_count, comments: reel.comments_count,
+    saved: reel.saved, shares: reel.shares,
+    ig_reels_avg_watch_time: reel.avg_watch_time_seconds == null ? null : reel.avg_watch_time_seconds * 1000,
+    ig_reels_video_view_total_time: hours === null ? null : hours * 3600000,
+  })) {
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) values[name] = raw;
+  }
+  // Legacy DB rows remain usable before their first scheduled metrics snapshot.
+  return { ...normalizeReelMetrics(reel.id, values, null), fetchedAt: '' };
 }

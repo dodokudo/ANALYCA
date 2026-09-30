@@ -4,7 +4,7 @@ const { withSentryConfig } = require("@sentry/nextjs");
 const nextConfig = {
   serverExternalPackages: ["@ffprobe-installer/ffprobe"],
   outputFileTracingIncludes: {
-    "/api/dashboard/*/instagram-reels": ["./node_modules/@ffprobe-installer/**/*"],
+    "/api/sync/instagram/reels": ["./node_modules/@ffprobe-installer/**/*"],
   },
   turbopack: {
     root: __dirname,

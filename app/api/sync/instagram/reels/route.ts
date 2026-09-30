@@ -7,6 +7,7 @@ import {
 import { uploadImageToGCS } from '@/lib/gcs';
 import { detectGraphBase } from '@/lib/instagram-graph';
 import { v4 as uuidv4 } from 'uuid';
+import { syncInstagramReelMetrics } from '@/lib/instagram-reel-metrics-sync';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 300;
@@ -119,7 +120,7 @@ async function syncUserReels(
   userId: string,
   accessToken: string,
   instagramUserId: string
-): Promise<{ success: boolean; reelsCount: number; newCount: number; updatedCount: number; error?: string }> {
+): Promise<{ success: boolean; reelsCount: number; newCount: number; updatedCount: number; metricsCount?: number; metricsFailed?: number; error?: string }> {
   try {
     // トークンタイプに応じたGraph API Base URLを検出
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
@@ -128,7 +129,8 @@ async function syncUserReels(
     const reelIds = await getReelIds(graphBase, accessToken, instagramUserId, 15);
 
     if (reelIds.length === 0) {
-      return { success: true, reelsCount: 0, newCount: 0, updatedCount: 0 };
+      const metrics = await syncInstagramReelMetrics(userId, accessToken, instagramUserId);
+      return { success: metrics.metricsFailed === 0, reelsCount: 0, newCount: 0, updatedCount: 0, ...metrics };
     }
 
     // 各リールの詳細データをinline insightsで取得（GASと同じ方式）
@@ -186,9 +188,11 @@ async function syncUserReels(
 
     // BigQueryに保存（upsert）
     const result = await upsertInstagramReels(reelsWithInsights);
+    const metrics = await syncInstagramReelMetrics(userId, accessToken, instagramUserId);
 
     return {
-      success: true,
+      success: metrics.metricsFailed === 0,
+      ...metrics,
       reelsCount: reelsWithInsights.length,
       newCount: result.newCount,
       updatedCount: result.updatedCount,
@@ -268,6 +272,8 @@ export async function GET(request: Request) {
           username: user.instagram_username,
           success: data.success ?? false,
           reelsCount: data.reelsCount ?? 0,
+          metricsCount: data.metricsCount ?? 0,
+          metricsFailed: data.metricsFailed ?? 0,
           error: data.error,
         };
       } catch (err) {

@@ -3,10 +3,6 @@ import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { normalizeReelMetrics, readInsightValues, type InstagramReelMetrics, type MediaInsight } from './instagram-reel-metrics';
 
 const BASE_METRICS = ['views', 'reach', 'likes', 'comments', 'saved', 'shares', 'ig_reels_avg_watch_time', 'ig_reels_video_view_total_time'];
-const CACHE_MS = 15 * 60 * 1000;
-const cache = new Map<string, { expires: number; data: InstagramReelMetrics }>();
-const pending = new Map<string, Promise<InstagramReelMetrics>>();
-
 async function graphGet(base: string, path: string, token: string, params: Record<string, string>) {
   const url = new URL(`${base}${path}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
@@ -57,24 +53,13 @@ export function getReelDuration(mediaUrl: string): Promise<number | null> {
   });
 }
 
-export async function getLiveReelMetrics(userId: string, id: string, token: string, base: string): Promise<InstagramReelMetrics> {
-  const key = `${userId}:${id}`;
-  const hit = cache.get(key);
-  if (hit && hit.expires > Date.now()) return hit.data;
-  const running = pending.get(key);
-  if (running) return running;
-  const task = (async () => {
-    const [values, media] = await Promise.all([
-      fetchReelInsightValues(base, id, token),
-      graphGet(base, `/${id}`, token, { fields: 'media_url' }),
-    ]);
-    const mediaUrl = media.ok && typeof media.body.media_url === 'string' ? media.body.media_url : null;
-    const duration = mediaUrl ? await getReelDuration(mediaUrl) : null;
-    const data = normalizeReelMetrics(id, values, duration, mediaUrl);
-    if (cache.size >= 1000) cache.delete(cache.keys().next().value!);
-    cache.set(key, { expires: Date.now() + (data.status === 'unavailable' ? 30000 : CACHE_MS), data });
-    return data;
-  })();
-  pending.set(key, task);
-  try { return await task; } finally { pending.delete(key); }
+/** Collection only: imported by sync jobs, never by dashboard read routes. */
+export async function collectReelMetrics(id: string, token: string, base: string, knownDuration: number | null = null): Promise<InstagramReelMetrics> {
+  const [values, media] = await Promise.all([
+    fetchReelInsightValues(base, id, token),
+    knownDuration !== null && knownDuration > 0 ? Promise.resolve(null) : graphGet(base, `/${id}`, token, { fields: 'media_url' }),
+  ]);
+  const mediaUrl = media?.ok && typeof media.body.media_url === 'string' ? media.body.media_url : null;
+  const duration = knownDuration !== null && knownDuration > 0 ? knownDuration : mediaUrl ? await getReelDuration(mediaUrl) : null;
+  return normalizeReelMetrics(id, values, duration);
 }

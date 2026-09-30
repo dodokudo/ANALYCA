@@ -1,6 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import type { InstagramDailyContentStat } from './instagram-daily';
+import { normalizeReelMetrics, type InstagramReelMetrics } from './instagram-reel-metrics';
 
 // BigQuery設定
 // 環境変数名のフォールバック対応（ローカル: GOOGLE_CLOUD_PROJECT_ID、Vercel: PROJECT_ID）
@@ -186,6 +187,7 @@ export interface User {
 }
 
 export interface InstagramReel {
+  metrics?: InstagramReelMetrics | null;
   id: string;
   user_id: string;
   instagram_id: string;
@@ -664,23 +666,70 @@ export async function isThreadsGrandprixParticipant(
 // ユーザーのリールデータ取得
 export async function getUserReels(userId: string, limit: number = 50): Promise<InstagramReel[]> {
   const query = `
-    SELECT *
-    FROM \`mark-454114.analyca.instagram_reels\`
-    WHERE user_id = @user_id
-    ORDER BY timestamp DESC
+    WITH latest_metrics AS (
+      SELECT * FROM \`mark-454114.analyca.instagram_reel_metric_snapshots\`
+      WHERE user_id = @user_id
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY user_id, instagram_id ORDER BY snapshot_at DESC) = 1
+    )
+    SELECT r.*, m AS stored_metrics
+    FROM \`mark-454114.analyca.instagram_reels\` r
+    LEFT JOIN latest_metrics m ON r.user_id = m.user_id AND r.instagram_id = m.instagram_id
+    WHERE r.user_id = @user_id
+    ORDER BY r.timestamp DESC
     LIMIT @limit
   `;
+  const [rows] = await bigquery.query({ query, params: { user_id: userId, limit } });
+  return rows.map(row => {
+    const { stored_metrics: stored, ...reel } = row;
+    let metrics: InstagramReelMetrics | null = null;
+    if (stored?.instagram_id) {
+      const values: Record<string, number> = {};
+      for (const key of ['views', 'reach', 'likes', 'comments', 'saved', 'shares']) {
+        if (stored[key] !== null && stored[key] !== undefined) values[key] = Number(stored[key]);
+      }
+      if (stored.avg_watch_seconds != null) values.ig_reels_avg_watch_time = Number(stored.avg_watch_seconds) * 1000;
+      if (stored.total_watch_seconds != null) values.ig_reels_video_view_total_time = Number(stored.total_watch_seconds) * 1000;
+      if (stored.skip_rate != null) values.reels_skip_rate = Number(stored.skip_rate);
+      metrics = {
+        ...normalizeReelMetrics(reel.instagram_id, values, stored.duration_seconds == null ? null : Number(stored.duration_seconds)),
+        fetchedAt: parseBigQueryTimestamp(stored.snapshot_at).toISOString(),
+      };
+    }
+    return {
+      ...reel, metrics,
+      timestamp: parseBigQueryTimestamp(reel.timestamp),
+      views: metrics?.views ?? reel.views,
+      reach: metrics?.reach ?? reel.reach,
+      like_count: metrics?.likes ?? reel.like_count,
+      comments_count: metrics?.comments ?? reel.comments_count,
+      saved: metrics?.saved ?? reel.saved,
+      shares: metrics?.shares ?? reel.shares,
+      avg_watch_time_seconds: metrics?.avgWatchSeconds ?? reel.avg_watch_time_seconds,
+    };
+  });
+}
 
-  const options = {
-    query,
-    params: { user_id: userId, limit },
-  };
-
-  const [rows] = await bigquery.query(options);
-  return rows.map(row => ({
-    ...row,
-    timestamp: parseBigQueryTimestamp(row.timestamp),
-  }));
+/** Append one coherent sample per reel; API failures never erase saved values. */
+export async function saveInstagramReelMetricSnapshots(userId: string, rows: InstagramReelMetrics[]): Promise<number> {
+  const available = rows.filter(row => row.status !== 'unavailable' && row.views !== null);
+  if (!available.length) return 0;
+  await executeDML({
+    query: `
+      INSERT INTO \`mark-454114.analyca.instagram_reel_metric_snapshots\`
+        (user_id, instagram_id, snapshot_at, views, reach, likes, comments, saved, shares,
+         avg_watch_seconds, total_watch_seconds, skip_rate, duration_seconds, status)
+      SELECT @user_id, JSON_VALUE(item, '$.id'), TIMESTAMP(JSON_VALUE(item, '$.fetchedAt')),
+        CAST(JSON_VALUE(item, '$.views') AS INT64), CAST(JSON_VALUE(item, '$.reach') AS INT64),
+        CAST(JSON_VALUE(item, '$.likes') AS INT64), CAST(JSON_VALUE(item, '$.comments') AS INT64),
+        CAST(JSON_VALUE(item, '$.saved') AS INT64), CAST(JSON_VALUE(item, '$.shares') AS INT64),
+        CAST(JSON_VALUE(item, '$.avgWatchSeconds') AS FLOAT64), CAST(JSON_VALUE(item, '$.totalWatchSeconds') AS FLOAT64),
+        CAST(JSON_VALUE(item, '$.skipRate') AS FLOAT64), CAST(JSON_VALUE(item, '$.durationSeconds') AS FLOAT64),
+        JSON_VALUE(item, '$.status')
+      FROM UNNEST(JSON_QUERY_ARRAY(@rows)) item
+    `,
+    params: { user_id: userId, rows: JSON.stringify(available) },
+  });
+  return available.length;
 }
 
 // ユーザーのストーリーデータ取得

@@ -87,7 +87,6 @@ interface UnlinkedSubscription {
 }
 
 interface AdminData {
-  paymentData?: AdminPaymentData;
   users: AdminUser[];
   stats: {
     total_users: number;
@@ -254,6 +253,7 @@ function AdminPageContent() {
   const tabFromUrl = parseAdminTab(searchParams?.get('tab') || null);
   const [password, setPassword] = useState('');
   const [data, setData] = useState<AdminData | null>(null);
+  const [paymentData, setPaymentData] = useState<AdminPaymentData>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -392,6 +392,29 @@ function AdminPageContent() {
     }
   };
 
+  const adminFetchedAt = data?.fetchedAt;
+  useEffect(() => {
+    if (!isAuthenticated || !adminFetchedAt) return;
+    const controller = new AbortController();
+    setPaymentData(undefined);
+    const loadPayments = async () => {
+      try {
+        const response = await fetch('/api/admin?section=payments', {
+          signal: controller.signal,
+          headers: password ? { 'x-admin-password': password } : undefined,
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.error || '決済履歴を取得できませんでした。再読み込みしてください。');
+        if (!controller.signal.aborted) setPaymentData(result.data);
+      } catch (err) {
+        if (!controller.signal.aborted) setPaymentData({ users: {}, fetchedAt: new Date().toISOString(),
+          error: err instanceof Error ? err.message : '決済履歴を取得できませんでした。再読み込みしてください。' });
+      }
+    };
+    void loadPayments();
+    return () => controller.abort();
+  }, [isAuthenticated, adminFetchedAt, password]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password.trim()) {
@@ -458,7 +481,7 @@ function AdminPageContent() {
   (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
 
   // 一覧表示用: 未契約リード（SNS連携だけ）も含める全ユーザー
-  const paymentData = data.paymentData;
+  const paymentPlaceholder = paymentData ? '取得失敗' : '読み込み中…';
   const payments = paymentData?.users || {};
   const realUsers = [...demoFiltered].sort((a, b) => getPinnedUserRank(a) - getPinnedUserRank(b));
   const paymentsComplete = !!paymentData && !paymentData.error
@@ -803,19 +826,19 @@ function AdminPageContent() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          <div className="text-right font-semibold tabular-nums text-gray-900">{payment?.netPaid != null ? formatAmount(payment.netPaid) : '取得失敗'}</div>
+                          <div className="text-right font-semibold tabular-nums text-gray-900">{payment?.netPaid != null ? formatAmount(payment.netPaid) : paymentPlaceholder}</div>
                           {payment && <div className="mt-1 text-right text-xs text-gray-400">{payment.paymentCount}回の決済{payment.totalRefunded > 0 ? `・返金 ${formatAmount(payment.totalRefunded)}` : ''}</div>}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
-                          {payment?.paidMonths != null ? payment.paidMonths >= 12 ? `${Math.floor(payment.paidMonths / 12)}年${payment.paidMonths % 12 ? `${payment.paidMonths % 12}ヶ月` : ''}` : `${payment.paidMonths}ヶ月` : '取得失敗'}
+                          {payment?.paidMonths != null ? payment.paidMonths >= 12 ? `${Math.floor(payment.paidMonths / 12)}年${payment.paidMonths % 12 ? `${payment.paidMonths % 12}ヶ月` : ''}` : `${payment.paidMonths}ヶ月` : paymentPlaceholder}
                           {payment?.paidMonths != null && payment.paidMonths >= 12 && <div className="mt-1 text-xs text-gray-400">{payment.paidMonths}ヶ月</div>}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          <div className="font-medium text-gray-800">{payment ? formatDate(payment.lastPaidAt) : '取得失敗'}</div>
+                          <div className="font-medium text-gray-800">{payment ? formatDate(payment.lastPaidAt) : paymentPlaceholder}</div>
                           {payment?.lastPaidAmount != null && <div className="mt-1 text-xs text-gray-400">{formatAmount(payment.lastPaidAmount)}</div>}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          {payment ? formatDate(firstPaymentAt) : '取得失敗'}
+                          {payment ? formatDate(firstPaymentAt) : paymentPlaceholder}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                           {(() => {

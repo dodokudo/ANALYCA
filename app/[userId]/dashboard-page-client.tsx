@@ -8,6 +8,7 @@ import { InstagramDailyTable } from './components/instagram-daily-table';
 import { InstagramReelsTab } from './components/instagram-reels-tab';
 import { ScheduleTab } from './components/schedule-tab';
 import ThreadsContentCreationTab from './components/threads-content-creation-tab';
+import ThreadsMonthlyReportTab from './components/threads-monthly-report-tab';
 import { ThreadsInsights } from './components/threads-insights';
 import { RepostButton } from './components/repost-button';
 import { NotificationBell } from './components/notification-bell';
@@ -147,7 +148,7 @@ const YAMAZAKI_ANALYCA_USER_ID = '26743384212021461';
 const YAMAZAKI_THREADS_USERNAME = 'zakiyamadesu_0608';
 const YAMAZAKI_METRICS_START_DATE = '2026-06-17';
 const YOKO_ANALYCA_USER_ID = '33833959932919231';
-type ThreadsTab = 'analysis' | 'create' | 'schedule' | 'links';
+type ThreadsTab = 'analysis' | 'create' | 'report' | 'schedule' | 'links';
 
 const datePresetOptions: { value: DatePreset; label: string }[] = [
   { value: '3d', label: '過去3日' },
@@ -908,12 +909,14 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       Icon: ThreadsIcon,
       locked: isChannelBlockedByPlan(planId, 'threads'),
     });
-    items.push({
-      value: 'instagram',
-      label: 'Instagram',
-      Icon: InstagramIcon,
-      locked: isChannelBlockedByPlan(planId, 'instagram'),
-    });
+    if (userId !== YOKO_ANALYCA_USER_ID) {
+      items.push({
+        value: 'instagram',
+        label: 'Instagram',
+        Icon: InstagramIcon,
+        locked: isChannelBlockedByPlan(planId, 'instagram'),
+      });
+    }
     items.push({
       value: 'affiliate',
       label: 'アフィリエイト',
@@ -959,11 +962,12 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   const activeChannel = useMemo((): Channel => {
     if (tabParam === 'settings') return 'settings';
     if (tabParam === 'threads') return 'threads';
-    if (tabParam === 'instagram') return 'instagram';
+    if (tabParam === 'instagram') return userId === YOKO_ANALYCA_USER_ID ? 'threads' : 'instagram';
     if (tabParam === 'affiliate') return 'affiliate';
     if (tabParam === 'options') return 'options';
     if (tabParam === 'research' && isResearchAllowed(userId)) return 'research';
     if (!tabParam) {
+      if (userId === YOKO_ANALYCA_USER_ID) return 'threads';
       if (planId === 'light-threads' || channels.threads) return 'threads';
       if (planId === 'light-instagram' || channels.instagram) return 'instagram';
     }
@@ -1431,6 +1435,8 @@ function ThreadsContent({
   const [threadsTab, setThreadsTab] = useState<ThreadsTab>(
     threadsTabParam === 'create' && isYokoDashboard
       ? 'create'
+      : threadsTabParam === 'report' && isYokoDashboard
+      ? 'report'
       : threadsTabParam === 'schedule'
       ? 'schedule'
       : threadsTabParam === 'links' && hasLinkLineOption
@@ -1451,6 +1457,8 @@ function ThreadsContent({
     const requestedTab = searchParams?.get('threadsTab');
     const nextTab: ThreadsTab = requestedTab === 'create' && isYokoDashboard
       ? 'create'
+      : requestedTab === 'report' && isYokoDashboard
+        ? 'report'
       : requestedTab === 'schedule'
         ? 'schedule'
         : requestedTab === 'links' && hasLinkLineOption
@@ -1867,18 +1875,19 @@ function ThreadsContent({
   return (
     <div className="section-stack pb-20 lg:pb-6">
       {/* ヘッダー: タブ + 日付選択 */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
+      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+        <div className="flex min-w-0 max-w-full overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)] p-1 md:flex-none">
           {([
             { key: 'analysis', label: '分析' },
             { key: 'schedule', label: '予約投稿' },
             ...(isYokoDashboard ? [{ key: 'create' as const, label: '投稿作成' }] : []),
+            ...(isYokoDashboard ? [{ key: 'report' as const, label: 'レポート' }] : []),
             ...(hasLinkLineOption ? [{ key: 'links' as const, label: 'リンク登録' }] : []),
           ] as const).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setActiveThreadsTab(key)}
-              className={`h-10 flex-1 rounded-[var(--radius-sm)] px-6 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] ${
+              className={`h-10 flex-1 whitespace-nowrap rounded-[var(--radius-sm)] px-3 text-sm font-semibold transition-all md:flex-none md:min-w-[96px] md:px-6 ${
                 threadsTab === key
                   ? 'bg-gradient-to-r from-purple-500 to-emerald-400 text-white shadow-sm'
                   : 'text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]'
@@ -1942,6 +1951,14 @@ function ThreadsContent({
 
       {threadsTab === 'create' && isYokoDashboard && (
         <ThreadsContentCreationTab userId={userId} />
+      )}
+      {threadsTab === 'report' && isYokoDashboard && (
+        <ThreadsMonthlyReportTab
+          username={username}
+          posts={allPosts}
+          followerMetrics={allDailyMetrics}
+          agencyMetrics={data?.yokoAgency ?? null}
+        />
       )}
       {threadsTab === 'schedule' && (
         <ScheduleTab userId={userId} username={username} profilePicture={profilePicture} />

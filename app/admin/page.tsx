@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { PLANS } from '@/lib/univapay/plans';
+import { isAgencyAccount } from '@/lib/agency-accounts';
 
 interface AdminUser {
   user_id: string;
@@ -160,9 +161,10 @@ function isActive(_user: AdminUser, ext?: UserExtended): boolean {
 }
 
 // ステータス判定
-type UserStatus = 'active' | 'trial' | 'cancelled' | 'inactive';
+type UserStatus = 'agency' | 'active' | 'trial' | 'cancelled' | 'inactive';
 
-function getUserStatus(_user: AdminUser, ext?: UserExtended): UserStatus {
+function getUserStatus(user: AdminUser, ext?: UserExtended): UserStatus {
+  if (isAgencyAccount(user.user_id)) return 'agency';
   const subStatus = ext?.subscription_status;
   // 解約を最優先判定（BigQuery側は 'canceled' (l1個) で保存されるケースあり。両スペル対応）
   if (subStatus === 'canceled' || subStatus === 'cancelled' || subStatus === 'expired') return 'cancelled';
@@ -174,6 +176,7 @@ function getUserStatus(_user: AdminUser, ext?: UserExtended): UserStatus {
 
 function getStatusLabel(status: UserStatus): string {
   switch (status) {
+    case 'agency': return '運用代行';
     case 'active': return 'アクティブ';
     case 'trial': return '無料期間';
     case 'cancelled': return '退会';
@@ -183,6 +186,7 @@ function getStatusLabel(status: UserStatus): string {
 
 function getStatusStyle(status: UserStatus): string {
   switch (status) {
+    case 'agency': return 'bg-purple-100 text-purple-700';
     case 'active': return 'bg-green-100 text-green-700';
     case 'trial': return 'bg-blue-100 text-blue-700';
     case 'cancelled': return 'bg-red-100 text-red-700';
@@ -452,11 +456,8 @@ function AdminPageContent() {
     !u.user_id.includes('demo')
   );
 
-  // KPIには従来どおりYOKOの運用代行アカウントを含めない
-  const kpiUsers = demoFiltered.filter(u =>
-    u.instagram_username !== 'yoko_gemqueen' &&
-    u.threads_username !== 'yoko_gemqueen'
-  );
+  // 運用代行はSaaSの契約・売上KPIに含めない
+  const kpiUsers = demoFiltered.filter(u => !isAgencyAccount(u.user_id));
 
   // ユーザー拡張情報のマップ（アクティブ判定で subscription_status を参照するため先に構築）
   const extendedMap = new Map<string, UserExtended>();
@@ -527,7 +528,7 @@ function AdminPageContent() {
         {/* タブ別サマリーカード */}
         {activeTab === 'users' && (() => {
           // ステータス別集計（未契約リードも含む全体）
-          const statusCounts = { active: 0, trial: 0, cancelled: 0, inactive: 0 };
+          const statusCounts: Record<UserStatus, number> = { agency: 0, active: 0, trial: 0, cancelled: 0, inactive: 0 };
           realUsers.forEach(u => {
             const ext = extendedMap.get(u.user_id);
             statusCounts[getUserStatus(u, ext)]++;
@@ -579,7 +580,7 @@ function AdminPageContent() {
           const totalMonthly = confirmedRevenue + projectedRevenue;
 
           return (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-6">
               <div className="bg-white rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-gray-500">当月請求見込み</p>
                 <p className="text-2xl font-bold text-gray-800">¥{totalMonthly.toLocaleString()}</p>
@@ -595,6 +596,10 @@ function AdminPageContent() {
               <div className="bg-white rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-gray-500">アクティブ</p>
                 <p className="text-2xl font-bold text-green-600">{statusCounts.active}人</p>
+              </div>
+              <div className="bg-white rounded-xl p-5 shadow-sm">
+                <p className="text-sm text-gray-500">運用代行</p>
+                <p className="text-2xl font-bold text-purple-600">{statusCounts.agency}人</p>
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-gray-500">無料体験</p>

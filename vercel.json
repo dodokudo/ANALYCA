@@ -57,6 +57,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/admin-payments",
+      "schedule": "10 15 * * *"
+    },
+    {
       "path": "/api/threads-grandprix/snapshot",
       "schedule": "30 15 * * *"
     }

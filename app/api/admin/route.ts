@@ -11,7 +11,7 @@ import {
 } from '@/lib/bigquery';
 import { getAllAffiliatesWithStats, getConversionFunnelStats, getUsersExtendedInfo } from '@/lib/admin-queries';
 import { getSubscription, getTransactionToken, listAllSubscriptions } from '@/lib/univapay/client';
-import { getAdminPaymentData } from '@/lib/admin-payment-data';
+import { adminPaymentSnapshotStore } from '@/lib/admin-payment-snapshot';
 
 export const maxDuration = 180;
 
@@ -172,19 +172,14 @@ export async function GET(request: Request) {
       }, { status: 401 });
     }
 
-    // Historical charges/refunds must not delay the main admin screen.
+    // Keep previously opened clients compatible; only read saved data here.
     if (url.searchParams.get('section') === 'payments') {
-      const [paymentUsers, paymentSubscriptions] = await Promise.all([
-        getUsersExtendedInfo(),
-        listAllSubscriptions(),
-      ]);
-      const paymentData = await getAdminPaymentData(paymentUsers, paymentSubscriptions);
-      return NextResponse.json({ success: !paymentData.error, data: paymentData, error: paymentData.error },
-        { status: paymentData.error ? 503 : 200 });
+      const paymentData = await adminPaymentSnapshotStore().read();
+      return NextResponse.json({ success: !!paymentData, data: paymentData }, { status: paymentData ? 200 : 503 });
     }
 
     // データ取得（UnivaPay一括取得を並行）
-    const [users, stats, affiliates, funnel, usersExtended, subscriptions, paymentAttempts] = await Promise.all([
+    const [users, stats, affiliates, funnel, usersExtended, subscriptions, paymentAttempts, paymentData] = await Promise.all([
       getAllUsersWithStats(),
       getAdminOverallStats(),
       getAllAffiliatesWithStats().catch(() => []),
@@ -193,6 +188,10 @@ export async function GET(request: Request) {
       listAllSubscriptions().then(items => ({ items, error: null as string | null }))
         .catch(() => ({ items: [], error: '決済契約を取得できませんでした。再読み込みしてください。' })),
       getIncompletePaymentAttempts().catch(() => []),
+      adminPaymentSnapshotStore().read().catch(error => {
+        console.error('[admin/payments] snapshot read failed', error);
+        return { users: {}, fetchedAt: new Date().toISOString(), error: '保存済みの決済情報を取得できませんでした。再読み込みしてください。' };
+      }),
     ]);
 
     // subscription_id → next_payment_date のマップ
@@ -258,6 +257,7 @@ export async function GET(request: Request) {
         subscriptionMap,
         unlinkedSubscriptions,
         paymentAttempts,
+        paymentData,
         fetchedAt: new Date().toISOString()
       }
     });

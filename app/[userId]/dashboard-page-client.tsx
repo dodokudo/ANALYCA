@@ -899,12 +899,14 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
         locked: isChannelBlockedByPlan(planId, 'instagram'),
       });
     }
-    items.push({
-      value: 'affiliate',
-      label: 'アフィリエイト',
-      Icon: AffiliateIcon,
-      locked: false,
-    });
+    if (userId !== YOKO_ANALYCA_USER_ID) {
+      items.push({
+        value: 'affiliate',
+        label: 'アフィリエイト',
+        Icon: AffiliateIcon,
+        locked: false,
+      });
+    }
     items.push({
       value: 'options',
       label: 'オプション',

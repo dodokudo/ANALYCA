@@ -4,7 +4,7 @@ import { buildThreadsMonthlyReport, getReportMonths, toJstDate, type MonthlyRepo
 
 const now = new Date('2026-10-03T12:00:00Z');
 const makePost = (id: string, timestamp: string, views = 10): MonthlyReportPost => ({
-  threads_id: id, timestamp, text: id, views, likes: 2, replies: 1,
+  id, threads_id: id, timestamp, text: id, views, likes: 2, replies: 1,
 });
 
 test('month choices start in August and change at Japanese midnight', () => {
@@ -54,7 +54,8 @@ test('limits the current month to today and identifies partial coverage', () => 
     posts: [makePost('today', '2026-10-03T01:00:00Z'), makePost('future', '2026-10-04T01:00:00Z')],
     followerMetrics: [
       { date: '2026-09-30', followers_count: 200, follower_delta: 2 },
-      { date: '2026-10-02', followers_count: 210, follower_delta: 10 },
+      { date: '2026-10-01', followers_count: 213, follower_delta: 13 },
+      { date: '2026-10-02', followers_count: 210, follower_delta: -3 },
     ],
     agencyMetrics: { latestSnapshotDate: '2026-10-02', daily: [{ date: '2026-10-02', linkClicks: 5, lineRegistrations: 2 }] },
   });
@@ -64,6 +65,8 @@ test('limits the current month to today and identifies partial coverage', () => 
   assert.equal(report.posts.length, 1);
   assert.equal(report.followerDate, '2026-10-02');
   assert.equal(report.followerGrowth, 10);
+  assert.equal(report.days[0].followerGrowth, 13);
+  assert.equal(report.days[1].followerGrowth, -3);
   assert.equal(report.linkClicks, 5);
   assert.equal(report.clickRecordsFrom, '2026-10-02');
   assert.equal(report.days[0].linkClicks, null);

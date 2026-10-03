@@ -1,6 +1,7 @@
 export const MONTHLY_REPORT_START = '2026-08';
 
 export interface MonthlyReportPost {
+  id: string;
   threads_id: string;
   timestamp: string;
   text: string;

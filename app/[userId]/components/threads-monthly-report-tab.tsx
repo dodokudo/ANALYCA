@@ -16,7 +16,6 @@ import {
 interface ThreadsMonthlyReportTabProps {
   userId: string;
   comments: ThreadsContentComment[];
-  username: string;
   posts: MonthlyReportPost[];
   followerMetrics: MonthlyReportFollowerMetric[];
   agencyMetrics: MonthlyReportAgencyMetrics | null;
@@ -34,7 +33,7 @@ function shortDate(date: string): string {
   return `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
 }
 
-export default function ThreadsMonthlyReportTab({ userId, comments, username, posts, followerMetrics, agencyMetrics }: ThreadsMonthlyReportTabProps) {
+export default function ThreadsMonthlyReportTab({ userId, comments, posts, followerMetrics, agencyMetrics }: ThreadsMonthlyReportTabProps) {
   const [showDailyTable, setShowDailyTable] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -73,10 +72,7 @@ export default function ThreadsMonthlyReportTab({ userId, comments, username, po
       <section className="ui-card p-4 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <div className="mb-2 flex items-center gap-2 text-xs text-[color:var(--color-text-secondary)]">
-              <span>@{username}</span>
-              {report.isCurrentMonth && <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-700">集計中</span>}
-            </div>
+            {report.isCurrentMonth && <span className="mb-2 inline-block rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-700">集計中</span>}
             <h2 className="text-xl font-semibold text-[color:var(--color-text-primary)] md:text-2xl">{formatReportMonth(month)} 運用レポート</h2>
           </div>
           <div className="flex items-center gap-2">

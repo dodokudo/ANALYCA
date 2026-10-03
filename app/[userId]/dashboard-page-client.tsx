@@ -1860,7 +1860,6 @@ function ThreadsContent({
         <ThreadsMonthlyReportTab
           userId={userId}
           comments={comments}
-          username={username}
           posts={allPosts}
           followerMetrics={allDailyMetrics}
           agencyMetrics={data?.yokoAgency ?? null}

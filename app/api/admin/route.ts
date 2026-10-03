@@ -13,7 +13,7 @@ import { getAllAffiliatesWithStats, getConversionFunnelStats, getUsersExtendedIn
 import { getSubscription, getTransactionToken, listAllSubscriptions } from '@/lib/univapay/client';
 import { getAdminPaymentData, type AdminPaymentData } from '@/lib/admin-payment-data';
 
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 // パスワード認証
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '7684';

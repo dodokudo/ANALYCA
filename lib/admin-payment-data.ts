@@ -29,12 +29,28 @@ async function loadAdminPaymentData(users: PaymentUser[], subscriptions: UnivaPa
     const ownerFor = resolvePaymentOwners(users, subscriptions);
     const relevant = charges.filter(charge => charge.status === 'successful' && charge.mode === 'live' && ownerFor(charge));
     const refunds: Record<string, UnivaPayRefund[] | null> = {};
-    for (const charge of relevant) {
-      // Pace historical reads to stay below the provider's route burst limit.
-      await new Promise(resolve => setTimeout(resolve, 250));
-      try { refunds[charge.id] = await collectUnivaPayPages(next => listChargeRefunds(charge.id, next)); }
-      catch (error) { console.error('[admin/payments] refund read failed', charge.id, String(error)); refunds[charge.id] = null; }
-    }
+    let nextIndex = 0;
+    let nextRequestAt = 0;
+    // Limit concurrent reads and space request starts across all workers.
+    // Sequential network round trips exceed the production request deadline.
+    const readRefunds = async (): Promise<void> => {
+      while (nextIndex < relevant.length) {
+        const charge = relevant[nextIndex++];
+        try {
+          refunds[charge.id] = await collectUnivaPayPages(async next => {
+            const now = Date.now();
+            const delay = Math.max(0, nextRequestAt - now);
+            nextRequestAt = now + delay + 500;
+            if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+            return listChargeRefunds(charge.id, next);
+          });
+        } catch (error) {
+          console.error('[admin/payments] refund read failed', charge.id, String(error));
+          refunds[charge.id] = null;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, relevant.length) }, readRefunds));
     return { users: aggregateAdminPayments(users, subscriptions, charges, refunds), fetchedAt: new Date().toISOString(), error: null };
   } catch (error) {
     console.error('[admin/payments] read failed', error);

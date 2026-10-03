@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { PLANS } from '@/lib/univapay/plans';
 import { isAgencyAccount } from '@/lib/agency-accounts';
+import type { AdminPaymentData } from '@/lib/admin-payment-data';
 
 interface AdminUser {
   user_id: string;
@@ -86,6 +87,7 @@ interface UnlinkedSubscription {
 }
 
 interface AdminData {
+  paymentData?: AdminPaymentData;
   users: AdminUser[];
   stats: {
     total_users: number;
@@ -144,14 +146,6 @@ function getPlanLabel(user: AdminUser, ext?: UserExtended): string {
   const plan = PLANS[planId];
   if (!plan) return getPlan(user);
   return plan.yearly ? `${plan.name} 年額` : plan.name;
-}
-
-function getPlanAmount(user: AdminUser, ext?: UserExtended): number | null {
-  const sub = ext?.subscription_status;
-  if (!sub || sub === 'none') return null;
-  const planId = getPlanId(user, ext);
-  if (!planId) return null;
-  return PLANS[planId]?.price ?? null;
 }
 
 // アクティブ判定（統計カード用）: 決済済みのみ。SNS連携だけでは active にしない
@@ -464,7 +458,11 @@ function AdminPageContent() {
   (data.usersExtended || []).forEach(ue => extendedMap.set(ue.user_id, ue));
 
   // 一覧表示用: 未契約リード（SNS連携だけ）も含める全ユーザー
+  const paymentData = data.paymentData;
+  const payments = paymentData?.users || {};
   const realUsers = [...demoFiltered].sort((a, b) => getPinnedUserRank(a) - getPinnedUserRank(b));
+  const paymentsComplete = !!paymentData && !paymentData.error
+    && demoFiltered.every(user => payments[user.user_id]?.refundsComplete);
 
   // KPI集計用: 契約ユーザーのみ（subscription_status が 'none'/NULL を除外）
   const paidUsers = kpiUsers.filter(u => {
@@ -722,9 +720,11 @@ function AdminPageContent() {
               </div>
             )}
 
+            {paymentData?.error && <p role="alert" className="text-sm text-red-600">{paymentData.error}</p>}
+            {paymentData && !paymentData.error && !paymentsComplete && <p role="alert" className="text-sm text-red-600">一部の返金履歴を取得できませんでした。金額を確定できないユーザーは「取得失敗」と表示しています。</p>}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-              <table className="w-full min-w-[1660px]">
+              <table className="w-full min-w-[2080px]">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="min-w-[180px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ユーザー名</th>
@@ -732,9 +732,12 @@ function AdminPageContent() {
                     <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">連携媒体</th>
                     <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">契約開始</th>
                     <th className="min-w-[110px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">ステータス</th>
+                    <th className="min-w-[140px] px-4 py-3 text-right text-xs font-medium whitespace-nowrap text-gray-500">累計決済額</th>
+                    <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium whitespace-nowrap text-gray-500">継続月数</th>
+                    <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium whitespace-nowrap text-gray-500">前回決済</th>
                     <th className="min-w-[140px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">初回決済</th>
                     <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">次回決済</th>
-                    <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">決済金額</th>
+                    <th className="min-w-[120px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">次回決済額</th>
                     <th className="min-w-[160px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">最終ログイン</th>
                     <th className="min-w-[110px] px-4 py-3 text-right text-xs font-medium uppercase whitespace-nowrap text-gray-500">起動回数</th>
                     <th className="min-w-[130px] px-4 py-3 text-left text-xs font-medium uppercase whitespace-nowrap text-gray-500">登録経路</th>
@@ -748,13 +751,8 @@ function AdminPageContent() {
                     const adminDashboardUrl = `${dashboardUrl}/admin`;
                     const ext = extendedMap.get(user.user_id);
                     const plan = getPlanLabel(user, ext);
-                    const isExcluded = excludeUserIds.has(user.user_id);
-                    const paymentAmount = isExcluded ? null : getPlanAmount(user, ext);
-                    const firstPaymentAt = isExcluded ? null : (ext?.subscription_created_at ?? null);
-                    const scheduledPaymentAt =
-                      !firstPaymentAt && !isExcluded && ext?.subscription_status === 'trial'
-                        ? ext.trial_ends_at
-                        : null;
+                    const payment = payments[user.user_id];
+                    const firstPaymentAt = payment?.firstPaidAt ?? null;
                     const source = ext?.affiliate_code
                       ? `AF: ${ext.affiliate_code}`
                       : ext?.utm_source
@@ -805,25 +803,32 @@ function AdminPageContent() {
                           </span>
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
-                          <div className="font-medium text-gray-800">
-                            {formatDate(firstPaymentAt || scheduledPaymentAt)}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {firstPaymentAt ? '確定' : scheduledPaymentAt ? '予定' : '-'}
-                          </div>
+                          <div className="text-right font-semibold tabular-nums text-gray-900">{payment?.netPaid != null ? formatAmount(payment.netPaid) : '取得失敗'}</div>
+                          {payment && <div className="mt-1 text-right text-xs text-gray-400">{payment.paymentCount}回の決済{payment.totalRefunded > 0 ? `・返金 ${formatAmount(payment.totalRefunded)}` : ''}</div>}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
+                          {payment?.paidMonths != null ? payment.paidMonths >= 12 ? `${Math.floor(payment.paidMonths / 12)}年${payment.paidMonths % 12 ? `${payment.paidMonths % 12}ヶ月` : ''}` : `${payment.paidMonths}ヶ月` : '取得失敗'}
+                          {payment?.paidMonths != null && payment.paidMonths >= 12 && <div className="mt-1 text-xs text-gray-400">{payment.paidMonths}ヶ月</div>}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          <div className="font-medium text-gray-800">{payment ? formatDate(payment.lastPaidAt) : '取得失敗'}</div>
+                          {payment?.lastPaidAmount != null && <div className="mt-1 text-xs text-gray-400">{formatAmount(payment.lastPaidAmount)}</div>}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          {payment ? formatDate(firstPaymentAt) : '取得失敗'}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                           {(() => {
                             const subId = ext?.subscription_id;
                             const sub = subId ? subMap[subId] : null;
-                            return sub?.next_payment_date ? formatDate(sub.next_payment_date) : '-';
+                            return sub?.next_payment_date && !['canceled', 'completed', 'suspended'].includes(sub.status) ? formatDate(sub.next_payment_date) : '-';
                           })()}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
                           {(() => {
                             const subId = ext?.subscription_id;
                             const sub = subId ? subMap[subId] : null;
-                            return sub ? formatAmount(sub.amount) : formatAmount(paymentAmount);
+                            return sub?.next_payment_date && !['canceled', 'completed', 'suspended'].includes(sub.status) ? formatAmount(sub.amount) : '-';
                           })()}
                         </td>
                         <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">

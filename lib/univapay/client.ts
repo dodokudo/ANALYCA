@@ -13,6 +13,7 @@ const DEFAULT_SUBSCRIPTION_RETRY_INTERVAL = 'P1D';
 
 export interface UnivaPayCharge {
   id: string;
+  subscription_id?: string | null;
   store_id: string;
   transaction_token_id: string;
   requested_amount: number;
@@ -55,6 +56,7 @@ export interface UnivaPayListResponse<T> {
   items: T[];
   has_more: boolean;
   total_hits?: number;
+  next_cursor?: string;
 }
 
 export interface UnivaPayTransactionToken {
@@ -168,6 +170,12 @@ async function fetchUnivaPay<T>(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        if (method === 'GET' && response.status === 429 && attempt < maxAttempts) {
+          const retryAfter = Number(response.headers.get('retry-after')) || 1;
+          await response.body?.cancel();
+          await new Promise(resolve => setTimeout(resolve, Math.min(5000, Math.max(1000, retryAfter * 1000))));
+          continue;
+        }
         if (response.status === 404 && options?.ignoreNotFound) {
           return undefined as T;
         }
@@ -283,7 +291,7 @@ export async function updateSubscription(
  * サブスクリプション一覧を取得
  */
 export async function listSubscriptions(
-  params?: { status?: string; mode?: 'live' | 'test'; limit?: number },
+  params?: { status?: string; mode?: 'live' | 'test'; limit?: number; cursor?: string },
 ): Promise<UnivaPayListResponse<UnivaPaySubscription>> {
   const storeId = UNIVAPAY_STORE_ID;
   if (!storeId) {
@@ -360,7 +368,7 @@ export async function getCharge(chargeId: string): Promise<UnivaPayCharge> {
  * 課金一覧を取得
  */
 export async function listCharges(
-  params?: { from?: string; to?: string; status?: string; mode?: 'live' | 'test'; limit?: number },
+  params?: { from?: string; to?: string; status?: string; mode?: 'live' | 'test'; limit?: number; cursor?: string },
 ): Promise<UnivaPayListResponse<UnivaPayCharge>> {
   const storeId = UNIVAPAY_STORE_ID;
   if (!storeId) {
@@ -371,6 +379,45 @@ export async function listCharges(
     `/stores/${storeId}/charges`,
     { params: params as Record<string, string | number | undefined> },
   );
+}
+
+export interface UnivaPayRefund {
+  id: string;
+  charge_id: string;
+  status: 'pending' | 'successful' | 'failed' | 'error';
+  amount: number;
+  currency: string;
+  mode: 'live' | 'test';
+}
+
+export async function listChargeRefunds(chargeId: string, cursor?: string): Promise<UnivaPayListResponse<UnivaPayRefund>> {
+  if (!UNIVAPAY_STORE_ID) throw new Error('UNIVAPAY_STORE_ID is not configured');
+  return fetchUnivaPay<UnivaPayListResponse<UnivaPayRefund>>(
+    `/stores/${UNIVAPAY_STORE_ID}/charges/${encodeURIComponent(chargeId)}/refunds`,
+    { params: { limit: 100, cursor } },
+  );
+}
+
+export async function collectUnivaPayPages<T extends { id: string }>(
+  fetchPage: (cursor?: string) => Promise<UnivaPayListResponse<T>>,
+): Promise<T[]> {
+  const items = new Map<string, T>();
+  const cursors = new Set<string>();
+  let cursor: string | undefined;
+  for (let page = 0; page < 1000; page++) {
+    const result = await fetchPage(cursor);
+    if (!Array.isArray(result.items) || typeof result.has_more !== 'boolean') throw new Error('決済履歴の応答が不正です');
+    result.items.forEach(item => items.set(item.id, item));
+    if (!result.has_more) return [...items.values()];
+    const next = result.next_cursor || result.items.at(-1)?.id;
+    if (!next || cursors.has(next)) throw new Error('決済履歴を最後まで取得できませんでした');
+    cursors.add(next); cursor = next;
+  }
+  throw new Error('決済履歴の取得上限を超えました');
+}
+
+export async function listAllSubscriptions(): Promise<UnivaPaySubscription[]> {
+  return collectUnivaPayPages(cursor => listSubscriptions({ mode: 'live', limit: 100, cursor }));
 }
 
 /**

@@ -10,7 +10,10 @@ import {
   markReferralsPaid,
 } from '@/lib/bigquery';
 import { getAllAffiliatesWithStats, getConversionFunnelStats, getUsersExtendedInfo } from '@/lib/admin-queries';
-import { getSubscription, getTransactionToken, listSubscriptions } from '@/lib/univapay/client';
+import { getSubscription, getTransactionToken, listAllSubscriptions } from '@/lib/univapay/client';
+import { getAdminPaymentData, type AdminPaymentData } from '@/lib/admin-payment-data';
+
+export const maxDuration = 60;
 
 // パスワード認証
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '7684';
@@ -176,16 +179,21 @@ export async function GET(request: Request) {
       getAllAffiliatesWithStats().catch(() => []),
       getConversionFunnelStats().catch(() => ({ total_conversions: 0, total_revenue: 0, affiliate_sources: 0, utm_tracked: 0 })),
       getUsersExtendedInfo().catch(() => []),
-      listSubscriptions({ limit: 50 }).catch(() => ({ items: [], has_more: false })),
+      listAllSubscriptions().then(items => ({ items, error: null as string | null }))
+        .catch(() => ({ items: [], error: '決済契約を取得できませんでした。再読み込みしてください。' })),
       getIncompletePaymentAttempts().catch(() => []),
     ]);
+
+    const paymentData: AdminPaymentData = subscriptions.error
+      ? { users: {}, fetchedAt: new Date().toISOString(), error: subscriptions.error }
+      : await getAdminPaymentData(usersExtended, subscriptions.items);
 
     // subscription_id → next_payment_date のマップ
     const subscriptionMap: Record<string, { next_payment_date: string | null; amount: number; status: string }> = {};
     for (const sub of subscriptions.items) {
       subscriptionMap[sub.id] = {
         next_payment_date: sub.next_payment_date ?? null,
-        amount: sub.amount,
+        amount: sub.next_payment?.amount ?? sub.amount,
         status: sub.status,
       };
     }
@@ -243,6 +251,7 @@ export async function GET(request: Request) {
         subscriptionMap,
         unlinkedSubscriptions,
         paymentAttempts,
+        paymentData,
         fetchedAt: new Date().toISOString()
       }
     });

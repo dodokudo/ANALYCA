@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ThreadsTopContent, type ThreadsContentComment } from './threads-top-content';
+import ReportReflection from './report-reflection';
 import {
   buildThreadsMonthlyReport,
   formatReportMonth,
@@ -99,6 +100,8 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
           ))}
         </dl>
       </section>
+
+      <ReportReflection key={`reflection-${month}`} userId={userId} month={month} />
 
       <section className="ui-card p-4 md:p-6">
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の推移</h3>

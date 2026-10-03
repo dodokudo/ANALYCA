@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildThreadsMonthlyReport, getReportMonths, toJstDate, type MonthlyReportPost } from '../threads-monthly-report.ts';
+import { buildThreadsMonthlyReport, getReportMonths, toJstDate, type MonthlyReportPost } from '../threads-monthly-report';
 
 const now = new Date('2026-10-03T12:00:00Z');
 const makePost = (id: string, timestamp: string, views = 10): MonthlyReportPost => ({

@@ -20,6 +20,9 @@ const ADMIN_USER_IDS = new Set([
   '10012809578833342', // kudooo_ai
 ]);
 
+// 管理画面からの除外指定（契約開始 2026/09/12）。契約・決済の履歴は保持する。
+const HIDDEN_WITHDRAWN_USER_IDS = new Set(['73193513-4504-478a-a7dc-bde7ca36f002']);
+
 async function isAdminByCookie(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
@@ -224,14 +227,19 @@ export async function GET(request: Request) {
         }),
     );
 
+    const hiddenUserIds = new Set(usersExtended
+      .filter(user => HIDDEN_WITHDRAWN_USER_IDS.has(user.user_id)
+        && ['canceled', 'cancelled', 'expired'].includes(user.subscription_status || ''))
+      .map(user => user.user_id));
+
     return NextResponse.json({
       success: true,
       data: {
-        users,
+        users: users.filter(user => !hiddenUserIds.has(user.user_id)),
         stats,
         affiliates,
         funnel,
-        usersExtended,
+        usersExtended: usersExtended.filter(user => !hiddenUserIds.has(user.user_id)),
         subscriptionMap,
         unlinkedSubscriptions,
         paymentAttempts,

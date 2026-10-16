@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { YokoNotionError } from '@/lib/yoko-notion-errors';
 
 const NOTION_API_BASE = 'https://api.notion.com/v1';
 const NOTION_VERSION = '2026-03-11';
@@ -148,7 +149,7 @@ async function notionRequest<T>(path: string, init?: RequestInit): Promise<T> {
     const retryable = response.status === 429 || response.status >= 500;
     if (!retryable || attempt === MAX_RETRIES) {
       const detail = await response.text();
-      throw new Error(`Notion API request failed: ${response.status} ${detail.slice(0, 300)}`);
+      throw new YokoNotionError(response.status, detail.slice(0, 300));
     }
 
     const retryAfterSeconds = Number(response.headers.get('retry-after') || 0);

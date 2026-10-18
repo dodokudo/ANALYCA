@@ -1,12 +1,17 @@
 import { BigQuery } from '@google-cloud/bigquery';
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { fetchGrandprixEvents } from '@/app/threads-grandprix/grandprix-bigquery';
 
-import { isGrandprixEntryOpen } from '@/lib/threads-grandprix-events';
+import { isGrandprixEntryOpen, GRANDPRIX_LINE_GROUP_URL } from '@/lib/threads-grandprix-events';
 import { checkGrandprixConnection } from '@/lib/threads-grandprix-connection';
-import { createGrandprixEntrySession, GRANDPRIX_ENTRY_COOKIE, GRANDPRIX_ENTRY_MAX_AGE, readGrandprixEntrySession } from '@/lib/threads-grandprix-entry-session';
+import { GRANDPRIX_ENTRY_COOKIE, readGrandprixEntrySession } from '@/lib/threads-grandprix-entry-session';
+
+import { sendGrandprixOnboardingEmail } from '@/lib/threads-grandprix-onboarding';
+
+export const maxDuration = 60;
 
 type EntryBody = {
+  email?: unknown;
   eventId?: unknown;
   lineName?: unknown;
   threadsUsername?: unknown;
@@ -70,6 +75,11 @@ async function ensureEntriesTable(): Promise<void> {
         ADD COLUMN IF NOT EXISTS analyca_user_id_at_entry STRING;
       ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
         ADD COLUMN IF NOT EXISTS event_id STRING;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS email STRING;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_status STRING;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_attempt_id STRING;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_attempted_at TIMESTAMP;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_sent_at TIMESTAMP;
     `).catch((error) => {
       ensureTablePromise = null;
       throw error;
@@ -142,7 +152,10 @@ export async function POST(request: NextRequest) {
     const activeEvent = (await fetchGrandprixEvents()).find((event) => event.eventId === eventId);
     if (!activeEvent) return NextResponse.json({ success: false, error: '大会が見つかりません。' }, { status: 404 });
     if (!isGrandprixEntryOpen(activeEvent)) return NextResponse.json({ success: false, error: 'この大会のエントリー受付は終了しました。' }, { status: 409 });
-    const receipt = createGrandprixEntrySession(eventId, normalizedThreadsUsername);
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    if (email.length > 254 || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) {
+      return NextResponse.json({ success: false, error: 'メールアドレスを正しく入力してください。' }, { status: 400 });
+    }
 
     await ensureEntriesTable();
     const analycaSnapshot = await findAnalycaUserByThreadsUsername(normalizedThreadsUsername);
@@ -157,6 +170,7 @@ export async function POST(request: NextRequest) {
             @threadsUsername AS threads_username,
             @normalizedThreadsUsername AS normalized_threads_username,
             @eventId AS event_id,
+            @email AS email,
             @hasAnalycaAtEntry AS has_analyca_at_entry,
             NULLIF(@analycaUserIdAtEntry, '') AS analyca_user_id_at_entry,
             @userAgent AS user_agent,
@@ -169,7 +183,9 @@ export async function POST(request: NextRequest) {
             line_name = source.line_name,
             threads_username = source.threads_username,
             user_agent = source.user_agent,
-            updated_at = source.submitted_at
+            updated_at = source.submitted_at,
+            login_email_status = IF(target.email = source.email, target.login_email_status, NULL),
+            email = source.email
         WHEN NOT MATCHED THEN
           INSERT (
             id,
@@ -177,6 +193,7 @@ export async function POST(request: NextRequest) {
             threads_username,
             normalized_threads_username,
             event_id,
+            email,
             has_analyca_at_entry,
             analyca_user_id_at_entry,
             user_agent,
@@ -189,6 +206,7 @@ export async function POST(request: NextRequest) {
             source.threads_username,
             source.normalized_threads_username,
             source.event_id,
+            source.email,
             source.has_analyca_at_entry,
             source.analyca_user_id_at_entry,
             source.user_agent,
@@ -198,6 +216,7 @@ export async function POST(request: NextRequest) {
       `,
       {
         id: crypto.randomUUID(),
+        email,
         eventId: activeEvent.eventId,
         lineName,
         threadsUsername: normalizedThreadsUsername,
@@ -208,14 +227,11 @@ export async function POST(request: NextRequest) {
       },
     );
 
-    // 受付保存後の一時的な確認エラーは、申込失敗として扱わず再確認へ案内する。
-    const connection = await checkGrandprixConnection(normalizedThreadsUsername)
-      .catch(() => ({ status: 'needs_check' as const }));
-    const response = NextResponse.json({ success: true, connectionStatus: connection.status });
-    response.cookies.set(GRANDPRIX_ENTRY_COOKIE, receipt, {
-      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: GRANDPRIX_ENTRY_MAX_AGE,
-    });
-    return response;
+    // LINE参加を先に進める。Threadsの接続確認やメール送信はレスポンスを待たせない。
+    if (!analycaSnapshot.hasAnalyca) {
+      after(() => sendGrandprixOnboardingEmail({ event: activeEvent, username: normalizedThreadsUsername, email }));
+    }
+    return NextResponse.json({ success: true, lineGroupUrl: GRANDPRIX_LINE_GROUP_URL });
   } catch (error) {
     console.error('Threads Grandprix entry error:', error);
     return NextResponse.json(

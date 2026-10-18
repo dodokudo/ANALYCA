@@ -7,12 +7,16 @@ import {
 } from '@/lib/media/auth';
 import { ThreadsAPI } from '@/lib/threads';
 import {
+  getThreadsGrandprixEventIds,
   getUserById,
   upsertThreadsUser,
   findUserIdByThreadsId,
   updateLastLogin,
 } from '@/lib/bigquery';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
+
+import { GRANDPRIX_LOGIN_COOKIE, readGrandprixLoginSession } from '@/lib/threads-grandprix-login-session';
+import { GRANDPRIX_EVENTS, isGrandprixEntryOpen } from '@/lib/threads-grandprix-events';
 
 export const maxDuration = 300;
 
@@ -31,8 +35,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=expired', request.url));
   }
 
+  const isGrandprixLogin = stateParam?.startsWith('grandprix-login.') === true;
+  const loginReceipt = request.cookies.get(GRANDPRIX_LOGIN_COOKIE)?.value;
+  const loginSession = isGrandprixLogin && stateParam === `grandprix-login.${loginReceipt}` ? readGrandprixLoginSession(loginReceipt) : null;
+  const loginEvent = loginSession ? GRANDPRIX_EVENTS.find(event => event.eventId === loginSession.eventId) : null;
+  const loginError = (message: string) => {
+    const url = new URL('/login/threads', request.url);
+    if (loginSession) url.searchParams.set('grandprix', loginSession.eventId);
+    url.searchParams.set('error', message);
+    return NextResponse.redirect(url);
+  };
+  if (isGrandprixLogin && (!loginSession || !loginEvent || !isGrandprixEntryOpen(loginEvent))) {
+    return loginError('ログインをやり直してください。メールのリンクから再度お進みください。');
+  }
+
   // OAuth denied or error
   if (error) {
+    if (isGrandprixLogin) return loginError('接続が完了していません。必要な権限を許可して再度ログインしてください。');
     if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=denied', request.url));
     console.error('Threads OAuth error:', error, errorReason);
     return NextResponse.redirect(
@@ -41,6 +60,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!code) {
+    if (isGrandprixLogin) return loginError('ログインを完了できませんでした。もう一度お試しください。');
     if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=error', request.url));
     return NextResponse.redirect(
       new URL('/login?error=no_code', request.url)
@@ -63,6 +83,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=mismatch', request.url));
     }
 
+    if (loginSession && !(await getThreadsGrandprixEventIds(account.username)).includes(loginSession.eventId)) {
+      return loginError('このアカウントのエントリーが見つかりません。申込時のThreadsアカウントでログインしてください。');
+    }
+
     // Step 4: Check for existing user (by Threads ID or pending user from checkout)
     let pendingUserId: string | undefined;
     if (stateParam) {
@@ -83,6 +107,7 @@ export async function GET(request: NextRequest) {
           has_instagram: existingUser.has_instagram,
         });
         if (isChannelBlockedByPlan(effectivePlanId, 'threads')) {
+          if (loginSession) return loginError('現在のプランではThreadsを接続できません。運営にお問い合わせください。');
           if (grandprixSession) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=plan_required', request.url));
           return NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
         }
@@ -120,6 +145,7 @@ export async function GET(request: NextRequest) {
       });
     }
     const response = NextResponse.redirect(redirectUrl);
+    if (loginSession) response.cookies.delete(GRANDPRIX_LOGIN_COOKIE);
     response.cookies.set('analycaUserId', userId, {
       path: '/',
       maxAge: 60 * 60 * 24 * 365,
@@ -138,6 +164,7 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err) {
     console.error('Threads OAuth callback error:', err);
+    if (isGrandprixLogin) return loginError('接続を完了できませんでした。もう一度お試しください。');
     if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=error', request.url));
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.redirect(

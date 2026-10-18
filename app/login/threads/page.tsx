@@ -5,21 +5,28 @@ import { useEffect, useState } from 'react';
 export default function ThreadsLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [grandprix, setGrandprix] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
+    setGrandprix(params.get('grandprix'));
 
     if (error) {
       setAuthError(decodeURIComponent(error));
-      window.history.replaceState({}, '', '/login/threads');
+      params.delete('error');
+      window.history.replaceState({}, '', `/login/threads${params.size ? '?' + params.toString() : ''}`);
     }
   }, []);
 
   const handleThreadsLogin = () => {
     setIsLoading(true);
+    if (grandprix) {
+      window.location.href = `/api/threads-grandprix/connect?event=${encodeURIComponent(grandprix)}`;
+      return;
+    }
     const clientId = process.env.NEXT_PUBLIC_THREADS_APP_ID || '729490462757265';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
     const redirectUri = encodeURIComponent(`${appUrl}/api/auth/threads/callback`);
@@ -37,7 +44,7 @@ export default function ThreadsLoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">ANALYCA</h1>
-          <p className="text-gray-600 mt-2">Threadsアカウントでログイン</p>
+          <p className="text-gray-600 mt-2">{grandprix ? 'エントリーしたThreadsアカウントでログイン' : 'Threadsアカウントでログイン'}</p>
         </div>
 
         {authError && (

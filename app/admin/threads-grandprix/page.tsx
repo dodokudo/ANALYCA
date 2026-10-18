@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { GRANDPRIX_EVENTS, DEFAULT_GRANDPRIX_EVENT_ID, PUBLISHED_GRANDPRIX_RANKING_IDS, grandprixRankingUrl } from '@/lib/threads-grandprix-events';
 
 type Entry = {
   lineName: string;
@@ -27,6 +28,8 @@ function formatDate(value: string) {
 }
 
 export default function ThreadsGrandprixAdminPage() {
+  const requestSequence = useRef(0);
+  const [eventId, setEventId] = useState(DEFAULT_GRANDPRIX_EVENT_ID);
   const [password, setPassword] = useState('');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [error, setError] = useState('');
@@ -47,14 +50,17 @@ export default function ThreadsGrandprixAdminPage() {
       .join('\n');
   }, [entries]);
 
-  async function fetchEntries(nextPassword = password) {
+  async function fetchEntries(nextPassword = password, selectedEventId = eventId) {
+    const requestId = ++requestSequence.current;
     setLoading(true);
     setError('');
 
     try {
-      const query = nextPassword ? `?password=${encodeURIComponent(nextPassword)}` : '';
-      const response = await fetch(`/api/admin/threads-grandprix/entries${query}`);
+      const query = new URLSearchParams({ event: selectedEventId });
+      if (nextPassword) query.set('password', nextPassword);
+      const response = await fetch(`/api/admin/threads-grandprix/entries?${query}`);
       const result = (await response.json()) as ApiResponse;
+      if (requestId !== requestSequence.current) return;
 
       if (!response.ok || !result.success || !result.data) {
         throw new Error(result.error || 'エントリー一覧の取得に失敗しました');
@@ -63,11 +69,12 @@ export default function ThreadsGrandprixAdminPage() {
       setEntries(result.data.entries);
       setFetchedAt(result.data.fetchedAt);
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       setEntries([]);
       setFetchedAt('');
       setError(err instanceof Error ? err.message : 'エントリー一覧の取得に失敗しました');
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   }
 
@@ -76,7 +83,7 @@ export default function ThreadsGrandprixAdminPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `threads-grandprix-entries-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `threads-grandprix-${eventId}-entries-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -126,6 +133,22 @@ export default function ThreadsGrandprixAdminPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="mb-4 rounded-xl bg-white p-4 shadow-sm">
+          <label htmlFor="entry-event" className="mb-2 block text-sm font-semibold">開催回を選択</label>
+          <select id="entry-event" value={eventId} onChange={(event) => {
+            const selected = event.target.value;
+            setEventId(selected); setEntries([]); setFetchedAt('');
+            fetchEntries(password, selected);
+          }} className="w-full rounded-lg border border-gray-300 px-3 py-2">
+            {GRANDPRIX_EVENTS.map((event) => <option key={event.eventId} value={event.eventId}>
+              第{event.edition}回 {event.name}（{event.startDate}〜{event.endDate}）
+            </option>)}
+          </select>
+          {PUBLISHED_GRANDPRIX_RANKING_IDS.includes(eventId)
+            ? <a href={grandprixRankingUrl(eventId)} className="mt-3 inline-block text-sm text-blue-600">この大会のランキング</a>
+            : <p className="mt-3 text-sm text-gray-500">秋のランキングは公開準備中です。</p>}
         </div>
 
         {error && (

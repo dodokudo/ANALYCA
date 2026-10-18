@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { GRANDPRIX_EVENTS, DEFAULT_GRANDPRIX_EVENT_ID, PUBLISHED_GRANDPRIX_RANKING_IDS, grandprixRankingUrl } from '@/lib/threads-grandprix-events';
 import LoadingScreen from '@/components/LoadingScreen';
 import { PLANS } from '@/lib/univapay/plans';
 import { isAgencyAccount } from '@/lib/agency-accounts';
@@ -51,6 +52,10 @@ interface UserExtended {
 }
 
 interface GrandprixEntry {
+  eventId: string;
+  currentUserId: string | null;
+  connectionStatus: string;
+  lastDataAt: string | null;
   lineName: string;
   threadsUsername: string;
   hasAnalycaAtEntry: boolean;
@@ -265,32 +270,39 @@ function AdminPageContent() {
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const grandprixRequest = useRef(0);
+  const [grandprixEventId, setGrandprixEventId] = useState(DEFAULT_GRANDPRIX_EVENT_ID);
   const [grandprixEntries, setGrandprixEntries] = useState<GrandprixEntry[]>([]);
   const [grandprixLoading, setGrandprixLoading] = useState(false);
   const [grandprixError, setGrandprixError] = useState<string | null>(null);
   const [grandprixFetchedAt, setGrandprixFetchedAt] = useState<string | null>(null);
 
   const fetchGrandprixEntries = async (pw = password) => {
+    const requestId = ++grandprixRequest.current;
     setGrandprixLoading(true);
     setGrandprixError(null);
 
     try {
-      const url = pw ? `/api/admin/threads-grandprix/entries?password=${encodeURIComponent(pw)}` : '/api/admin/threads-grandprix/entries';
+      const query = new URLSearchParams({ event: grandprixEventId });
+      if (pw) query.set('password', pw);
+      const url = `/api/admin/threads-grandprix/entries?${query}`;
       const response = await fetch(url);
       const result = await response.json();
+      if (requestId !== grandprixRequest.current) return;
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'グランプリ夏のエントリー取得に失敗しました');
+        throw new Error(result.error || 'グランプリのエントリー取得に失敗しました');
       }
 
       setGrandprixEntries(result.data?.entries || []);
       setGrandprixFetchedAt(result.data?.fetchedAt || new Date().toISOString());
     } catch (err) {
+      if (requestId !== grandprixRequest.current) return;
       setGrandprixEntries([]);
       setGrandprixFetchedAt(null);
-      setGrandprixError(err instanceof Error ? err.message : 'グランプリ夏のエントリー取得に失敗しました');
+      setGrandprixError(err instanceof Error ? err.message : 'グランプリのエントリー取得に失敗しました');
     } finally {
-      setGrandprixLoading(false);
+      if (requestId === grandprixRequest.current) setGrandprixLoading(false);
     }
   };
 
@@ -351,11 +363,11 @@ function AdminPageContent() {
   }, [passwordFromUrl]);
 
   useEffect(() => {
-    if (isAuthenticated && activeTab === 'grandprix' && !grandprixFetchedAt) {
+    if (isAuthenticated && activeTab === 'grandprix') {
       fetchGrandprixEntries();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isAuthenticated, grandprixFetchedAt]);
+  }, [activeTab, isAuthenticated, grandprixEventId]);
 
   const fetchData = async (pw: string) => {
     setLoading(true);
@@ -486,7 +498,7 @@ function AdminPageContent() {
   const tabs = [
     { key: 'users' as const, label: 'ユーザー一覧' },
     { key: 'affiliates' as const, label: 'アフィリエイト' },
-    { key: 'grandprix' as const, label: 'グランプリ夏' },
+    { key: 'grandprix' as const, label: 'グランプリ' },
   ];
 
   const usersByThreadsUsername = new Map<string, AdminUser>();
@@ -499,9 +511,8 @@ function AdminPageContent() {
       usersByThreadsUsername.set(username, user);
     }
   });
-  const grandprixUrlIssuedCount = grandprixEntries.filter((entry) =>
-    usersByThreadsUsername.has(entry.threadsUsername.trim().replace(/^@/, '').toLowerCase())
-  ).length;
+  const grandprixUrlIssuedCount = grandprixEntries.filter((entry) => entry.connectionStatus === 'connected').length;
+  const grandprixShareUrl = `https://analyca.jp${grandprixRankingUrl(grandprixEventId)}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -633,29 +644,43 @@ function AdminPageContent() {
         )}
 
         {activeTab === 'grandprix' && (
+          <div className="mb-4 rounded-xl bg-white p-5 shadow-sm">
+            <label htmlFor="grandprix-event" className="mb-2 block text-sm font-semibold text-gray-700">開催回を選択</label>
+            <select id="grandprix-event" value={grandprixEventId}
+              onChange={(event) => { ++grandprixRequest.current; setGrandprixLoading(true); setGrandprixEntries([]); setGrandprixFetchedAt(null); setGrandprixEventId(event.target.value); }}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 md:w-auto">
+              {GRANDPRIX_EVENTS.map((event) => <option key={event.eventId} value={event.eventId}>
+                第{event.edition}回 {event.name}（{event.startDate}〜{event.endDate}）
+              </option>)}
+            </select>
+            {grandprixFetchedAt && <p className="mt-2 text-xs text-gray-500">更新: {formatDateTime(grandprixFetchedAt)}</p>}
+          </div>
+        )}
+
+        {activeTab === 'grandprix' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-sm text-gray-500">エントリー数</p>
               <p className="text-3xl font-bold text-gray-800">{grandprixEntries.length}</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500">URL発行済み</p>
+              <p className="text-sm text-gray-500">接続・取得確認済み</p>
               <p className="text-3xl font-bold text-emerald-600">{grandprixUrlIssuedCount}</p>
             </div>
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <p className="text-sm text-gray-500">共有URL</p>
-              <div className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+              {PUBLISHED_GRANDPRIX_RANKING_IDS.includes(grandprixEventId) ? <div className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                 <a
-                  href="https://analyca.jp/threads-grandprix/ranking"
+                  href={grandprixShareUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="min-w-0 flex-1 truncate text-sm font-semibold text-blue-600 hover:text-blue-800"
                 >
-                  https://analyca.jp/threads-grandprix/ranking
+                  {grandprixShareUrl}
                 </a>
                 <button
                   type="button"
-                  onClick={() => copyToClipboard('https://analyca.jp/threads-grandprix/ranking', 'grandprix-ranking-url')}
+                  onClick={() => copyToClipboard(grandprixShareUrl, 'grandprix-ranking-url')}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white hover:text-gray-900"
                   aria-label="グランプリURLをコピー"
                   title={copied === 'grandprix-ranking-url' ? 'コピー済み' : 'コピー'}
@@ -665,7 +690,7 @@ function AdminPageContent() {
                     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
                   </svg>
                 </button>
-              </div>
+              </div> : <p className="mt-2 text-sm text-gray-500">秋のランキングは公開準備中です。</p>}
             </div>
           </div>
         )}
@@ -902,7 +927,7 @@ function AdminPageContent() {
           </div>
         )}
 
-        {/* グランプリ夏タブ */}
+        {/* スレッズグランプリ */}
         {activeTab === 'grandprix' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             {grandprixError && (
@@ -922,15 +947,15 @@ function AdminPageContent() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">LINE名</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Threads ID</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">登録日時</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">アナリカ契約</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Threads接続</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ユーザーURL</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {grandprixEntries.map((entry) => {
-                      const matchedUser = usersByThreadsUsername.get(entry.threadsUsername.trim().replace(/^@/, '').toLowerCase());
+                      const matchedUser = entry.currentUserId ? usersById.get(entry.currentUserId) : undefined;
                       const userUrl = matchedUser ? `${baseUrl}/${matchedUser.user_id}` : '';
-                      const hasAnalycaAtEntry = entry.hasAnalycaAtEntry;
+                      const connectionLabel = ({ connected: '接続・取得確認済み', not_connected: '未接続', reconnect_required: '再接続が必要', needs_check: '取得状況を要確認' } as Record<string, string>)[entry.connectionStatus] || '確認待ち';
 
                       return (
                         <tr key={entry.threadsUsername} className="hover:bg-gray-50">
@@ -947,9 +972,8 @@ function AdminPageContent() {
                           </td>
                           <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.createdAt)}</td>
                           <td className="px-4 py-4 text-sm font-bold whitespace-nowrap">
-                            <span className={hasAnalycaAtEntry ? 'text-emerald-600' : 'text-red-500'}>
-                              {hasAnalycaAtEntry ? '○' : '×'}
-                            </span>
+                            <span className={entry.connectionStatus === 'connected' ? 'text-emerald-600' : 'text-amber-700'}>{connectionLabel}</span>
+                            {entry.lastDataAt && <p className="mt-1 text-xs font-normal text-gray-500">最終取得 {formatDateTime(entry.lastDataAt)}</p>}
                           </td>
                           <td className="px-4 py-4 text-sm whitespace-nowrap">
                             {matchedUser ? (

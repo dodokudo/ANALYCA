@@ -1,6 +1,7 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { GRANDPRIX_EVENTS, DEFAULT_GRANDPRIX_EVENT_ID } from '@/lib/threads-grandprix-events';
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '7684';
 const ADMIN_USER_IDS = new Set([
@@ -64,6 +65,8 @@ async function ensureEntriesTable(): Promise<void> {
         ADD COLUMN IF NOT EXISTS has_analyca_at_entry BOOL;
       ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
         ADD COLUMN IF NOT EXISTS analyca_user_id_at_entry STRING;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
+        ADD COLUMN IF NOT EXISTS event_id STRING;
     `).catch((error) => {
       ensureTablePromise = null;
       throw error;
@@ -106,27 +109,61 @@ export async function GET(request: Request) {
       );
     }
 
+    const events = GRANDPRIX_EVENTS;
+    const eventId = url.searchParams.get('event') || DEFAULT_GRANDPRIX_EVENT_ID;
+    const event = events.find((candidate) => candidate.eventId === eventId);
+    if (!event) return NextResponse.json({ success: false, error: '大会が見つかりません' }, { status: 404 });
+
     await ensureEntriesTable();
 
     const [rows] = await getBigQueryClient().query({
       query: `
+        WITH users AS (
+          SELECT *, LOWER(REGEXP_REPLACE(TRIM(threads_username), r'^@', '')) AS normalized_username
+          FROM \`${projectId}.analyca.users\`
+          WHERE threads_username IS NOT NULL
+          QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY LOWER(REGEXP_REPLACE(TRIM(threads_username), r'^@', ''))
+            ORDER BY threads_token_expires_at DESC, created_at ASC
+          ) = 1
+        ), metrics AS (
+          SELECT user_id, MAX(updated_at) AS last_data_at
+          FROM \`${projectId}.analyca.threads_daily_metrics\`
+          GROUP BY user_id
+        )
         SELECT
-          line_name,
-          threads_username,
-          has_analyca_at_entry,
-          analyca_user_id_at_entry,
-          created_at,
-          updated_at
-        FROM \`${projectId}.analyca.threads_grandprix_entries\`
-        ORDER BY updated_at DESC
+          e.line_name, e.threads_username, e.event_id,
+          e.has_analyca_at_entry, e.analyca_user_id_at_entry,
+          e.created_at, e.updated_at,
+          u.user_id AS current_user_id, m.last_data_at,
+          CASE
+            WHEN u.user_id IS NULL OR NOT COALESCE(u.has_threads, FALSE) THEN 'not_connected'
+            WHEN NULLIF(u.threads_access_token, '') IS NULL OR u.threads_token_expires_at IS NULL
+              OR u.threads_token_expires_at <= CURRENT_TIMESTAMP() THEN 'reconnect_required'
+            WHEN m.last_data_at IS NULL OR m.last_data_at < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 48 HOUR)
+              THEN 'needs_check'
+            ELSE 'connected'
+          END AS connection_status
+        FROM \`${projectId}.analyca.threads_grandprix_entries\` e
+        LEFT JOIN users u ON u.normalized_username = e.normalized_threads_username
+        LEFT JOIN metrics m ON m.user_id = u.user_id
+        WHERE e.event_id = @eventId
+        ORDER BY e.updated_at DESC
         LIMIT 500
       `,
+      params: { eventId },
     });
 
     return NextResponse.json({
       success: true,
       data: {
+        event,
+        events,
         entries: rows.map((row) => ({
+          eventId: row.event_id,
+          currentUserId: row.current_user_id || null,
+          connectionStatus: row.connection_status,
+          lastDataAt: row.last_data_at?.value || row.last_data_at || null,
           lineName: row.line_name,
           threadsUsername: row.threads_username,
           hasAnalycaAtEntry: row.has_analyca_at_entry === true,

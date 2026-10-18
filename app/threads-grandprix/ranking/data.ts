@@ -99,6 +99,7 @@ export type RankingData = {
     totalDays: number;
     elapsedDays: number;
     isFinished: boolean;
+    isStarted: boolean;
   };
   events: Array<{ eventId: string; name: string }>;
   scopes: RankingScope[];
@@ -563,9 +564,11 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
 
   const today = jstDateString();
   const yesterday = shiftDate(today, -1);
-  const periodEnd = today <= event.endDate ? today : event.endDate;
+  const periodEnd = today < event.startDate ? event.startDate : today <= event.endDate ? today : event.endDate;
   const yesterdayScoped = yesterday < event.startDate ? event.startDate : yesterday > event.endDate ? event.endDate : yesterday;
-  const selectedDate = selectedDateOrEmpty || yesterdayScoped;
+  const selectedDate = selectedDateOrEmpty
+    ? selectedDateOrEmpty < event.startDate ? event.startDate : selectedDateOrEmpty > event.endDate ? event.endDate : selectedDateOrEmpty
+    : yesterdayScoped;
   const isFinished = today > event.endDate;
   const daysRemaining = Math.max(diffDays(today, event.endDate), 0);
   const totalDays = diffDays(event.startDate, event.endDate) + 1;
@@ -699,6 +702,7 @@ async function buildRankingData(selectedDateOrEmpty: string, eventIdInput?: stri
       totalDays,
       elapsedDays,
       isFinished,
+      isStarted: today >= event.startDate,
     },
     events: events.map((e) => ({ eventId: e.eventId, name: e.name })),
     scopes,

@@ -1,4 +1,6 @@
 import { BigQuery } from '@google-cloud/bigquery';
+import { GRANDPRIX_EVENTS, type GrandprixEvent } from '@/lib/threads-grandprix-events';
+export type { GrandprixEvent } from '@/lib/threads-grandprix-events';
 
 export const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS;
@@ -32,21 +34,7 @@ export function getBigQueryClient(): BigQuery {
   return bigqueryClient;
 }
 
-export type GrandprixEvent = {
-  eventId: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-};
-
-export const FALLBACK_EVENT: GrandprixEvent = {
-  eventId: '2026-summer',
-  name: 'Threadsグランプリ 夏',
-  startDate: '2026-07-07',
-  endDate: '2026-07-31',
-  isActive: true,
-};
+export const FALLBACK_EVENT: GrandprixEvent = GRANDPRIX_EVENTS[0];
 
 function toDateString(value: unknown): string {
   if (value && typeof value === 'object' && 'value' in value) {
@@ -68,15 +56,19 @@ export async function fetchGrandprixEvents(): Promise<GrandprixEvent[]> {
     const events = rows.map((row) => ({
       eventId: String(row.event_id || ''),
       name: String(row.name || ''),
+      edition: 0,
       startDate: toDateString(row.start_date),
       endDate: toDateString(row.end_date),
       isActive: !!row.is_active,
     }));
 
-    return events.length > 0 ? events : [FALLBACK_EVENT];
+    // 開催日・名称・開催回は共通設定を使用し、夏秋の画面/APIを揃える。
+    const configuredIds = new Set(GRANDPRIX_EVENTS.map((event) => event.eventId));
+    return [...GRANDPRIX_EVENTS, ...events.filter((event) => !configuredIds.has(event.eventId))]
+      .sort((a, b) => b.startDate.localeCompare(a.startDate));
   } catch (error) {
     console.error('Failed to fetch grandprix events:', error);
-    return [FALLBACK_EVENT];
+    return GRANDPRIX_EVENTS;
   }
 }
 

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserById, isThreadsGrandprixParticipant, updateUserSubscription } from '@/lib/bigquery';
+import { getUserById, getThreadsGrandprixEventIds, updateUserSubscription } from '@/lib/bigquery';
 import { createSubscriptionFromToken, getSubscription, updateSubscription } from '@/lib/univapay/client';
 import { getUnivaPaySubscriptionPeriod, PLANS } from '@/lib/univapay/plans';
 import { syncAnalycaUserRecordToLineHarness } from '@/lib/line-harness-sync';
 import {
   isThreadsGrandprixPaymentRequired,
   isThreadsGrandprixUncontractedParticipant,
+  evaluateThreadsGrandprixAccess,
 } from '@/lib/threads-grandprix-access';
 
 function getNextPaymentDate(subscription: { next_payment_date?: string | null; next_payment?: { due_date?: string | null } }): Date | null {
@@ -29,8 +30,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ユーザーが見つかりません' }, { status: 404 });
     }
 
+    const grandprixEventIds = await getThreadsGrandprixEventIds(user.threads_username);
     const grandprixAccessSubject = {
-      isParticipant: await isThreadsGrandprixParticipant(user.threads_username),
+      isParticipant: grandprixEventIds.length > 0,
+      eventIds: grandprixEventIds,
       subscriptionStatus: user.subscription_status,
     };
     const isGrandprixPaymentRequired = isThreadsGrandprixPaymentRequired(grandprixAccessSubject);
@@ -38,9 +41,11 @@ export async function POST(request: NextRequest) {
       isThreadsGrandprixUncontractedParticipant(grandprixAccessSubject) &&
       !isGrandprixPaymentRequired
     ) {
+      const access = evaluateThreadsGrandprixAccess(grandprixAccessSubject);
+      const endLabel = new Date(access!.expiresAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
       return NextResponse.json({
         success: false,
-        error: 'Threadsグランプリ参加者の無料利用期間は2026年7月31日23:59までです',
+        error: access?.state === 'not_started' ? access.message : `Threadsグランプリ参加者は${endLabel}まで無料でご利用いただけます`,
       }, { status: 409 });
     }
 

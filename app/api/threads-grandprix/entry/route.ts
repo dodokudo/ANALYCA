@@ -1,8 +1,13 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchGrandprixEvents, resolveGrandprixEvent } from '@/app/threads-grandprix/grandprix-bigquery';
+import { fetchGrandprixEvents } from '@/app/threads-grandprix/grandprix-bigquery';
+
+import { isGrandprixEntryOpen } from '@/lib/threads-grandprix-events';
+import { checkGrandprixConnection } from '@/lib/threads-grandprix-connection';
+import { createGrandprixEntrySession, GRANDPRIX_ENTRY_COOKIE, GRANDPRIX_ENTRY_MAX_AGE, readGrandprixEntrySession } from '@/lib/threads-grandprix-entry-session';
 
 type EntryBody = {
+  eventId?: unknown;
   lineName?: unknown;
   threadsUsername?: unknown;
 };
@@ -133,9 +138,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const eventId = typeof body.eventId === 'string' ? body.eventId : '2026-summer';
+    const activeEvent = (await fetchGrandprixEvents()).find((event) => event.eventId === eventId);
+    if (!activeEvent) return NextResponse.json({ success: false, error: '大会が見つかりません。' }, { status: 404 });
+    if (!isGrandprixEntryOpen(activeEvent)) return NextResponse.json({ success: false, error: 'この大会のエントリー受付は終了しました。' }, { status: 409 });
+    const receipt = createGrandprixEntrySession(eventId, normalizedThreadsUsername);
+
     await ensureEntriesTable();
     const analycaSnapshot = await findAnalycaUserByThreadsUsername(normalizedThreadsUsername);
-    const activeEvent = resolveGrandprixEvent(await fetchGrandprixEvents());
 
     await executeDML(
       `
@@ -198,12 +208,30 @@ export async function POST(request: NextRequest) {
       },
     );
 
-    return NextResponse.json({ success: true });
+    // 受付保存後の一時的な確認エラーは、申込失敗として扱わず再確認へ案内する。
+    const connection = await checkGrandprixConnection(normalizedThreadsUsername)
+      .catch(() => ({ status: 'needs_check' as const }));
+    const response = NextResponse.json({ success: true, connectionStatus: connection.status });
+    response.cookies.set(GRANDPRIX_ENTRY_COOKIE, receipt, {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: GRANDPRIX_ENTRY_MAX_AGE,
+    });
+    return response;
   } catch (error) {
     console.error('Threads Grandprix entry error:', error);
     return NextResponse.json(
       { success: false, error: '送信に失敗しました。時間をおいて再度お試しください。' },
       { status: 500 },
     );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const session = readGrandprixEntrySession(request.cookies.get(GRANDPRIX_ENTRY_COOKIE)?.value);
+  if (!session) return NextResponse.json({ success: false, error: '申込情報の有効期限が切れました。もう一度エントリーしてください。' }, { status: 401 });
+  try {
+    const connection = await checkGrandprixConnection(session.username);
+    return NextResponse.json({ success: true, eventId: session.eventId, connectionStatus: connection.status }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch {
+    return NextResponse.json({ success: false, error: '接続状況を確認できませんでした。時間をおいて再確認してください。' }, { status: 503 });
   }
 }

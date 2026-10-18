@@ -8,7 +8,7 @@ import {
   getAffiliateByCode,
   createReferral,
   getUserById,
-  isThreadsGrandprixParticipant,
+  getThreadsGrandprixEventIds,
   recordConversionEvent,
   updatePaymentAttempt,
 } from '@/lib/bigquery';
@@ -107,9 +107,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const grandprixEventIds = existingUser ? await getThreadsGrandprixEventIds(existingUser.threads_username) : [];
     const grandprixPaymentRequired = existingUser
       ? isThreadsGrandprixPaymentRequired({
-          isParticipant: await isThreadsGrandprixParticipant(existingUser.threads_username),
+          isParticipant: grandprixEventIds.length > 0,
+          eventIds: grandprixEventIds,
           subscriptionStatus: existingUser.subscription_status,
         })
       : false;

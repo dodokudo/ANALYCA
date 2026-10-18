@@ -193,8 +193,8 @@ export default function RankingView({ data }: { data: RankingData }) {
 
   const shareText = personal
     ? `${data.event.name}、現在フォロワー増加${personal.followerRank ? `${personal.followerRank}位` : '参戦中'}（${activeScope.dateLabel}）🔥 #Threadsグランプリ`
-    : `${data.event.name} 開催中🔥 #Threadsグランプリ`;
-  const shareUrl = `https://www.threads.net/intent/post?text=${encodeURIComponent(`${shareText}\nhttps://analyca.jp/threads-grandprix/ranking`)}`;
+    : `${data.event.name} ${data.event.isFinished ? '結果発表' : data.event.isStarted ? '開催中' : `${formatMd(data.event.startDate)}開始`} #Threadsグランプリ`;
+  const shareUrl = `https://www.threads.net/intent/post?text=${encodeURIComponent(`${shareText}\nhttps://analyca.jp/threads-grandprix/ranking?event=${encodeURIComponent(data.event.eventId)}`)}`;
 
   const isMe = (username: string) => !!meUsername && username.toLowerCase().replace(/^@/, '') === meUsername;
 
@@ -208,7 +208,9 @@ export default function RankingView({ data }: { data: RankingData }) {
               <p className="mt-1 text-xs font-bold text-white/80">参加者ランキング速報</p>
             </div>
             <div className="shrink-0 text-right">
-              {data.event.isFinished ? (
+              {!data.event.isStarted ? (
+                <p className="rounded-full bg-white/20 px-3 py-1.5 text-xs font-black">{data.event.startDate.slice(5).replace('-', '/')} 開始</p>
+              ) : data.event.isFinished ? (
                 <p className="rounded-full bg-[#f6b900] px-3 py-1.5 text-xs font-black text-[#6b4200]">結果発表</p>
               ) : (
                 <>
@@ -221,7 +223,7 @@ export default function RankingView({ data }: { data: RankingData }) {
               )}
             </div>
           </div>
-          {!data.event.isFinished ? (
+          {data.event.isStarted && !data.event.isFinished ? (
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/20">
               <div
                 className="h-full rounded-full bg-[linear-gradient(90deg,#00c889,#ffe58a)] transition-all"

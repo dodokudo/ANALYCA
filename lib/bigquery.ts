@@ -644,14 +644,14 @@ export async function getUserById(userId: string): Promise<User | null> {
   };
 }
 
-export async function isThreadsGrandprixParticipant(
+export async function getThreadsGrandprixEventIds(
   threadsUsername?: string | null,
-): Promise<boolean> {
+): Promise<string[]> {
   const normalizedThreadsUsername = threadsUsername?.trim().replace(/^@/, '').toLowerCase();
-  if (!normalizedThreadsUsername) return false;
+  if (!normalizedThreadsUsername) return [];
 
   const query = `
-    SELECT COUNT(1) > 0 AS is_participant
+    SELECT DISTINCT COALESCE(NULLIF(event_id, ''), '2026-summer') AS event_id
     FROM \`mark-454114.analyca.threads_grandprix_entries\`
     WHERE normalized_threads_username = @normalized_threads_username
   `;
@@ -660,7 +660,13 @@ export async function isThreadsGrandprixParticipant(
     params: { normalized_threads_username: normalizedThreadsUsername },
   });
 
-  return rows[0]?.is_participant === true;
+  return rows.map(row => String(row.event_id));
+}
+
+export async function isThreadsGrandprixParticipant(
+  threadsUsername?: string | null,
+): Promise<boolean> {
+  return (await getThreadsGrandprixEventIds(threadsUsername)).length > 0;
 }
 
 // ユーザーのリールデータ取得

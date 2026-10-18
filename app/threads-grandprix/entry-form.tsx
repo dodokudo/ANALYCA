@@ -1,22 +1,73 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
+import type { GrandprixConnectionStatus } from '@/lib/threads-grandprix-connection';
 
 type SubmitState = 'idle' | 'submitting' | 'success' | 'error';
 
 type EntryFormProps = {
   formId?: string;
+  eventId?: string;
+  entryOpen?: boolean;
+  lineGroupUrl?: string | null;
 };
 
-const lineGroupUrl = 'https://line.me/ti/g/8ErMS2M2vU';
-
-export default function EntryForm({ formId = 'entry-form' }: EntryFormProps) {
+export default function EntryForm({ formId = 'entry-form', eventId = '2026-summer', entryOpen = false, lineGroupUrl }: EntryFormProps) {
   const [lineName, setLineName] = useState('');
   const [threadsUsername, setThreadsUsername] = useState('');
   const [state, setState] = useState<SubmitState>('idle');
   const [message, setMessage] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState<GrandprixConnectionStatus | null>(null);
   const lineNameId = `${formId}-line-name`;
   const threadsUsernameId = `${formId}-threads-username`;
+
+  async function refreshConnection() {
+    setState('submitting'); setMessage('');
+    try {
+      const response = await fetch('/api/threads-grandprix/entry', { cache: 'no-store' });
+      const result = await response.json();
+      if (!response.ok || result.eventId !== eventId) throw new Error(result.error || '申込情報を確認できません。もう一度エントリーしてください。');
+      setConnectionStatus(result.connectionStatus); setState('success');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '接続確認に失敗しました。'); setState('error');
+    }
+  }
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('connection');
+    if (result === 'complete' && formId === 'entry-form') refreshConnection();
+    else if (result && formId === 'entry-form') {
+      const messages: Record<string, string> = {
+        mismatch: 'エントリーしたThreads IDと異なるアカウントです。申込時のアカウントで接続してください。',
+        expired: '申込情報の有効期限が切れました。もう一度エントリーしてください。',
+        denied: '接続は完了していません。必要な権限を許可して再度お試しください。',
+        plan_required: '現在のプランではThreadsを接続できません。運営にお問い合わせください。',
+        error: '接続を完了できませんでした。もう一度お試しください。',
+      };
+      setMessage(messages[result] || '接続状況を確認してください。');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!entryOpen) return <p className="py-4 text-center text-sm font-semibold text-gray-600">この大会のエントリー受付は終了しました。</p>;
+
+  if (connectionStatus) return (
+    <div id={formId} className="space-y-4 text-sm leading-relaxed">
+      <p className="text-lg font-bold">秋のエントリーを受け付けました</p>
+      {connectionStatus === 'connected' ? <>
+        <p>Threadsの接続を確認できました。再接続は不要です。</p>
+        {lineGroupUrl ? <a href={lineGroupUrl} className="block rounded-xl bg-emerald-600 px-4 py-4 text-center font-bold text-white">専用LINEグループへ進む</a>
+          : <p>LINEグループの案内は準備中です。</p>}
+      </> : connectionStatus === 'needs_check' ? <>
+        <p>現在、接続状況を確認できません。少し時間をおいて再確認してください。繰り返す場合は運営にお問い合わせください。</p>
+        <button type="button" onClick={refreshConnection} disabled={state === 'submitting'} className="w-full rounded-xl bg-gray-900 px-4 py-3 font-bold text-white">{state === 'submitting' ? '確認中...' : '接続状況を再確認'}</button>
+      </> : <>
+        <p>{connectionStatus === 'reconnect_required' ? 'Threadsとの接続を更新してください。' : 'ランキングのデータを取得するため、Threadsを接続してください。'}</p>
+        <button type="button" onClick={() => window.location.assign('/api/threads-grandprix/connect')} className="block w-full rounded-xl bg-gray-900 px-4 py-4 text-center font-bold text-white">Threadsを接続する</button>
+      </>}
+      {message && <p role="alert" className="text-red-700">{message}</p>}
+    </div>
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,6 +89,7 @@ export default function EntryForm({ formId = 'entry-form' }: EntryFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          eventId,
           lineName: normalizedLineName,
           threadsUsername: normalizedThreadsUsername,
         }),
@@ -50,7 +102,7 @@ export default function EntryForm({ formId = 'entry-form' }: EntryFormProps) {
       }
 
       setState('success');
-      window.location.assign(lineGroupUrl);
+      setConnectionStatus(result.connectionStatus);
     } catch (error) {
       setState('error');
       setMessage(error instanceof Error ? error.message : '送信に失敗しました。時間をおいて再度お試しください。');
@@ -107,7 +159,7 @@ export default function EntryForm({ formId = 'entry-form' }: EntryFormProps) {
       </button>
 
       <p className="text-center text-xs font-medium leading-5 text-gray-500">
-        ※エントリーでLINEグループへ招待します。
+        ※接続状況を確認し、必要な方だけThreadsの接続をご案内します。
       </p>
 
       {message && (

@@ -27,8 +27,7 @@ export const GRANDPRIX_EVENTS: GrandprixEvent[] = [
 ];
 
 export const DEFAULT_GRANDPRIX_EVENT_ID = '2026-autumn';
-// 秋の公開ページをリリースするときに追加する。管理画面は先行公開。
-export const PUBLISHED_GRANDPRIX_RANKING_IDS: readonly string[] = ['2026-summer'];
+export const PUBLISHED_GRANDPRIX_RANKING_IDS: readonly string[] = ['2026-summer', '2026-autumn'];
 export const GRANDPRIX_LINE_GROUP_URL = 'https://line.me/ti/g/8ErMS2M2vU';
 
 export function isGrandprixEntryOpen(event: GrandprixEvent, now = new Date()): boolean {

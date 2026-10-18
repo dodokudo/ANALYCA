@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getUserById,
   getUserDashboardData,
-  isThreadsGrandprixParticipant,
+  getThreadsGrandprixEventIds,
   updateLastLogin,
   updateUserSubscription,
   type User,
@@ -181,11 +181,12 @@ export async function GET(
     }
 
     const access = evaluateDashboardAccess(userRecord, { isAdmin: isAdminAccess });
-    const threadsGrandprixParticipant = userRecord
-      ? await isThreadsGrandprixParticipant(userRecord.threads_username)
-      : false;
+    const grandprixEventIds = userRecord
+      ? await getThreadsGrandprixEventIds(userRecord.threads_username)
+      : [];
     const threadsAccess = evaluateThreadsGrandprixAccess({
-      isParticipant: threadsGrandprixParticipant,
+      isParticipant: grandprixEventIds.length > 0,
+      eventIds: grandprixEventIds,
       subscriptionStatus: userRecord?.subscription_status,
     }, {
       isAdmin: isAdminAccess,

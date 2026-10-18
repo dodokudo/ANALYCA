@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { fetchGrandprixEvents } from '../grandprix-bigquery';
 import RankingView from './ranking-view';
 import { getGrandprixRankingData } from './data';
 
@@ -16,7 +18,7 @@ export async function generateMetadata({ searchParams }: { searchParams?: Search
     openGraph: {
       title: 'Threadsグランプリ ランキング',
       description: 'Threadsグランプリの参加者ランキング速報。',
-      url: 'https://analyca.jp/threads-grandprix/ranking',
+      url: `https://analyca.jp/threads-grandprix/ranking${eventQuery}`,
       siteName: 'ANALYCA',
       locale: 'ja_JP',
       type: 'website',
@@ -37,6 +39,7 @@ export default async function ThreadsGrandprixRankingPage({
   searchParams?: SearchParams;
 }) {
   const params = await searchParams;
+  if (params?.event && !(await fetchGrandprixEvents()).some((event) => event.eventId === params.event)) notFound();
   const data = await getGrandprixRankingData(params?.date, params?.event, params?.me);
   return <RankingView data={data} />;
 }

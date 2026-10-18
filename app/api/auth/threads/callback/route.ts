@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { GRANDPRIX_ENTRY_COOKIE, readGrandprixEntrySession } from '@/lib/threads-grandprix-entry-session';
 import {
   configuredMediaAdminIds,
   createMediaAdminSession,
@@ -23,9 +24,16 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error');
   const errorReason = searchParams.get('error_reason');
   const stateParam = searchParams.get('state');
+  const entryReceipt = request.cookies.get(GRANDPRIX_ENTRY_COOKIE)?.value;
+  const isGrandprix = stateParam?.startsWith('grandprix.') === true;
+  const grandprixSession = isGrandprix && stateParam === `grandprix.${entryReceipt}` ? readGrandprixEntrySession(entryReceipt) : null;
+  if (isGrandprix && (!grandprixSession || grandprixSession.eventId !== '2026-autumn')) {
+    return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=expired', request.url));
+  }
 
   // OAuth denied or error
   if (error) {
+    if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=denied', request.url));
     console.error('Threads OAuth error:', error, errorReason);
     return NextResponse.redirect(
       new URL(`/login?error=${encodeURIComponent(errorReason || error)}`, request.url)
@@ -33,6 +41,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!code) {
+    if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=error', request.url));
     return NextResponse.redirect(
       new URL('/login?error=no_code', request.url)
     );
@@ -50,6 +59,9 @@ export async function GET(request: NextRequest) {
     // Step 3: Get account info (username + profile picture URL)
     const threads = new ThreadsAPI(longToken);
     const account = await threads.getAccountInfo();
+    if (grandprixSession && account.username?.trim().replace(/^@/, '').toLowerCase() !== grandprixSession.username) {
+      return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=mismatch', request.url));
+    }
 
     // Step 4: Check for existing user (by Threads ID or pending user from checkout)
     let pendingUserId: string | undefined;
@@ -71,6 +83,7 @@ export async function GET(request: NextRequest) {
           has_instagram: existingUser.has_instagram,
         });
         if (isChannelBlockedByPlan(effectivePlanId, 'threads')) {
+          if (grandprixSession) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=plan_required', request.url));
           return NextResponse.redirect(new URL(`/${existingUserId}?tab=threads`, request.url));
         }
       }
@@ -94,7 +107,18 @@ export async function GET(request: NextRequest) {
 
     // Step 7: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）
-    const redirectUrl = new URL(`/${userId}?tab=threads&auth=threads_complete&syncing=true`, request.url);
+    const redirectUrl = new URL(grandprixSession
+      ? '/threads-grandprix/autumn?connection=complete#entry-form'
+      : `/${userId}?tab=threads&auth=threads_complete&syncing=true`, request.url);
+    if (grandprixSession) {
+      // ダッシュボードに立ち寄らない参加者も、接続直後に初回データ取得を開始する。
+      after(async () => {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
+        await Promise.allSettled(['posts', 'insights'].map((type) =>
+          fetch(`${appUrl}/api/sync/threads/${type}?userId=${encodeURIComponent(userId)}`, { cache: 'no-store' })
+        ));
+      });
+    }
     const response = NextResponse.redirect(redirectUrl);
     response.cookies.set('analycaUserId', userId, {
       path: '/',
@@ -114,6 +138,7 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err) {
     console.error('Threads OAuth callback error:', err);
+    if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=error', request.url));
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.redirect(
       new URL(`/login?error=${encodeURIComponent(message)}`, request.url)

@@ -278,7 +278,7 @@ interface UserInfo {
 
 interface DashboardAccess {
   allowed: boolean;
-  state: 'allowed' | 'admin_allowed' | 'payment_failed' | 'expired' | 'canceled_expired' | 'suspended' | 'unknown_allowed';
+  state: 'allowed' | 'admin_allowed' | 'payment_failed' | 'expired' | 'canceled_expired' | 'suspended' | 'unknown_allowed' | 'not_started';
   title?: string;
   message?: string;
   actionLabel?: string;

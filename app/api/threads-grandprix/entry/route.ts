@@ -18,7 +18,6 @@ type EntryBody = {
 };
 
 let bigqueryClient: BigQuery | null = null;
-let ensureTablePromise: Promise<void> | null = null;
 
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS;
@@ -49,44 +48,6 @@ function getBigQueryClient(): BigQuery {
 async function executeDML(query: string, params?: Record<string, unknown>): Promise<void> {
   const [job] = await getBigQueryClient().createQueryJob({ query, params });
   await job.getQueryResults();
-}
-
-async function ensureEntriesTable(): Promise<void> {
-  if (!projectId) {
-    throw new Error('PROJECT_ID is not configured.');
-  }
-
-  if (!ensureTablePromise) {
-    ensureTablePromise = executeDML(`
-      CREATE TABLE IF NOT EXISTS \`${projectId}.analyca.threads_grandprix_entries\` (
-        id STRING NOT NULL,
-        line_name STRING NOT NULL,
-        threads_username STRING NOT NULL,
-        normalized_threads_username STRING NOT NULL,
-        has_analyca_at_entry BOOL,
-        analyca_user_id_at_entry STRING,
-        user_agent STRING,
-        created_at TIMESTAMP NOT NULL,
-        updated_at TIMESTAMP NOT NULL
-      );
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
-        ADD COLUMN IF NOT EXISTS has_analyca_at_entry BOOL;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
-        ADD COLUMN IF NOT EXISTS analyca_user_id_at_entry STRING;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
-        ADD COLUMN IF NOT EXISTS event_id STRING;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS email STRING;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_status STRING;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_attempt_id STRING;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_attempted_at TIMESTAMP;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\` ADD COLUMN IF NOT EXISTS login_email_sent_at TIMESTAMP;
-    `).catch((error) => {
-      ensureTablePromise = null;
-      throw error;
-    });
-  }
-
-  return ensureTablePromise;
 }
 
 function normalizeThreadsUsername(value: string): string {
@@ -157,7 +118,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'メールアドレスを正しく入力してください。' }, { status: 400 });
     }
 
-    await ensureEntriesTable();
+    // テーブルは事前作成済み。申込ごとのDDLはBigQueryのテーブル更新制限を消費するため実行しない。
     const analycaSnapshot = await findAnalycaUserByThreadsUsername(normalizedThreadsUsername);
 
     await executeDML(

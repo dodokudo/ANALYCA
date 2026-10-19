@@ -13,7 +13,6 @@ const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS;
 
 let bigqueryClient: BigQuery | null = null;
-let ensureTablePromise: Promise<void> | null = null;
 
 function parseCredentials(json?: string): Record<string, unknown> | undefined {
   if (!json) return undefined;
@@ -36,46 +35,6 @@ function getBigQueryClient(): BigQuery {
   }
 
   return bigqueryClient;
-}
-
-async function executeDML(query: string): Promise<void> {
-  const [job] = await getBigQueryClient().createQueryJob({ query });
-  await job.getQueryResults();
-}
-
-async function ensureEntriesTable(): Promise<void> {
-  if (!projectId) {
-    throw new Error('PROJECT_ID is not configured.');
-  }
-
-  if (!ensureTablePromise) {
-    ensureTablePromise = executeDML(`
-      CREATE TABLE IF NOT EXISTS \`${projectId}.analyca.threads_grandprix_entries\` (
-        id STRING NOT NULL,
-        line_name STRING NOT NULL,
-        threads_username STRING NOT NULL,
-        normalized_threads_username STRING NOT NULL,
-        has_analyca_at_entry BOOL,
-        analyca_user_id_at_entry STRING,
-        user_agent STRING,
-        created_at TIMESTAMP NOT NULL,
-        updated_at TIMESTAMP NOT NULL
-      );
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
-        ADD COLUMN IF NOT EXISTS has_analyca_at_entry BOOL;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
-        ADD COLUMN IF NOT EXISTS analyca_user_id_at_entry STRING;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
-        ADD COLUMN IF NOT EXISTS event_id STRING;
-      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
-        ADD COLUMN IF NOT EXISTS original_threads_username STRING;
-    `).catch((error) => {
-      ensureTablePromise = null;
-      throw error;
-    });
-  }
-
-  return ensureTablePromise;
 }
 
 async function isAdminByCookie(): Promise<boolean> {
@@ -130,8 +89,6 @@ export async function GET(request: Request) {
     const eventId = url.searchParams.get('event') || DEFAULT_GRANDPRIX_EVENT_ID;
     const event = events.find((candidate) => candidate.eventId === eventId);
     if (!event) return NextResponse.json({ success: false, error: '大会が見つかりません' }, { status: 404 });
-
-    await ensureEntriesTable();
 
     const [rows] = await getBigQueryClient().query({
       query: `
@@ -218,7 +175,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: false, error: '大会が見つかりません' }, { status: 404 });
   }
   try {
-    await ensureEntriesTable();
+    // テーブルは事前作成済み。リクエスト内ではDDLを実行しない。
     // 同じ大会の重複紐づけと、古い画面からの上書きをトランザクション内で拒否する。
     // 既存の参加資格・集計も参照する正規化IDを、選択した会員のIDに合わせる。
     const [job] = await getBigQueryClient().createQueryJob({

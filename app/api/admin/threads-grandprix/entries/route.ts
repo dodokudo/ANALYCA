@@ -67,6 +67,8 @@ async function ensureEntriesTable(): Promise<void> {
         ADD COLUMN IF NOT EXISTS analyca_user_id_at_entry STRING;
       ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
         ADD COLUMN IF NOT EXISTS event_id STRING;
+      ALTER TABLE \`${projectId}.analyca.threads_grandprix_entries\`
+        ADD COLUMN IF NOT EXISTS original_threads_username STRING;
     `).catch((error) => {
       ensureTablePromise = null;
       throw error;
@@ -109,6 +111,21 @@ export async function GET(request: Request) {
       );
     }
 
+    const searchUser = url.searchParams.get('searchUser');
+    if (searchUser !== null) {
+      const search = searchUser.trim().replace(/^@/, '').toLowerCase();
+      if (search.length < 2) return NextResponse.json({ success: true, users: [] });
+      const [users] = await getBigQueryClient().query({
+        query: `SELECT user_id, threads_username FROM \`${projectId}.analyca.users\`
+          WHERE NULLIF(TRIM(threads_username), '') IS NOT NULL
+            AND (STRPOS(LOWER(threads_username), @search) > 0 OR user_id = @search)
+          ORDER BY IF(LOWER(threads_username) = @search, 0, 1), threads_username
+          LIMIT 20`,
+        params: { search },
+      });
+      return NextResponse.json({ success: true, users });
+    }
+
     const events = GRANDPRIX_EVENTS;
     const eventId = url.searchParams.get('event') || DEFAULT_GRANDPRIX_EVENT_ID;
     const event = events.find((candidate) => candidate.eventId === eventId);
@@ -132,7 +149,7 @@ export async function GET(request: Request) {
           GROUP BY user_id
         )
         SELECT
-          e.line_name, e.threads_username, e.event_id,
+          e.id, e.line_name, e.threads_username, e.original_threads_username, e.event_id,
           e.has_analyca_at_entry, e.analyca_user_id_at_entry,
           e.created_at, e.updated_at,
           u.user_id AS current_user_id, m.last_data_at,
@@ -160,6 +177,8 @@ export async function GET(request: Request) {
         event,
         events,
         entries: rows.map((row) => ({
+          id: row.id,
+          originalThreadsUsername: row.original_threads_username || null,
           eventId: row.event_id,
           currentUserId: row.current_user_id || null,
           connectionStatus: row.connection_status,
@@ -180,5 +199,72 @@ export async function GET(request: Request) {
       { success: false, error: 'エントリー一覧の取得に失敗しました' },
       { status: 500 },
     );
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!isAdminByPassword(request.headers.get('x-admin-password')) && !(await isAdminByCookie())) {
+    return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
+  }
+  let body;
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ success: false, error: '入力内容を確認してください' }, { status: 400 });
+  }
+  const { entryId, eventId, userId, expectedUsername } = body || {};
+  if (![entryId, eventId, userId, expectedUsername].every(value => typeof value === 'string' && value.trim())) {
+    return NextResponse.json({ success: false, error: 'エントリーと会員を選択してください' }, { status: 400 });
+  }
+  if (!GRANDPRIX_EVENTS.some(event => event.eventId === eventId)) {
+    return NextResponse.json({ success: false, error: '大会が見つかりません' }, { status: 404 });
+  }
+  try {
+    await ensureEntriesTable();
+    // 同じ大会の重複紐づけと、古い画面からの上書きをトランザクション内で拒否する。
+    // 既存の参加資格・集計も参照する正規化IDを、選択した会員のIDに合わせる。
+    const [job] = await getBigQueryClient().createQueryJob({
+      query: `
+        DECLARE selected_username STRING;
+        DECLARE normalized_username STRING;
+        BEGIN TRANSACTION;
+        ASSERT (SELECT COUNT(*) FROM \`${projectId}.analyca.threads_grandprix_entries\`
+          WHERE id = @entryId AND event_id = @eventId AND threads_username = @expectedUsername) = 1
+          AS 'ENTRY_CHANGED';
+        ASSERT (SELECT COUNT(*) FROM \`${projectId}.analyca.users\`
+          WHERE user_id = @userId AND NULLIF(TRIM(threads_username), '') IS NOT NULL) = 1
+          AS 'USER_NOT_FOUND';
+        SET selected_username = (SELECT threads_username FROM \`${projectId}.analyca.users\` WHERE user_id = @userId);
+        SET normalized_username = LOWER(REGEXP_REPLACE(TRIM(selected_username), r'^@', ''));
+        ASSERT (SELECT COUNT(*) FROM \`${projectId}.analyca.users\`
+          WHERE LOWER(REGEXP_REPLACE(TRIM(threads_username), r'^@', '')) = normalized_username) = 1
+          AS 'AMBIGUOUS_USER';
+        ASSERT NOT EXISTS (SELECT 1 FROM \`${projectId}.analyca.threads_grandprix_entries\`
+          WHERE event_id = @eventId AND id != @entryId AND normalized_threads_username = normalized_username)
+          AS 'ALREADY_LINKED';
+        UPDATE \`${projectId}.analyca.threads_grandprix_entries\`
+          SET original_threads_username = COALESCE(original_threads_username, threads_username),
+              threads_username = selected_username, normalized_threads_username = normalized_username,
+              updated_at = CURRENT_TIMESTAMP()
+          WHERE id = @entryId AND event_id = @eventId;
+        COMMIT TRANSACTION;
+        SELECT id, event_id, threads_username, original_threads_username
+          FROM \`${projectId}.analyca.threads_grandprix_entries\` WHERE id = @entryId AND event_id = @eventId;
+      `,
+      params: { entryId, eventId, userId, expectedUsername },
+    });
+    const [rows] = await job.getQueryResults();
+    return NextResponse.json({ success: true, entry: rows[0] });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    const conflicts: Record<string, string> = {
+      ENTRY_CHANGED: 'エントリーが変更されています。一覧を更新してください。',
+      USER_NOT_FOUND: '会員が見つかりません。検索し直してください。',
+      AMBIGUOUS_USER: '同じThreads IDの会員が複数あります。会員情報を確認してください。',
+      ALREADY_LINKED: 'この会員は同じ大会の別エントリーに紐づいています。',
+    };
+    for (const [code, text] of Object.entries(conflicts)) {
+      if (message.includes(code)) return NextResponse.json({ success: false, error: text }, { status: 409 });
+    }
+    console.error('Grandprix entry linking failed:', error);
+    return NextResponse.json({ success: false, error: '紐づけを保存できませんでした。もう一度お試しください。' }, { status: 500 });
   }
 }

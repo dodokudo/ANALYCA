@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GRANDPRIX_EVENTS, DEFAULT_GRANDPRIX_EVENT_ID, PUBLISHED_GRANDPRIX_RANKING_IDS, grandprixRankingUrl } from '@/lib/threads-grandprix-events';
 import LoadingScreen from '@/components/LoadingScreen';
+import GrandprixEntryLink from '@/components/grandprix-entry-link';
 import { PLANS } from '@/lib/univapay/plans';
 import { isAgencyAccount } from '@/lib/agency-accounts';
 import type { AdminPaymentData } from '@/lib/admin-payment-data';
@@ -52,6 +53,8 @@ interface UserExtended {
 }
 
 interface GrandprixEntry {
+  id: string;
+  originalThreadsUsername: string | null;
   eventId: string;
   currentUserId: string | null;
   connectionStatus: string;
@@ -958,7 +961,7 @@ function AdminPageContent() {
                       const connectionLabel = ({ connected: '接続・取得確認済み', not_connected: '未接続', reconnect_required: '再接続が必要', needs_check: '取得状況を要確認' } as Record<string, string>)[entry.connectionStatus] || '確認待ち';
 
                       return (
-                        <tr key={entry.threadsUsername} className="hover:bg-gray-50">
+                        <tr key={entry.id} className="hover:bg-gray-50">
                           <td className="px-4 py-4 text-sm font-medium text-gray-800 whitespace-nowrap">{entry.lineName}</td>
                           <td className="px-4 py-4 text-sm whitespace-nowrap">
                             <a
@@ -969,6 +972,7 @@ function AdminPageContent() {
                             >
                               @{entry.threadsUsername}
                             </a>
+                            <GrandprixEntryLink entry={entry} eventId={grandprixEventId} password={password} onSaved={() => { void fetchGrandprixEntries(); }} />
                           </td>
                           <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">{formatDateTime(entry.createdAt)}</td>
                           <td className="px-4 py-4 text-sm font-bold whitespace-nowrap">

@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import GrandprixEntryLink from '@/components/grandprix-entry-link';
 import { GRANDPRIX_EVENTS, DEFAULT_GRANDPRIX_EVENT_ID, PUBLISHED_GRANDPRIX_RANKING_IDS, grandprixRankingUrl } from '@/lib/threads-grandprix-events';
 
 type Entry = {
+  id: string;
+  originalThreadsUsername: string | null;
   lineName: string;
   threadsUsername: string;
   createdAt: string;
@@ -189,7 +192,7 @@ export default function ThreadsGrandprixAdminPage() {
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {entries.map((entry) => (
-                  <tr key={entry.threadsUsername}>
+                  <tr key={entry.id}>
                     <td className="whitespace-nowrap px-5 py-3 font-medium">{entry.lineName}</td>
                     <td className="whitespace-nowrap px-5 py-3">
                       <a
@@ -200,6 +203,7 @@ export default function ThreadsGrandprixAdminPage() {
                       >
                         @{entry.threadsUsername}
                       </a>
+                      <GrandprixEntryLink entry={entry} eventId={eventId} password={password} onSaved={() => { void fetchEntries(); }} />
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-gray-600">{formatDate(entry.createdAt)}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-gray-600">{formatDate(entry.updatedAt)}</td>

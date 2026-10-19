@@ -7,7 +7,6 @@ import {
 } from '@/lib/media/auth';
 import { ThreadsAPI } from '@/lib/threads';
 import {
-  getThreadsGrandprixEventIds,
   getUserById,
   upsertThreadsUser,
   findUserIdByThreadsId,
@@ -79,13 +78,8 @@ export async function GET(request: NextRequest) {
     // Step 3: Get account info (username + profile picture URL)
     const threads = new ThreadsAPI(longToken);
     const account = await threads.getAccountInfo();
-    if (grandprixSession && account.username?.trim().replace(/^@/, '').toLowerCase() !== grandprixSession.username) {
-      return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=mismatch', request.url));
-    }
-
-    if (loginSession && !(await getThreadsGrandprixEventIds(account.username)).includes(loginSession.eventId)) {
-      return loginError('このアカウントのエントリーが見つかりません。申込時のThreadsアカウントでログインしてください。');
-    }
+    // 申込IDの入力違いでも本人が認証したアカウントを保存する。
+    // エントリーとの照合・修正は管理画面で行い、ここでは自動登録・付け替えしない。
 
     // Step 4: Check for existing user (by Threads ID or pending user from checkout)
     let pendingUserId: string | undefined;

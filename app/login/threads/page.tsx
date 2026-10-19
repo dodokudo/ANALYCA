@@ -44,7 +44,7 @@ export default function ThreadsLoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">ANALYCA</h1>
-          <p className="text-gray-600 mt-2">{grandprix ? 'エントリーしたThreadsアカウントでログイン' : 'Threadsアカウントでログイン'}</p>
+          <p className="text-gray-600 mt-2">Threadsアカウントでログイン</p>
         </div>
 
         {authError && (

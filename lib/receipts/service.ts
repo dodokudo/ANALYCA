@@ -10,41 +10,38 @@ async function persist(issue: Issue) {
   const current = await readRecord<Issue>(issueKey(issue.id));
   await writeRecord(issueKey(issue.id), issue, current?.generation || 0);
 }
+async function prepareDocuments(issue: Issue) {
+  const bucket = await receiptBucket();
+  const id = issue.id;
+  let changed = false;
+  const results = await Promise.allSettled(kindsFor(issue.method).map(async kind => {
+    const filename = `${titleFor(kind)}_${kind === 'receipt' ? 'RCT' : 'INV'}-${issue.number}.pdf`;
+    const path = `pdf/${id}/${kind}.pdf`;
+    const file = bucket.file(path);
+    let bytes: Buffer;
+    try { [bytes] = await file.download(); }
+    catch (e) {
+      if ((e as { code?: number }).code !== 404) throw e;
+      bytes = await renderDocument(issue, kind, issue.sample);
+      await file.save(bytes, { resumable: false, contentType: 'application/pdf', metadata: { cacheControl: 'private, no-store' }, preconditionOpts: { ifGenerationMatch: 0 } });
+    }
+    if (!issue.documents[kind]) { issue.documents[kind] = { filename, path }; changed = true; }
+    return { filename, content: bytes, contentType: 'application/pdf' };
+  }));
+  const attachments = results.map(result => {
+    if (result.status === 'rejected') throw result.reason;
+    return result.value;
+  });
+  if (changed) await persist(issue);
+  return attachments;
+}
 export async function deliverIssue(id: string): Promise<Issue> {
   return withLock(`issue-${id}`, async () => {
     const record = await readRecord<Issue>(issueKey(id));
     if (!record) throw new Error('Issuance not found');
     const issue = record.value;
     const bucket = await receiptBucket();
-    const attachments: { filename: string; content: Buffer; contentType: string }[] = [];
-    for (const kind of kindsFor(issue.method)) {
-      const filename = `${titleFor(kind)}_${kind === 'receipt' ? 'RCT' : 'INV'}-${issue.number}.pdf`;
-      const path = `pdf/${id}/${kind}.pdf`;
-      const file = bucket.file(path);
-      let bytes: Buffer;
-      try { [bytes] = await file.download(); }
-      catch (e) {
-        if ((e as { code?: number }).code !== 404) throw e;
-        bytes = await renderDocument(issue, kind, issue.sample);
-        await file.save(bytes, { resumable: false, contentType: 'application/pdf', metadata: { cacheControl: 'private, no-store' }, preconditionOpts: { ifGenerationMatch: 0 } });
-      }
-      issue.documents[kind] ??= { filename, path };
-      attachments.push({ filename, content: bytes, contentType: 'application/pdf' });
-    }
-    await persist(issue);
-    // PDFs remain downloadable even when Drive or email is temporarily unavailable.
-    let archived = true;
-    try {
-      const target = await ensureMonthFolders(issue.issuedDate.slice(0, 7), issue.sample);
-      for (const [index, kind] of kindsFor(issue.method).entries()) {
-        const document = issue.documents[kind]!;
-        if (!document.driveId) { document.driveId = await reserveDriveId(); await persist(issue); }
-        await saveDocumentToDrive(issue, kind, target[kind], attachments[index].content);
-      }
-    } catch (e) {
-      archived = false;
-      console.error('[receipts] Drive save pending', { id, code: (e as { code?: number }).code });
-    }
+    const attachments = await prepareDocuments(issue);
     if (issue.mail === 'sending') {
       // SMTP may have accepted a previous request before the process stopped.
       // Do not automatically resend an ambiguous delivery.
@@ -62,6 +59,19 @@ export async function deliverIssue(id: string): Promise<Issue> {
       }
       await persist(issue);
     }
+    // PDFs remain downloadable even when Drive or email is temporarily unavailable.
+    let archived = true;
+    try {
+      const target = await ensureMonthFolders(issue.issuedDate.slice(0, 7), issue.sample);
+      for (const [index, kind] of kindsFor(issue.method).entries()) {
+        const document = issue.documents[kind]!;
+        if (!document.driveId) { document.driveId = await reserveDriveId(); await persist(issue); }
+        await saveDocumentToDrive(issue, kind, target[kind], attachments[index].content);
+      }
+    } catch (e) {
+      archived = false;
+      console.error('[receipts] Drive save pending', { id, code: (e as { code?: number }).code });
+    }
     const pendingKey = `pending/${id}.json`;
     if (archived && issue.mail === 'sent') {
       await bucket.file(pendingKey).delete({ ignoreNotFound: true });
@@ -77,18 +87,21 @@ export async function deliverIssue(id: string): Promise<Issue> {
 }
 export async function issueDocuments(input: ReceiptInput, sample = false): Promise<Issue> {
   const id = sample ? hash(`sample:${issueId(input)}`) : issueId(input);
-  await withLock(`issue-${id}`, async () => {
+  return withLock(`issue-${id}`, async () => {
     const existing = await readRecord<Issue>(issueKey(id));
+    let issue: Issue;
     if (existing) {
+      issue = existing.value;
       if (existing.value.name !== input.name || existing.value.address !== input.address) throw new ReceiptError('このお支払いの書類は発行済みです。宛名・住所の訂正は運営事務局へご連絡ください。', 409);
     } else {
-      const issue: Issue = { ...input, id, sample, issuedDate: jstDate(), createdAt: new Date().toISOString(), number: `${sample ? 'TEST-' : ''}${jstDate().replaceAll('-', '')}-${randomBytes(6).toString('hex').toUpperCase()}`, amount: amountFor(input.method), documents: {}, mail: 'pending' };
+      issue = { ...input, id, sample, issuedDate: jstDate(), createdAt: new Date().toISOString(), number: `${sample ? 'TEST-' : ''}${jstDate().replaceAll('-', '')}-${randomBytes(6).toString('hex').toUpperCase()}`, amount: amountFor(input.method), documents: {}, mail: 'pending' };
       // Queue first: a stopped request can safely resume using the same issuance ID.
       await writeRecord(`pending/${id}.json`, { id }).catch(e => { if (e.code !== 412) throw e; });
       await writeRecord(issueKey(id), issue);
     }
+    await prepareDocuments(issue);
+    return issue;
   });
-  return deliverIssue(id);
 }
 export function publicResult(issue: Issue) {
   const token = downloadToken(issue.id, Date.now() + 3600_000);

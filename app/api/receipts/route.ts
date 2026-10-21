@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
 import { ReceiptError, validateInput } from '@/lib/receipts/domain';
-import { issueDocuments, publicResult } from '@/lib/receipts/service';
+import { deliverIssue, issueDocuments, publicResult } from '@/lib/receipts/service';
 import { rateLimit } from '@/lib/receipts/store';
 
 export const runtime = 'nodejs';
@@ -19,9 +19,17 @@ export async function POST(request: NextRequest) {
     catch (e) { if (e instanceof ReceiptError) throw e; throw new ReceiptError('入力内容を確認してください。'); }
     if (sample && (!process.env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`)) throw new ReceiptError('動作確認の認証が必要です。', 403);
     const ip = request.headers.get('x-vercel-forwarded-for') || request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
-    await rateLimit(`ip:${ip}`, 20);
-    await rateLimit(`email:${input.email}`, 5);
+    await Promise.all([rateLimit(`ip:${ip}`, 20), rateLimit(`email:${input.email}`, 5)]);
+    const started = Date.now();
     const issue = await issueDocuments(input, sample);
+    console.info('[receipts] PDFs ready', { id: issue.id, milliseconds: Date.now() - started });
+    after(async () => {
+      try { await deliverIssue(issue.id); }
+      catch (e) {
+        // The durable pending record remains available to the retry job.
+        console.error('[receipts] Background delivery pending', { id: issue.id, code: (e as { code?: string }).code });
+      }
+    });
     return NextResponse.json(publicResult(issue), { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     if (e instanceof ReceiptError) return NextResponse.json({ error: e.message }, { status: e.status });

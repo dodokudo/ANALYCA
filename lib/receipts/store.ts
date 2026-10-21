@@ -21,9 +21,15 @@ export async function receiptBucket(): Promise<Bucket> {
 export async function readRecord<T>(key: string): Promise<{ value: T; generation: string } | null> {
   const file = (await receiptBucket()).file(key);
   try {
-    const [metadata] = await file.getMetadata();
-    const [bytes] = await (await receiptBucket()).file(key, { generation: metadata.generation }).download();
-    return { value: JSON.parse(bytes.toString()), generation: String(metadata.generation) };
+    // Read the contents and generation from the same response. A separate
+    // metadata request adds latency and can race with background delivery writes.
+    const stream = file.createReadStream();
+    let generation: string | undefined;
+    stream.on('response', response => { generation = response.headers['x-goog-generation']; });
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    if (!generation) throw new Error('Missing receipt record generation');
+    return { value: JSON.parse(Buffer.concat(chunks).toString()), generation };
   } catch (e) { if ((e as { code?: number }).code === 404) return null; throw e; }
 }
 export async function writeRecord(key: string, value: unknown, generation: string | number = 0): Promise<void> {

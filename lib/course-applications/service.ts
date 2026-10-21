@@ -16,11 +16,15 @@ export async function processSubmission(key: string) {
     if (!record || record.value.status !== 'pending' || (record.value.nextAttemptAt || 0) > Date.now()) return;
     const task = record.value;
     try {
-      const candidate = parseApplication(await fetchFriend(task.friendId));
       const isSample = (process.env.LME_TEST_FRIEND_IDS || '').split(',').includes(String(task.friendId));
+      const candidate = parseApplication(await fetchFriend(task.friendId), new Date(), { sample: isSample });
       if (isSample && candidate.email !== process.env.LME_TEST_EMAIL) throw new ReceiptError('テスト送信先が一致していません。');
       candidate.sample = isSample;
-      if (isSample) candidate.id = hash(`test:${candidate.id}`);
+      if (isSample) {
+        // A changed test case gets a separate sample; replaying identical answers remains idempotent.
+        const testCase = { ...candidate, createdAt: undefined };
+        candidate.id = hash(`test-v2:${JSON.stringify(testCase)}`);
+      }
       await withLock(`course-app-${candidate.id}`, async () => {
         const appKey = `course-applications/${candidate.id}.json`;
         let saved = await readRecord<Application>(appKey);

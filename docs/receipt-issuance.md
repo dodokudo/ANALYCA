@@ -24,14 +24,16 @@
 
 `.env.example` の RECEIPTS_* と CRON_SECRET を参照。既存のSMTP設定を再利用する。
 
-1. 保存先の期別ルールを確定する。確認待ち：11月始まり、2025年11月を第7期（2026年11月は第8期）でよいか。
-2. 保存先にだけ自動保存用Googleサービスアカウントを共有する。接続確認時点では会計資料にアクセスできず404。ブラウザで `gem-queen-dashboard@mark-454114.iam.gserviceaccount.com` を投稿者、通知なしで入力済み。権限変更の実行直前確認を待っており「共有」は押していない。
+1. 保存先は11月始まり、2025年11月を第7期（2026年11月は第8期）。ユーザー確認済み。
+2. ユーザー指定に従い `autostudio@mark-454114.iam.gserviceaccount.com` を会計資料へ投稿者として共有。RECEIPTS_GOOGLE_CREDENTIALSでこのアカウントを明示する。旧gemアカウントの共有は取り消しており追加していない。会計資料のcanAddChildren=trueと、2026年10月の領収書／請求書フォルダ作成を実接続で確認済み。
 3. 専用非公開GCSバケット `analyca-receipts-private` は作成・読書き・排他制御の実接続検証済み。RECEIPTS_BUCKETと32文字以上のRECEIPTS_SECRETを設定する。
 4. CRON_SECRETを設定する。既存値がある場合は変更しない。既存cron全体の認証にも使われるため他の呼び出し元を確認する。
 5. RECEIPTS_ENABLED=true を設定して、検証後にmainへpushする。Vercelの自動デプロイREADYと公開URLを確認する。
 6. 本人宛てテストで、PDFダウンロード・添付メール・Drive原本一致を確認し、`jobs/latest.json` でジョブ実行を確認する。
 
-本番SMTPの接続認証は2026-10-22に成功。メール実送信・Driveアップロード・本番公開はまだ実施していない。
+本番SMTPの接続認証は2026-10-22に成功。本番設定はAutoStudioのGoogle接続を使用する。書類の作成にはINVOYを使用せず、同梱の雛形からPDFを生成する。
+
+管理者の動作確認ではPOSTにsample=trueとCRON_SECRETのBearer認証を指定する。番号にTESTを付け、PDFに見本を明記し、メール件名・本文にもテストを表示する。Driveは「発行システム動作確認（会計対象外）」に保存し、通常の会計書類と分離する。公開フォームにはこの項目を出さない。
 
 2026-10-22 検証結果：15テスト成功、対象ESLint成功、Next.js本番ビルド成功。単独の全体tscは既存 `lib/__tests__/yoko-draft-generate-route.test.ts:3` の `node:module.registerHooks` 型定義エラー1件のみ。新規機能の型エラーなし。PCとCSS幅390pxの実画面に横はみ出しなし。PDF3種は画像にレンダリングして目視確認済み。
 

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { sendReceiptDocumentsEmail } from '../email';
-import { amountFor, downloadToken, emailText, issueId, jstDate, kindsFor, ReceiptError, titleFor, type Issue, type ReceiptInput } from './domain';
+import { amountFor, downloadToken, emailText, hash, issueId, jstDate, kindsFor, ReceiptError, titleFor, type Issue, type ReceiptInput } from './domain';
 import { ensureMonthFolders, reserveDriveId, saveDocumentToDrive } from './drive';
 import { renderDocument } from './pdf';
 import { readRecord, receiptBucket, withLock, writeRecord } from './store';
@@ -25,7 +25,7 @@ export async function deliverIssue(id: string): Promise<Issue> {
       try { [bytes] = await file.download(); }
       catch (e) {
         if ((e as { code?: number }).code !== 404) throw e;
-        bytes = await renderDocument(issue, kind);
+        bytes = await renderDocument(issue, kind, issue.sample);
         await file.save(bytes, { resumable: false, contentType: 'application/pdf', metadata: { cacheControl: 'private, no-store' }, preconditionOpts: { ifGenerationMatch: 0 } });
       }
       issue.documents[kind] ??= { filename, path };
@@ -35,7 +35,7 @@ export async function deliverIssue(id: string): Promise<Issue> {
     // PDFs remain downloadable even when Drive or email is temporarily unavailable.
     let archived = true;
     try {
-      const target = await ensureMonthFolders(issue.issuedDate.slice(0, 7));
+      const target = await ensureMonthFolders(issue.issuedDate.slice(0, 7), issue.sample);
       for (const [index, kind] of kindsFor(issue.method).entries()) {
         const document = issue.documents[kind]!;
         if (!document.driveId) { document.driveId = await reserveDriveId(); await persist(issue); }
@@ -53,7 +53,7 @@ export async function deliverIssue(id: string): Promise<Issue> {
     if (issue.mail === 'pending' || issue.mail === 'failed') {
       issue.mail = 'sending'; await persist(issue);
       try {
-        await sendReceiptDocumentsEmail(issue.email, emailText(issue), attachments, id);
+        await sendReceiptDocumentsEmail(issue.email, emailText(issue), attachments, id, issue.sample);
         issue.mail = 'sent'; issue.mailedAt = new Date().toISOString();
       } catch (e) {
         const code = (e as { code?: string }).code;
@@ -75,14 +75,14 @@ export async function deliverIssue(id: string): Promise<Issue> {
     return issue;
   });
 }
-export async function issueDocuments(input: ReceiptInput): Promise<Issue> {
-  const id = issueId(input);
+export async function issueDocuments(input: ReceiptInput, sample = false): Promise<Issue> {
+  const id = sample ? hash(`sample:${issueId(input)}`) : issueId(input);
   await withLock(`issue-${id}`, async () => {
     const existing = await readRecord<Issue>(issueKey(id));
     if (existing) {
       if (existing.value.name !== input.name || existing.value.address !== input.address) throw new ReceiptError('このお支払いの書類は発行済みです。宛名・住所の訂正は運営事務局へご連絡ください。', 409);
     } else {
-      const issue: Issue = { ...input, id, issuedDate: jstDate(), createdAt: new Date().toISOString(), number: `${jstDate().replaceAll('-', '')}-${randomBytes(6).toString('hex').toUpperCase()}`, amount: amountFor(input.method), documents: {}, mail: 'pending' };
+      const issue: Issue = { ...input, id, sample, issuedDate: jstDate(), createdAt: new Date().toISOString(), number: `${sample ? 'TEST-' : ''}${jstDate().replaceAll('-', '')}-${randomBytes(6).toString('hex').toUpperCase()}`, amount: amountFor(input.method), documents: {}, mail: 'pending' };
       // Queue first: a stopped request can safely resume using the same issuance ID.
       await writeRecord(`pending/${id}.json`, { id }).catch(e => { if (e.code !== 412) throw e; });
       await writeRecord(issueKey(id), issue);

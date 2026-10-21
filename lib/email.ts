@@ -19,11 +19,12 @@ export async function sendReceiptDocumentsEmail(
   text: string,
   attachments: { filename: string; content: Buffer; contentType: string }[],
   issuanceId: string,
+  sample = false,
 ): Promise<void> {
   const info = await transporter.sendMail({
     from: 'Threads×AIマスター講座 運営事務局 <info@analyca.jp>',
     to,
-    subject: '領収書のご送付｜Threads×AIマスター講座',
+    subject: `${sample ? '【動作確認・見本】' : ''}領収書のご送付｜Threads×AIマスター講座`,
     text,
     attachments,
     messageId: `<receipt-${issuanceId}@analyca.jp>`,

@@ -25,12 +25,16 @@ async function ensureFolder(drive: drive_v3.Drive, parent: string, name: string,
   if (!r.data.id) throw new Error('Drive folder creation failed');
   return r.data.id;
 }
-export async function ensureMonthFolders(month: string): Promise<{ month: string; receipt: string; invoice: string }> {
+export async function ensureMonthFolders(month: string, sample = false): Promise<{ month: string; receipt: string; invoice: string }> {
   if (!/^\d{4}-\d{2}$/.test(month)) throw new Error('Invalid month');
   const root = process.env.RECEIPTS_DRIVE_ROOT_ID;
   if (!root) throw new Error('RECEIPTS_DRIVE_ROOT_ID is not configured');
   return withLock('drive-folders', async () => {
     const drive = driveClient();
+    if (sample) {
+      const id = await ensureFolder(drive, root, '発行システム動作確認（会計対象外）');
+      return { month: id, receipt: id, invoice: id };
+    }
     let parent = root;
     if (process.env.RECEIPTS_DRIVE_USE_FISCAL_PERIOD === 'true') {
       const start = Number(process.env.RECEIPTS_FISCAL_START_MONTH);

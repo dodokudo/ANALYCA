@@ -14,12 +14,14 @@ export async function POST(request: NextRequest) {
     const raw = await request.text();
     if (Buffer.byteLength(raw) > 4096) throw new ReceiptError('入力内容が長すぎます。');
     let input;
-    try { input = validateInput(JSON.parse(raw)); }
+    let sample = false;
+    try { const parsed = JSON.parse(raw); input = validateInput(parsed); sample = parsed.sample === true; }
     catch (e) { if (e instanceof ReceiptError) throw e; throw new ReceiptError('入力内容を確認してください。'); }
+    if (sample && (!process.env.CRON_SECRET || request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`)) throw new ReceiptError('動作確認の認証が必要です。', 403);
     const ip = request.headers.get('x-vercel-forwarded-for') || request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
     await rateLimit(`ip:${ip}`, 20);
     await rateLimit(`email:${input.email}`, 5);
-    const issue = await issueDocuments(input);
+    const issue = await issueDocuments(input, sample);
     return NextResponse.json(publicResult(issue), { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     if (e instanceof ReceiptError) return NextResponse.json({ error: e.message }, { status: e.status });

@@ -12,7 +12,7 @@ test('rejects missing and out-of-scope dashboard IDs without returning the libra
   }
 });
 
-test('serves the complete original library for the initial dashboard', async () => {
+test('serves the curated library and retains the approved Miko Mayaka examples', async () => {
   const response = await GET(new Request('https://analyca.jp/api/templates/threads?userId=10012809578833342'));
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('Content-Type'), 'text/html; charset=utf-8');
@@ -20,6 +20,14 @@ test('serves the complete original library for the initial dashboard', async () 
   assert.match(response.headers.get('Cache-Control') || '', /no-store/);
   const html = await response.text();
   assert.equal(html, await readFile('lib/templates/threads-kata.html', 'utf8'));
-  assert.equal([...html.matchAll(/<article class="card"/g)].length, 290);
+  assert.equal([...html.matchAll(/<article class="card"/g)].length, 220);
+  assert.equal([...html.matchAll(/<span>@miko_mayaka<\/span>/g)].length, 43);
+  for (const username of [
+    'akirauchiyama_saa', 'biyoukamika', 'kazumi_counseling', 'mon_guchi',
+    'mou__diet', 'threads_shukyaku', 'yama_threads', 'yuka_cellbeauty',
+  ]) {
+    assert.ok(!html.includes(username), `${username} must not be included in the response`);
+  }
+  assert.doesNotMatch(html, /<header>|判定済み/);
   assert.doesNotMatch(html, /meta-pixel\.js/);
 });

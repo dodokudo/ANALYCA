@@ -3,11 +3,9 @@
 :root{--bg:#f5f4f0;--card:#fff;--line:#dedcd5;--tx:#1c1b18;--mute:#6f6c63;--acbg:#e9e7df;--ok:#2c8a55;--okbg:#eef8f1;--ng:#c94a3f;--ngbg:#fbf0ee;--qq:#b8860b;--qqbg:#fdf7e6;--link:#0b5cad}
 @media (prefers-color-scheme: dark){:root{--bg:#171613;--card:#201f1b;--line:#37352f;--tx:#eceae3;--mute:#9b988e;--acbg:#34322b;--ok:#5ec98a;--okbg:#1c2a21;--ng:#ef7f74;--ngbg:#2e1f1d;--qq:#e2b640;--qqbg:#2b2517;--link:#7db4ec}}
 *{box-sizing:border-box}body{margin:0;font:15px/1.65 "Noto Sans JP",-apple-system,"Hiragino Sans",sans-serif;background:var(--bg);color:var(--tx)}
-header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;z-index:5}
-h1{font-size:16px;margin:0 0 8px}h1 small{font-weight:400;color:var(--mute);font-size:12px;margin-left:8px}
 nav{display:flex;flex-wrap:wrap;gap:5px}nav a{font-size:12px;padding:2px 8px;border:1px solid var(--line);border-radius:14px;text-decoration:none;color:var(--tx);background:var(--bg)}nav a.famlink{background:var(--tx);color:var(--bg);border-color:var(--tx)}nav a b{font-family:"IBM Plex Mono",monospace}nav a span{color:var(--mute);margin-left:3px}
 .tools{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:var(--mute);flex-wrap:wrap}.tools button{font-size:12px;padding:4px 10px;border:1px solid var(--line);background:var(--card);color:var(--tx);border-radius:6px;cursor:pointer}
-#cnt{font-family:"IBM Plex Mono",monospace;color:var(--tx)}#out{width:100%;height:160px;font:12px "IBM Plex Mono",monospace;margin-top:8px;background:var(--bg);color:var(--tx);border:1px solid var(--line)}
+#out{width:100%;height:160px;font:12px "IBM Plex Mono",monospace;margin-top:8px;background:var(--bg);color:var(--tx);border:1px solid var(--line)}
 main{max-width:860px;margin:0 auto;padding:12px 16px 80px}
 h2.fam{font-size:13px;color:var(--mute);margin:44px 0 6px;border-bottom:2px solid var(--line);padding-bottom:4px;letter-spacing:.04em}h2.fam span{font-family:"IBM Plex Mono",monospace;margin-right:6px}
 section{margin-top:20px}h3{font-size:18px;margin:0 0 8px}h3 b{font-family:"IBM Plex Mono",monospace;background:var(--acbg);padding:1px 8px;border-radius:4px;margin-right:4px}h3 small{font-weight:400;color:var(--mute);font-size:12px;margin-left:8px}
@@ -25,13 +23,20 @@ section{margin-top:20px}h3{font-size:18px;margin:0 0 8px}h3 b{font-family:"IBM P
 
 .layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:0;width:100%}
 #toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:14px 10px 40px 16px;border-right:1px solid var(--line);font-size:12.5px}
-.toc-h{font-size:11px;color:var(--mute);letter-spacing:.08em;margin-bottom:6px}
+#toc-toggle{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;min-height:32px;padding:6px;border:0;border-radius:6px;background:var(--bg);color:var(--mute);font:inherit;cursor:pointer;margin-bottom:8px}
+#toc-toggle:hover{background:var(--acbg);color:var(--tx)}#toc-toggle:focus-visible{outline:2px solid var(--link);outline-offset:2px}#toc-toggle svg{flex:none}
+body.toc-collapsed .layout{grid-template-columns:44px minmax(0,1fr)}
+body.toc-collapsed #toc{padding:8px 6px;overflow:visible}
+body.toc-collapsed .toc-label{display:none}
+#toc-content[hidden]{display:none}
+@media (max-width:820px){body.toc-collapsed #toc{padding:6px 10px}body.toc-collapsed .toc-label{display:inline}body.toc-collapsed #toc-toggle{margin-bottom:0}}
 #toc ul{list-style:none;margin:0;padding:0}#toc li.f{margin-top:10px}#toc li.f>a{font-weight:700;display:block;padding:3px 8px;border-radius:5px;color:var(--tx)}
 #toc li.f ul{margin:2px 0 0 6px;border-left:1px solid var(--line)}#toc li li a{display:block;padding:2px 8px 2px 10px;color:var(--mute);text-decoration:none;border-radius:0 5px 5px 0;margin-left:-1px;border-left:2px solid transparent}
 #toc li li a b{font-family:"IBM Plex Mono",monospace;color:var(--tx);margin-right:3px}#toc a span{color:var(--mute);font-size:11px;margin-left:3px}
 #toc a{text-decoration:none}#toc a.active{background:var(--acbg);color:var(--tx);border-left-color:var(--tx)}#toc li.f>a.active{background:var(--tx);color:var(--bg)}
 main{max-width:none;padding:12px 24px 80px}
 h2.fam,section{scroll-margin-top:12px}
+main>h2.fam:first-child{margin-top:8px}
 @media (max-width:820px){.layout{display:block}#toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);max-height:40vh}main{padding:12px 16px 80px}}
 
 .surf{font-size:12.5px;color:var(--mute);margin:0 0 10px}.surf b{color:var(--tx);margin-right:4px}
@@ -39,7 +44,7 @@ h2.fam,section{scroll-margin-top:12px}
 .hyp{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--tx);border-radius:8px;padding:10px 14px;margin:0 0 16px}
 .hyp summary{font-weight:700;color:var(--tx);cursor:pointer;font-size:14px}
 .hypbody{white-space:pre-line;font-size:13.5px;margin-top:8px;line-height:1.75}
-\n.src{display:inline-block;padding:0 6px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:600}\n.warn{margin:0 0 10px;padding:10px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:13px;line-height:1.6}\n</style></head><body><header><h1>Threads 型ライブラリ <small>ANALYCA契約者2万以上 234本（8/1〜9/13・実数）＋ 競合8アカウント3万以上 56本（6/1〜9/25・公開表示の丸め値）／ 7つの型・26テンプレ ／ <span id="cnt"></span></small></h1></header><div class="layout"><aside id="toc"><div class="toc-h">目次</div><ul><li class="f"><a href="#fam1">型1 対比・正解隠し</a><ul><li><a href="#t1a"><b>1a</b> 二分法・正解隠し型 <span>63</span></a></li><li><a href="#t1b"><b>1b</b> 否定二分法・NG指摘型 <span>7</span></a></li><li><a href="#t1c"><b>1c</b> NG行動引用型 <span>26</span></a></li><li><a href="#t1d"><b>1d</b> シーン先頭・正解隠し型 <span>13</span></a></li><li><a href="#t1e"><b>1e</b> 成果物提示型 <span>7</span></a></li><li><a href="#t1f"><b>1f</b> ❌⭕️対比型 <span>2</span></a></li><li><a href="#t1g"><b>1g</b> 配布型（否定→実物を渡す） <span>6</span></a></li></ul></li><li class="f"><a href="#fam2">型2 語り手</a><ul><li><a href="#t2a"><b>2a</b> 予兆型 <span>19</span></a></li><li><a href="#t2b"><b>2b</b> 語り手の扱い型 <span>15</span></a></li></ul></li><li class="f"><a href="#fam3">型3 あるある・根拠</a><ul><li><a href="#t3a"><b>3a</b> あるある→原因解説型 <span>19</span></a></li><li><a href="#t3b"><b>3b</b> 権威の発言引用型 <span>8</span></a></li><li><a href="#t3c"><b>3c</b> 問いを投げた型 <span>4</span></a></li></ul></li><li class="f"><a href="#fam4">型4 ランキング・列挙</a><ul><li><a href="#t4a"><b>4a</b> カウントダウン型 <span>2</span></a></li><li><a href="#t4b"><b>4b</b> ◯選・第1位型 <span>8</span></a></li><li><a href="#t4c"><b>4c</b> 箇条書き列挙型 <span>11</span></a></li><li><a href="#t4d"><b>4d</b> でバレる・3段階型 <span>1</span></a></li><li><a href="#t4e"><b>4e</b> ロードマップ型「①だけ見せて切る」 <span>2</span></a></li></ul></li><li class="f"><a href="#fam5">型5 損失・断言</a><ul><li><a href="#t5a"><b>5a</b> 損失通告型 <span>6</span></a></li><li><a href="#t5b"><b>5b</b> 常識破壊・断言型 <span>9</span></a></li><li><a href="#t5c"><b>5c</b> 【参考】時事終了宣言・対策配布型 <span>13</span></a></li><li><a href="#t5d"><b>5d</b> 【参考】禁止速報型（1行） <span>17</span></a></li><li><a href="#t5f"><b>5f</b> 【参考】新ルール・放置で終了型 <span>14</span></a></li></ul></li><li class="f"><a href="#fam6">型6 問いかけ</a><ul><li><a href="#t6a"><b>6a</b> 前提否定・問いかけ型 <span>8</span></a></li><li><a href="#t6b"><b>6b</b> 二択・問いかけ型 <span>1</span></a></li></ul></li><li class="f"><a href="#fam7">型7 体験ストーリー</a><ul><li><a href="#t7a"><b>7a</b> 体験ストーリー型 <span>7</span></a></li><li><a href="#t7b"><b>7b</b> 実績速報・今やれ型 <span>1</span></a></li></ul></li><li class="f"><a href="#fam0">型0 未分類</a><ul><li><a href="#t0z"><b>0z</b> 未分類 <span>1</span></a></li></ul></li></ul></aside><main><h2 class="fam" id="fam1"><span>型1</span> 対比・正解隠し</h2><section id="t1a"><h3><b>1a</b> 二分法・正解隠し型 <small>63本 ／ 平均 83,022 ／ 最大 587,457</small></h3><div class="def"><pre class="skel">「あっ、この人【評価軸】できるな」と思う【対象】は、【シーン】での【行動】が違います。
+\n.src{display:inline-block;padding:0 6px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:600}\n.warn{margin:0 0 10px;padding:10px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:13px;line-height:1.6}\n</style></head><body><div class="layout"><aside id="toc" aria-label="テンプレートの目次"><button id="toc-toggle" type="button" aria-controls="toc-content" aria-expanded="true" aria-label="目次を閉じる" title="目次を閉じる"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg><span class="toc-label">目次を閉じる</span></button><div id="toc-content"><ul><li class="f"><a href="#fam1">型1 対比・正解隠し</a><ul><li><a href="#t1a"><b>1a</b> 二分法・正解隠し型 <span>60</span></a></li><li><a href="#t1b"><b>1b</b> 否定二分法・NG指摘型 <span>7</span></a></li><li><a href="#t1c"><b>1c</b> NG行動引用型 <span>25</span></a></li><li><a href="#t1d"><b>1d</b> シーン先頭・正解隠し型 <span>11</span></a></li><li><a href="#t1e"><b>1e</b> 成果物提示型 <span>7</span></a></li><li><a href="#t1f"><b>1f</b> ❌⭕️対比型 <span>2</span></a></li><li><a href="#t1g"><b>1g</b> 配布型（否定→実物を渡す） <span>0</span></a></li></ul></li><li class="f"><a href="#fam2">型2 語り手</a><ul><li><a href="#t2a"><b>2a</b> 予兆型 <span>19</span></a></li><li><a href="#t2b"><b>2b</b> 語り手の扱い型 <span>15</span></a></li></ul></li><li class="f"><a href="#fam3">型3 あるある・根拠</a><ul><li><a href="#t3a"><b>3a</b> あるある→原因解説型 <span>19</span></a></li><li><a href="#t3b"><b>3b</b> 権威の発言引用型 <span>5</span></a></li><li><a href="#t3c"><b>3c</b> 問いを投げた型 <span>2</span></a></li></ul></li><li class="f"><a href="#fam4">型4 ランキング・列挙</a><ul><li><a href="#t4a"><b>4a</b> カウントダウン型 <span>2</span></a></li><li><a href="#t4b"><b>4b</b> ◯選・第1位型 <span>8</span></a></li><li><a href="#t4c"><b>4c</b> 箇条書き列挙型 <span>9</span></a></li><li><a href="#t4d"><b>4d</b> でバレる・3段階型 <span>1</span></a></li><li><a href="#t4e"><b>4e</b> ロードマップ型「①だけ見せて切る」 <span>0</span></a></li></ul></li><li class="f"><a href="#fam5">型5 損失・断言</a><ul><li><a href="#t5a"><b>5a</b> 損失通告型 <span>5</span></a></li><li><a href="#t5b"><b>5b</b> 常識破壊・断言型 <span>9</span></a></li><li><a href="#t5c"><b>5c</b> 【参考】時事終了宣言・対策配布型 <span>0</span></a></li><li><a href="#t5d"><b>5d</b> 【参考】禁止速報型（1行） <span>0</span></a></li><li><a href="#t5f"><b>5f</b> 【参考】新ルール・放置で終了型 <span>0</span></a></li></ul></li><li class="f"><a href="#fam6">型6 問いかけ</a><ul><li><a href="#t6a"><b>6a</b> 前提否定・問いかけ型 <span>8</span></a></li><li><a href="#t6b"><b>6b</b> 二択・問いかけ型 <span>1</span></a></li></ul></li><li class="f"><a href="#fam7">型7 体験ストーリー</a><ul><li><a href="#t7a"><b>7a</b> 体験ストーリー型 <span>4</span></a></li><li><a href="#t7b"><b>7b</b> 実績速報・今やれ型 <span>0</span></a></li></ul></li><li class="f"><a href="#fam0">型0 未分類</a><ul><li><a href="#t0z"><b>0z</b> 未分類 <span>1</span></a></li></ul></li></ul></div></aside><main><h2 class="fam" id="fam1"><span>型1</span> 対比・正解隠し</h2><section id="t1a"><h3><b>1a</b> 二分法・正解隠し型 <small>60本 ／ 平均 82,029 ／ 最大 587,457</small></h3><div class="def"><pre class="skel">「あっ、この人【評価軸】できるな」と思う【対象】は、【シーン】での【行動】が違います。
 できない人は【NG行動】をします。
 できる人はこうします↓（正解はコメント欄）</pre><p class="surf"><b>業種で変わる部分</b> 営業なら【行動】＝「返し方」、できる人は「こう言います」。教室なら「書き方」「こうしてます」。施術なら「一言」「こう伝えます」。Threadsなら「次の一手」「こうします」。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【評価軸】</td><td>読者が自分を採点したくなる能力</td><td>クロージング／接客／集客／Threads運用</td></tr><tr><td>【対象】</td><td>読者の職業・立場</td><td>人／先生／エステティシャン／アカウント</td></tr><tr><td>【シーン】</td><td>相手のセリフや状況。カギカッコで具体に</td><td>「考えます」と言われた時／投稿が200閲覧で止まった時</td></tr><tr><td>【行動】</td><td>その業種で成果を分ける動作。動詞はここで決まる</td><td>返し方／書き方／一言／次の一手</td></tr><tr><td>【NG行動】</td><td>読者が今やっていること。そのまま引用</td><td>「明日のご連絡お待ちしております」と返す／同じ投稿をもう1本出す</td></tr><tr><td>【正しい行動】</td><td>コメント欄で開示</td><td></td></tr></tbody></table>
@@ -91,22 +96,12 @@ h2.fam,section{scroll-margin-top:12px}
 例えば売れない人は「相談してみてまたご連絡ください」と返す人が多い。
 売れている人はこう言います↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@saorin_buppan/post/Dc4W0yxD4dn" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dc4W0yxD4dn" placeholder="メモ（任意）"></article><article class="card" data-id="DbkrI4gAKvT"><div class="meta"><span class="var">1a</span><span class="views">133,166</span><span>@kazumi_counseling</span><span>08/03 18:31</span><span>♥ 161　💬 3</span></div>
-<p class="text">「あっ、この人、化粧品が売れるな」と思うエステティシャンは、サンプルを渡す時の一言が違います。
-
-売れない人は「よろしかったら、使ってみてくださいね」と言います</p>
-<div class="row"><a class="link" href="https://www.threads.com/@kazumi_counseling/post/DbkrI4gAKvT" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DbkrI4gAKvT" placeholder="メモ（任意）"></article><article class="card" data-id="Dc64wdbFnzP"><div class="meta"><span class="var">1a</span><span class="views">132,727</span><span>@saorin_buppan</span><span>09/06 06:05</span><span>♥ 92　💬 4</span></div>
+<input class="memo" id="memo-Dc4W0yxD4dn" placeholder="メモ（任意）"></article><article class="card" data-id="Dc64wdbFnzP"><div class="meta"><span class="var">1a</span><span class="views">132,727</span><span>@saorin_buppan</span><span>09/06 06:05</span><span>♥ 92　💬 4</span></div>
 <p class="text">「あっ、この人営業センスあるな」と思う人は「今はまだ大丈夫です」と言われた時の返し方が違います。
 売れない人は「分かりました。では何かありましたら」と言う人が多い
 売れている人はこう言います↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@saorin_buppan/post/Dc64wdbFnzP" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dc64wdbFnzP" placeholder="メモ（任意）"></article><article class="card" data-id="DdKf2y_ihZ1"><div class="meta"><span class="var">1a</span><span class="views">121,514</span><span>@kazumi_counseling</span><span>09/12 07:35</span><span>♥ 111　💬 4</span></div>
-<p class="text">「あっ、この人、化粧品が売れるな」と思うエステティシャンは、サンプルを渡す時の一言が違います。
-
-売れない人は「よろしかったら、使ってみてくださいね」と言います</p>
-<div class="row"><a class="link" href="https://www.threads.com/@kazumi_counseling/post/DdKf2y_ihZ1" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DdKf2y_ihZ1" placeholder="メモ（任意）"></article><article class="card" data-id="DcZdbjKG3PD"><div class="meta"><span class="var">1a</span><span class="views">112,948</span><span>@saorin_buppan</span><span>08/24 06:31</span><span>♥ 117　💬 2</span></div>
+<input class="memo" id="memo-Dc64wdbFnzP" placeholder="メモ（任意）"></article><article class="card" data-id="DcZdbjKG3PD"><div class="meta"><span class="var">1a</span><span class="views">112,948</span><span>@saorin_buppan</span><span>08/24 06:31</span><span>♥ 117　💬 2</span></div>
 <p class="text">「あ、この人クロージング上手いな」と思う人は、最後の伝え方が違います。
 売れない人は「もしよろしければ…」「いかがですか？」と言って失注します
 売れている人は、こう言います↓</p>
@@ -203,12 +198,7 @@ h2.fam,section{scroll-margin-top:12px}
 と言って終わってしまいます。
 集まる先生は、こう返します↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@asano2739/post/DcmYriZEtJW" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcmYriZEtJW" placeholder="メモ（任意）"></article><article class="card" data-id="17957543637193011"><div class="meta"><span class="var">1a</span><span class="views">54,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>08/14 20:36</span><span>♥ -　💬 4</span></div>
-<p class="text">「あっ、この人スレッズ上手だな。」って人は、文章が上手いんじゃなく、読まれる仕掛けを作るのがめっちゃ上手い。
-逆に伸びない人は、伝えたいことをそのまま文章にしちゃう。
-スレッズ上手い人はこれやってる↓</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DcBOIpRkwEw" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17957543637193011" placeholder="メモ（任意）"></article><article class="card" data-id="DbrHGFkGEAJ"><div class="meta"><span class="var">1a</span><span class="views">53,774</span><span>@saorin_buppan</span><span>08/06 06:31</span><span>♥ 50　💬 2</span></div>
+<input class="memo" id="memo-DcmYriZEtJW" placeholder="メモ（任意）"></article><article class="card" data-id="DbrHGFkGEAJ"><div class="meta"><span class="var">1a</span><span class="views">53,774</span><span>@saorin_buppan</span><span>08/06 06:31</span><span>♥ 50　💬 2</span></div>
 <p class="text">「あっ、この人クロージング上手いな」って人は「一旦考えたいです」と言われた時の返し方が違います。
 売れない人は「ではまた明日ご連絡ください」と言います
 売れている人はこう返します↓</p>
@@ -416,7 +406,7 @@ h2.fam,section{scroll-margin-top:12px}
 <p class="text">「あー、この人接客センスないな」と思う人は、
 新規客が一番シビアに見ている「お会計時の空気」を致命的なレベルでぶち壊しています。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@atrecess_academy/post/Dbjfi88Fk9I" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dbjfi88Fk9I" placeholder="メモ（任意）"></article></section><section id="t1c"><h3><b>1c</b> NG行動引用型 <small>26本 ／ 平均 53,130 ／ 最大 119,292</small></h3><div class="def"><pre class="skel">【できる対象】は、【NG行動】をしません。
+<input class="memo" id="memo-Dbjfi88Fk9I" placeholder="メモ（任意）"></article></section><section id="t1c"><h3><b>1c</b> NG行動引用型 <small>25本 ／ 平均 53,776 ／ 最大 119,292</small></h3><div class="def"><pre class="skel">【できる対象】は、【NG行動】をしません。
 【できる対象】はこうしてます↓</pre><p class="surf"><b>業種で変わる部分</b> 教室なら「『全4回 16,000円』とは書きません」。歯並びなら「『様子を見ましょう』とは言いません」。Threadsなら「プロフのリンクを本文に貼りません」。動詞はNG行動に合わせる。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【できる対象】</td><td>同じ属性の成功者</td><td>生徒さんが集まるお教室／伸びてるアカウント／リピートされるサロン</td></tr><tr><td>【NG行動】</td><td>読者が今まさにやっている行動を、数字や文言ごと具体に引用</td><td>「全4回 16,000円」と書く／「残席2名」と書く／プロフに「フォロワー1万人」と書く／投稿の最後に「詳しくはプロフから」と書く</td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 二分法の前半を省き、いきなり【NG行動】の具体引用から入る。「『全4回 16,000円』とは書きません」のように、読者が今書いている文言そのものが出るので、照合が一瞬で終わる。
@@ -484,11 +474,7 @@ h2.fam,section{scroll-margin-top:12px}
 「残席2名」とは書きません。
 集まる先生はこうしてます↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@asano2739/post/DcATOt_IFPd" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcATOt_IFPd" placeholder="メモ（任意）"></article><article class="card" data-id="18415852195180068"><div class="meta"><span class="var">1c</span><span class="views">37,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/10 21:17</span><span>♥ -　💬 3</span></div>
-<p class="text">あのー。スレッズで集客したいなら、とりあえず毎日投稿はマジで意味ないです。
-ちゃんと読んでもらうためには、自分ごとにさせることがマジで大事なので、そのためのフック5選をパクって使っちゃって下さい。</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DZZ7MGaExoL" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18415852195180068" placeholder="メモ（任意）"></article><article class="card" data-id="Dc1u03oFMOa"><div class="meta"><span class="var">1c</span><span class="views">35,990</span><span>@asano2739</span><span>09/04 06:02</span><span>♥ 57　💬 6</span></div>
+<input class="memo" id="memo-DcATOt_IFPd" placeholder="メモ（任意）"></article><article class="card" data-id="Dc1u03oFMOa"><div class="meta"><span class="var">1c</span><span class="views">35,990</span><span>@asano2739</span><span>09/04 06:02</span><span>♥ 57　💬 6</span></div>
 <p class="text">集まる先生は、
 「90分 6,000円」とは書きません。
 集まる先生はこうしてます↓</p>
@@ -553,20 +539,14 @@ h2.fam,section{scroll-margin-top:12px}
 「全6回 24,000円」とは書きません。
 集まる先生はこうしてます↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@asano2739/post/DcDn7OTFcHk" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcDn7OTFcHk" placeholder="メモ（任意）"></article></section><section id="t1d"><h3><b>1d</b> シーン先頭・正解隠し型 <small>13本 ／ 平均 41,769 ／ 最大 106,554</small></h3><div class="def"><pre class="skel">【シーン】の時、
+<input class="memo" id="memo-DcDn7OTFcHk" placeholder="メモ（任意）"></article></section><section id="t1d"><h3><b>1d</b> シーン先頭・正解隠し型 <small>11本 ／ 平均 37,125 ／ 最大 102,399</small></h3><div class="def"><pre class="skel">【シーン】の時、
 【できる対象】は【正しい行動】をします（正解はコメント欄）</pre><p class="surf"><b>業種で変わる部分</b> 営業なら「こう言います」、施術なら「こう返しています」「こう伝えます」、Threadsなら「こうします」「こう答えます」。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【シーン】</td><td>カギカッコで始める。相手のセリフか状況</td><td>「また予定が入っちゃって…予約変更できますか？」と何度も変更される時／「AIで書くと伸びない」と言われた時</td></tr><tr><td>【できる対象】</td><td>売れる人／リピートされる人／伸びてる人</td><td></td></tr><tr><td>【正しい行動】</td><td>本文では「こう◯◯します」で止める</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 【シーン】を冒頭に置くので、1行目で場面が浮かぶ。採点も対比もない分、読み始めるコストが最も低い。
 2. 「何度も変更される時」「聞かれた時」のように、読者が困った経験がある場面だけを選ぶと、その場面で困った人が全員止まる。
 3. 「こうします」で止めて正解を隠す。困った経験がある人は、自分がその時どうしたかと比べたくて開く。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>「AIで書いた投稿って伸びないですよね？」と聞かれた時、
 伸びてる人はこう答えます</li><li>投稿が3日連続で200閲覧を切った時、
-伸びてる人はこうします</li></ul></details></div><article class="card" data-id="Dbgyu11AWkV"><div class="meta"><span class="var">1d</span><span class="views">106,554</span><span>@akirauchiyama_saa</span><span>08/02 06:21</span><span>♥ 80　💬 9</span></div>
-<p class="text">実はマンションの「最上階角部屋」が最悪です。
-
-値段が高いから高性能と思ったら大間違いなことが
-わかっている断熱の人はこう答えます。</p>
-<div class="row"><a class="link" href="https://www.threads.com/@akirauchiyama_saa/post/Dbgyu11AWkV" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dbgyu11AWkV" placeholder="メモ（任意）"></article><article class="card" data-id="DbmJlzmklUl"><div class="meta"><span class="var">1d</span><span class="views">102,399</span><span>@keiko_detox</span><span>08/04 08:17</span><span>♥ 74　💬 5</span></div>
+伸びてる人はこうします</li></ul></details></div><article class="card" data-id="DbmJlzmklUl"><div class="meta"><span class="var">1d</span><span class="views">102,399</span><span>@keiko_detox</span><span>08/04 08:17</span><span>♥ 74　💬 5</span></div>
 <p class="text">お客様に「やりたいんですけど、一旦帰って考えます」と言われた時、
 売れる人は、こう言います</p>
 <div class="row"><a class="link" href="https://www.threads.com/@keiko_detox/post/DbmJlzmklUl" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
@@ -590,13 +570,7 @@ h2.fam,section{scroll-margin-top:12px}
 <p class="text">施術直後に「お着替えどうぞ〜」と言っている人は、次回予約が取れません。
 リピートされる人は、代わりにこう伝えます</p>
 <div class="row"><a class="link" href="https://www.threads.com/@keiko_detox/post/DcSAeQtEm9G" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcSAeQtEm9G" placeholder="メモ（任意）"></article><article class="card" data-id="DcPIO8wkzp2"><div class="meta"><span class="var">1d</span><span class="views">28,084</span><span>@akirauchiyama_saa</span><span>08/20 06:14</span><span>♥ 30　💬 2</span></div>
-<p class="text">樹脂サッシかアルミ複合サッシか。
-もうこの話は終わりです。
-
-答えはハッキリしていて断熱の人はこう答えます。</p>
-<div class="row"><a class="link" href="https://www.threads.com/@akirauchiyama_saa/post/DcPIO8wkzp2" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcPIO8wkzp2" placeholder="メモ（任意）"></article><article class="card" data-id="Db_w-jbGhOh"><div class="meta"><span class="var">1d</span><span class="views">27,800</span><span>@atrecess_academy</span><span>08/14 07:02</span><span>♥ 10　💬 5</span></div>
+<input class="memo" id="memo-DcSAeQtEm9G" placeholder="メモ（任意）"></article><article class="card" data-id="Db_w-jbGhOh"><div class="meta"><span class="var">1d</span><span class="views">27,800</span><span>@atrecess_academy</span><span>08/14 07:02</span><span>♥ 10　💬 5</span></div>
 <p class="text">「あのー、また予定が入っちゃって...予約変更できますか？」
 と何度も変更される時、売れるサロンはこう返しています。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@atrecess_academy/post/Db_w-jbGhOh" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
@@ -616,7 +590,7 @@ h2.fam,section{scroll-margin-top:12px}
 <input class="memo" id="memo-Db1d0HZH1CN" placeholder="メモ（任意）"></article><article class="card" data-id="DbnWxk0Fhop"><div class="meta"><span class="var">1d</span><span class="views">20,323</span><span>@atrecess_academy</span><span>08/04 19:31</span><span>♥ 13　💬 6</span></div>
 <p class="text">新規のお客様から「どのくらいのペースで来たらいいですか？」と聞かれたとき、次回予約を取るのが上手い人は、こう答えます。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@atrecess_academy/post/DbnWxk0Fhop" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DbnWxk0Fhop" placeholder="メモ（任意）"></article></section><section id="t1e"><h3><b>1e</b> 成果物提示型 <small>7本 ／ 平均 29,104 ／ 最大 46,542</small></h3><div class="def"><pre class="skel">【ターゲット】が【望ましい反応】をする【成果物】がこれです（本文または画像で完結）</pre><p class="surf"><b>業種で変わる部分</b> 「お客様が『絶対行こう』と思える予約確認メッセージがこれです」「どうぞパクってください」。</p>
+<input class="memo" id="memo-DbnWxk0Fhop" placeholder="メモ（任意）"></article></section><section id="t1e"><h3><b>1e</b> 成果物提示型 <small>7本 ／ 平均 29,105 ／ 最大 46,542</small></h3><div class="def"><pre class="skel">【ターゲット】が【望ましい反応】をする【成果物】がこれです（本文または画像で完結）</pre><p class="surf"><b>業種で変わる部分</b> 「お客様が『絶対行こう』と思える予約確認メッセージがこれです」「どうぞパクってください」。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【ターゲット】</td><td>読者の顧客・読者</td><td>お客様／新規客／フォロワー</td></tr><tr><td>【望ましい反応】</td><td>ターゲットに取ってほしい行動</td><td>「絶対行こう」と思う／LINE登録する／コメントする</td></tr><tr><td>【成果物】</td><td>そのままコピペできる実物</td><td>予約確認メッセージ／固定ポストの文面／プロンプト</td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「これです」の1語で「実物が存在する」と宣言している。読者は評価される側ではなく、もらう側に回るので抵抗がない。
 2. 【ターゲット】が【望ましい反応】をする、という結果から書くので、読者は「自分もそれが欲しい」と即座に判断できる。
@@ -680,7 +654,7 @@ h2.fam,section{scroll-margin-top:12px}
 
 ⭕️伸びてる人がやってること↓↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@kudooo_ai/post/Dc9gwlUINXS" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dc9gwlUINXS" placeholder="メモ（任意）"></article></section><section id="t1g"><h3><b>1g</b> 配布型（否定→実物を渡す） <small>6本 ／ 平均 54,500 ／ 最大 140,000</small></h3><div class="def"><pre class="skel">【NGの断言 or 必要条件の断言】。
+<input class="memo" id="memo-Dc9gwlUINXS" placeholder="メモ（任意）"></article></section><section id="t1g"><h3><b>1g</b> 配布型（否定→実物を渡す） <small>掲載例 0本</small></h3><div class="def"><pre class="skel">【NGの断言 or 必要条件の断言】。
 【成果物名】を置いておくので、使ってください（中身はコメント欄 or 画像）</pre><p class="surf"><b>業種で変わる部分</b> 1e成果物提示型との違い: 1eは「これです」で本文完結。1gは断言で読者を否定してから渡す。否定→施しの順で、否定に当たった人が受け取りに来る。「パクってください」「〇〇10選」は特定アカウントの決まり文句なので、言い回しは自分の言葉に変える（置いておきます／使ってください／10個）。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【断言】</td><td>読者の今のやり方を否定する1文</td><td>伸ばしたいならフックないと絶対無理／毎日投稿は意味ない／適当に呟いても集客に繋がらない</td></tr><tr><td>【成果物名】</td><td>数と名前で実物感を出す</td><td>フック集／テンプレ10選／ネタ10選／投稿時間と頻度／カンペ／神セブン</td></tr><tr><td>【渡し方】</td><td>置いておきます／使ってください／そのまま使えます（他人の決まり文句は借りない）</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 冒頭の断言で読者を否定する。「フックないと絶対無理」「毎日投稿は意味ない」は、投稿している人ほぼ全員に当たる。
@@ -688,30 +662,7 @@ h2.fam,section{scroll-margin-top:12px}
 3. 「10選」「集」の数で実物が存在すると伝え、「パクって」で受け取る側の抵抗を消す。保存とコメントの両方が起きる。
 4. 同じ成果物を同じ文面で再投稿しても2万以上。ただし6月に11本集中し、9月は1〜1.6万。成果物の中身を変えないと飽和する。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>あのー、Threadsの1行目を毎回ゼロから考えてる人、損してますよ。
 伸びた1行目の形を10個、置いておきます。</li><li>あのー、投稿時間と本数を「なんとなく」で決めてる人、損してますよ。
-時間と本数、これに固定してください。</li></ul></details></div><article class="card" data-id="17944591932206338"><div class="meta"><span class="var">1g</span><span class="views">140,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/04 21:45</span><span>♥ -　💬 8</span></div>
-<p class="text">何度でも言いまくりますが…
-スレッズ伸ばしたいならフックないと絶っっ対無理です！！！
-まっっじでフック命。
-てことでフック集あるので、どうぞパクって使って下さい。</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DZKhmddmJHA" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17944591932206338" placeholder="メモ（任意）"></article><article class="card" data-id="17883760494427154"><div class="meta"><span class="var">1g</span><span class="views">47,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/11 14:42</span><span>♥ -　💬 0</span></div>
-<p class="text">あのー。実は私…スレッズ5投稿に1回は1万回以上のバズを生んでるのですが、研究して分かったことがあって…それは圧倒的価値提供なんです。
-ネタない！って人向けに今回もテンプレ10選用意したのですが、￼</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DZbyvdwk5Vk" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17883760494427154" placeholder="メモ（任意）"></article><article class="card" data-id="18424969624132928"><div class="meta"><span class="var">1g</span><span class="views">44,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/08 20:46</span><span>♥ -　💬 11</span></div>
-<p class="text">どうぞパクってください。
-これからスレッズ本気で伸ばしていくなら、投稿時間と投稿頻度は絶っっっ対これです！！！</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DZUuBqKE85Q" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18424969624132928" placeholder="メモ（任意）"></article><article class="card" data-id="18014359814904669"><div class="meta"><span class="var">1g</span><span class="views">35,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/11 21:20</span><span>♥ -　💬 3</span></div>
-<p class="text">あのー。スレッズだけで集客していきたい人は必須のフックがあるのでこの10選はどうぞパクっちゃってください。￼</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DZcgTa0k9l6" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18014359814904669" placeholder="メモ（任意）"></article><article class="card" data-id="17942984661233135"><div class="meta"><span class="var">1g</span><span class="views">31,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/01 12:53</span><span>♥ -　💬 0</span></div>
-<p class="text">えっと…スレッズだけでマジで集客したい人はこの10選をぜひぜひパクっちゃってください。</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DZB2VByEwHe" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17942984661233135" placeholder="メモ（任意）"></article><article class="card" data-id="18120718193497487"><div class="meta"><span class="var">1g</span><span class="views">30,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>07/01 20:52</span><span>♥ -　💬 2</span></div>
-<p class="text">えっと…スレッズだけでマジで集客したい人はこの10選をぜひぜひパクっちゃってください。￼</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DaP8-xdk1oF" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18120718193497487" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam2"><span>型2</span> 語り手</h2><section id="t2a"><h3><b>2a</b> 予兆型 <small>19本 ／ 平均 41,708 ／ 最大 75,163</small></h3><div class="def"><pre class="skel">【フェーズ】が始まる直前はね、必ず【予兆】が起きるんだけど、って【語り手】が言ってて。
+時間と本数、これに固定してください。</li></ul></details></div></section><h2 class="fam" id="fam2"><span>型2</span> 語り手</h2><section id="t2a"><h3><b>2a</b> 予兆型 <small>19本 ／ 平均 41,709 ／ 最大 75,163</small></h3><div class="def"><pre class="skel">【フェーズ】が始まる直前はね、必ず【予兆】が起きるんだけど、って【語り手】が言ってて。
 （予兆を本文で隠す場合は「最初にこれが起きるんだよ」にしてコメント欄で開示）</pre><p class="surf"><b>業種で変わる部分</b> スピ系は【語り手】＝宇宙。Threadsなら＝アルゴリズム／Meta AI。医療なら＝主治医。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【フェーズ】</td><td>読者が「今そこか？」と確かめたくなる転換点</td><td>ステージが上がる前／お金が入り始める前／アカウントが伸び始める直前／シャドバンに入る前</td></tr><tr><td>【予兆】</td><td>転換点の直前に起きる小さなサイン。隠すか出すかは選べる</td><td>いいねが10件以上つく投稿が出る／フォロワー以外からのコメントが増える</td></tr><tr><td>【語り手】</td><td>断言の責任を預ける第三者</td><td>宇宙／アルゴリズム／Meta AI／主治医</td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「◯◯が始まる直前はね」という時間設定で、まだ結果が出ていない読者に「今がその直前かもしれない」と思わせる。結果が出ていない人の方が圧倒的に多いので、母数が最大になる。
@@ -822,7 +773,7 @@ h2.fam,section{scroll-margin-top:12px}
 <input class="memo" id="memo-DcN_uS1GhCS" placeholder="メモ（任意）"></article><article class="card" data-id="DcaykC5GrrZ"><div class="meta"><span class="var">2b</span><span class="views">22,187</span><span>@miko_mayaka</span><span>08/24 18:55</span><span>♥ 119　💬 2</span></div>
 <p class="text">宇宙はね「もう一度だけ本気で信じてみよう」って決めた人を見ると、こう言うんだって。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@miko_mayaka/post/DcaykC5GrrZ" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcaykC5GrrZ" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam3"><span>型3</span> あるある・根拠</h2><section id="t3a"><h3><b>3a</b> あるある→原因解説型 <small>19本 ／ 平均 61,646 ／ 最大 278,544</small></h3><div class="def"><pre class="skel">【対象】って【あるある行動】よね。あれ、原因がわかってるのでお伝えすると（解説はコメント欄）</pre>
+<input class="memo" id="memo-DcaykC5GrrZ" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam3"><span>型3</span> あるある・根拠</h2><section id="t3a"><h3><b>3a</b> あるある→原因解説型 <small>19本 ／ 平均 61,647 ／ 最大 278,544</small></h3><div class="def"><pre class="skel">【対象】って【あるある行動】よね。あれ、原因がわかってるのでお伝えすると（解説はコメント欄）</pre>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【対象】</td><td>読者が自分を含めて呼ぶ属性</td><td>ADHD／Threads／AIで書いた投稿</td></tr><tr><td>【あるある行動】</td><td>「わかる」と即答する現象。1文で</td><td>急に連絡を絶つ／閲覧が200で止まる／朝は伸びるのに夜は伸びない</td></tr><tr><td>【解説】</td><td>原因→だからこうする</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「◯◯って△△よね」で、当事者には「わかる」、非当事者にはスルーされる。狙った層だけが止まるので、コメントの質が高く会話が濃い。
 2. 「原因がわかってるのでお伝えすると」で、答えが用意されていることを契約する。あるあるだけなら共感で終わるが、この1語で続きを読む理由になる。
@@ -900,15 +851,11 @@ h2.fam,section{scroll-margin-top:12px}
 受け口の子ほど
 遊んでほしい理由があります。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@hanarabi.mama24/post/Dbto5hQGoEZ" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dbto5hQGoEZ" placeholder="メモ（任意）"></article></section><section id="t3b"><h3><b>3b</b> 権威の発言引用型 <small>8本 ／ 平均 59,193 ／ 最大 184,778</small></h3><div class="def"><pre class="skel">【権威】が【発表した／言ってた】、【対象】についての【事実】。何が変わるのかを話すと</pre>
+<input class="memo" id="memo-Dbto5hQGoEZ" placeholder="メモ（任意）"></article></section><section id="t3b"><h3><b>3b</b> 権威の発言引用型 <small>5本 ／ 平均 48,501 ／ 最大 78,316</small></h3><div class="def"><pre class="skel">【権威】が【発表した／言ってた】、【対象】についての【事実】。何が変わるのかを話すと</pre>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【権威】</td><td>肩書きか機関名</td><td>主治医／精神科医／◯◯大学／Meta公式／管理栄養士</td></tr><tr><td>【事実】</td><td>権威が言ったこと（一次情報）</td><td>尿の分子でADHDのタイプを分けられる／アルゴリズムが会話重視に変わった</td></tr><tr><td>【展開】</td><td>「何が変わるのか」「順に話していきます」</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「主治医いわく」「◯◯大学が発表」で、投稿者の意見ではなく外部の事実として提示する。反論されにくく、「◯◯が言ってた」がシェアの理由になる。
 2. 「何が変わるのかを話すと」で、事実の先にある自分への影響を予告する。事実だけなら読み流されるが、影響は知りたい。
-3. ニュース・時事と相性がいい。一次情報が出た日に出すと、その話題を探している人が流入する。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>Metaが公式に発表した、Threadsで表示が落ちる行動が3つあって</li><li>精神科医が、発達特性のある人に体力がない理由を5つ挙げてた。1つ目がいちばん納得したので順に話していきます</li></ul></details></div><article class="card" data-id="DcdZMl5oILF"><div class="meta"><span class="var">3b</span><span class="views">184,778</span><span>@mou__diet</span><span>08/25 19:11</span><span>♥ 123　💬 8</span></div>
-<p class="text">りんご酢はマジで恐ろしい液体です。
-管理栄養士的に、何が恐ろしいかというと……</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mou__diet/post/DcdZMl5oILF" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcdZMl5oILF" placeholder="メモ（任意）"></article><article class="card" data-id="DdAQFLxjnTU"><div class="meta"><span class="var">3b</span><span class="views">78,316</span><span>@rita_adhd</span><span>09/08 08:05</span><span>♥ 501　💬 7</span></div>
+3. ニュース・時事と相性がいい。一次情報が出た日に出すと、その話題を探している人が流入する。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>Metaが公式に発表した、Threadsで表示が落ちる行動が3つあって</li><li>精神科医が、発達特性のある人に体力がない理由を5つ挙げてた。1つ目がいちばん納得したので順に話していきます</li></ul></details></div><article class="card" data-id="DdAQFLxjnTU"><div class="meta"><span class="var">3b</span><span class="views">78,316</span><span>@rita_adhd</span><span>09/08 08:05</span><span>♥ 501　💬 7</span></div>
 <p class="text">浜松医科大が7月末に、尿の中の分子でADHDとASDのタイプを分けられると発表した。何が変わるのかを話していきます</p>
 <div class="row"><a class="link" href="https://www.threads.com/@rita_adhd/post/DdAQFLxjnTU" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
 <input class="memo" id="memo-DdAQFLxjnTU" placeholder="メモ（任意）"></article><article class="card" data-id="DcdS4p7oElA"><div class="meta"><span class="var">3b</span><span class="views">50,408</span><span>@rita_adhd</span><span>08/25 18:16</span><span>♥ 106　💬 4</span></div>
@@ -923,16 +870,7 @@ h2.fam,section{scroll-margin-top:12px}
 <input class="memo" id="memo-DdCnmapiU4I" placeholder="メモ（任意）"></article><article class="card" data-id="DbrEz5xmBXQ"><div class="meta"><span class="var">3b</span><span class="views">36,149</span><span>@rita_adhd</span><span>08/06 06:11</span><span>♥ 56　💬 3</span></div>
 <p class="text">主治医いわく、ADHDが絶対やめとくべき習慣が3つあって、1個でも当てはまると二次障害まで一直線らしい。それが</p>
 <div class="row"><a class="link" href="https://www.threads.com/@rita_adhd/post/DbrEz5xmBXQ" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DbrEz5xmBXQ" placeholder="メモ（任意）"></article><article class="card" data-id="Dbfs1LUj1m5"><div class="meta"><span class="var">3b</span><span class="views">24,634</span><span>@yuka_cellbeauty</span><span>08/01 20:10</span><span>♥ 24　💬 2</span></div>
-<p class="text">「汗をかけば毒素が出る」というのは、実は違います。
-細胞科学の観点で解説すると、</p>
-<div class="row"><a class="link" href="https://www.threads.com/@yuka_cellbeauty/post/Dbfs1LUj1m5" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dbfs1LUj1m5" placeholder="メモ（任意）"></article><article class="card" data-id="Dbtr-Zpk2TH"><div class="meta"><span class="var">3b</span><span class="views">21,628</span><span>@biyoukamika</span><span>08/07 06:32</span><span>♥ 25　💬 3</span></div>
-<p class="text">IKKOさんが
-一昨日「ぽかぽか」で話していた
-夏の肌ケアは、</p>
-<div class="row"><a class="link" href="https://www.threads.com/@biyoukamika/post/Dbtr-Zpk2TH" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dbtr-Zpk2TH" placeholder="メモ（任意）"></article></section><section id="t3c"><h3><b>3c</b> 問いを投げた型 <small>4本 ／ 平均 48,168 ／ 最大 94,235</small></h3><div class="def"><pre class="skel">「【問い】」
+<input class="memo" id="memo-DbrEz5xmBXQ" placeholder="メモ（任意）"></article></section><section id="t3c"><h3><b>3c</b> 問いを投げた型 <small>2本 ／ 平均 57,162 ／ 最大 94,235</small></h3><div class="def"><pre class="skel">「【問い】」
 これ【AI／権威】に聞いたら、回答が衝撃で</pre>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【問い】</td><td>読者も聞きたい素朴な疑問</td><td>なんでInstagramよりThreadsの方が集客しやすいの？</td></tr><tr><td>【AI／権威】</td><td>Meta AI／ChatGPT／専門家</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 読者も聞きたかった問いを、投稿者が代わりに投げている。読者は「自分の代わりに聞いてくれた」と感じ、答えを一緒に待つ。
@@ -943,20 +881,7 @@ h2.fam,section{scroll-margin-top:12px}
 
 これMeta AIに聞いたら、回答が衝撃で</p>
 <div class="row"><a class="link" href="https://www.threads.com/@kudooo_ai/post/DdBXm6HlqXz" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DdBXm6HlqXz" placeholder="メモ（任意）"></article><article class="card" data-id="DcHaPHykqtt"><div class="meta"><span class="var">3c</span><span class="views">53,561</span><span>@akirauchiyama_saa</span><span>08/17 06:17</span><span>♥ 138　💬 23</span></div>
-<p class="text">あの〜これ聞かれたんですけど。
-
-「断熱、断熱って言うけど、そもそも日本の住宅って、なんで海外に比べてこんなに断熱性能が低いんですか？」
-
-そう、これめっちゃ本質的な話ですげー大事。結論から言うと</p>
-<div class="row"><a class="link" href="https://www.threads.com/@akirauchiyama_saa/post/DcHaPHykqtt" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcHaPHykqtt" placeholder="メモ（任意）"></article><article class="card" data-id="Db9ICE7jZG4"><div class="meta"><span class="var">3c</span><span class="views">24,788</span><span>@akirauchiyama_saa</span><span>08/13 06:26</span><span>♥ 29　💬 5</span></div>
-<p class="text">断熱等級6になるとエアコン１台でいいっていうけど、締め切った個室とかどうすんの？ってよく聞かれます。
-
-エアコンの使い方がわかってないと、こう考え方て損します。
-それって</p>
-<div class="row"><a class="link" href="https://www.threads.com/@akirauchiyama_saa/post/Db9ICE7jZG4" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Db9ICE7jZG4" placeholder="メモ（任意）"></article><article class="card" data-id="Dc-d2dZFOeg"><div class="meta"><span class="var">3c</span><span class="views">20,089</span><span>@kudooo_ai</span><span>09/07 15:27</span><span>♥ 41　💬 1</span></div>
+<input class="memo" id="memo-DdBXm6HlqXz" placeholder="メモ（任意）"></article><article class="card" data-id="Dc-d2dZFOeg"><div class="meta"><span class="var">3c</span><span class="views">20,089</span><span>@kudooo_ai</span><span>09/07 15:27</span><span>♥ 41　💬 1</span></div>
 <p class="text">@meta.ai 
 なんで今は、InstagramよりもThreadsの方が集客しやすいの？</p>
 <div class="row"><a class="link" href="https://www.threads.com/@kudooo_ai/post/Dc-d2dZFOeg" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
@@ -988,7 +913,7 @@ h2.fam,section{scroll-margin-top:12px}
 
 10位→6位↓↓↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@rita_adhd/post/DcdmNWelukv" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcdmNWelukv" placeholder="メモ（任意）"></article></section><section id="t4b"><h3><b>4b</b> ◯選・第1位型 <small>8本 ／ 平均 44,606 ／ 最大 104,782</small></h3><div class="def"><pre class="skel">【対象】の【切り口】7選 ／ 【対象】の【切り口】 第1位</pre>
+<input class="memo" id="memo-DcdmNWelukv" placeholder="メモ（任意）"></article></section><section id="t4b"><h3><b>4b</b> ◯選・第1位型 <small>8本 ／ 平均 44,607 ／ 最大 104,782</small></h3><div class="def"><pre class="skel">【対象】の【切り口】7選 ／ 【対象】の【切り口】 第1位</pre>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【対象】</td><td></td><td></td></tr><tr><td>【切り口】</td><td>共通点／特徴／やってること</td><td></td></tr><tr><td>【数】</td><td>7選、5選、または「第1位」だけ</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「7選」「第1位」の数字で、読む前に量と構造がわかる。認知コストが低いので止まりやすい。
 2. 「第1位」だけを本文に置く超短文版は、1位が何かをコメント欄で見せる。本文が1行なので離脱がない。
@@ -1021,7 +946,7 @@ h2.fam,section{scroll-margin-top:12px}
 <input class="memo" id="memo-DdHxE1AHxI0" placeholder="メモ（任意）"></article><article class="card" data-id="DdKzCCvk70H"><div class="meta"><span class="var">4b</span><span class="views">20,067</span><span>@miko_mayaka</span><span>09/12 10:23</span><span>♥ 85　💬 2</span></div>
 <p class="text">魂が新しいステージに移った人だけに出る予兆3選</p>
 <div class="row"><a class="link" href="https://www.threads.com/@miko_mayaka/post/DdKzCCvk70H" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DdKzCCvk70H" placeholder="メモ（任意）"></article></section><section id="t4c"><h3><b>4c</b> 箇条書き列挙型 <small>11本 ／ 平均 44,637 ／ 最大 104,148</small></h3><div class="def"><pre class="skel">【対象】の【切り口】
+<input class="memo" id="memo-DdKzCCvk70H" placeholder="メモ（任意）"></article></section><section id="t4c"><h3><b>4c</b> 箇条書き列挙型 <small>9本 ／ 平均 39,700 ／ 最大 73,129</small></h3><div class="def"><pre class="skel">【対象】の【切り口】
 ・…
 ・…
 ・…（本文完結）</pre>
@@ -1032,14 +957,7 @@ h2.fam,section{scroll-margin-top:12px}
 ・本文にURL
 ・トピック設定
 ・1日1投稿
-・全部の文が同じ長さ</li></ul></details></div><article class="card" data-id="DcqWunIjSac"><div class="meta"><span class="var">4c</span><span class="views">104,148</span><span>@mou__diet</span><span>08/30 20:00</span><span>♥ 81　💬 1</span></div>
-<p class="text">体からの甘いものを摂りすぎだよサイン
-
-甘いものを摂りすぎると、単純に太ったり、砂糖依存になったり、最終的には糖尿病、などにつながることも💦
-
-こんなサインが出ていたら要注意↓</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mou__diet/post/DcqWunIjSac" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcqWunIjSac" placeholder="メモ（任意）"></article><article class="card" data-id="Dby-XCNjiYi"><div class="meta"><span class="var">4c</span><span class="views">73,129</span><span>@hattatsukaizenkei</span><span>08/09 07:49</span><span>♥ 1140　💬 13</span></div>
+・全部の文が同じ長さ</li></ul></details></div><article class="card" data-id="Dby-XCNjiYi"><div class="meta"><span class="var">4c</span><span class="views">73,129</span><span>@hattatsukaizenkei</span><span>08/09 07:49</span><span>♥ 1140　💬 13</span></div>
 <p class="text">お願いです。発達っ子のママ、メモって下さい。
 ・天然塩は「心の安定剤」
 ・にがり（塩化マグネシウム）は「癇癪ブレーキ液」
@@ -1078,11 +996,7 @@ h2.fam,section{scroll-margin-top:12px}
 
 1. 投稿時間が午後</p>
 <div class="row"><a class="link" href="https://www.threads.com/@kudooo_ai/post/Dc-9HIJFT8h" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dc-9HIJFT8h" placeholder="メモ（任意）"></article><article class="card" data-id="Dciru48oOph"><div class="meta"><span class="var">4c</span><span class="views">29,562</span><span>@mou__diet</span><span>08/27 20:30</span><span>♥ 41　💬 1</span></div>
-<p class="text">管理栄養士的に
-糖尿病まっしぐらのやばい食事は‥↓</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mou__diet/post/Dciru48oOph" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dciru48oOph" placeholder="メモ（任意）"></article><article class="card" data-id="DcFBMnCE6pK"><div class="meta"><span class="var">4c</span><span class="views">27,206</span><span>@hanarabi.mama24</span><span>08/16 08:00</span><span>♥ 45　💬 3</span></div>
+<input class="memo" id="memo-Dc-9HIJFT8h" placeholder="メモ（任意）"></article><article class="card" data-id="DcFBMnCE6pK"><div class="meta"><span class="var">4c</span><span class="views">27,206</span><span>@hanarabi.mama24</span><span>08/16 08:00</span><span>♥ 45　💬 3</span></div>
 <p class="text">受け口が気になる子。
 実は「歯」より先に
 見てほしいサインがあります。
@@ -1135,7 +1049,7 @@ h2.fam,section{scroll-margin-top:12px}
 
 🥇心が安定する朝食↓↓↓</p>
 <div class="row"><a class="link" href="https://www.threads.com/@hattatsukaizenkei/post/DdFOAWnAPO7" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DdFOAWnAPO7" placeholder="メモ（任意）"></article></section><section id="t4e"><h3><b>4e</b> ロードマップ型「①だけ見せて切る」 <small>2本 ／ 平均 78,000 ／ 最大 110,000</small></h3><div class="def"><pre class="skel">【期限】で【金額・結果】欲しかったら、これだけをガチでやる。
+<input class="memo" id="memo-DdFOAWnAPO7" placeholder="メモ（任意）"></article></section><section id="t4e"><h3><b>4e</b> ロードマップ型「①だけ見せて切る」 <small>掲載例 0本</small></h3><div class="def"><pre class="skel">【期限】で【金額・結果】欲しかったら、これだけをガチでやる。
 ① 【最初の1手】
 ②（本文はここで切る。②以降は自分のコメントで分割）</pre><p class="surf"><b>業種で変わる部分</b> 4a/4cとの違い: 番号付き手順で、①だけ本文に置いて②で切る。手順は「今日できる小さな1手」から始める。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【期限・結果】</td><td>1行目に金額と期限</td><td>3ヶ月後に100万／3ヶ月で50万／家賃くらいはタダ</td></tr><tr><td>【最初の1手】</td><td>誰でも今日できる具体行動</td><td>スレッズのアカウントを1個だけ作る／もう1つgmailを作る</td></tr><tr><td>【続き】</td><td>②〜⑦を自分のコメントに分割</td><td></td></tr></tbody></table>
@@ -1146,18 +1060,7 @@ h2.fam,section{scroll-margin-top:12px}
 ① 固定ポストを1本に絞る
 ②</li><li>Threadsを始めて最初の30日でやること。
 ① 朝6時台に1本出す
-②</li></ul></details></div><article class="card" data-id="18005553719921262"><div class="meta"><span class="var">4e</span><span class="views">110,000</span><span class="src">競合公開・丸め値</span><span>@yama_threads</span><span>06/12 11:03</span><span>♥ -　💬 3</span></div>
-<p class="text">これは生活の知恵なんですが、もう1つgmailを作ってスレッズに登録。『楽天アフィリエイト』から0円で取得できる美容か健康の商品URLを投稿に貼り付けてください。1万再生で約￥100~￥300。毎日5投稿を1ヶ月続けるだけで￥50,000くらいになるのでオススメ！！</p>
-<div class="row"><a class="link" href="https://www.threads.com/@yama_threads/post/DZd-b4Ik545" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18005553719921262" placeholder="メモ（任意）"></article><article class="card" data-id="18382051825227595"><div class="meta"><span class="var">4e</span><span class="views">46,000</span><span class="src">競合公開・丸め値</span><span>@yama_threads</span><span>09/21 19:30</span><span>♥ -　💬 0</span></div>
-<p class="text">もし3ヶ月後に100万欲しかったら
-これだけをガチでやる。
-
-① スレッズのアカウントを1個だけ作る
-
-②</p>
-<div class="row"><a class="link" href="https://www.threads.com/@yama_threads/post/Ddi8vJFm_FW" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18382051825227595" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam5"><span>型5</span> 損失・断言</h2><section id="t5a"><h3><b>5a</b> 損失通告型 <small>6本 ／ 平均 50,606 ／ 最大 140,262</small></h3><div class="def"><pre class="skel">あのー、【今やっている行動】、（マジで）損してます。
+②</li></ul></details></div></section><h2 class="fam" id="fam5"><span>型5</span> 損失・断言</h2><section id="t5a"><h3><b>5a</b> 損失通告型 <small>5本 ／ 平均 54,728 ／ 最大 140,262</small></h3><div class="def"><pre class="skel">あのー、【今やっている行動】、（マジで）損してます。
 【理由の予告】</pre>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【行動】</td><td>読者の大半が今やっていること。数字・固有名詞を入れる</td><td>ChatGPTに月3000円払ってて「プロジェクト」使ってない／リンクを本文に貼ってる</td></tr><tr><td>【損失の言い方】</td><td>損してます／マジで危険です／やめた方がいい</td><td></td></tr><tr><td>【前置き】</td><td>「あのー、」で本音感</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 損失回避は利得の訴求より強い。「◯◯すれば伸びる」より「◯◯してる人、損してます」の方が止まる。
@@ -1178,10 +1081,7 @@ h2.fam,section{scroll-margin-top:12px}
 
 だから、予約投稿がめっちゃ大事で使ってない人は伸びてないんですが</p>
 <div class="row"><a class="link" href="https://www.threads.com/@kudooo_aii/post/Dbw-5hUjtPr" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dbw-5hUjtPr" placeholder="メモ（任意）"></article><article class="card" data-id="18129448141625986"><div class="meta"><span class="var">5a</span><span class="views">30,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/26 20:56</span><span>♥ -　💬 1</span></div>
-<p class="text">あのー。まっじで適当な時間帯に投稿するのやめてください。スレッズ伸ばしたいなら一番伸びる時間帯を狙って投稿しないと意味なくて、ジャンル別にまとめたのでパクって使っちゃってください↓</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DaDFfnPj81s" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18129448141625986" placeholder="メモ（任意）"></article><article class="card" data-id="Dcmd8GBHYkw"><div class="meta"><span class="var">5a</span><span class="views">22,179</span><span>@kudooo_aii</span><span>08/29 07:46</span><span>♥ 34　💬 3</span></div>
+<input class="memo" id="memo-Dbw-5hUjtPr" placeholder="メモ（任意）"></article><article class="card" data-id="Dcmd8GBHYkw"><div class="meta"><span class="var">5a</span><span class="views">22,179</span><span>@kudooo_aii</span><span>08/29 07:46</span><span>♥ 34　💬 3</span></div>
 <p class="text">ChatGPTに月3000円払ってて「プロジェクト」使ってない人、マジで損してます</p>
 <div class="row"><a class="link" href="https://www.threads.com/@kudooo_aii/post/Dcmd8GBHYkw" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
 <input class="memo" id="memo-Dcmd8GBHYkw" placeholder="メモ（任意）"></article></section><section id="t5b"><h3><b>5b</b> 常識破壊・断言型 <small>9本 ／ 平均 34,741 ／ 最大 74,282</small></h3><div class="def"><pre class="skel">【常識・定説】は、マジで【恐ろしい／最悪／認識ズレてます】。
@@ -1217,152 +1117,20 @@ h2.fam,section{scroll-margin-top:12px}
 <input class="memo" id="memo-DdD4-D6kX0Q" placeholder="メモ（任意）"></article><article class="card" data-id="DcYHNJEoPgn"><div class="meta"><span class="var">5b</span><span class="views">21,121</span><span>@zakiyamadesu_0608</span><span>08/23 17:58</span><span>♥ 29　💬 4</span></div>
 <p class="text">最新AI「Gemini 3.7 Flash」発表。ChatGPT勢、マジで焦った方がいいです。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@zakiyamadesu_0608/post/DcYHNJEoPgn" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcYHNJEoPgn" placeholder="メモ（任意）"></article></section><section id="t5c"><h3><b>5c</b> 【参考】時事終了宣言・対策配布型 <small>13本 ／ 平均 106,076 ／ 最大 340,000</small></h3><div class="def"><p class="warn">参考（そのままの使用不可）: 元投稿は事実に基づかない断定です。景品表示法・信頼の両面でリスクがあるので、骨格だけを事実（Meta公式の変更点など）で置き換えて使ってください。</p><pre class="skel">【日付】になり【対象】が【終了・変更】しました。対策10個まとめます</pre><p class="surf"><b>業種で変わる部分</b> 元投稿（mon_guchi）は事実に基づかない断定で、そのままは使えない。骨格だけを事実（Meta公式の仕様変更など）で置き換えて使う。</p>
+<input class="memo" id="memo-DcYHNJEoPgn" placeholder="メモ（任意）"></article></section><section id="t5c"><h3><b>5c</b> 【参考】時事終了宣言・対策配布型 <small>掲載例 0本</small></h3><div class="def"><p class="warn">参考: 事実に基づかない断定は避けてください。景品表示法・信頼の両面でリスクがあるので、骨格だけを事実（Meta公式の変更点など）で置き換えて使ってください。</p><pre class="skel">【日付】になり【対象】が【終了・変更】しました。対策10個まとめます</pre><p class="surf"><b>業種で変わる部分</b> 事実に基づかない断定は使わず、骨格に事実（Meta公式の仕様変更など）を当てはめて使う。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【日付】</td><td>毎日更新して同じ本文を出し直す</td><td>7月になり／9月7日になり</td></tr><tr><td>【対象・終了】</td><td>読者全員に関係する変更</td><td>インスタ有料化／Threadsのアルゴリズム変更</td></tr><tr><td>【対策】</td><td>中身は全部コメント欄</td><td>対策10個まとめます</td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「〇月〇日になり」で今日の話に見せる。日付だけ替えて同じ本文を毎日出せる。
 2. 「完全に終了しました」の断定で、対象を使っている人全員が自分事になる。
 3. 「対策10個まとめます」で中身を全部コメント欄に置く。本文は宣言だけ。
-※元投稿は事実でない。骨格だけを事実で置き換える。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>9月〇日、Threadsの仕様が変わりました（Meta公式）。対策10個まとめます。</li></ul></details></div><article class="card" data-id="17969618988081557"><div class="meta"><span class="var">5c</span><span class="views">340,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/01 08:49</span><span>♥ -　💬 1</span></div>
-<p class="text">あのー、7月になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaOqM7BkyHm" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17969618988081557" placeholder="メモ（任意）"></article><article class="card" data-id="18110113700325154"><div class="meta"><span class="var">5c</span><span class="views">250,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/07 09:18</span><span>♥ -　💬 5</span></div>
-<p class="text">あー、９月７日になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Dc9znPaE8gr" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18110113700325154" placeholder="メモ（任意）"></article><article class="card" data-id="17968167651153977"><div class="meta"><span class="var">5c</span><span class="views">130,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/05 10:16</span><span>♥ -　💬 1</span></div>
-<p class="text">あー、９月になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Dc4wuC8ie9b" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17968167651153977" placeholder="メモ（任意）"></article><article class="card" data-id="18092780498206658"><div class="meta"><span class="var">5c</span><span class="views">110,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/04 13:56</span><span>♥ -　💬 0</span></div>
-<p class="text">あのー、7月になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaW70haia-K" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18092780498206658" placeholder="メモ（任意）"></article><article class="card" data-id="18040194887814959"><div class="meta"><span class="var">5c</span><span class="views">100,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/01 08:19</span><span>♥ -　💬 0</span></div>
-<p class="text">あのー、8月になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Dbebbo7E-y1" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18040194887814959" placeholder="メモ（任意）"></article><article class="card" data-id="17867935170643878"><div class="meta"><span class="var">5c</span><span class="views">86,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/09 09:31</span><span>♥ -　💬 0</span></div>
-<p class="text">え、９月９日になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DdC-tvoE3up" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17867935170643878" placeholder="メモ（任意）"></article><article class="card" data-id="18099793850464002"><div class="meta"><span class="var">5c</span><span class="views">80,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/08 09:03</span><span>♥ -　💬 2</span></div>
-<p class="text">あのー、7月になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DagtcB5k3O1" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18099793850464002" placeholder="メモ（任意）"></article><article class="card" data-id="18103750294996555"><div class="meta"><span class="var">5c</span><span class="views">73,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/25 09:10</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZ_P1dsE6Zb" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18103750294996555" placeholder="メモ（任意）"></article><article class="card" data-id="18135277996602101"><div class="meta"><span class="var">5c</span><span class="views">56,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/06 08:16</span><span>♥ -　💬 0</span></div>
-<p class="text">あのー、7月インスタ有料化しまして対策していない人全員フォロワー減りまくってましてまだ知らない人が居るのは良くないので対策まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Dabec8ekz5s" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18135277996602101" placeholder="メモ（任意）"></article><article class="card" data-id="18098168612215019"><div class="meta"><span class="var">5c</span><span class="views">50,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/14 10:58</span><span>♥ -　💬 0</span></div>
-<p class="text">あのー、7月になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DawXUgWiUGR" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18098168612215019" placeholder="メモ（任意）"></article><article class="card" data-id="18153163249487992"><div class="meta"><span class="var">5c</span><span class="views">38,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/08 07:58</span><span>♥ -　💬 2</span></div>
-<p class="text">本日、インスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DbwaqZyk7Wq" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18153163249487992" placeholder="メモ（任意）"></article><article class="card" data-id="18062993717784701"><div class="meta"><span class="var">5c</span><span class="views">36,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/17 08:15</span><span>♥ -　💬 0</span></div>
-<p class="text">９月１７日になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DdXcZ07E24t" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18062993717784701" placeholder="メモ（任意）"></article><article class="card" data-id="17935813776385903"><div class="meta"><span class="var">5c</span><span class="views">30,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/23 09:42</span><span>♥ -　💬 0</span></div>
-<p class="text">９月２３日になりインスタ有料化になり完全に終了しました。対策10個まとめます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DdnDCSRE6Y7" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17935813776385903" placeholder="メモ（任意）"></article></section><section id="t5d"><h3><b>5d</b> 【参考】禁止速報型（1行） <small>17本 ／ 平均 57,352 ／ 最大 130,000</small></h3><div class="def"><p class="warn">参考（そのままの使用不可）: 元投稿は事実に基づかない断定です。景品表示法・信頼の両面でリスクがあるので、骨格だけを事実（Meta公式の変更点など）で置き換えて使ってください。</p><pre class="skel">【対象】×【手段】が禁止になりました</pre><p class="surf"><b>業種で変わる部分</b> 本文1行。元投稿は事実でない断定。公式情報がある時だけ、事実の範囲で使う。</p>
+※元投稿は事実でない。骨格だけを事実で置き換える。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>9月〇日、Threadsの仕様が変わりました（Meta公式）。対策10個まとめます。</li></ul></details></div></section><section id="t5d"><h3><b>5d</b> 【参考】禁止速報型（1行） <small>掲載例 0本</small></h3><div class="def"><p class="warn">参考: 事実に基づかない断定は避けてください。景品表示法・信頼の両面でリスクがあるので、骨格だけを事実（Meta公式の変更点など）で置き換えて使ってください。</p><pre class="skel">【対象】×【手段】が禁止になりました</pre><p class="surf"><b>業種で変わる部分</b> 本文1行。元投稿は事実でない断定。公式情報がある時だけ、事実の範囲で使う。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【対象】</td><td>読者全員が使っているもの</td><td>インスタ／リール／Threads</td></tr><tr><td>【手段】</td><td>読者が今やっていること</td><td>AI／BGM／本文のリンク</td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 本文1行。「禁止になりました」だけで、その手段を使っている人全員が止まる。
 2. 短いので読むコストがゼロ。反論と確認のコメントが集まる。
-※元投稿は事実でない。公式情報がある時だけ使う。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>Threadsで、本文にリンクを貼った投稿が表示落ちの対象になりました（Meta公式）。</li></ul></details></div><article class="card" data-id="18168868525436807"><div class="meta"><span class="var">5d</span><span class="views">130,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/30 08:55</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ×AIが禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaMGHeIk2s6" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18168868525436807" placeholder="メモ（任意）"></article><article class="card" data-id="18111868262517641"><div class="meta"><span class="var">5d</span><span class="views">94,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/18 09:03</span><span>♥ -　💬 8</span></div>
-<p class="text">インスタ、AI禁止が発表されました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DdaGqYKE-hl" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18111868262517641" placeholder="メモ（任意）"></article><article class="card" data-id="18093221594379934"><div class="meta"><span class="var">5d</span><span class="views">90,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/28 08:56</span><span>♥ -　💬 3</span></div>
-<p class="text">リールにBGM使うの公式発表で禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DbUMiZjE3N2" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18093221594379934" placeholder="メモ（任意）"></article><article class="card" data-id="18120544885792037"><div class="meta"><span class="var">5d</span><span class="views">79,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/12 09:13</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ×ChatGPT(OpenAI)が禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DarByTEE0BK" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18120544885792037" placeholder="メモ（任意）"></article><article class="card" data-id="18346827193223537"><div class="meta"><span class="var">5d</span><span class="views">74,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/17 08:44</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタストーリーズが有料化されますお疲れ様でした</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DcHrFEfE99O" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18346827193223537" placeholder="メモ（任意）"></article><article class="card" data-id="18113725009851236"><div class="meta"><span class="var">5d</span><span class="views">73,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/09 09:00</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタ×AIが禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZWCARjk4uo" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18113725009851236" placeholder="メモ（任意）"></article><article class="card" data-id="18077123606462453"><div class="meta"><span class="var">5d</span><span class="views">62,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/22 08:05</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタストーリーズが有料化されますお疲れ様でした</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZ3aB8VkyDh" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18077123606462453" placeholder="メモ（任意）"></article><article class="card" data-id="18047034758815347"><div class="meta"><span class="var">5d</span><span class="views">44,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/11 08:46</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ×AIが禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DdIDMc8k5Cn" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18047034758815347" placeholder="メモ（任意）"></article><article class="card" data-id="18088105385142090"><div class="meta"><span class="var">5d</span><span class="views">43,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/20 08:12</span><span>♥ -　💬 0</span></div>
-<p class="text">リールにBGM使うの公式発表で禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Da_hJz4k28I" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18088105385142090" placeholder="メモ（任意）"></article><article class="card" data-id="17947184067053631"><div class="meta"><span class="var">5d</span><span class="views">41,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>09/02 09:07</span><span>♥ -　💬 1</span></div>
-<p class="text">9月インスタ禁止事項でた。リール再生1000回超えない人はこれ使えば一撃で超えます</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Dcw6Wbrk11X" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17947184067053631" placeholder="メモ（任意）"></article><article class="card" data-id="18137381308605835"><div class="meta"><span class="var">5d</span><span class="views">38,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/16 09:01</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタ×ChatGPT(OpenAI)が禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Da1ThEVE1la" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18137381308605835" placeholder="メモ（任意）"></article><article class="card" data-id="17933435667324267"><div class="meta"><span class="var">5d</span><span class="views">37,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/07 09:02</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ×AIが禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaeIeWbk3b7" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17933435667324267" placeholder="メモ（任意）"></article><article class="card" data-id="18121882003822688"><div class="meta"><span class="var">5d</span><span class="views">37,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/28 09:10</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタリールにBGM使うの公式発表で禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DckCw5IE7ks" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18121882003822688" placeholder="メモ（任意）"></article><article class="card" data-id="18085276430462699"><div class="meta"><span class="var">5d</span><span class="views">36,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/16 09:24</span><span>♥ -　💬 2</span></div>
-<p class="text">インスタ×AIが禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DcFKxL1E4wp" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18085276430462699" placeholder="メモ（任意）"></article><article class="card" data-id="17923954083164481"><div class="meta"><span class="var">5d</span><span class="views">34,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/24 08:24</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ×Claudeが禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DbJ1ttIk7gm" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17923954083164481" placeholder="メモ（任意）"></article><article class="card" data-id="17924437737404822"><div class="meta"><span class="var">5d</span><span class="views">32,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/19 08:30</span><span>♥ -　💬 5</span></div>
-<p class="text">インスタリールにBGM使うの公式発表で禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DcMy-eyE0cN" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17924437737404822" placeholder="メモ（任意）"></article><article class="card" data-id="18067662659566808"><div class="meta"><span class="var">5d</span><span class="views">31,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/26 08:57</span><span>♥ -　💬 0</span></div>
-<p class="text">AI×インスタが禁止になりました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Dce3tFnE1ck" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18067662659566808" placeholder="メモ（任意）"></article></section><section id="t5f"><h3><b>5f</b> 【参考】新ルール・放置で終了型 <small>14本 ／ 平均 91,285 ／ 最大 260,000</small></h3><div class="def"><p class="warn">参考（そのままの使用不可）: 元投稿は事実に基づかない断定です。景品表示法・信頼の両面でリスクがあるので、骨格だけを事実（Meta公式の変更点など）で置き換えて使ってください。</p><pre class="skel">【対象】が【変更】になり新ルールでました。放置すると【損失】</pre><p class="surf"><b>業種で変わる部分</b> 5a損失通告の強化版。元投稿は事実でない断定。事実の範囲で使う。</p>
+※元投稿は事実でない。公式情報がある時だけ使う。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>Threadsで、本文にリンクを貼った投稿が表示落ちの対象になりました（Meta公式）。</li></ul></details></div></section><section id="t5f"><h3><b>5f</b> 【参考】新ルール・放置で終了型 <small>掲載例 0本</small></h3><div class="def"><p class="warn">参考: 事実に基づかない断定は避けてください。景品表示法・信頼の両面でリスクがあるので、骨格だけを事実（Meta公式の変更点など）で置き換えて使ってください。</p><pre class="skel">【対象】が【変更】になり新ルールでました。放置すると【損失】</pre><p class="surf"><b>業種で変わる部分</b> 5a損失通告の強化版。元投稿は事実でない断定。事実の範囲で使う。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【変更】</td><td>読者全員に関係する変更</td><td>有料化／仕様変更</td></tr><tr><td>【損失】</td><td>放置した場合の結果</td><td>アカウント終わります／フォロワー減りまくってます</td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「新ルールでました」で情報の希少性、「放置すると終わります」で損失回避。5a損失通告の強化版。
 2. 同文を11回出して平均7万。再投稿の実例。
-※元投稿は事実でない。事実の範囲で使う。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>Threadsの仕様が変わりました。放置すると表示が落ちます（Meta公式の変更点はコメント欄）。</li></ul></details></div><article class="card" data-id="18324270337259546"><div class="meta"><span class="var">5f</span><span class="views">260,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/26 08:31</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置するとアカウント終わります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaBwKnLkwSv" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18324270337259546" placeholder="メモ（任意）"></article><article class="card" data-id="17874616656523249"><div class="meta"><span class="var">5f</span><span class="views">140,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/29 08:29</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタが有料になり昨日から無対策の人フォロワー減りまくってます、１０個だけしてほしいことがありまして</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaJeU-Ek0YL" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17874616656523249" placeholder="メモ（任意）"></article><article class="card" data-id="18038743670800081"><div class="meta"><span class="var">5f</span><span class="views">110,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/04 07:52</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ有料化によりストーリーズ新ルールでました</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZJCTAYEzsW" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18038743670800081" placeholder="メモ（任意）"></article><article class="card" data-id="17894036118500722"><div class="meta"><span class="var">5f</span><span class="views">100,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/17 09:06</span><span>♥ -　💬 4</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置すると完全終了になります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZqpGq_EzOi" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17894036118500722" placeholder="メモ（任意）"></article><article class="card" data-id="18084863645402579"><div class="meta"><span class="var">5f</span><span class="views">100,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/23 08:38</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタが有料になり昨日から無対策の人フォロワー減りまくってます、１０個だけしてほしいことがありまして</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZ6CreYk43J" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18084863645402579" placeholder="メモ（任意）"></article><article class="card" data-id="17901699531287785"><div class="meta"><span class="var">5f</span><span class="views">92,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/06 07:46</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置すると完全終了になります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZOLJrzEz4N" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17901699531287785" placeholder="メモ（任意）"></article><article class="card" data-id="17880575895663750"><div class="meta"><span class="var">5f</span><span class="views">90,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/15 08:43</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置すると完全終了になります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZlc0wyk8d_" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17880575895663750" placeholder="メモ（任意）"></article><article class="card" data-id="18458607802113628"><div class="meta"><span class="var">5f</span><span class="views">84,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/21 09:02</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置すると完全終了になります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZ07zX9kw-F" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18458607802113628" placeholder="メモ（任意）"></article><article class="card" data-id="18116236033849836"><div class="meta"><span class="var">5f</span><span class="views">68,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/03 08:46</span><span>♥ -　💬 0</span></div>
-<p class="text">昨日からインスタが有料になり無対策の人フォロワー減りまくってます、１０個だけしてほしいことがありまして</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaTzeNZk5fW" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18116236033849836" placeholder="メモ（任意）"></article><article class="card" data-id="18122863225738241"><div class="meta"><span class="var">5f</span><span class="views">67,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/11 08:58</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置するとアカウント終わります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DaobPdnE01f" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18122863225738241" placeholder="メモ（任意）"></article><article class="card" data-id="17937845262075870"><div class="meta"><span class="var">5f</span><span class="views">51,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>07/13 08:47</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタが有料になり昨日から無対策の人フォロワー減りまくってます、１０個だけしてほしいことがありまして</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DatjnIak_D0" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17937845262075870" placeholder="メモ（任意）"></article><article class="card" data-id="18102040607011300"><div class="meta"><span class="var">5f</span><span class="views">48,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>06/07 11:02</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタ有料化によりストーリーズ新ルールでました これ知らないとフォロワー数急に減ります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DZRGYljCbef" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18102040607011300" placeholder="メモ（任意）"></article><article class="card" data-id="17986676841047185"><div class="meta"><span class="var">5f</span><span class="views">38,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/10 09:01</span><span>♥ -　💬 0</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置するとアカウント終わります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/Db1rbhjE1nN" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-17986676841047185" placeholder="メモ（任意）"></article><article class="card" data-id="18103237052463969"><div class="meta"><span class="var">5f</span><span class="views">30,000</span><span class="src">競合公開・丸め値</span><span>@mon_guchi</span><span>08/18 08:20</span><span>♥ -　💬 1</span></div>
-<p class="text">インスタが有料になり新ルールでました 放置すると完全終了になります</p>
-<div class="row"><a class="link" href="https://www.threads.com/@mon_guchi/post/DcKNHxJE9Ng" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18103237052463969" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam6"><span>型6</span> 問いかけ</h2><section id="t6a"><h3><b>6a</b> 前提否定・問いかけ型 <small>8本 ／ 平均 100,284 ／ 最大 326,605</small></h3><div class="def"><pre class="skel">【常識・前提】。
+※元投稿は事実でない。事実の範囲で使う。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>Threadsの仕様が変わりました。放置すると表示が落ちます（Meta公式の変更点はコメント欄）。</li></ul></details></div></section><h2 class="fam" id="fam6"><span>型6</span> 問いかけ</h2><section id="t6a"><h3><b>6a</b> 前提否定・問いかけ型 <small>8本 ／ 平均 100,284 ／ 最大 326,605</small></h3><div class="def"><pre class="skel">【常識・前提】。
 そう思っていませんか？（超短文・1行4〜8文字・改行多用）</pre>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【常識・前提】</td><td>読者が疑っていない思い込み</td><td>矯正できるまで何もできない／フォロワーが増えてから集客</td></tr><tr><td>【問い】</td><td>そう思っていませんか？／知っていますか？</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 1行4〜8文字で改行を多用すると、画面の中で投稿が占める面積が大きくなり、物理的にスクロールが止まる。
@@ -1449,24 +1217,13 @@ h2.fam,section{scroll-margin-top:12px}
 お口が育ちやすいのは
 どっちだと思いますか？</p>
 <div class="row"><a class="link" href="https://www.threads.com/@hanarabi.mama24/post/DbndonVFdz3" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DbndonVFdz3" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam7"><span>型7</span> 体験ストーリー</h2><section id="t7a"><h3><b>7a</b> 体験ストーリー型 <small>7本 ／ 平均 92,726 ／ 最大 268,118</small></h3><div class="def"><pre class="skel">【数字付きの実体験の冒頭1行】。
+<input class="memo" id="memo-DbndonVFdz3" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam7"><span>型7</span> 体験ストーリー</h2><section id="t7a"><h3><b>7a</b> 体験ストーリー型 <small>4本 ／ 平均 52,476 ／ 最大 117,052</small></h3><div class="def"><pre class="skel">【数字付きの実体験の冒頭1行】。
 【予想外の展開の予告】（オチはコメント欄）</pre>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【実体験】</td><td>いつ・誰と・何年</td><td>7年通ってくださっていたお客様の最後のエステ／保育士3年目の時に5歳の女の子が</td></tr><tr><td>【予告】</td><td>理由を聞いて固まった／言われたことがあります</td><td></td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「7年通ってくださっていた」「保育士3年目の時に5歳の女の子が」のように、いつ・誰と・何年の数字が入ると、読者はフィクションと判断しない。
 2. 「理由を聞いて固まった」「言われたことがあります」で、この後に感情が動く場面があることだけを示し、オチをコメント欄に置く。
 3. 量産しにくいが平均が高い。他の型で集めた読者の信頼を固める役で、週1本が目安。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>昨日、Threads歴3ヶ月で月50リスト取ってる受講生と話したんですが、最初の1ヶ月は閲覧数が平均80でした。
-何を変えたかというと</li></ul></details></div><article class="card" data-id="DcqKsuqgd2F"><div class="meta"><span class="var">7a</span><span class="views">268,118</span><span>@kazumi_counseling</span><span>08/30 18:15</span><span>♥ 247　💬 12</span></div>
-<p class="text">仲良くなったお客様ほど、突然いなくなります。
-実は、3年通ってくださっていたお客様に言われたことがあります。</p>
-<div class="row"><a class="link" href="https://www.threads.com/@kazumi_counseling/post/DcqKsuqgd2F" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcqKsuqgd2F" placeholder="メモ（任意）"></article><article class="card" data-id="DbjiVneEloD"><div class="meta"><span class="var">7a</span><span class="views">139,361</span><span>@kazumi_counseling</span><span>08/03 07:55</span><span>♥ 720　💬 8</span></div>
-<p class="text">昨日、7年通ってくださっていたお客様の、最後のエステをしました。
-
-9月に退職されて、収入が減ってしまったので続けられないかもしれない、と2ヶ月前におっしゃっていました。今日で最後だと思って、感謝の気持ちを込めて施術をしました。
-
-いつもならここで、コースの説明をして「更新はどうされますか」と聞くと…</p>
-<div class="row"><a class="link" href="https://www.threads.com/@kazumi_counseling/post/DbjiVneEloD" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DbjiVneEloD" placeholder="メモ（任意）"></article><article class="card" data-id="DbsTbp8Fkz3"><div class="meta"><span class="var">7a</span><span class="views">117,052</span><span>@moya_mamawork</span><span>08/06 17:38</span><span>♥ 184　💬 2</span></div>
+何を変えたかというと</li></ul></details></div><article class="card" data-id="DbsTbp8Fkz3"><div class="meta"><span class="var">7a</span><span class="views">117,052</span><span>@moya_mamawork</span><span>08/06 17:38</span><span>♥ 184　💬 2</span></div>
 <p class="text">保育士3年目の時に5歳の女の子が、ニコニコしながら教えてくれた。
 
 「今度ね、おばあちゃんのお家に遊びに行くんだ」
@@ -1482,11 +1239,7 @@ h2.fam,section{scroll-margin-top:12px}
 
 少しずつ変化が始まりました。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@hanarabi.mama24/post/DcI8-3ioLE_" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcI8-3ioLE_" placeholder="メモ（任意）"></article><article class="card" data-id="DcibcvICZWq"><div class="meta"><span class="var">7a</span><span class="views">31,699</span><span>@biyoukamika</span><span>08/27 18:07</span><span>♥ 545　💬 48</span></div>
-<p class="text">15年ぶりのビキニ宣言、
-今日決行します！</p>
-<div class="row"><a class="link" href="https://www.threads.com/@biyoukamika/post/DcibcvICZWq" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-DcibcvICZWq" placeholder="メモ（任意）"></article><article class="card" data-id="DcUQuAhGcH8"><div class="meta"><span class="var">7a</span><span class="views">28,275</span><span>@yoko_gemqueen</span><span>08/22 06:04</span><span>♥ 40　💬 2</span></div>
+<input class="memo" id="memo-DcI8-3ioLE_" placeholder="メモ（任意）"></article><article class="card" data-id="DcUQuAhGcH8"><div class="meta"><span class="var">7a</span><span class="views">28,275</span><span>@yoko_gemqueen</span><span>08/22 06:04</span><span>♥ 40　💬 2</span></div>
 <p class="text">正直に言います。
 ジュエラーになってから、自分では選ばなくなった宝石があります。</p>
 <div class="row"><a class="link" href="https://www.threads.com/@yoko_gemqueen/post/DcUQuAhGcH8" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
@@ -1497,19 +1250,14 @@ h2.fam,section{scroll-margin-top:12px}
 
 って7年前まで思っていたのが私たち夫婦です( ﾟДﾟ)</p>
 <div class="row"><a class="link" href="https://www.threads.com/@hattatsukaizenkei/post/Dc494RMiEzj" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-Dc494RMiEzj" placeholder="メモ（任意）"></article></section><section id="t7b"><h3><b>7b</b> 実績速報・今やれ型 <small>1本 ／ 平均 41,000 ／ 最大 41,000</small></h3><div class="def"><pre class="skel">【驚きの一言】！！！
+<input class="memo" id="memo-Dc494RMiEzj" placeholder="メモ（任意）"></article></section><section id="t7b"><h3><b>7b</b> 実績速報・今やれ型 <small>掲載例 0本</small></h3><div class="def"><pre class="skel">【驚きの一言】！！！
 【今日の実績（数字）】んだけど！！！
 やるなら今</pre><p class="surf"><b>業種で変わる部分</b> 7a体験ストーリーとの違い: 数字入りの速報を1〜3行で。オチも仕組み説明もない。勢いと数字だけ。</p>
 <table><thead><tr><th>スロット</th><th>何を入れるか</th><th>例</th></tr></thead><tbody><tr><td>【驚き】</td><td>1語の感嘆</td><td>ねぇぇ！！／えっぐい／激アツ</td></tr><tr><td>【実績】</td><td>今日・昨日の数字</td><td>1日でフォロワー500人／昨日の投稿だけで150人／250名集客</td></tr><tr><td>【今やれ】</td><td></td><td>やるなら絶対今</td></tr></tbody></table>
 <details class="hyp" open><summary>なぜこの型が伸びるのか（トムの仮説）</summary><div class="hypbody">1. 「1日で500人」の数字が、この場所が今伸びていることの証拠になる。仕組みの説明がなくても止まる。
 2. 感嘆の1語と「！！！」で勢いを出し、読む側も反応しやすい。コメントが「すごい」「私も」で集まる。
 3. 市場が伸びている時期だけ効く。6月に集中し、9月は1万止まり。</div></details><details open><summary>工藤さん版（そのまま投稿できる形）</summary><ul class="mine"><li>7000人、超えました。
-何を変えたかというと</li></ul></details></div><article class="card" data-id="18128792548717952"><div class="meta"><span class="var">7b</span><span class="views">41,000</span><span class="src">競合公開・丸め値</span><span>@threads_shukyaku</span><span>06/08 21:27</span><span>♥ -　💬 11</span></div>
-<p class="text">本っっっ当にスレッズ適当に呟いてる人多すぎて、勿体無いなさすぎるってー！！！！
-私はスレッズの発信ガチったら250名以上集客できた。
-やるなら絶対今だよー！！！！！</p>
-<div class="row"><a class="link" href="https://www.threads.com/@threads_shukyaku/post/DZUyt1Gk8Iq" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
-<input class="memo" id="memo-18128792548717952" placeholder="メモ（任意）"></article></section><h2 class="fam" id="fam0"><span>型0</span> 未分類</h2><section id="t0z"><h3><b>0z</b> 未分類 <small>1本 ／ 平均 33,490 ／ 最大 33,490</small></h3><p class="why">型に入らなかった投稿（告知など）。</p><article class="card" data-id="DchGU-vkw2o"><div class="meta"><span class="var">0z</span><span class="views">33,490</span><span>@hanarabi.mama24</span><span>08/27 05:43</span><span>♥ 9　💬 0</span></div>
+何を変えたかというと</li></ul></details></div></section><h2 class="fam" id="fam0"><span>型0</span> 未分類</h2><section id="t0z"><h3><b>0z</b> 未分類 <small>1本 ／ 平均 33,490 ／ 最大 33,490</small></h3><p class="why">型に入らなかった投稿（告知など）。</p><article class="card" data-id="DchGU-vkw2o"><div class="meta"><span class="var">0z</span><span class="views">33,490</span><span>@hanarabi.mama24</span><span>08/27 05:43</span><span>♥ 9　💬 0</span></div>
 <p class="text">＼1000名以上のママが受け取った🦷／
 
 豪華2大特典配布中‼️
@@ -1529,19 +1277,30 @@ h2.fam,section{scroll-margin-top:12px}
 受け口攻略B…</p>
 <div class="row"><a class="link" href="https://www.threads.com/@hanarabi.mama24/post/DchGU-vkw2o" target="_blank" rel="noopener">元投稿を開く ↗</a><div class="judge"><button type="button" data-v="o">○ 合ってる</button><button type="button" data-v="x">× 違う</button><button type="button" data-v="q">? 別の型</button></div></div>
 <input class="memo" id="memo-DchGU-vkw2o" placeholder="メモ（任意）"></article></section></main></div><script>
+const tocToggle=document.getElementById('toc-toggle');
+const tocContent=document.getElementById('toc-content');
+function setTocCollapsed(collapsed){
+ document.body.classList.toggle('toc-collapsed',collapsed);
+ tocContent.hidden=collapsed;
+ tocToggle.setAttribute('aria-expanded',String(!collapsed));
+ const label=collapsed?'目次を開く':'目次を閉じる';
+ tocToggle.setAttribute('aria-label',label);tocToggle.title=label;
+ tocToggle.querySelector('.toc-label').textContent=label;
+}
+let tocCollapsed=false;try{tocCollapsed=localStorage.getItem('kata-toc-collapsed')==='1'}catch(e){}
+setTocCollapsed(tocCollapsed);
+tocToggle.onclick=()=>{tocCollapsed=!tocCollapsed;setTocCollapsed(tocCollapsed);try{localStorage.setItem('kata-toc-collapsed',tocCollapsed?'1':'0')}catch(e){}};
 const KEY='kata-review-v4';let st={};try{st=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
 const cards=[...document.querySelectorAll('.card')];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
 function paint(c){const s=st[c.dataset.id]||{};c.classList.remove('o','x','q');if(s.v)c.classList.add(s.v);c.querySelector('.memo').value=s.m||'';}
-function count(){const n=Object.values(st).filter(s=>s.v).length;document.getElementById('cnt').textContent=`判定済み ${n} / ${cards.length}`}
-cards.forEach(c=>{paint(c);c.querySelectorAll('.judge button').forEach(b=>b.onclick=()=>{const id=c.dataset.id;st[id]=st[id]||{};st[id].v=st[id].v===b.dataset.v?'':b.dataset.v;save();paint(c);count()});c.querySelector('.memo').oninput=e=>{const id=c.dataset.id;st[id]=st[id]||{};st[id].m=e.target.value;save()}});
-count();
+cards.forEach(c=>{paint(c);c.querySelectorAll('.judge button').forEach(b=>b.onclick=()=>{const id=c.dataset.id;st[id]=st[id]||{};st[id].v=st[id].v===b.dataset.v?'':b.dataset.v;save();paint(c)});c.querySelector('.memo').oninput=e=>{const id=c.dataset.id;st[id]=st[id]||{};st[id].m=e.target.value;save()}});
 const _exp=document.getElementById('exp');if(_exp)_exp.onclick=()=>{const lines=[];cards.forEach(c=>{const s=st[c.dataset.id]||{};if(!s.v&&!s.m)return;const m=c.querySelector('.meta').children;lines.push(`[${s.v||' '}] ${m[0].textContent} | ${m[1].textContent} | ${m[2].textContent} | ${c.querySelector('.link').href}${s.m?' | '+s.m:''}`)});const o=document.getElementById('out');o.hidden=false;o.value=lines.join('\n')||'（判定なし）';o.select()};
-const _clr=document.getElementById('clr');if(_clr)_clr.onclick=()=>{if(!Object.keys(st).length)return;st={};save();cards.forEach(paint);count()};
+const _clr=document.getElementById('clr');if(_clr)_clr.onclick=()=>{if(!Object.keys(st).length)return;st={};save();cards.forEach(paint)};
 
 (function(){const links=[...document.querySelectorAll('#toc a')];const map={};links.forEach(a=>map[a.getAttribute('href').slice(1)]=a);
 const targets=[...document.querySelectorAll('h2.fam[id],section[id]')];
 function setActive(){let cur=null,fam=null;const y=window.scrollY+40;targets.forEach(t=>{if(t.offsetTop<=y)cur=t});if(!cur)cur=targets[0];
- links.forEach(a=>a.classList.remove('active'));if(!cur)return;const a=map[cur.id];if(a){a.classList.add('active');const f=a.closest('li.f');if(f){f.querySelector(':scope>a').classList.add('active');const r=a.getBoundingClientRect(),t=document.getElementById('toc').getBoundingClientRect();if(r.top<t.top||r.bottom>t.bottom)a.scrollIntoView({block:'nearest'})}}}
+ links.forEach(a=>a.classList.remove('active'));if(!cur)return;const a=map[cur.id];if(a){a.classList.add('active');const f=a.closest('li.f');if(f){f.querySelector(':scope>a').classList.add('active');const r=a.getBoundingClientRect(),t=document.getElementById('toc').getBoundingClientRect();if(!tocCollapsed&&window.matchMedia('(min-width:821px)').matches){const toc=document.getElementById('toc');if(r.top<t.top)toc.scrollTop+=r.top-t.top;else if(r.bottom>t.bottom)toc.scrollTop+=r.bottom-t.bottom}}}}
 let tick=false;window.addEventListener('scroll',()=>{if(!tick){requestAnimationFrame(()=>{setActive();tick=false});tick=true}});setActive();})();
 </script></body></html>

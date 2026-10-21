@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import { hash, ReceiptError, validateInput } from '../receipts/domain';
+import { contractPrice, type BasePlan } from './pricing';
 
 export const LME_ACCOUNT = 'ayMWXmQQrGQP';
 export const COMPLETION_TAG = 2561289;
@@ -49,12 +50,16 @@ export function parseApplication(friend: Friend, now = new Date()): Application 
   const methods: Record<string, Application['method']> = { '590321': 'card', '590323': 'bank', '590325': 'mixed', 'カード決済': 'card', '銀行振込': 'bank', 'カードと銀行振込の併用': 'mixed' };
   const method = methods[str(FIELDS.method)];
   if (!method) throw new ReceiptError('お支払い方法を選択してください。');
-  const contractAmount = money(FIELDS.contractAmount), paidAmount = money(FIELDS.paidAmount);
+  const successAmount = plan === '特別プラン' ? money(FIELDS.successAmount, true) : 0;
+  const contractAmount = plan === '特別プラン'
+    ? money(FIELDS.initialAmount) + successAmount
+    : contractPrice(plan as BasePlan, method === 'bank');
+  const paidAmount = plan === '特別プラン' ? money(FIELDS.initialAmount) : contractAmount;
   const bankAmount = method === 'mixed' ? money(FIELDS.bankAmount) : method === 'bank' ? paidAmount : 0;
   const cardAmount = method === 'mixed' ? money(FIELDS.cardAmount) : method === 'card' ? paidAmount : 0;
   if (bankAmount + cardAmount !== paidAmount || paidAmount > contractAmount) throw new ReceiptError('支払金額と内訳・契約金額が一致していません。');
   const initialAmount = plan === '特別プラン' ? money(FIELDS.initialAmount) : contractAmount;
-  const successAmount = plan === '特別プラン' ? money(FIELDS.successAmount, true) : 0;
+  if (plan === '特別プラン' && ![contractPrice('スタンダード', false), contractPrice('プレミアム', false)].includes(contractAmount)) throw new ReceiptError('初期費用と成果報酬の合計を確認してください。契約総額は100万円または200万円です。');
   if (initialAmount + successAmount !== contractAmount || paidAmount !== initialAmount) throw new ReceiptError('初期金額・成果報酬・今回の支払金額を確認してください。');
   const input = validateInput({ name: str(-1) || friend.system_name, email: str(-3) || friend.email, address: '', paidDate: str(FIELDS.paidDate).replaceAll('/', '-'), method: bankAmount ? 'bank' : 'card' }, now);
   const address = [-7, -6, -8, -9, -10].map(str).filter(Boolean).join(' ');

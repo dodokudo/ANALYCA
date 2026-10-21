@@ -14,6 +14,25 @@ const transporter = nodemailer.createTransport({
 const FROM_ADDRESS = 'ANALYCA <info@analyca.jp>';
 const ADMIN_NOTIFICATION_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || 'kudo@teckneat.com';
 
+export async function sendReceiptDocumentsEmail(
+  to: string,
+  text: string,
+  attachments: { filename: string; content: Buffer; contentType: string }[],
+  issuanceId: string,
+): Promise<void> {
+  const info = await transporter.sendMail({
+    from: 'Threads×AIマスター講座 運営事務局 <info@analyca.jp>',
+    to,
+    subject: '領収書のご送付｜Threads×AIマスター講座',
+    text,
+    attachments,
+    messageId: `<receipt-${issuanceId}@analyca.jp>`,
+  });
+  if (!info.accepted?.length || info.rejected?.length) {
+    throw Object.assign(new Error('Receipt email was not accepted'), { code: 'EENVELOPE' });
+  }
+}
+
 function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || 'https://analyca.jp';
 }

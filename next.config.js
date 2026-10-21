@@ -5,6 +5,8 @@ const { withSentryConfig } = require("@sentry/nextjs");
 const nextConfig = {
   serverExternalPackages: ["@ffprobe-installer/ffprobe"],
   outputFileTracingIncludes: {
+    "/api/receipts": ["./lib/receipts/fonts/*"],
+    "/api/cron/receipts": ["./lib/receipts/fonts/*"],
     "/api/sync/instagram/reels": ["./node_modules/@ffprobe-installer/**/*"],
     "/api/templates/threads": ["./lib/templates/threads-kata.html"],
   },

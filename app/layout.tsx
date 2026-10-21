@@ -67,7 +67,10 @@ export default function RootLayout({
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
-              gtag('config', '${GA_MEASUREMENT_ID}');
+              // Signed document links must not be included in analytics URLs.
+              if (!window.location.pathname.startsWith('/receipts/download/')) {
+                gtag('config', '${GA_MEASUREMENT_ID}');
+              }
             `,
           }}
         />

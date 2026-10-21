@@ -21,6 +21,8 @@ import OptionDashboard, {
 } from './components/option-dashboard';
 import LinkRegistrationTab from './components/link-registration-tab';
 import ResearchTab from './components/research-tab';
+import TemplatesTab from './components/templates-tab';
+import { isTemplateAllowed } from '@/lib/template-access';
 import { isResearchAllowed } from '@/lib/research-access';
 import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/plans';
 import { safeLocalStorage, safeSessionStorage } from '@/lib/safe-storage';
@@ -95,6 +97,15 @@ function ResearchIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+function TemplateIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="3" width="16" height="18" rx="2" strokeWidth={2} />
+      <path d="M8 7h8M8 11h8M8 15h5" strokeWidth={2} strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ThreadsIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -122,7 +133,7 @@ function SidebarToggleIcon() {
 }
 
 // ============ 型定義 ============
-type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate' | 'options' | 'research';
+type Channel = 'instagram' | 'threads' | 'settings' | 'affiliate' | 'options' | 'research' | 'templates';
 
 type DatePreset = '3d' | '7d' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | 'custom';
 
@@ -922,6 +933,14 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
         locked: false,
       });
     }
+    if (isTemplateAllowed(userId)) {
+      items.push({
+        value: 'templates',
+        label: 'テンプレート',
+        Icon: TemplateIcon,
+        locked: false,
+      });
+    }
     return items;
   }, [planId, userId]);
 
@@ -944,6 +963,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
 
   // アクティブチャンネル（Threadsが利用可能ならThreadsをデフォルトにする）
   const activeChannel = useMemo((): Channel => {
+    if (tabParam === 'templates' && isTemplateAllowed(userId)) return 'templates';
     if (tabParam === 'settings') return 'settings';
     if (tabParam === 'threads') return 'threads';
     if (tabParam === 'instagram') return userId === YOKO_ANALYCA_USER_ID ? 'threads' : 'instagram';
@@ -1331,6 +1351,9 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
           )}
           {activeChannel === 'research' && isResearchAllowed(userId) && (
             <ResearchTab userId={userId} />
+          )}
+          {activeChannel === 'templates' && isTemplateAllowed(userId) && (
+            <TemplatesTab userId={userId} />
           )}
           {activeChannel === 'options' && (
             <OptionDashboard

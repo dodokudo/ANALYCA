@@ -5,6 +5,11 @@ export type PaymentMethod = 'bank' | 'card';
 export type DocumentKind = 'receipt' | 'invoice';
 export type ReceiptInput = { name: string; email: string; address: string; paidDate: string; method: PaymentMethod };
 export type Issue = ReceiptInput & {
+  productName?: string;
+  applicationId?: string;
+  bankAmount?: number;
+  cardAmount?: number;
+  invoiceAmount?: number;
   sample?: boolean;
   id: string; issuedDate: string; createdAt: string; number: string; amount: number;
   documents: Partial<Record<DocumentKind, { path: string; filename: string; driveId?: string }>>;
@@ -68,5 +73,5 @@ export function validDownloadToken(id: string, token: string): boolean {
 }
 export function emailText(issue: Issue): string {
   const documents = issue.method === 'bank' ? '領収書と請求書' : '領収書';
-  return `${issue.sample ? '【システム動作確認】添付PDFは見本です。実際のお取引・会計書類ではありません。\n\n' : ''}${issue.name} 様\n\nこのたびは、${COURSE_NAME}へのご参加ありがとうございます。\n\n${documents}をPDFで添付しておりますので、ご確認ください。\n${issue.method === 'bank' ? '\nなお、すでにお振り込みいただいておりますので、請求書は保管用としてお受け取りください。追加のお支払いやお手続きは不要です。\n' : ''}\n大切に保管していただけますと幸いです。\n\n株式会社DoDo\n${COURSE_NAME} 運営事務局`;
+  return `${issue.sample ? '【システム動作確認】添付PDFは見本です。実際のお取引・会計書類ではありません。\n\n' : ''}${issue.name} 様\n\nこのたびは、${issue.productName || COURSE_NAME}へのご参加ありがとうございます。\n\n${documents}をPDFで添付しておりますので、ご確認ください。\n${issue.method === 'bank' ? '\nなお、すでにお振り込みいただいておりますので、請求書は保管用としてお受け取りください。追加のお支払いやお手続きは不要です。\n' : ''}\n大切に保管していただけますと幸いです。\n\n株式会社DoDo\n${issue.productName || COURSE_NAME} 運営事務局`;
 }

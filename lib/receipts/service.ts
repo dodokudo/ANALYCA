@@ -50,7 +50,7 @@ export async function deliverIssue(id: string): Promise<Issue> {
     if (issue.mail === 'pending' || issue.mail === 'failed') {
       issue.mail = 'sending'; await persist(issue);
       try {
-        await sendReceiptDocumentsEmail(issue.email, emailText(issue), attachments, id, issue.sample);
+        await sendReceiptDocumentsEmail(issue.email, emailText(issue), attachments, id, issue.sample, issue.productName);
         issue.mail = 'sent'; issue.mailedAt = new Date().toISOString();
       } catch (e) {
         const code = (e as { code?: string }).code;
@@ -85,16 +85,19 @@ export async function deliverIssue(id: string): Promise<Issue> {
     return issue;
   });
 }
-export async function issueDocuments(input: ReceiptInput, sample = false): Promise<Issue> {
-  const id = sample ? hash(`sample:${issueId(input)}`) : issueId(input);
+export type CourseIssuance = { applicationId: string; amount: number; productName: string; bankAmount: number; cardAmount: number };
+export async function issueDocuments(input: ReceiptInput, sample = false, course?: CourseIssuance): Promise<Issue> {
+  if (course && (!/^[a-f0-9]{64}$/.test(course.applicationId) || !Number.isSafeInteger(course.amount) || course.amount < 1 || course.amount > 10_000_000 || !Number.isSafeInteger(course.bankAmount) || !Number.isSafeInteger(course.cardAmount) || course.bankAmount < 0 || course.cardAmount < 0 || course.bankAmount + course.cardAmount !== course.amount || (input.method === 'bank') !== (course.bankAmount > 0) || !course.productName || course.productName.length > 60)) throw new ReceiptError('書類発行内容が正しくありません。');
+  const baseId = course ? hash(`application:${course.applicationId}`) : issueId(input);
+  const id = sample ? hash(`sample:${baseId}`) : baseId;
   return withLock(`issue-${id}`, async () => {
     const existing = await readRecord<Issue>(issueKey(id));
     let issue: Issue;
     if (existing) {
       issue = existing.value;
-      if (existing.value.name !== input.name || existing.value.address !== input.address) throw new ReceiptError('このお支払いの書類は発行済みです。宛名・住所の訂正は運営事務局へご連絡ください。', 409);
+      if (existing.value.name !== input.name || existing.value.address !== input.address || (course && (existing.value.amount !== course.amount || existing.value.email !== input.email || existing.value.paidDate !== input.paidDate || existing.value.bankAmount !== course.bankAmount || existing.value.cardAmount !== course.cardAmount || existing.value.productName !== course.productName))) throw new ReceiptError('このお支払いの書類は発行済みです。宛名・住所の訂正は運営事務局へご連絡ください。', 409);
     } else {
-      issue = { ...input, id, sample, issuedDate: jstDate(), createdAt: new Date().toISOString(), number: `${sample ? 'TEST-' : ''}${jstDate().replaceAll('-', '')}-${randomBytes(6).toString('hex').toUpperCase()}`, amount: amountFor(input.method), documents: {}, mail: 'pending' };
+      issue = { ...input, id, sample, issuedDate: jstDate(), createdAt: new Date().toISOString(), number: `${sample ? 'TEST-' : ''}${jstDate().replaceAll('-', '')}-${randomBytes(6).toString('hex').toUpperCase()}`, amount: course?.amount ?? amountFor(input.method), ...(course ? { applicationId: course.applicationId, productName: course.productName, bankAmount: course.bankAmount, cardAmount: course.cardAmount, invoiceAmount: course.bankAmount } : {}), documents: {}, mail: 'pending' };
       // Queue first: a stopped request can safely resume using the same issuance ID.
       await writeRecord(`pending/${id}.json`, { id }).catch(e => { if (e.code !== 412) throw e; });
       await writeRecord(issueKey(id), issue);

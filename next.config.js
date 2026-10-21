@@ -7,6 +7,8 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/api/receipts": ["./lib/receipts/fonts/*"],
     "/api/cron/receipts": ["./lib/receipts/fonts/*"],
+    "/api/webhooks/lme": ["./lib/receipts/fonts/*"],
+    "/api/cron/course-applications": ["./lib/receipts/fonts/*"],
     "/api/sync/instagram/reels": ["./node_modules/@ffprobe-installer/**/*"],
     "/api/templates/threads": ["./lib/templates/threads-kata.html"],
   },

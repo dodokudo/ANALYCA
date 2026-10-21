@@ -231,19 +231,6 @@ export default function RankingView({ data }: { data: RankingData }) {
               />
             </div>
           ) : null}
-          {data.events.length > 1 ? (
-            <select
-              value={data.event.eventId}
-              onChange={(event) => router.push(`/threads-grandprix/ranking?event=${encodeURIComponent(event.target.value)}`)}
-              className="mt-4 w-full rounded-xl border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold text-white outline-none"
-            >
-              {data.events.map((event) => (
-                <option key={event.eventId} value={event.eventId} className="text-[#102033]">
-                  {event.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
         </section>
 
         <section className="-mt-4 rounded-t-[28px] bg-[#fff8e9] px-4 pb-8 pt-5">

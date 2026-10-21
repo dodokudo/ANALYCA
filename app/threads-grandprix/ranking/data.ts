@@ -495,7 +495,7 @@ type CacheEntry = {
   promise: Promise<RankingData>;
 };
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 30 * 1000;
 const rankingCache = new Map<string, CacheEntry>();
 
 export async function getGrandprixRankingData(

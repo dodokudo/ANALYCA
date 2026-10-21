@@ -23,7 +23,7 @@ export async function sendReceiptDocumentsEmail(
   productName = 'Threads×AIマスター講座',
 ): Promise<void> {
   const info = await transporter.sendMail({
-    from: { name: `${productName} 運営事務局`, address: 'info@analyca.jp' },
+    from: { name: '株式会社DoDo 工藤', address: 'info@analyca.jp' },
     to,
     subject: `${sample ? '【動作確認・見本】' : ''}領収書のご送付｜${productName}`,
     text,

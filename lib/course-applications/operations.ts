@@ -17,15 +17,15 @@ export function operationsMessage(app: Application) {
   const period = contractPeriod(app);
   const method = { bank: '銀行振込', card: 'カード決済', mixed: '銀行振込とカード決済の併用' }[app.method];
   return [
-    '契約が発生しました', '',
+    '【契約が発生しました】', '',
     `契約者名／法人名：${app.name}`,
     ...(app.representative ? [`代表者名／役職：${app.representative}`] : []),
     `メールアドレス：${app.email}`, `住所：${app.address}`, `プラン：${app.plan}`,
+    ...(app.plan === '特殊プラン' ? [`初期費用：${yen(app.initialAmount)}`, `成果報酬：${yen(app.successAmount)}`] : []),
     `契約総額（税込）：${yen(app.contractAmount)}`,
     `契約締結日・開始日：${period.start}`, `契約終了日：${period.end}`, `契約期間：${period.days}日`,
     `支払い方法：${method}`, `今回の支払額：${yen(app.paidAmount)}`,
     `銀行振込：${yen(app.bankAmount)}／カード決済：${yen(app.cardAmount)}`,
-    ...(app.plan === '特殊プラン' ? [`初期費用：${yen(app.initialAmount)}`, `残りの成果報酬：${yen(app.successAmount)}`] : []),
     '', '■ まゆらさん',
     '上記の内容をもとに、業務委託契約書と秘密保持契約書をそれぞれ1通ずつ送ってください。',
     '', '■ ナオさん',

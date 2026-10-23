@@ -3,7 +3,7 @@ import type { Application } from './domain';
 import { readRecord, withLock, writeRecord } from '../receipts/store';
 
 export const OPERATIONS_GROUP = 'Cb160f0867e222a36aaf0147e008280d9';
-export const OPERATIONS_MANUAL = 'https://analyca.jp/course-operations/index.html';
+export const OPERATIONS_MANUAL = 'https://lkit.jp/course-operations/';
 export const CONTRACT_MANUAL = 'https://lkit.jp/gmo-sign-manual/';
 type Outbox = { retryKey: string; text: string; firstAttemptAt: string; acceptedAt?: string; requestId?: string };
 export function contractPeriod(app: Application) {

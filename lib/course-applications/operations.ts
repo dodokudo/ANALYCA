@@ -17,7 +17,7 @@ export function operationsMessage(app: Application) {
   const period = contractPeriod(app);
   const method = { bank: '銀行振込', card: 'カード決済', mixed: '銀行振込とカード決済の併用' }[app.method];
   return [
-    '【契約が発生しました】', '',
+    '【契約が発生しました！】', '',
     `契約者名／法人名：${app.name}`,
     ...(app.representative ? [`代表者名／役職：${app.representative}`] : []),
     `メールアドレス：${app.email}`, `住所：${app.address}`, `プラン：${app.plan}`,

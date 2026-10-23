@@ -72,7 +72,7 @@ export function parseApplication(friend: Friend, now = new Date(), options: { sa
   if (representative.length > 100) throw new ReceiptError('代表者名・役職を確認してください。');
   // One enrollment per friend/form. A correction never creates a second receipt automatically.
   const id = hash(`lme:${LME_ACCOUNT}:${FORM_ID}:${friend.lmessage_friend_id}`);
-  return { id, friendId: friend.lmessage_friend_id, formId: FORM_ID, createdAt: now.toISOString(), name: input.name, email: input.email, address, representative, plan: plan as Application['plan'], durationDays: plan === '特殊プラン' ? null : plan === 'プレミアム' ? 365 : 180, contractAmount, initialAmount, successAmount, paidAmount, paidDate: input.paidDate, method, bankAmount, cardAmount, contractStatus: 'gmo_api_pending' };
+  return { id, friendId: friend.lmessage_friend_id, formId: FORM_ID, createdAt: now.toISOString(), name: input.name, email: input.email, address, representative, plan: plan as Application['plan'], durationDays: plan === 'プレミアム' || (plan === '特殊プラン' && contractAmount === 2_000_000) ? 365 : 180, contractAmount, initialAmount, successAmount, paidAmount, paidDate: input.paidDate, method, bankAmount, cardAmount, contractStatus: 'gmo_api_pending' };
 }
 export function sameApplication(a: Application, b: Application): boolean {
   return ['name','email','address','representative','plan','contractAmount','initialAmount','successAmount','paidAmount','paidDate','method','bankAmount','cardAmount'].every(key => a[key as keyof Application] === b[key as keyof Application]);

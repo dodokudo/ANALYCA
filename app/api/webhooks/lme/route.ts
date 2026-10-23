@@ -4,7 +4,7 @@ import { processSubmission, queueSubmission } from '@/lib/course-applications/se
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
-export function GET() { return NextResponse.json({ service: 'lme-course-documents', status: 'ready' }); }
+export function GET() { return NextResponse.json({ service: 'lme-course-documents', status: 'ready', operationsHandoff: process.env.COURSE_OPERATIONS_LINE_TOKEN ? 'configured' : 'not-configured', version: '2026-10-23-handoff' }); }
 export async function POST(request: NextRequest) {
   if (!process.env.LME_WEBHOOK_SECRET) return NextResponse.json({ error: 'Not configured' }, { status: 503 });
   if (!validSignature(request.headers.get('x-lme-signature'))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

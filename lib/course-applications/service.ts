@@ -3,6 +3,7 @@ import { deliverIssue, issueDocuments } from '../receipts/service';
 import { readRecord, receiptBucket, withLock, writeRecord } from '../receipts/store';
 import { parseApplication, sameApplication, type Application } from './domain';
 import { fetchFriend, notifyDownloads } from './lme';
+import { notifyOperations } from './operations';
 
 type Task = { deliveryId: string; friendId: number; receivedAt: string; attempts: number; status: 'pending' | 'done' | 'review'; nextAttemptAt?: number; error?: string; applicationId?: string };
 export async function queueSubmission(deliveryId: string, friendId: number): Promise<string> {
@@ -33,6 +34,9 @@ export async function processSubmission(key: string) {
         const persist = async () => { await writeRecord(appKey, app, saved?.generation || 0); saved = await readRecord<Application>(appKey); };
         if (!saved) await persist();
         task.applicationId = app.id;
+        // Request human contract/onboarding work independently of PDF/email/Drive delivery.
+        let operationsError: unknown;
+        try { await notifyOperations(app); } catch (e) { operationsError = e; }
         const issue = await issueDocuments({ name: app.name, email: app.email, address: '', paidDate: app.paidDate, method: app.bankAmount > 0 ? 'bank' : 'card' }, isSample,
           { applicationId: app.id, amount: app.paidAmount, bankAmount: app.bankAmount, cardAmount: app.cardAmount, productName: `マーケティング講座（${app.plan}）` });
         app.issueId = issue.id; await persist();
@@ -46,6 +50,7 @@ export async function processSubmission(key: string) {
           } catch (e) { notificationError = e; }
         }
         await deliverIssue(issue.id);
+        if (operationsError) throw operationsError;
         if (notificationError) throw notificationError;
       });
       task.status = 'done'; delete task.error;

@@ -30,6 +30,8 @@ export function operationsMessage(app: Application) {
     '上記の内容をもとに、業務委託契約書と秘密保持契約書をそれぞれ1通ずつ送ってください。',
     '', '■ ナオさん',
     'お客様専用のLINEグループを作成し、招待リンクをお客様へ送ってください。',
+    ...(app.lineName ? [`お客様のLINE名：${app.lineName}`] : []),
+    ...(Number.isSafeInteger(app.friendId) && app.friendId > 0 ? [`エルメ個別トーク：https://step.lme.jp/basic/chat-v3?friend_id=${app.friendId}`] : []),
     `マニュアル：${OPERATIONS_MANUAL}`,
   ].join('\n');
 }

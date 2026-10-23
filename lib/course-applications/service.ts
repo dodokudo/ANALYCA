@@ -31,6 +31,7 @@ export async function processSubmission(key: string) {
         let saved = await readRecord<Application>(appKey);
         if (saved && !sameApplication(saved.value, candidate)) throw new ReceiptError('発行済みの内容と異なります。訂正は運営で確認してください。', 409);
         const app = saved?.value || candidate;
+        app.lineName = candidate.lineName;
         const persist = async () => { await writeRecord(appKey, app, saved?.generation || 0); saved = await readRecord<Application>(appKey); };
         if (!saved) await persist();
         task.applicationId = app.id;

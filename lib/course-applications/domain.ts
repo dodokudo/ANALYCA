@@ -6,10 +6,10 @@ export const LME_ACCOUNT = 'ayMWXmQQrGQP';
 export const COMPLETION_TAG = 2561289;
 export const FORM_ID = 252821;
 export const FIELDS = { plan: 354753, contractAmount: 354755, representative: 354757, initialAmount: 354759, successAmount: 354761, paidAmount: 354763, paidDate: 354765, method: 354767, cardAmount: 354769, bankAmount: 354771 };
-export type Friend = { lmessage_friend_id: number; system_name?: string; email?: string; friend_info: { id: number; value: unknown }[] };
+export type Friend = { lmessage_friend_id: number; line_name?: string; system_name?: string; email?: string; friend_info: { id: number; value: unknown }[] };
 export type Application = {
   id: string; friendId: number; formId: number; createdAt: string;
-  name: string; email: string; address: string; representative: string;
+  name: string; email: string; address: string; representative: string; lineName?: string;
   plan: 'ノーマル' | 'スタンダード' | 'プレミアム' | '特殊プラン'; durationDays: 180 | 365 | null;
   contractAmount: number; initialAmount: number; successAmount: number;
   paidAmount: number; paidDate: string; method: 'bank' | 'card' | 'mixed'; bankAmount: number; cardAmount: number;
@@ -72,7 +72,8 @@ export function parseApplication(friend: Friend, now = new Date(), options: { sa
   if (representative.length > 100) throw new ReceiptError('代表者名・役職を確認してください。');
   // One enrollment per friend/form. A correction never creates a second receipt automatically.
   const id = hash(`lme:${LME_ACCOUNT}:${FORM_ID}:${friend.lmessage_friend_id}`);
-  return { id, friendId: friend.lmessage_friend_id, formId: FORM_ID, createdAt: now.toISOString(), name: input.name, email: input.email, address, representative, plan: plan as Application['plan'], durationDays: plan === 'プレミアム' || (plan === '特殊プラン' && contractAmount === 2_000_000) ? 365 : 180, contractAmount, initialAmount, successAmount, paidAmount, paidDate: input.paidDate, method, bankAmount, cardAmount, contractStatus: 'gmo_api_pending' };
+  const lineName = typeof friend.line_name === 'string' ? friend.line_name.replace(/[\r\n]+/g, ' ').trim() : undefined;
+  return { id, friendId: friend.lmessage_friend_id, formId: FORM_ID, createdAt: now.toISOString(), name: input.name, email: input.email, address, representative, lineName, plan: plan as Application['plan'], durationDays: plan === 'プレミアム' || (plan === '特殊プラン' && contractAmount === 2_000_000) ? 365 : 180, contractAmount, initialAmount, successAmount, paidAmount, paidDate: input.paidDate, method, bankAmount, cardAmount, contractStatus: 'gmo_api_pending' };
 }
 export function sameApplication(a: Application, b: Application): boolean {
   return ['name','email','address','representative','plan','contractAmount','initialAmount','successAmount','paidAmount','paidDate','method','bankAmount','cardAmount'].every(key => a[key as keyof Application] === b[key as keyof Application]);

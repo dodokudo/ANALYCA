@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 import { buildInstagramDailyRows, summarizeInstagramDailyRows, instagramMetricExtent, type InstagramDailyContentStat, type InstagramLineDay } from '@/lib/instagram-daily';
-import { InstagramDailyTable } from './components/instagram-daily-table';
+import { InstagramDailyTable, InstagramPerformanceTable } from './components/instagram-daily-table';
 import { InstagramReelsTab } from './components/instagram-reels-tab';
 import { ScheduleTab } from './components/schedule-tab';
 import ThreadsContentCreationTab from './components/threads-content-creation-tab';
@@ -2163,6 +2163,7 @@ function InstagramContent({
   const [customStart, setCustomStart] = useState(() => formatDateForInput(getDateRange('thisMonth').start));
   const [customEnd, setCustomEnd] = useState(() => formatDateForInput(new Date()));
   const [storySortBy, setStorySortBy] = useState('views');
+  const [showDailyTable, setShowDailyTable] = useState(true);
 
   const allReels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
   const allStories: InstagramStory[] = (data?.stories?.data || []) as InstagramStory[];
@@ -2191,6 +2192,11 @@ function InstagramContent({
     return dailyRows.filter(i => isDateInRange(`${i.date}T00:00:00+09:00`, dateRange));
   }, [dailyRows, dateRange]);
 
+  // Preserve the daily increase recorded by the original sheet for its history.
+  const performanceRows = useMemo(() => insights.map(row => ({
+    ...row, followerGrowth: row.sheet_follower_growth ?? row.followerGrowth,
+  })), [insights]);
+
   const summary = useMemo(() => {
     const expectedDays = Math.round((new Date(formatDateForInput(dateRange.end)).getTime() - new Date(formatDateForInput(dateRange.start)).getTime()) / 86400000) + 1;
     const baselineDate = new Date(`${formatDateForInput(dateRange.start)}T00:00:00Z`);
@@ -2206,7 +2212,6 @@ function InstagramContent({
     return { ...accountSummary, totalReelsViews, totalReelsLikes, totalStoriesViews, lineRegistrations, lineFollowers };
   }, [insights, reels, stories, dateRange, dailyRows]);
 
-  const followerExtent = instagramMetricExtent(insights.map(row => row.followers_count));
   const reachExtent = instagramMetricExtent(insights.map(row => row.reach));
   const profileExtent = instagramMetricExtent(insights.map(row => row.profile_views));
   const formatInsightNumber = (value: number | null) => value === null ? '—' : value.toLocaleString();
@@ -2360,39 +2365,26 @@ function InstagramContent({
           {/* パフォーマンス推移（テーブル + グラフ） */}
           {insights.length > 0 && (
             <div className="ui-card p-6">
-              <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">パフォーマンス推移</h3>
-              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)] mb-4">日別のパフォーマンス</p>
-              {/* デイリーテーブル */}
-              <div className="mb-6">
-                <InstagramDailyTable rows={insights} showLine={showLine} />
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">パフォーマンス推移</h3>
+                <button type="button" onClick={() => setShowDailyTable(!showDailyTable)} aria-expanded={showDailyTable} aria-controls="instagram-performance-table" className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50">
+                  {showDailyTable ? '表を閉じる' : '日別データを表示'}
+                </button>
               </div>
-              {/* 最大・最小値表示 */}
-              <div className="flex gap-6 mb-3 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-[color:var(--color-text-muted)]">フォロワー:</span>
-                  <span className="text-green-600 font-medium">最大 {formatInsightNumber(followerExtent.max)}</span>
-                  <span className="text-gray-400">/</span>
-                  <span className="text-red-500 font-medium">最小 {formatInsightNumber(followerExtent.min)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[color:var(--color-text-muted)]">リーチ:</span>
-                  <span className="text-green-600 font-medium">最大 {formatInsightNumber(reachExtent.max)}</span>
-                  <span className="text-gray-400">/</span>
-                  <span className="text-red-500 font-medium">最小 {formatInsightNumber(reachExtent.min)}</span>
-                </div>
-              </div>
+              {showDailyTable && <div id="instagram-performance-table" className="mb-6"><InstagramPerformanceTable rows={performanceRows} showLine={showLine} /></div>}
               {/* グラフ */}
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={[...insights].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
+                  <ComposedChart data={[...performanceRows].reverse()} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
                     <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={['dataMin', 'dataMax']} allowDataOverflow={false} />
                     <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} domain={['dataMin', 'dataMax']} allowDataOverflow={false} />
                     <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
                     <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="followers_count" name="フォロワー数" stroke="#10B981" strokeWidth={2} dot={{ r: 3 }} />
-                    <Bar yAxisId="right" dataKey="reach" name="リーチ" fill="#8B5CF6" />
+                    <Line yAxisId="left" type="monotone" dataKey="followers_count" name="フォロワー数" stroke="#7C3AED" strokeWidth={2} dot={{ r: 3 }} />
+                    <Bar yAxisId="right" dataKey="followerGrowth" name="フォロワー増加数" fill="#3B82F6" />
+                    {showLine && <Bar yAxisId="right" dataKey="lineRegistrations" name="LINE登録数" fill="#22C55E" />}
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>

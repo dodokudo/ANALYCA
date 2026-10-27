@@ -23,5 +23,5 @@ test('reports failed listing as an error, not a successful zero-story sync', asy
 
 test('successful empty listing is zero active stories', async () => {
   const result = await fetchActiveInstagramStories('https://example.test', 'account', 'token', async () => Response.json({ data: [] }));
-  assert.deepEqual(result, { stories: [], metricsFailed: 0, apiErrors: [] });
+  assert.deepEqual(result, { stories: [], metricsFailed: 0 });
 });

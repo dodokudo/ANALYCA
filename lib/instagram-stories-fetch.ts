@@ -1,5 +1,3 @@
-import { instagramApiError } from './instagram-api-error';
-
 export interface InstagramStoryResponse {
   id: string;
   media_type: string;
@@ -20,14 +18,13 @@ export async function fetchActiveInstagramStories(base: string, accountId: strin
     if (next.origin !== first.origin || seen.has(next.href)) throw new Error('Invalid Instagram stories pagination');
     seen.add(next.href);
     const response = await fetcher(next, { signal: AbortSignal.timeout(15_000) });
-    if (!response.ok) throw await instagramApiError(response, 'Instagram stories list failed');
+    if (!response.ok) throw new Error(`Instagram stories list failed (${response.status})`);
     const body = await response.json();
     if (!Array.isArray(body.data)) throw new Error('Invalid Instagram stories list');
     stories.push(...body.data);
     next = body.paging?.next ? new URL(body.paging.next) : null;
   }
   let metricsFailed = 0;
-  const apiErrors: string[] = [];
   // Collect the IDs independently so unavailable insights do not lose a live story.
   for (let i = 0; i < stories.length; i += 4) {
     await Promise.all(stories.slice(i, i + 4).map(async story => {
@@ -35,17 +32,14 @@ export async function fetchActiveInstagramStories(base: string, accountId: strin
       url.search = new URLSearchParams({ metric: 'views,reach,replies,total_interactions,follows,profile_visits,navigation', access_token: token }).toString();
       try {
         const response = await fetcher(url, { signal: AbortSignal.timeout(15_000) });
-        if (!response.ok) throw await instagramApiError(response, `story ${story.id} insights`);
+        if (!response.ok) throw new Error('Unavailable story insights');
         const body = await response.json();
         if (!Array.isArray(body.data) || !body.data.length) throw new Error('Empty story insights');
         story.insights = { data: body.data };
-      } catch (error) {
-        metricsFailed++;
-        apiErrors.push(error instanceof Error ? error.message : `story ${story.id} insights failed`);
-      }
+      } catch { metricsFailed++; }
     }));
   }
-  return { stories, metricsFailed, apiErrors };
+  return { stories, metricsFailed };
 }
 
 export function extractStoryMetrics(insights: InstagramStoryResponse['insights']): Record<string, number> {

@@ -16,6 +16,5 @@ export async function syncInstagramReelMetrics(userId: string, accessToken: stri
     snapshots.push(...batch);
   }
   const metricsCount = await saveInstagramReelMetricSnapshots(userId, snapshots);
-  const apiErrors = snapshots.flatMap(row => row.apiErrors ?? []);
-  return { metricsCount, metricsFailed: snapshots.filter(row => row.status === 'unavailable' || row.apiErrors?.length).length, apiErrors };
+  return { metricsCount, metricsFailed: snapshots.length - metricsCount };
 }

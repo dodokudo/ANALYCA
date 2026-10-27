@@ -3,12 +3,6 @@ import type { InstagramDailyRow } from '@/lib/instagram-daily';
 const formatNumber = (value: number | null | undefined): string => value == null ? '—' : value.toLocaleString('ja-JP');
 
 export function InstagramDailyTable({ rows }: { rows: InstagramDailyRow[] }) {
-  const extraColumns = [
-    ['views', '閲覧数'], ['total_interactions', '反応数'], ['likes', 'いいね'],
-    ['comments', 'コメント'], ['saves', '保存'], ['shares', 'シェア'],
-    ['follows', 'フォロー'], ['unfollows', '解除'],
-  ] as const;
-  const showExtraMetrics = rows.some(row => extraColumns.some(([key]) => row[key] != null));
   return (
     <div className="overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
       <table className="w-full whitespace-nowrap text-sm">
@@ -21,7 +15,6 @@ export function InstagramDailyTable({ rows }: { rows: InstagramDailyRow[] }) {
             <th className="px-3 py-2">リーチ</th>
             <th className="px-3 py-2">プロフ表示</th>
             <th className="px-3 py-2">クリック</th>
-            {showExtraMetrics && extraColumns.map(([key, label]) => <th key={key} className="px-3 py-2">{label}</th>)}
             <th className="px-3 py-2">ストーリー投稿</th>
             <th className="px-3 py-2" title="その日に投稿したストーリーの最大リーチ">ストーリー閲覧</th>
             <th className="px-3 py-2" title="ストーリーの最大リーチ ÷ その日のフォロワー数">閲覧率</th>
@@ -41,7 +34,6 @@ export function InstagramDailyTable({ rows }: { rows: InstagramDailyRow[] }) {
               <td className="px-3 py-2">{formatNumber(row.reach)}</td>
               <td className="px-3 py-2">{formatNumber(row.profile_views)}</td>
               <td className="px-3 py-2">{formatNumber(row.website_clicks)}</td>
-              {showExtraMetrics && extraColumns.map(([key]) => <td key={key} className="px-3 py-2">{formatNumber(row[key])}</td>)}
               <td className="px-3 py-2">{formatNumber(row.storyPostCount)}</td>
               <td className="px-3 py-2">{formatNumber(row.storyReach)}</td>
               <td className="px-3 py-2">{row.storyViewRate === null ? '—' : `${(row.storyViewRate * 100).toFixed(1)}%`}</td>

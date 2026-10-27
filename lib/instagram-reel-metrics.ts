@@ -1,6 +1,5 @@
 /** Shared, serializable reel metrics. Missing API values stay null. */
 export interface InstagramReelMetrics {
-  apiErrors?: string[];
   id: string;
   views: number | null;
   reach: number | null;

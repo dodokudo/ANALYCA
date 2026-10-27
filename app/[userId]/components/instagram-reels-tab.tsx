@@ -63,7 +63,7 @@ export function InstagramReelsTab({ reels, allReels }: { userId: string; reels: 
 
   return <section className="ui-card p-4 sm:p-6" aria-label="リール分析">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-lg font-semibold">投稿別の累計</h2><p className="text-xs text-[color:var(--color-text-muted)]">最新{sorted.length}件 · 投稿日にかかわらず表示</p></div>
+      <div><h2 className="text-lg font-semibold">リール一覧</h2><p className="text-xs text-[color:var(--color-text-muted)]">表示件数 {sorted.length} · 比較対象はこのアカウントの最新{allReels.length}件（最大50件）</p></div>
       <div className="flex items-center gap-2">
         <select aria-label="リールの並べ替え" value={sortBy} onChange={event => setSortBy(event.target.value as typeof sortBy)} className="h-9 rounded border border-[color:var(--color-border)] bg-white px-3 text-sm">
           <option value="published">投稿日</option>{METRICS.map(spec => <option key={spec.key} value={spec.key}>{spec.label}</option>)}<option value="likes">いいね数</option><option value="saved">保存数</option>

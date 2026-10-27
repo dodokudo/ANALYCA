@@ -1488,8 +1488,7 @@ export async function upsertInstagramInsightBatch(userId: string, rows: Instagra
           CAST(JSON_VALUE(row, '$.shares') AS INT64) AS shares,
           CAST(JSON_VALUE(row, '$.saves') AS INT64) AS saves,
           CAST(JSON_VALUE(row, '$.follows') AS INT64) AS follows,
-          CAST(JSON_VALUE(row, '$.unfollows') AS INT64) AS unfollows,
-          JSON_VALUE(row, '$.media_breakdown') AS media_breakdown
+          CAST(JSON_VALUE(row, '$.unfollows') AS INT64) AS unfollows
         FROM UNNEST(JSON_QUERY_ARRAY(@rows)) AS row
       ) S
       ON T.user_id = S.user_id AND T.date = S.date
@@ -1505,12 +1504,11 @@ export async function upsertInstagramInsightBatch(userId: string, rows: Instagra
         shares = COALESCE(S.shares, T.shares),
         saves = COALESCE(S.saves, T.saves),
         follows = COALESCE(S.follows, T.follows),
-        unfollows = COALESCE(S.unfollows, T.unfollows),
-        media_breakdown = COALESCE(S.media_breakdown, T.media_breakdown)
+        unfollows = COALESCE(S.unfollows, T.unfollows)
       WHEN NOT MATCHED THEN INSERT
-        (id, user_id, date, followers_count, posts_count, reach, engagement, profile_views, website_clicks, views, total_interactions, likes, comments, shares, saves, follows, unfollows, media_breakdown, created_at)
+        (id, user_id, date, followers_count, posts_count, reach, engagement, profile_views, website_clicks, views, total_interactions, likes, comments, shares, saves, follows, unfollows, created_at)
         VALUES (GENERATE_UUID(), S.user_id, S.date, S.followers_count, S.posts_count,
-          S.reach, S.engagement, S.profile_views, S.website_clicks, S.views, S.total_interactions, S.likes, S.comments, S.shares, S.saves, S.follows, S.unfollows, S.media_breakdown, CURRENT_TIMESTAMP())
+          S.reach, S.engagement, S.profile_views, S.website_clicks, S.views, S.total_interactions, S.likes, S.comments, S.shares, S.saves, S.follows, S.unfollows, CURRENT_TIMESTAMP())
     `,
     params: { user_id: userId, rows: JSON.stringify(rows) },
   });

@@ -1,8 +1,4 @@
-import { MEDIA_METRICS, readMediaBreakdown } from './instagram-media-breakdown';
-import { instagramApiError } from './instagram-api-error';
-
 export interface InstagramAccountSnapshot {
-  media_breakdown?: string | null;
   date: string;
   followers_count: number | null;
   posts_count: number | null;
@@ -57,7 +53,6 @@ export async function syncAccountInsightDays(options: {
   const fetcher = options.fetcher ?? fetch;
   let savedDays = 0;
   const failedDates: string[] = [];
-  const apiErrors: string[] = [];
 
   // Save the newest batch before fetching older days; never do one DML job per day.
   for (let offset = 0; offset < dates.length; offset += 7) {
@@ -78,7 +73,7 @@ export async function syncAccountInsightDays(options: {
           coreUrl.searchParams.set('metric', METRICS.join(','));
           response = await fetcher(coreUrl, { signal: AbortSignal.timeout(15_000) });
         }
-        if (!response.ok) throw await instagramApiError(response, `insights ${date}`);
+        if (!response.ok) throw new Error('Instagram insights request failed');
         const body = await response.json();
         const metrics = new Map<string, number>();
         for (const metric of body.data ?? []) {
@@ -106,24 +101,9 @@ export async function syncAccountInsightDays(options: {
                 if (result.dimension_values?.[dimension] === 'NON_FOLLOWER') unfollows = result.value;
               }
             }
-          } else {
-            throw await instagramApiError(followResponse, `follows ${date}`);
           }
-        } catch (error) { apiErrors.push(error instanceof Error ? error.message : `follows ${date} failed`); }
-        let mediaBreakdown: string | null = null;
-        const mediaUrl = new URL(url);
-        mediaUrl.searchParams.set('metric', MEDIA_METRICS.join(','));
-        mediaUrl.searchParams.set('breakdown', 'media_product_type');
-        try {
-          const mediaResponse = await fetcher(mediaUrl, { signal: AbortSignal.timeout(15_000) });
-          if (!mediaResponse.ok) throw await instagramApiError(mediaResponse, `media breakdown ${date}`);
-          const mediaBody = await mediaResponse.json();
-          const breakdown = readMediaBreakdown(mediaBody.data ?? []);
-          if (MEDIA_METRICS.some(metric => breakdown.REEL[metric] == null)) throw new Error(`Incomplete media breakdown ${date}`);
-          mediaBreakdown = JSON.stringify(breakdown);
-        } catch (error) { apiErrors.push(error instanceof Error ? error.message : `media breakdown ${date} failed`); }
+        } catch { /* Keep unavailable follow metrics null, preserving the other metrics. */ }
         return {
-          media_breakdown: mediaBreakdown,
           ...Object.fromEntries(EXTRA_METRICS.map(name => [name, metrics.get(name) ?? null])),
           follows,
           unfollows,
@@ -135,8 +115,7 @@ export async function syncAccountInsightDays(options: {
           profile_views: metrics.get('profile_views')!,
           website_clicks: metrics.get('website_clicks')!,
         } satisfies InstagramAccountSnapshot;
-      } catch (error) {
-        apiErrors.push(error instanceof Error ? error.message : `insights ${date} failed`);
+      } catch {
         failedDates.push(date);
         return null;
       }
@@ -147,5 +126,5 @@ export async function syncAccountInsightDays(options: {
       savedDays += validRows.length;
     }
   }
-  return { success: failedDates.length === 0 && apiErrors.length === 0, savedDays, failedDates, apiErrors };
+  return { success: failedDates.length === 0, savedDays, failedDates };
 }

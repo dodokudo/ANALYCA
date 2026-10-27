@@ -65,7 +65,7 @@ async function syncUserInsights(
     });
     return {
       ...result,
-      ...(result.success ? {} : { error: result.apiErrors.join(' / ') || `Insights unavailable for ${result.failedDates.length} days` }),
+      ...(result.success ? {} : { error: `Insights unavailable for ${result.failedDates.length} days` }),
     };
   } catch (error) {
     console.error(`Error syncing insights for user ${userId}:`, error);

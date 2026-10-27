@@ -2193,7 +2193,10 @@ function InstagramContent({
 
   const summary = useMemo(() => {
     const expectedDays = Math.round((new Date(formatDateForInput(dateRange.end)).getTime() - new Date(formatDateForInput(dateRange.start)).getTime()) / 86400000) + 1;
-    const accountSummary = summarizeInstagramDailyRows(insights, expectedDays);
+    const baselineDate = new Date(`${formatDateForInput(dateRange.start)}T00:00:00Z`);
+    baselineDate.setUTCDate(baselineDate.getUTCDate() - 1);
+    const baseline = dailyRows.find(row => row.date === baselineDate.toISOString().slice(0, 10));
+    const accountSummary = summarizeInstagramDailyRows(insights, expectedDays, baseline);
     const totalReelsViews = reels.reduce((sum, r) => sum + (r.views || 0), 0);
     const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
     const totalStoriesViews = stories.reduce((sum, s) => sum + (s.reach || 0), 0);
@@ -2201,7 +2204,7 @@ function InstagramContent({
     const lineRegistrations = lineRows.length ? lineRows.reduce((sum, row) => sum + row.lineRegistrations!, 0) : null;
     const lineFollowers = insights.find(row => row.lineFollowers != null)?.lineFollowers ?? null;
     return { ...accountSummary, totalReelsViews, totalReelsLikes, totalStoriesViews, lineRegistrations, lineFollowers };
-  }, [insights, reels, stories, dateRange]);
+  }, [insights, reels, stories, dateRange, dailyRows]);
 
   const followerExtent = instagramMetricExtent(insights.map(row => row.followers_count));
   const reachExtent = instagramMetricExtent(insights.map(row => row.reach));

@@ -22,6 +22,15 @@ import { evaluateDashboardAccess } from '@/lib/subscription-access';
 import { evaluateThreadsGrandprixAccess } from '@/lib/threads-grandprix-access';
 import { getSubscription } from '@/lib/univapay/client';
 
+// Sheet history already has archived Drive images; Instagram CDN URLs expire.
+function storyThumbnail(story: { drive_image_url?: string; thumbnail_url?: string | null }): string | null | undefined {
+  const driveUrl = story.drive_image_url;
+  const driveId = driveUrl?.match(/(?:\/d\/|[?&]id=)([a-zA-Z0-9_-]+)/)?.[1];
+  if (driveId) return `https://lh3.googleusercontent.com/d/${driveId}`;
+  if (driveUrl?.startsWith('https://lh3.googleusercontent.com/')) return driveUrl;
+  return story.thumbnail_url;
+}
+
 /**
  * BigQueryのタイムスタンプを安全にシリアライズ
  * BigQueryは {value: "..."} 形式でタイムスタンプを返すことがある
@@ -283,7 +292,7 @@ export async function GET(
           follows: story.follows ?? null,
           profile_visits: story.profile_visits ?? null,
           navigation: story.navigation ?? null,
-          thumbnail_url: story.thumbnail_url,
+          thumbnail_url: storyThumbnail(story),
         }))
       },
       insights: {

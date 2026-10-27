@@ -78,3 +78,32 @@ test('uses API follows and unfollows when historical follower totals are unavail
   assert.equal(row.followerGrowth, 4);
   assert.equal(row.followers_count, null);
 });
+
+test('period growth uses exact boundary snapshots despite missing intermediate days', async () => {
+  const { summarizeInstagramDailyRows } = await import('../instagram-daily');
+  const rows = buildInstagramDailyRows([
+    { date: '2026-10-21', followers_count: 22445 },
+    { date: '2026-10-22', followers_count: 22461 },
+    { date: '2026-10-25', followers_count: null, follows: 21, unfollows: 13 },
+    { date: '2026-10-27', followers_count: 22496 },
+  ], []);
+  const result = summarizeInstagramDailyRows(rows, 7, { date: '2026-10-20', followers_count: 22427 });
+  assert.equal(result.followerGrowth, 69);
+  assert.equal(result.totalReach, null);
+  assert.equal(rows.find(row => row.date === '2026-10-27')!.followerGrowth, null);
+});
+
+test('missing period boundaries cannot be replaced with nearby dates or zero', async () => {
+  const { summarizeInstagramDailyRows } = await import('../instagram-daily');
+  const rows = buildInstagramDailyRows([{ date: '2026-10-26', followers_count: 120 }], []);
+  assert.equal(summarizeInstagramDailyRows(rows, 7, { date: '2026-10-20', followers_count: 100 }).followerGrowth, null);
+  assert.equal(summarizeInstagramDailyRows(rows, 6, { date: '2026-10-20', followers_count: null }).followerGrowth, null);
+});
+
+test('boundary growth preserves zero, decreases and single-day ranges', async () => {
+  const { summarizeInstagramDailyRows } = await import('../instagram-daily');
+  for (const [before, after, expected] of [[100, 100, 0], [100, 97, -3], [0, 2, 2]]) {
+    const rows = buildInstagramDailyRows([{ date: '2026-10-27', followers_count: after }], []);
+    assert.equal(summarizeInstagramDailyRows(rows, 1, { date: '2026-10-26', followers_count: before }).followerGrowth, expected);
+  }
+});

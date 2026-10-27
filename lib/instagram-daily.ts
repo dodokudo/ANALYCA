@@ -80,17 +80,26 @@ export function buildInstagramDailyRows(
   });
 }
 
-export function summarizeInstagramDailyRows(rows: InstagramDailyRow[], expectedDays: number) {
+export function summarizeInstagramDailyRows(rows: InstagramDailyRow[], expectedDays: number, baseline?: InstagramDailyInsight) {
   const complete = rows.length === expectedDays && expectedDays > 0;
   const sum = (field: 'reach' | 'profile_views' | 'website_clicks' | 'followerGrowth'): number | null => {
     if (!complete || rows.some(row => row[field] == null)) return null;
     return rows.reduce((total, row) => total + (row[field] ?? 0), 0);
   };
+  // Period net growth only needs the two boundary snapshots. Missing days in
+  // between must not hide an exact total or be filled with invented daily values.
+  let followerGrowth = sum('followerGrowth');
+  if (baseline?.followers_count != null && expectedDays > 0) {
+    const endDate = new Date(`${baseline.date}T00:00:00Z`);
+    endDate.setUTCDate(endDate.getUTCDate() + expectedDays);
+    const end = rows.find(row => row.date === endDate.toISOString().slice(0, 10));
+    if (end?.followers_count != null) followerGrowth = end.followers_count - baseline.followers_count;
+  }
   return {
     totalReach: sum('reach'),
     totalProfileViews: sum('profile_views'),
     totalWebClicks: sum('website_clicks'),
-    followerGrowth: sum('followerGrowth'),
+    followerGrowth,
     complete,
   };
 }

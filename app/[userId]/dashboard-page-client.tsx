@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
-import { buildInstagramDailyRows, type InstagramDailyContentStat } from '@/lib/instagram-daily';
+import { buildInstagramDailyRows, summarizeInstagramDailyRows, type InstagramDailyContentStat } from '@/lib/instagram-daily';
 import { InstagramDailyTable } from './components/instagram-daily-table';
 import { InstagramReelsTab } from './components/instagram-reels-tab';
 import { ScheduleTab } from './components/schedule-tab';
@@ -2169,7 +2169,7 @@ function InstagramContent({
     [allInsights, data?.instagramDailyContentStats?.data],
   );
   const latestInsight = dailyRows[0] || null;
-  const followersCount = latestInsight?.followers_count || 0;
+  const followersCount = dailyRows.find(row => row.followers_count != null)?.followers_count ?? 0;
 
   // 日付範囲でフィルタリング（今日のデータも含める）
   const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: true }), [datePreset]);
@@ -2187,16 +2187,17 @@ function InstagramContent({
   }, [dailyRows, dateRange]);
 
   const summary = useMemo(() => {
-    const totalReach = insights.reduce((sum, d) => sum + (d.reach || 0), 0);
-    const totalProfileViews = insights.reduce((sum, d) => sum + (d.profile_views || 0), 0);
-    const totalWebClicks = insights.reduce((sum, d) => sum + (d.website_clicks || 0), 0);
+    const expectedDays = Math.round((new Date(formatDateForInput(dateRange.end)).getTime() - new Date(formatDateForInput(dateRange.start)).getTime()) / 86400000) + 1;
+    const accountSummary = summarizeInstagramDailyRows(insights, expectedDays);
     const totalReelsViews = reels.reduce((sum, r) => sum + (r.views || 0), 0);
     const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
     const totalStoriesViews = stories.reduce((sum, s) => sum + (s.reach || 0), 0);
-    // フォロワー増減を計算（日別データから）
-    const followerGrowth = insights.reduce((sum, row) => sum + (row.followerGrowth ?? 0), 0);
-    return { totalReach, totalProfileViews, totalWebClicks, totalReelsViews, totalReelsLikes, totalStoriesViews, followerGrowth };
-  }, [insights, reels, stories]);
+    return { ...accountSummary, totalReelsViews, totalReelsLikes, totalStoriesViews };
+  }, [insights, reels, stories, dateRange]);
+
+  const formatInsightNumber = (value: number | null) => value === null ? '—' : value.toLocaleString();
+  const insightRate = (numerator: number | null, denominator: number | null) =>
+    numerator === null || denominator === null ? '—' : `${denominator > 0 ? ((numerator / denominator) * 100).toFixed(1) : '0'}%`;
 
   const sortedReels = useMemo(() => [...reels].sort((a, b) => (b.views || 0) - (a.views || 0)), [reels]);
 
@@ -2259,6 +2260,12 @@ function InstagramContent({
         </div>
       </div>
 
+      <p className="text-xs text-[color:var(--color-text-secondary)]">
+        データ最新日：{latestInsight?.date || '未取得'}（日本時間）。当日分は集計途中です。
+        {!summary.complete && ' 選択期間に未取得の日があります。集計値は取得が揃うまで「—」で表示します。'}
+        {summary.followerGrowth === null && ' フォロワー増減は過去のフォロワー数が揃ってから表示します。'}
+      </p>
+
       {/* 概要タブ */}
       {activeTab === 'overview' && (
         <>
@@ -2282,7 +2289,7 @@ function InstagramContent({
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
                       <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
-                      {summary.followerGrowth !== 0 && (
+                      {summary.followerGrowth !== null && summary.followerGrowth !== 0 && (
                         <span className={`text-xs font-medium ${summary.followerGrowth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                           {summary.followerGrowth >= 0 ? '+' : ''}{summary.followerGrowth.toLocaleString()}
                         </span>
@@ -2300,31 +2307,31 @@ function InstagramContent({
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex flex-col items-center">
                     <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">リーチ</span>
-                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalReach.toLocaleString()}</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.totalReach)}</span>
                   </div>
                   <div className="flex flex-col items-center mx-2">
                     <div className="text-lg text-emerald-500">→</div>
-                    <span className="text-xs font-medium text-emerald-500">{summary.totalReach > 0 ? ((summary.totalProfileViews / summary.totalReach) * 100).toFixed(1) : '0'}%</span>
+                    <span className="text-xs font-medium text-emerald-500">{insightRate(summary.totalProfileViews, summary.totalReach)}</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">プロフ表示</span>
-                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalProfileViews.toLocaleString()}</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.totalProfileViews)}</span>
                   </div>
                   <div className="flex flex-col items-center mx-2">
                     <div className="text-lg text-emerald-500">→</div>
-                    <span className="text-xs font-medium text-emerald-500">{summary.totalProfileViews > 0 ? ((summary.totalWebClicks / summary.totalProfileViews) * 100).toFixed(1) : '0'}%</span>
+                    <span className="text-xs font-medium text-emerald-500">{insightRate(summary.totalWebClicks, summary.totalProfileViews)}</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">リンククリック</span>
-                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.totalWebClicks.toLocaleString()}</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.totalWebClicks)}</span>
                   </div>
                   <div className="flex flex-col items-center mx-2">
                     <div className="text-lg text-emerald-500">→</div>
-                    <span className="text-xs font-medium text-emerald-500">{summary.totalWebClicks > 0 ? ((summary.followerGrowth / summary.totalWebClicks) * 100).toFixed(1) : '0'}%</span>
+                    <span className="text-xs font-medium text-emerald-500">{insightRate(summary.followerGrowth, summary.totalWebClicks)}</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">フォロワー増加</span>
-                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{summary.followerGrowth.toLocaleString()}</span>
+                    <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.followerGrowth)}</span>
                   </div>
                 </div>
               </div>

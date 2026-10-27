@@ -47,3 +47,18 @@ export function buildInstagramDailyRows(
     };
   });
 }
+
+export function summarizeInstagramDailyRows(rows: InstagramDailyRow[], expectedDays: number) {
+  const complete = rows.length === expectedDays && expectedDays > 0;
+  const sum = (field: 'reach' | 'profile_views' | 'website_clicks' | 'followerGrowth'): number | null => {
+    if (!complete || rows.some(row => row[field] == null)) return null;
+    return rows.reduce((total, row) => total + (row[field] ?? 0), 0);
+  };
+  return {
+    totalReach: sum('reach'),
+    totalProfileViews: sum('profile_views'),
+    totalWebClicks: sum('website_clicks'),
+    followerGrowth: sum('followerGrowth'),
+    complete,
+  };
+}

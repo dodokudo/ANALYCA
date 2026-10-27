@@ -2,6 +2,7 @@ import { BigQuery } from '@google-cloud/bigquery';
 import { v4 as uuidv4 } from 'uuid';
 import type { InstagramDailyContentStat } from './instagram-daily';
 import { normalizeReelMetrics, type InstagramReelMetrics } from './instagram-reel-metrics';
+import type { InstagramAccountSnapshot } from './instagram-insights-sync';
 
 // BigQuery設定
 // 環境変数名のフォールバック対応（ローカル: GOOGLE_CLOUD_PROJECT_ID、Vercel: PROJECT_ID）
@@ -1465,6 +1466,37 @@ export async function upsertInstagramStories(stories: InstagramStory[]): Promise
 }
 
 // Instagram Insightsをupsert（日付ベースで更新）
+export async function upsertInstagramInsightBatch(userId: string, rows: InstagramAccountSnapshot[]): Promise<void> {
+  if (!rows.length) return;
+  await executeDML({
+    query: `
+      MERGE \`mark-454114.analyca.instagram_insights\` T
+      USING (
+        SELECT @user_id AS user_id,
+          PARSE_DATE('%Y-%m-%d', JSON_VALUE(row, '$.date')) AS date,
+          CAST(JSON_VALUE(row, '$.followers_count') AS INT64) AS followers_count,
+          CAST(JSON_VALUE(row, '$.posts_count') AS INT64) AS posts_count,
+          CAST(JSON_VALUE(row, '$.reach') AS INT64) AS reach,
+          CAST(JSON_VALUE(row, '$.engagement') AS INT64) AS engagement,
+          CAST(JSON_VALUE(row, '$.profile_views') AS INT64) AS profile_views,
+          CAST(JSON_VALUE(row, '$.website_clicks') AS INT64) AS website_clicks
+        FROM UNNEST(JSON_QUERY_ARRAY(@rows)) AS row
+      ) S
+      ON T.user_id = S.user_id AND T.date = S.date
+      WHEN MATCHED THEN UPDATE SET
+        followers_count = COALESCE(S.followers_count, T.followers_count),
+        posts_count = COALESCE(S.posts_count, T.posts_count),
+        reach = S.reach, engagement = S.engagement,
+        profile_views = S.profile_views, website_clicks = S.website_clicks
+      WHEN NOT MATCHED THEN INSERT
+        (id, user_id, date, followers_count, posts_count, reach, engagement, profile_views, website_clicks, created_at)
+        VALUES (GENERATE_UUID(), S.user_id, S.date, S.followers_count, S.posts_count,
+          S.reach, S.engagement, S.profile_views, S.website_clicks, CURRENT_TIMESTAMP())
+    `,
+    params: { user_id: userId, rows: JSON.stringify(rows) },
+  });
+}
+
 export async function upsertInstagramInsights(insights: InstagramInsights): Promise<void> {
   const query = `
     MERGE \`mark-454114.analyca.instagram_insights\` T

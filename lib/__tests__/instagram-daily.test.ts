@@ -53,3 +53,16 @@ test('distinguishes missing metrics from zero and avoids division by zero', () =
   assert.equal(noReach.storyReach, null);
   assert.equal(noReach.storyViewRate, null);
 });
+
+test('summary distinguishes unavailable days and follower history from measured zero', async () => {
+  const { summarizeInstagramDailyRows } = await import('../instagram-daily');
+  const rows = buildInstagramDailyRows([
+    { date: '2026-10-26', followers_count: null, reach: 10, profile_views: 2, website_clicks: 0 },
+    { date: '2026-10-27', followers_count: 100, reach: 20, profile_views: 3, website_clicks: 0 },
+  ], []);
+  assert.deepEqual(summarizeInstagramDailyRows(rows, 2), {
+    totalReach: 30, totalProfileViews: 5, totalWebClicks: 0, followerGrowth: null, complete: true,
+  });
+  assert.equal(summarizeInstagramDailyRows(rows, 7).totalReach, null);
+  assert.equal(summarizeInstagramDailyRows([], 7).totalWebClicks, null);
+});

@@ -1,33 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getActiveInstagramUsers,
-  upsertInstagramInsights,
-  InstagramInsights,
+  upsertInstagramInsightBatch,
 } from '@/lib/bigquery';
 import { detectGraphBase } from '@/lib/instagram-graph';
-import { v4 as uuidv4 } from 'uuid';
-import { BigQuery } from '@google-cloud/bigquery';
+import { syncAccountInsightDays } from '@/lib/instagram-insights-sync';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 300;
-
-const bigquery = new BigQuery({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}'),
-  projectId: 'mark-454114',
-});
 
 interface InstagramUser {
   id: string;
   username: string;
   followers_count: number;
   media_count: number;
-}
-
-interface AccountInsights {
-  reach?: number;
-  profile_views?: number;
-  website_clicks?: number;
-  accounts_engaged?: number;
 }
 
 /**
@@ -52,151 +38,13 @@ async function getInstagramBusinessAccount(graphBase: string, accessToken: strin
 }
 
 /**
- * アカウントインサイトを取得（今日のtotal_value）
- */
-async function getAccountInsights(graphBase: string, accessToken: string, accountId: string): Promise<AccountInsights> {
-  const insights: AccountInsights = {};
-
-  try {
-    const response = await fetch(
-      `${graphBase}/${accountId}/insights?metric=reach,profile_views,website_clicks,accounts_engaged&metric_type=total_value&period=day&access_token=${accessToken}`
-    );
-
-    if (!response.ok) {
-      const errBody = await response.text();
-      console.warn(`Account insights API error (${response.status}):`, errBody);
-      return insights;
-    }
-
-    const data = await response.json();
-
-    if (data.data && Array.isArray(data.data)) {
-      for (const metric of data.data) {
-        const value = metric.total_value?.value ?? metric.values?.[metric.values.length - 1]?.value ?? 0;
-
-        switch (metric.name) {
-          case 'reach':
-            insights.reach = value || 0;
-            break;
-          case 'profile_views':
-            insights.profile_views = value || 0;
-            break;
-          case 'website_clicks':
-            insights.website_clicks = value || 0;
-            break;
-          case 'accounts_engaged':
-            insights.accounts_engaged = value || 0;
-            break;
-        }
-      }
-    }
-
-    return insights;
-  } catch (error) {
-    console.error(`Error fetching account insights for ${accountId}:`, error);
-    return insights;
-  }
-}
-
-/**
- * 過去の欠損日数を検出して日別insightsをバックフィル
- * period=day + since/until で最大30日分の日別reachデータを取得
- */
-async function backfillMissingInsights(
-  userId: string,
-  graphBase: string,
-  accessToken: string,
-  accountId: string,
-  currentFollowers: number
-): Promise<number> {
-  try {
-    // BigQueryで最新のinsights日付を取得
-    const [rows] = await bigquery.query({
-      query: `SELECT MAX(date) as latest_date FROM \`mark-454114.analyca.instagram_insights\` WHERE user_id = @user_id`,
-      params: { user_id: userId },
-    });
-
-    const latestDate = rows[0]?.latest_date;
-    if (!latestDate) return 0;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const lastDate = new Date(latestDate.value || latestDate);
-    lastDate.setHours(0, 0, 0, 0);
-
-    // 欠損が1日以内なら不要
-    const diffDays = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays <= 1) return 0;
-
-    // period=dayで過去データを取得（最大30日）
-    const sinceDate = new Date(lastDate);
-    sinceDate.setDate(sinceDate.getDate() + 1);
-    const since = Math.floor(sinceDate.getTime() / 1000);
-    const until = Math.floor(today.getTime() / 1000);
-
-    const response = await fetch(
-      `${graphBase}/${accountId}/insights?metric=reach,profile_views,website_clicks&period=day&since=${since}&until=${until}&access_token=${accessToken}`
-    );
-
-    if (!response.ok) {
-      console.warn(`Backfill insights API error: ${response.status}`);
-      return 0;
-    }
-
-    const data = await response.json();
-    if (!data.data || !Array.isArray(data.data)) return 0;
-
-    // 日別メトリクスをマップに整理
-    const dailyMap: Record<string, Record<string, number>> = {};
-    for (const metric of data.data) {
-      for (const v of metric.values || []) {
-        const date = v.end_time?.substring(0, 10);
-        if (!date) continue;
-        if (!dailyMap[date]) dailyMap[date] = {};
-        dailyMap[date][metric.name] = v.value || 0;
-      }
-    }
-
-    // 今日は除外（syncUserInsightsで別途処理）
-    const todayStr = today.toISOString().split('T')[0];
-    delete dailyMap[todayStr];
-
-    let backfilledCount = 0;
-    for (const [date, metrics] of Object.entries(dailyMap)) {
-      const insights: InstagramInsights = {
-        id: uuidv4(),
-        user_id: userId,
-        date,
-        followers_count: currentFollowers,
-        posts_count: 0,
-        reach: metrics.reach || 0,
-        engagement: 0,
-        profile_views: metrics.profile_views || 0,
-        website_clicks: metrics.website_clicks || 0,
-      };
-      await upsertInstagramInsights(insights);
-      backfilledCount++;
-    }
-
-    if (backfilledCount > 0) {
-      console.log(`Backfilled ${backfilledCount} days of insights for user ${userId}`);
-    }
-
-    return backfilledCount;
-  } catch (error) {
-    console.error(`Error backfilling insights for user ${userId}:`, error);
-    return 0;
-  }
-}
-
-/**
  * ユーザーのインサイトデータを同期
  */
 async function syncUserInsights(
   userId: string,
   accessToken: string,
   instagramUserId: string
-): Promise<{ success: boolean; backfilledDays?: number; error?: string }> {
+): Promise<{ success: boolean; savedDays?: number; failedDates?: string[]; error?: string }> {
   try {
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
 
@@ -205,30 +53,18 @@ async function syncUserInsights(
       return { success: false, error: 'Instagram account not found' };
     }
 
-    // 欠損日のバックフィル（今日の分の前に実行）
-    const backfilledDays = await backfillMissingInsights(
-      userId, graphBase, accessToken, instagramUserId, account.followers_count || 0
-    );
-
-    // 今日のインサイトを取得・保存
-    const accountInsights = await getAccountInsights(graphBase, accessToken, instagramUserId);
-    const today = new Date().toISOString().split('T')[0];
-
-    const insights: InstagramInsights = {
-      id: uuidv4(),
-      user_id: userId,
-      date: today,
-      followers_count: account.followers_count || 0,
-      posts_count: account.media_count || 0,
-      reach: accountInsights.reach || 0,
-      engagement: accountInsights.accounts_engaged || 0,
-      profile_views: accountInsights.profile_views || 0,
-      website_clicks: accountInsights.website_clicks || 0,
+    const result = await syncAccountInsightDays({
+      graphBase,
+      accountId: instagramUserId,
+      accessToken,
+      followers: account.followers_count,
+      posts: account.media_count,
+      save: rows => upsertInstagramInsightBatch(userId, rows),
+    });
+    return {
+      ...result,
+      ...(result.success ? {} : { error: `Insights unavailable for ${result.failedDates.length} days` }),
     };
-
-    await upsertInstagramInsights(insights);
-
-    return { success: true, backfilledDays };
   } catch (error) {
     console.error(`Error syncing insights for user ${userId}:`, error);
     return {

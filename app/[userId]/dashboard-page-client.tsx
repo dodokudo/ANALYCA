@@ -2379,7 +2379,7 @@ function InstagramContent({
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                     <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v ? String(v).slice(5) : ''} />
                     <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#6B7280' }} tickFormatter={(v) => v != null ? v.toLocaleString() : ''} domain={['dataMin', 'dataMax']} allowDataOverflow={false} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} domain={['dataMin', 'dataMax']} allowDataOverflow={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12, fill: '#6B7280' }} domain={[0, 'dataMax + 5']} allowDataOverflow={false} />
                     <Tooltip formatter={(value: number | null, name: string) => [value != null ? value.toLocaleString() : '-', name]} />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="followers_count" name="フォロワー数" stroke="#7C3AED" strokeWidth={2} dot={{ r: 3 }} />

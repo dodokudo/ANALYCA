@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildInstagramDailyRows } from '../instagram-daily';
+import { buildInstagramDailyRows, summarizeInstagramDailyRange } from '../instagram-daily';
 
 test('orders dates newest first and calculates signed changes against the previous day', () => {
   const rows = buildInstagramDailyRows([
@@ -105,5 +105,52 @@ test('boundary growth preserves zero, decreases and single-day ranges', async ()
   for (const [before, after, expected] of [[100, 100, 0], [100, 97, -3], [0, 2, 2]]) {
     const rows = buildInstagramDailyRows([{ date: '2026-10-27', followers_count: after }], []);
     assert.equal(summarizeInstagramDailyRows(rows, 1, { date: '2026-10-26', followers_count: before }).followerGrowth, expected);
+  }
+});
+
+test('current month and seven-day funnels remain visible after midnight before the next sync', () => {
+  const insights = [
+    { date: '2026-09-30', followers_count: 100 },
+    ...Array.from({ length: 27 }, (_, i) => ({
+      date: `2026-10-${String(i + 1).padStart(2, '0')}`,
+      followers_count: 101 + i, reach: 10, profile_views: 2, website_clicks: 0,
+    })),
+  ];
+  // A newer LINE-only row must not advance the Instagram collection date.
+  const rows = buildInstagramDailyRows(insights, [], [{ date: '2026-10-28', followers: 20, registrations: 1 }]);
+  assert.deepEqual(summarizeInstagramDailyRange(rows, '2026-10-01', '2026-10-28', '2026-10-27'), {
+    totalReach: 270, totalProfileViews: 54, totalWebClicks: 0, followerGrowth: 27, complete: true,
+  });
+  assert.deepEqual(summarizeInstagramDailyRange(rows, '2026-10-22', '2026-10-28', '2026-10-27'), {
+    totalReach: 60, totalProfileViews: 12, totalWebClicks: 0, followerGrowth: 6, complete: true,
+  });
+  const synced = buildInstagramDailyRows([
+    ...insights, { date: '2026-10-28', followers_count: 128, reach: 5, profile_views: 1, website_clicks: 1 },
+  ], []);
+  assert.equal(summarizeInstagramDailyRange(synced, '2026-10-01', '2026-10-28', '2026-10-28').totalReach, 275);
+});
+
+test('range summary preserves past ranges and does not conceal gaps within collected history', () => {
+  const rows = buildInstagramDailyRows([
+    { date: '2026-09-30', followers_count: 100 },
+    { date: '2026-10-01', followers_count: 102, reach: 10 },
+    { date: '2026-10-03', followers_count: 106, reach: 20 },
+  ], []);
+  const past = summarizeInstagramDailyRange(rows, '2026-10-01', '2026-10-01', '2026-10-03');
+  assert.equal(past.totalReach, 10);
+  assert.equal(past.followerGrowth, 2);
+  const gap = summarizeInstagramDailyRange(rows, '2026-10-01', '2026-10-04', '2026-10-03');
+  assert.equal(gap.totalReach, null);
+  assert.equal(gap.followerGrowth, 6);
+  assert.equal(gap.complete, false);
+});
+
+test('uncollected month and missing account data remain unknown rather than zero', () => {
+  const rows = buildInstagramDailyRows([{ date: '2026-10-31', followers_count: 100, reach: 10 }], []);
+  for (const latest of ['2026-10-31', undefined]) {
+    const result = summarizeInstagramDailyRange(rows, '2026-11-01', '2026-11-01', latest);
+    assert.equal(result.totalReach, null);
+    assert.equal(result.followerGrowth, null);
+    assert.equal(result.complete, false);
   }
 });

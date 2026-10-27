@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
-import { buildInstagramDailyRows, summarizeInstagramDailyRows, instagramMetricExtent, type InstagramDailyContentStat, type InstagramLineDay } from '@/lib/instagram-daily';
+import { buildInstagramDailyRows, summarizeInstagramDailyRange, instagramMetricExtent, type InstagramDailyContentStat, type InstagramLineDay } from '@/lib/instagram-daily';
 import { InstagramDailyTable, InstagramPerformanceTable } from './components/instagram-daily-table';
 import { InstagramReelsTab } from './components/instagram-reels-tab';
 import { ScheduleTab } from './components/schedule-tab';
@@ -2198,11 +2198,10 @@ function InstagramContent({
   })), [insights]);
 
   const summary = useMemo(() => {
-    const expectedDays = Math.round((new Date(formatDateForInput(dateRange.end)).getTime() - new Date(formatDateForInput(dateRange.start)).getTime()) / 86400000) + 1;
-    const baselineDate = new Date(`${formatDateForInput(dateRange.start)}T00:00:00Z`);
-    baselineDate.setUTCDate(baselineDate.getUTCDate() - 1);
-    const baseline = dailyRows.find(row => row.date === baselineDate.toISOString().slice(0, 10));
-    const accountSummary = summarizeInstagramDailyRows(insights, expectedDays, baseline);
+    const latestInsightDate = allInsights.reduce<string | undefined>((latest, row) => !latest || row.date > latest ? row.date : latest, undefined);
+    const accountSummary = summarizeInstagramDailyRange(
+      dailyRows, formatDateForInput(dateRange.start), formatDateForInput(dateRange.end), latestInsightDate,
+    );
     const totalReelsViews = reels.reduce((sum, r) => sum + (r.views || 0), 0);
     const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
     const totalStoriesViews = stories.reduce((sum, s) => sum + (s.reach || 0), 0);
@@ -2210,7 +2209,7 @@ function InstagramContent({
     const lineRegistrations = lineRows.length ? lineRows.reduce((sum, row) => sum + row.lineRegistrations!, 0) : null;
     const lineFollowers = insights.find(row => row.lineFollowers != null)?.lineFollowers ?? null;
     return { ...accountSummary, totalReelsViews, totalReelsLikes, totalStoriesViews, lineRegistrations, lineFollowers };
-  }, [insights, reels, stories, dateRange, dailyRows]);
+  }, [insights, reels, stories, dateRange, dailyRows, allInsights]);
 
   const reachExtent = instagramMetricExtent(insights.map(row => row.reach));
   const profileExtent = instagramMetricExtent(insights.map(row => row.profile_views));

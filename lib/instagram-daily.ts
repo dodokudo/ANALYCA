@@ -104,6 +104,27 @@ export function summarizeInstagramDailyRows(rows: InstagramDailyRow[], expectedD
   };
 }
 
+// A period that includes today may extend beyond the latest account sync.
+// Trim only that uncollected tail; gaps within the collected history stay unknown.
+export function summarizeInstagramDailyRange(
+  rows: InstagramDailyRow[],
+  startDate: string,
+  endDate: string,
+  latestInsightDate: string | undefined,
+) {
+  const availableEnd = latestInsightDate && latestInsightDate < endDate ? latestInsightDate : endDate;
+  const expectedDays = latestInsightDate
+    ? Math.max(0, Math.round((Date.parse(availableEnd) - Date.parse(startDate)) / 86400000) + 1)
+    : 0;
+  const baselineDate = new Date(`${startDate}T00:00:00Z`);
+  baselineDate.setUTCDate(baselineDate.getUTCDate() - 1);
+  const baseline = rows.find(row => row.date === baselineDate.toISOString().slice(0, 10));
+  const periodRows = latestInsightDate
+    ? rows.filter(row => row.date >= startDate && row.date <= availableEnd)
+    : [];
+  return summarizeInstagramDailyRows(periodRows, expectedDays, baseline);
+}
+
 export function instagramMetricExtent(values: (number | null | undefined)[]) {
   const known = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
   return { min: known.length ? Math.min(...known) : null, max: known.length ? Math.max(...known) : null };

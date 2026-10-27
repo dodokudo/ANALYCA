@@ -18,7 +18,9 @@ The same daily job repairs a missing current-month tab and prepares the followin
 
 ## Reliability and cutover
 
-Apply `scripts/migrations/20261027-instagram-sheet-export.sql` before deployment. New sources are disabled by default. Stop only the three legacy Instagram Apps Script triggers before enabling export. Keep `getLineDailyData` and remove Instagram calls from the old combined initialization/trigger menus.
+Apply `scripts/migrations/20261027-instagram-sheet-export.sql` before deployment. New sources are disabled by default. Stop only the three legacy Instagram retrieval functions before enabling export. Keep `getLineDailyData` and remove Instagram calls from the old combined initialization/trigger menus.
+
+The existing bound Apps Script retains its trigger definitions and legacy source for rollback. Its three Instagram entrypoints return immediately while `INSTAGRAM_DB_EXPORT_ENABLED=true`; they perform no API calls or sheet writes. The LINE source and its trigger remain unchanged. The combined menu only starts LINE retrieval and cannot recreate Instagram writers.
 
 For user `33833959932919231`, the destination is `1FPl5JTHTqNpiMyjvCH0TxZtvx8x_nHMzdX2rHaykbTA`, and the daily insight cutover is **2026-10-23**, after the last existing sheet observation. Historical sheet values through October 22 are preserved because older DB observations differ; this change does not reconcile those historical differences. Historical missing followers or unavailable metrics are not fabricated.
 

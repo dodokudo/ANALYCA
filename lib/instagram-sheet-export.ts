@@ -130,6 +130,14 @@ export function buildSheetExportPlan(snapshot: sheets_v4.Schema$Spreadsheet, dat
       requests.push({ appendDimension: { sheetId: p.sheetId!, dimension: 'COLUMNS', length: count + 2 - oldColumns } });
       requests.push({ copyPaste: { source: { sheetId: p.sheetId!, startRowIndex: 0, endRowIndex: 10, startColumnIndex: oldColumns - 1, endColumnIndex: oldColumns }, destination: { sheetId: p.sheetId!, startRowIndex: 0, endRowIndex: 10, startColumnIndex: oldColumns, endColumnIndex: count + 2 }, pasteType: 'PASTE_FORMAT' } });
     }
+    // FILTER spills numeric date/rate values; the monthly template must display their units.
+    for (const [row, format] of [[2, { type: 'DATE_TIME', pattern: 'yyyy/MM/dd HH:mm' }], [5, { type: 'PERCENT', pattern: '0.0%' }]] as const) {
+      const current = gridRows(sheet)[row]?.values?.[2]?.userEnteredFormat?.numberFormat;
+      if (current?.type !== format.type || current?.pattern !== format.pattern) requests.push({ repeatCell: {
+        range: { sheetId: p.sheetId!, startRowIndex: row, endRowIndex: row + 1, startColumnIndex: 2, endColumnIndex: Math.max(oldColumns, count + 2) },
+        cell: { userEnteredFormat: { numberFormat: format } }, fields: 'userEnteredFormat.numberFormat',
+      } });
+    }
     for (const row of formulaRows) {
       const current = formulaOf(gridRows(sheet)[row]?.values?.[2]);
       if (current && current !== blankWhenNoPosts(current)) requests.push(formulaRequest(p.sheetId!, row, 2, blankWhenNoPosts(current)));

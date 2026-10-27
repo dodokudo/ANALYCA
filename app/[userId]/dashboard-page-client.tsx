@@ -902,14 +902,12 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       Icon: ThreadsIcon,
       locked: isChannelBlockedByPlan(planId, 'threads'),
     });
-    if (userId !== YOKO_ANALYCA_USER_ID) {
-      items.push({
-        value: 'instagram',
-        label: 'Instagram',
-        Icon: InstagramIcon,
-        locked: isChannelBlockedByPlan(planId, 'instagram'),
-      });
-    }
+    items.push({
+      value: 'instagram',
+      label: 'Instagram',
+      Icon: InstagramIcon,
+      locked: isChannelBlockedByPlan(planId, 'instagram'),
+    });
     if (userId !== YOKO_ANALYCA_USER_ID) {
       items.push({
         value: 'affiliate',
@@ -966,7 +964,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
     if (tabParam === 'templates' && isTemplateAllowed(userId)) return 'templates';
     if (tabParam === 'settings') return 'settings';
     if (tabParam === 'threads') return 'threads';
-    if (tabParam === 'instagram') return userId === YOKO_ANALYCA_USER_ID ? 'threads' : 'instagram';
+    if (tabParam === 'instagram') return 'instagram';
     if (tabParam === 'affiliate') return 'affiliate';
     if (tabParam === 'options') return 'options';
     if (tabParam === 'research' && isResearchAllowed(userId)) return 'research';

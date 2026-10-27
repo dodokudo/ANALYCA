@@ -66,3 +66,9 @@ test('summary distinguishes unavailable days and follower history from measured 
   assert.equal(summarizeInstagramDailyRows(rows, 7).totalReach, null);
   assert.equal(summarizeInstagramDailyRows([], 7).totalWebClicks, null);
 });
+
+test('chart extents keep measured zeros and leave missing history unknown', async () => {
+  const { instagramMetricExtent } = await import('../instagram-daily');
+  assert.deepEqual(instagramMetricExtent([null, undefined]), { min: null, max: null });
+  assert.deepEqual(instagramMetricExtent([0, 12, null]), { min: 0, max: 12 });
+});

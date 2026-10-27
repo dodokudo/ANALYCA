@@ -62,3 +62,8 @@ export function summarizeInstagramDailyRows(rows: InstagramDailyRow[], expectedD
     complete,
   };
 }
+
+export function instagramMetricExtent(values: (number | null | undefined)[]) {
+  const known = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  return { min: known.length ? Math.min(...known) : null, max: known.length ? Math.max(...known) : null };
+}

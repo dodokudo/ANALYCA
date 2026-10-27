@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
-import { buildInstagramDailyRows, summarizeInstagramDailyRows, type InstagramDailyContentStat } from '@/lib/instagram-daily';
+import { buildInstagramDailyRows, summarizeInstagramDailyRows, instagramMetricExtent, type InstagramDailyContentStat } from '@/lib/instagram-daily';
 import { InstagramDailyTable } from './components/instagram-daily-table';
 import { InstagramReelsTab } from './components/instagram-reels-tab';
 import { ScheduleTab } from './components/schedule-tab';
@@ -2195,6 +2195,9 @@ function InstagramContent({
     return { ...accountSummary, totalReelsViews, totalReelsLikes, totalStoriesViews };
   }, [insights, reels, stories, dateRange]);
 
+  const followerExtent = instagramMetricExtent(insights.map(row => row.followers_count));
+  const reachExtent = instagramMetricExtent(insights.map(row => row.reach));
+  const profileExtent = instagramMetricExtent(insights.map(row => row.profile_views));
   const formatInsightNumber = (value: number | null) => value === null ? '—' : value.toLocaleString();
   const insightRate = (numerator: number | null, denominator: number | null) =>
     numerator === null || denominator === null ? '—' : `${denominator > 0 ? ((numerator / denominator) * 100).toFixed(1) : '0'}%`;
@@ -2306,7 +2309,7 @@ function InstagramContent({
                 <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">ファネル分析</h2>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex flex-col items-center">
-                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">リーチ</span>
+                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2" title="日別リーチの合計です。同じアカウントの複数日の閲覧を含みます。">リーチ（日別合計）</span>
                     <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.totalReach)}</span>
                   </div>
                   <div className="flex flex-col items-center mx-2">
@@ -2351,15 +2354,15 @@ function InstagramContent({
               <div className="flex gap-6 mb-3 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-[color:var(--color-text-muted)]">フォロワー:</span>
-                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.followers_count || 0)).toLocaleString()}</span>
+                  <span className="text-green-600 font-medium">最大 {formatInsightNumber(followerExtent.max)}</span>
                   <span className="text-gray-400">/</span>
-                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.followers_count).map(i => i.followers_count || 0)).toLocaleString()}</span>
+                  <span className="text-red-500 font-medium">最小 {formatInsightNumber(followerExtent.min)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[color:var(--color-text-muted)]">リーチ:</span>
-                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-green-600 font-medium">最大 {formatInsightNumber(reachExtent.max)}</span>
                   <span className="text-gray-400">/</span>
-                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.reach).map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-red-500 font-medium">最小 {formatInsightNumber(reachExtent.min)}</span>
                 </div>
               </div>
               {/* グラフ */}
@@ -2542,15 +2545,15 @@ function InstagramContent({
               <div className="flex flex-wrap gap-4 mb-3 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-[color:var(--color-text-muted)]">リーチ:</span>
-                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-green-600 font-medium">最大 {formatInsightNumber(reachExtent.max)}</span>
                   <span className="text-gray-400">/</span>
-                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.reach).map(i => i.reach || 0)).toLocaleString()}</span>
+                  <span className="text-red-500 font-medium">最小 {formatInsightNumber(reachExtent.min)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[color:var(--color-text-muted)]">プロフ表示:</span>
-                  <span className="text-green-600 font-medium">最大 {Math.max(...insights.map(i => i.profile_views || 0)).toLocaleString()}</span>
+                  <span className="text-green-600 font-medium">最大 {formatInsightNumber(profileExtent.max)}</span>
                   <span className="text-gray-400">/</span>
-                  <span className="text-red-500 font-medium">最小 {Math.min(...insights.filter(i => i.profile_views).map(i => i.profile_views || 0)).toLocaleString()}</span>
+                  <span className="text-red-500 font-medium">最小 {formatInsightNumber(profileExtent.min)}</span>
                 </div>
               </div>
               <div className="h-72">

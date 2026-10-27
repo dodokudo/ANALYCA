@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/sync/instagram/sheet-line",
+      "schedule": "15 * * * *"
+    },
+    {
       "path": "/api/cron/course-applications",
       "schedule": "*/5 * * * *"
     },

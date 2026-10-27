@@ -249,6 +249,9 @@ export async function GET(
         data: reels.map(reel => ({
           id: reel.instagram_id,
           caption: reel.caption,
+          title: reel.title ?? null,
+          duration_seconds: reel.duration_seconds ?? null,
+          follows: reel.follows ?? null,
           media_type: reel.media_type,
           permalink: reel.permalink,
           timestamp: serializeTimestamp(reel.timestamp),

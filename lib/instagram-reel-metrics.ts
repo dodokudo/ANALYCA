@@ -82,6 +82,7 @@ export function compareNullableMetrics(a: number | null, b: number | null, order
 
 /** The complete metric set travels in the initial dashboard response. */
 export interface SavedReelMetricSource {
+  duration_seconds?: number | null;
   id: string;
   views?: number | null;
   reach?: number | null;
@@ -108,5 +109,5 @@ export function getSavedReelMetrics(reel: SavedReelMetricSource): InstagramReelM
     if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) values[name] = raw;
   }
   // Legacy DB rows remain usable before their first scheduled metrics snapshot.
-  return { ...normalizeReelMetrics(reel.id, values, null), fetchedAt: '' };
+  return { ...normalizeReelMetrics(reel.id, values, reel.duration_seconds ?? null), fetchedAt: '' };
 }

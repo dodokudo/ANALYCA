@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
-import { buildInstagramDailyRows, summarizeInstagramDailyRows, instagramMetricExtent, type InstagramDailyContentStat } from '@/lib/instagram-daily';
+import { buildInstagramDailyRows, summarizeInstagramDailyRows, instagramMetricExtent, type InstagramDailyContentStat, type InstagramLineDay } from '@/lib/instagram-daily';
 import { InstagramDailyTable } from './components/instagram-daily-table';
 import { InstagramReelsTab } from './components/instagram-reels-tab';
 import { ScheduleTab } from './components/schedule-tab';
@@ -331,6 +331,7 @@ function buildContactLineUrl(user: UserInfo | null): string {
 }
 
 interface DashboardData {
+  lineData?: { data: InstagramLineDay[] };
   instagramDailyContentStats?: { data: InstagramDailyContentStat[] };
   threads?: {
     total: number;
@@ -2159,19 +2160,24 @@ function InstagramContent({
   const instagramSearchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<IGTab>(() => instagramSearchParams.get('igTab') === 'reels' ? 'reels' : 'overview');
   const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+  const [customStart, setCustomStart] = useState(() => formatDateForInput(getDateRange('thisMonth').start));
+  const [customEnd, setCustomEnd] = useState(() => formatDateForInput(new Date()));
   const [storySortBy, setStorySortBy] = useState('views');
 
   const allReels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
   const allStories: InstagramStory[] = (data?.stories?.data || []) as InstagramStory[];
   const allInsights: InstagramInsight[] = ((data?.insights as { data?: InstagramInsight[] })?.data || []) as InstagramInsight[];
   const dailyRows = useMemo(
-    () => buildInstagramDailyRows(allInsights, data?.instagramDailyContentStats?.data),
-    [allInsights, data?.instagramDailyContentStats?.data],
+    () => buildInstagramDailyRows(allInsights, data?.instagramDailyContentStats?.data, data?.lineData?.data),
+    [allInsights, data?.instagramDailyContentStats?.data, data?.lineData?.data],
   );
+  const showLine = Boolean(data?.lineData?.data?.length);
   const followersCount = dailyRows.find(row => row.followers_count != null)?.followers_count ?? 0;
 
   // 日付範囲でフィルタリング（今日のデータも含める）
-  const dateRange = useMemo(() => getDateRange(datePreset, { includeToday: true }), [datePreset]);
+  const dateRange = useMemo(() => datePreset === 'custom' && customStart && customEnd && customStart <= customEnd
+    ? { start: new Date(`${customStart}T00:00:00+09:00`), end: new Date(`${customEnd}T23:59:59.999+09:00`) }
+    : getDateRange(datePreset, { includeToday: true }), [datePreset, customStart, customEnd]);
 
   const reels = useMemo(() => {
     return allReels.filter(r => isDateInRange(r.timestamp, dateRange));
@@ -2182,7 +2188,7 @@ function InstagramContent({
   }, [allStories, dateRange]);
 
   const insights = useMemo(() => {
-    return dailyRows.filter(i => isDateInRange(`${i.date}T00:00:00`, dateRange));
+    return dailyRows.filter(i => isDateInRange(`${i.date}T00:00:00+09:00`, dateRange));
   }, [dailyRows, dateRange]);
 
   const summary = useMemo(() => {
@@ -2191,7 +2197,10 @@ function InstagramContent({
     const totalReelsViews = reels.reduce((sum, r) => sum + (r.views || 0), 0);
     const totalReelsLikes = reels.reduce((sum, r) => sum + (r.like_count || 0), 0);
     const totalStoriesViews = stories.reduce((sum, s) => sum + (s.reach || 0), 0);
-    return { ...accountSummary, totalReelsViews, totalReelsLikes, totalStoriesViews };
+    const lineRows = insights.filter(row => row.lineRegistrations != null);
+    const lineRegistrations = lineRows.length ? lineRows.reduce((sum, row) => sum + row.lineRegistrations!, 0) : null;
+    const lineFollowers = insights.find(row => row.lineFollowers != null)?.lineFollowers ?? null;
+    return { ...accountSummary, totalReelsViews, totalReelsLikes, totalStoriesViews, lineRegistrations, lineFollowers };
   }, [insights, reels, stories, dateRange]);
 
   const followerExtent = instagramMetricExtent(insights.map(row => row.followers_count));
@@ -2203,14 +2212,23 @@ function InstagramContent({
 
   const sortedReels = useMemo(() => [...reels].sort((a, b) => (b.views || 0) - (a.views || 0)), [reels]);
 
+  const storyRates = useMemo(() => {
+    const followersByDate = new Map(dailyRows.map(row => [row.date, row.followers_count]));
+    return new Map(allStories.map(story => {
+      const date = new Date(story.timestamp).toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
+      const followers = followersByDate.get(date);
+      return [story.id, story.reach != null && followers > 0 ? story.reach / followers * 100 : null];
+    }));
+  }, [allStories, dailyRows]);
+
   const sortedStories = useMemo(() => {
     return [...stories].sort((a, b) => {
       if (storySortBy === 'date') return safeGetTime(b.timestamp) - safeGetTime(a.timestamp);
       if (storySortBy === 'views') return (b.reach || 0) - (a.reach || 0);
-      if (storySortBy === 'viewRate') return ((b.reach || 0) / followersCount) - ((a.reach || 0) / followersCount);
+      if (storySortBy === 'viewRate') return (storyRates.get(b.id) ?? -1) - (storyRates.get(a.id) ?? -1);
       return 0;
     });
-  }, [stories, storySortBy, followersCount]);
+  }, [stories, storySortBy, storyRates]);
 
   const tabItems: { value: IGTab; label: string }[] = [
     { value: 'overview', label: '概要' },
@@ -2255,10 +2273,11 @@ function InstagramContent({
             onChange={(e) => setDatePreset(e.target.value as DatePreset)}
             className="h-10 shrink-0 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
           >
-            {standardDatePresetOptions.map((opt) => (
+            {datePresetOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+          {datePreset === 'custom' && <><input aria-label="Instagram開始日" type="date" value={customStart} max={customEnd} onChange={event => setCustomStart(event.target.value)} className="h-10 rounded border border-[color:var(--color-border)] px-2 text-sm" /><span>〜</span><input aria-label="Instagram終了日" type="date" value={customEnd} min={customStart} onChange={event => setCustomEnd(event.target.value)} className="h-10 rounded border border-[color:var(--color-border)] px-2 text-sm" /></>}
         </div>
       </div>
 
@@ -2329,6 +2348,7 @@ function InstagramContent({
                     <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">フォロワー増加</span>
                     <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.followerGrowth)}</span>
                   </div>
+                  {showLine && <><div className="flex flex-col items-center mx-2"><div className="text-lg text-emerald-500">→</div><span className="text-xs font-medium text-emerald-500" title="LINE登録数 ÷ リンククリック数">CVR {insightRate(summary.lineRegistrations, summary.totalWebClicks)}</span></div><div className="flex flex-col items-center"><span className="text-xs font-medium text-[color:var(--color-text-secondary)] mb-2" title="公式LINE全体の登録数。Instagram経由に限定した数値ではありません。">LINE登録数</span><span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.lineRegistrations)}</span><span className="mt-1 text-xs text-[color:var(--color-text-muted)]">総数 {formatInsightNumber(summary.lineFollowers)}</span></div></>}
                 </div>
               </div>
             </div>
@@ -2341,7 +2361,7 @@ function InstagramContent({
               <p className="mt-1 text-sm text-[color:var(--color-text-secondary)] mb-4">日別のパフォーマンス</p>
               {/* デイリーテーブル */}
               <div className="mb-6">
-                <InstagramDailyTable rows={insights} />
+                <InstagramDailyTable rows={insights} showLine={showLine} />
               </div>
               {/* 最大・最小値表示 */}
               <div className="flex gap-6 mb-3 text-sm">
@@ -2435,7 +2455,7 @@ function InstagramContent({
               </div>
               <div className="flex gap-4 overflow-x-auto pb-1">
                 {sortedStories.slice(0, 5).map((story) => {
-                  const viewRate = story.reach != null && followersCount > 0 ? `${((story.reach / followersCount) * 100).toFixed(1)}%` : '—';
+                  const viewRate = storyRates.get(story.id) == null ? '—' : `${storyRates.get(story.id)!.toFixed(1)}%`;
                   return (
                     <div key={story.id} className="flex min-w-[180px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
                       <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
@@ -2453,7 +2473,7 @@ function InstagramContent({
                         <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
                         <dl className="space-y-1 text-sm text-[color:var(--color-text-secondary)]">
                           <div className="flex items-center justify-between">
-                            <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧数</dt>
+                            <dt className="font-medium text-[color:var(--color-text-muted)]">リーチ</dt>
                             <dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.reach ?? null)}</dd>
                           </div>
                           <div className="flex items-center justify-between">
@@ -2486,13 +2506,13 @@ function InstagramContent({
             </div>
             <select value={storySortBy} onChange={(e) => setStorySortBy(e.target.value)} className="h-9 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]">
               <option value="date">日付</option>
-              <option value="views">閲覧数</option>
+              <option value="views">リーチ</option>
               <option value="viewRate">閲覧率</option>
             </select>
           </div>
           <div className="space-y-4">
             {sortedStories.map((story) => {
-              const viewRate = story.reach != null && followersCount > 0 ? `${((story.reach / followersCount) * 100).toFixed(1)}%` : '—';
+              const viewRate = storyRates.get(story.id) == null ? '—' : `${storyRates.get(story.id)!.toFixed(1)}%`;
               return (
                 <div key={story.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
                   <div className="relative w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">
@@ -2511,10 +2531,11 @@ function InstagramContent({
                   <div className="flex-1 space-y-3">
                     <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
                     <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
-                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.reach ?? null)}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">リーチ</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.reach ?? null)}</dd></div>
                       <div><dt className="text-[color:var(--color-text-muted)]">閲覧率</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}</dd></div>
-                      <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.views ?? null)}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.views ?? null)}</dd></div>
                       <div><dt className="text-[color:var(--color-text-muted)]">返信</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.replies ?? null)}</dd></div>
+                      {([['total_interactions', '反応'], ['follows', 'フォロー'], ['profile_visits', 'プロフアクセス'], ['navigation', 'ナビゲーション']] as const).map(([key, label]) => <div key={key}><dt className="text-[color:var(--color-text-muted)]">{label}</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story[key] ?? null)}</dd></div>)}
                     </dl>
                   </div>
                 </div>
@@ -2560,6 +2581,7 @@ function InstagramContent({
                     <Bar dataKey="reach" name="リーチ" fill="#10B981" />
                     <Bar dataKey="profile_views" name="プロフ表示" fill="#3B82F6" />
                     <Bar dataKey="website_clicks" name="リンククリック" fill="#6366F1" />
+                    {showLine && <Line type="monotone" dataKey="lineRegistrations" name="LINE登録数" stroke="#06C755" connectNulls={false} />}
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
@@ -2570,7 +2592,7 @@ function InstagramContent({
           <div className="ui-card p-6">
             <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-4">デイリーデータ</h2>
             <div>
-              <InstagramDailyTable rows={insights} />
+              <InstagramDailyTable rows={insights} showLine={showLine} />
               {insights.length === 0 && (
                 <p className="text-center text-[color:var(--color-text-muted)] py-8">デイリーデータがありません</p>
               )}

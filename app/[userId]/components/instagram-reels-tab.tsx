@@ -7,6 +7,9 @@ export interface SavedInstagramReel extends SavedReelMetricSource {
   id: string;
   timestamp: string;
   caption?: string;
+  title?: string | null;
+  follows?: number | null;
+  total_interactions?: number | null;
   permalink?: string;
   thumbnail_url?: string;
   views: number;
@@ -24,7 +27,7 @@ const METRICS: { key: MetricKey; label: string; format: 'number' | 'seconds' | '
   { key: 'avgWatchSeconds', label: '平均視聴', format: 'seconds' },
   { key: 'retentionRate', label: '視聴維持率', format: 'percent' },
   { key: 'skipRate', label: 'スキップ率', format: 'percent' },
-  { key: 'saveRate', label: '保存率', format: 'percent' },
+  { key: 'saveRate', label: '保存率（再生）', format: 'percent' },
 ];
 
 function displayMetric(value: number | null, format: typeof METRICS[number]['format'], digits = 1): string {
@@ -63,7 +66,7 @@ export function InstagramReelsTab({ reels, allReels }: { userId: string; reels: 
 
   return <section className="ui-card p-4 sm:p-6" aria-label="リール分析">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="text-lg font-semibold">リール一覧</h2><p className="text-xs text-[color:var(--color-text-muted)]">表示件数 {sorted.length} · 比較対象はこのアカウントの最新{allReels.length}件（最大50件）</p></div>
+      <div><h2 className="text-lg font-semibold">リール一覧</h2><p className="text-xs text-[color:var(--color-text-muted)]">表示件数 {sorted.length} · 比較対象 {allReels.length}件</p></div>
       <div className="flex items-center gap-2">
         <select aria-label="リールの並べ替え" value={sortBy} onChange={event => setSortBy(event.target.value as typeof sortBy)} className="h-9 rounded border border-[color:var(--color-border)] bg-white px-3 text-sm">
           <option value="published">投稿日</option>{METRICS.map(spec => <option key={spec.key} value={spec.key}>{spec.label}</option>)}<option value="likes">いいね数</option><option value="saved">保存数</option>
@@ -81,8 +84,10 @@ export function InstagramReelsTab({ reels, allReels }: { userId: string; reels: 
               <span>{new Date(reel.timestamp).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}{metrics.durationSeconds !== null && ` · 動画 ${metrics.durationSeconds.toFixed(1)}秒`}</span>
               {reel.permalink && <a href={reel.permalink} target="_blank" rel="noopener noreferrer" className="font-medium text-[color:var(--color-accent)]">Instagramで開く</a>}
             </div>
+            {reel.title && <p className="text-sm font-semibold">{reel.title}</p>}
             <dl className="grid grid-cols-2 gap-4 min-[480px]:grid-cols-3 xl:grid-cols-7">{METRICS.map(spec => <MetricCell key={spec.key} spec={spec} value={metrics[spec.key]} rating={rateReelMetric(metrics[spec.key], populations[spec.key], spec.key === 'skipRate')} />)}</dl>
             <dl className="grid grid-cols-2 gap-3 border-t border-[color:var(--color-border)] pt-3 text-xs sm:grid-cols-4">{([['likes', 'いいね'], ['comments', 'コメント'], ['saved', '保存'], ['shares', 'シェア']] as const).map(([key, label]) => <div key={key}><dt className="text-[color:var(--color-text-muted)]">{label}</dt><dd className="mt-1 font-semibold">{displayMetric(metrics[key], 'number')}</dd></div>)}</dl>
+            <dl className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4"><div><dt className="text-[color:var(--color-text-muted)]">アクション数</dt><dd className="mt-1 font-semibold">{displayMetric(reel.total_interactions ?? null, 'number')}</dd></div><div><dt className="text-[color:var(--color-text-muted)]">保存率（リーチ）</dt><dd className="mt-1 font-semibold">{displayMetric(metrics.saved != null && metrics.reach > 0 ? metrics.saved / metrics.reach * 100 : null, 'percent', 2)}</dd></div><div><dt className="text-[color:var(--color-text-muted)]">フォロー数</dt><dd className="mt-1 font-semibold">{displayMetric(reel.follows ?? null, 'number')}</dd></div><div><dt className="text-[color:var(--color-text-muted)]">フォロー率（リーチ）</dt><dd className="mt-1 font-semibold">{displayMetric(reel.follows != null && metrics.reach > 0 ? reel.follows / metrics.reach * 100 : null, 'percent', 2)}</dd></div></dl>
           </div>
         </article>;
       })}

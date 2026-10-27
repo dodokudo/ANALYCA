@@ -188,6 +188,9 @@ export interface User {
 }
 
 export interface InstagramReel {
+  title?: string | null;
+  duration_seconds?: number | null;
+  follows?: number | null;
   metrics?: InstagramReelMetrics | null;
   id: string;
   user_id: string;
@@ -240,6 +243,7 @@ export interface InstagramInsights {
 }
 
 export interface LineDaily {
+  registrations?: number | null;
   id: string;
   user_id: string;
   date: string;
@@ -671,7 +675,7 @@ export async function isThreadsGrandprixParticipant(
 }
 
 // ユーザーのリールデータ取得
-export async function getUserReels(userId: string, limit: number = 50): Promise<InstagramReel[]> {
+export async function getUserReels(userId: string, limit: number | null = 50): Promise<InstagramReel[]> {
   const query = `
     WITH latest_metrics AS (
       SELECT * FROM \`mark-454114.analyca.instagram_reel_metric_snapshots\`
@@ -683,9 +687,9 @@ export async function getUserReels(userId: string, limit: number = 50): Promise<
     LEFT JOIN latest_metrics m ON r.user_id = m.user_id AND r.instagram_id = m.instagram_id
     WHERE r.user_id = @user_id
     ORDER BY r.timestamp DESC
-    LIMIT @limit
+    ${limit === null ? '' : 'LIMIT @limit'}
   `;
-  const [rows] = await bigquery.query({ query, params: { user_id: userId, limit } });
+  const [rows] = await bigquery.query({ query, params: { user_id: userId, ...(limit === null ? {} : { limit }) } });
   return rows.map(row => {
     const { stored_metrics: stored, ...reel } = row;
     let metrics: InstagramReelMetrics | null = null;
@@ -698,7 +702,7 @@ export async function getUserReels(userId: string, limit: number = 50): Promise<
       if (stored.total_watch_seconds != null) values.ig_reels_video_view_total_time = Number(stored.total_watch_seconds) * 1000;
       if (stored.skip_rate != null) values.reels_skip_rate = Number(stored.skip_rate);
       metrics = {
-        ...normalizeReelMetrics(reel.instagram_id, values, stored.duration_seconds == null ? null : Number(stored.duration_seconds)),
+        ...normalizeReelMetrics(reel.instagram_id, values, stored.duration_seconds == null ? reel.duration_seconds ?? null : Number(stored.duration_seconds)),
         fetchedAt: parseBigQueryTimestamp(stored.snapshot_at).toISOString(),
       };
     }
@@ -740,18 +744,18 @@ export async function saveInstagramReelMetricSnapshots(userId: string, rows: Ins
 }
 
 // ユーザーのストーリーデータ取得
-export async function getUserStories(userId: string, limit: number = 50): Promise<InstagramStory[]> {
+export async function getUserStories(userId: string, limit: number | null = 50): Promise<InstagramStory[]> {
   const query = `
     SELECT *
     FROM \`mark-454114.analyca.instagram_stories\`
     WHERE user_id = @user_id
     ORDER BY timestamp DESC
-    LIMIT @limit
+    ${limit === null ? '' : 'LIMIT @limit'}
   `;
 
   const options = {
     query,
-    params: { user_id: userId, limit },
+    params: { user_id: userId, ...(limit === null ? {} : { limit }) },
   };
 
   const [rows] = await bigquery.query(options);
@@ -762,18 +766,18 @@ export async function getUserStories(userId: string, limit: number = 50): Promis
 }
 
 // ユーザーのインサイトデータ取得
-export async function getUserInsights(userId: string, limit: number = 30): Promise<InstagramInsights[]> {
+export async function getUserInsights(userId: string, limit: number | null = 30): Promise<InstagramInsights[]> {
   const query = `
     SELECT *
     FROM \`mark-454114.analyca.instagram_insights\`
     WHERE user_id = @user_id
     ORDER BY date DESC
-    LIMIT @limit
+    ${limit === null ? '' : 'LIMIT @limit'}
   `;
 
   const options = {
     query,
-    params: { user_id: userId, limit },
+    params: { user_id: userId, ...(limit === null ? {} : { limit }) },
   };
 
   const [rows] = await bigquery.query(options);
@@ -781,18 +785,18 @@ export async function getUserInsights(userId: string, limit: number = 30): Promi
 }
 
 // ユーザーのLINEデータ取得
-export async function getUserLineData(userId: string, limit: number = 30): Promise<LineDaily[]> {
+export async function getUserLineData(userId: string, limit: number | null = 30): Promise<LineDaily[]> {
   const query = `
     SELECT *
     FROM \`mark-454114.analyca.line_daily\`
     WHERE user_id = @user_id
     ORDER BY date DESC
-    LIMIT @limit
+    ${limit === null ? '' : 'LIMIT @limit'}
   `;
 
   const options = {
     query,
-    params: { user_id: userId, limit },
+    params: { user_id: userId, ...(limit === null ? {} : { limit }) },
   };
 
   const [rows] = await bigquery.query(options);
@@ -1650,21 +1654,21 @@ export async function getUserInstagramDailyContentStats(userId: string): Promise
     WITH content AS (
       SELECT DATE(timestamp, 'Asia/Tokyo') AS date,
         COUNT(DISTINCT instagram_id) AS post_count,
-        0 AS story_post_count, CAST(NULL AS INT64) AS story_reach
+        0 AS story_post_count, CAST(NULL AS INT64) AS story_reach, CAST(NULL AS INT64) AS story_views
       FROM \`mark-454114.analyca.instagram_reels\`
       WHERE user_id = @user_id AND timestamp IS NOT NULL
       GROUP BY date
       UNION ALL
       SELECT DATE(timestamp, 'Asia/Tokyo') AS date,
         0 AS post_count, COUNT(DISTINCT instagram_id) AS story_post_count,
-        MAX(reach) AS story_reach
+        MAX(reach) AS story_reach, MAX(views) AS story_views
       FROM \`mark-454114.analyca.instagram_stories\`
       WHERE user_id = @user_id AND timestamp IS NOT NULL
       GROUP BY date
     )
     SELECT FORMAT_DATE('%Y-%m-%d', date) AS date,
       SUM(post_count) AS post_count, SUM(story_post_count) AS story_post_count,
-      MAX(story_reach) AS story_reach
+      MAX(story_reach) AS story_reach, MAX(story_views) AS story_views
     FROM content
     GROUP BY date
     ORDER BY date DESC
@@ -1675,6 +1679,7 @@ export async function getUserInstagramDailyContentStats(userId: string): Promise
     postCount: Number(row.post_count),
     storyPostCount: Number(row.story_post_count),
     storyReach: row.story_reach == null ? null : Number(row.story_reach),
+    storyViews: row.story_views == null ? null : Number(row.story_views),
   }));
 }
 
@@ -1690,10 +1695,10 @@ export async function getUserDashboardData(userId: string): Promise<{
   instagramDailyContentStats: InstagramDailyContentStat[];
 }> {
   const [reels, stories, insights, lineData, threadsPosts, threadsDailyMetrics, threadsDailyPostStats, instagramDailyContentStats] = await Promise.all([
-    getUserReels(userId, 50),
-    getUserStories(userId, 50),
-    getUserInsights(userId, 1000),
-    getUserLineData(userId, 30),
+    getUserReels(userId, null),
+    getUserStories(userId, null),
+    getUserInsights(userId, null),
+    getUserLineData(userId, null),
     getUserThreadsPosts(userId, 5000),
     getUserThreadsDailyMetrics(userId, 1000),
     getUserThreadsDailyPostStats(userId, 1000),

@@ -3,11 +3,22 @@ export interface InstagramDailyContentStat {
   postCount: number;
   storyPostCount: number;
   storyReach: number | null;
+  storyViews?: number | null;
+}
+
+export interface InstagramLineDay {
+  date: string;
+  followers: number | null;
+  registrations?: number | null;
 }
 
 export interface InstagramDailyInsight {
   date: string;
   followers_count: number | null;
+  posts_count?: number | null;
+  engagement?: number | null;
+  sheet_follower_growth?: number | null;
+  survey_responses?: number | null;
   reach?: number;
   profile_views?: number;
   website_clicks?: number;
@@ -27,14 +38,22 @@ export interface InstagramDailyRow extends InstagramDailyInsight {
   storyPostCount: number | null;
   storyReach: number | null;
   storyViewRate: number | null;
+  storyViews?: number | null;
+  lineFollowers?: number | null;
+  lineRegistrations?: number | null;
 }
 
 // Calculate against the previous calendar day before applying the display range.
 export function buildInstagramDailyRows(
   insights: InstagramDailyInsight[],
   content: InstagramDailyContentStat[] | undefined,
+  line: InstagramLineDay[] = [],
 ): InstagramDailyRow[] {
   const byDate = new Map(insights.map((row) => [row.date, row]));
+  const lineByDate = new Map(line.map(row => [row.date, row]));
+  for (const row of [...line, ...(content || [])]) {
+    if (!byDate.has(row.date)) byDate.set(row.date, { date: row.date, followers_count: null });
+  }
   const contentByDate = new Map(content?.map((row) => [row.date, row]));
   return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date)).map((row) => {
     const previousDate = new Date(`${row.date}T00:00:00Z`);
@@ -52,6 +71,9 @@ export function buildInstagramDailyRows(
       postCount: content === undefined ? null : stats?.postCount ?? 0,
       storyPostCount,
       storyReach,
+      storyViews: storyPostCount === 0 ? 0 : stats?.storyViews ?? null,
+      lineFollowers: lineByDate.get(row.date)?.followers ?? null,
+      lineRegistrations: lineByDate.get(row.date)?.registrations ?? null,
       storyViewRate: storyPostCount && storyReach !== null && row.followers_count && row.followers_count > 0
         ? storyReach / row.followers_count : null,
     };

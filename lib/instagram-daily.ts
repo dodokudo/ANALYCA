@@ -11,6 +11,14 @@ export interface InstagramDailyInsight {
   reach?: number;
   profile_views?: number;
   website_clicks?: number;
+  views?: number | null;
+  total_interactions?: number | null;
+  likes?: number | null;
+  comments?: number | null;
+  shares?: number | null;
+  saves?: number | null;
+  follows?: number | null;
+  unfollows?: number | null;
 }
 
 export interface InstagramDailyRow extends InstagramDailyInsight {
@@ -37,7 +45,9 @@ export function buildInstagramDailyRows(
     const storyReach = storyPostCount === null ? null : storyPostCount === 0 ? 0 : stats?.storyReach ?? null;
     return {
       ...row,
-      followerGrowth: row.followers_count != null && previous?.followers_count != null
+      followerGrowth: row.follows != null && row.unfollows != null
+        ? row.follows - row.unfollows
+        : row.followers_count != null && previous?.followers_count != null
         ? row.followers_count - previous.followers_count : null,
       postCount: content === undefined ? null : stats?.postCount ?? 0,
       storyPostCount,

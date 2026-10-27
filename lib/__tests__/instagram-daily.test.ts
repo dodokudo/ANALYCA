@@ -72,3 +72,9 @@ test('chart extents keep measured zeros and leave missing history unknown', asyn
   assert.deepEqual(instagramMetricExtent([null, undefined]), { min: null, max: null });
   assert.deepEqual(instagramMetricExtent([0, 12, null]), { min: 0, max: 12 });
 });
+
+test('uses API follows and unfollows when historical follower totals are unavailable', () => {
+  const [row] = buildInstagramDailyRows([{ date: '2026-10-25', followers_count: null, follows: 7, unfollows: 3 }], []);
+  assert.equal(row.followerGrowth, 4);
+  assert.equal(row.followers_count, null);
+});

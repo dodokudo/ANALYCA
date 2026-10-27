@@ -2122,13 +2122,13 @@ interface InstagramReel {
 interface InstagramStory {
   id: string;
   timestamp: string;
-  views: number;
-  reach?: number;
-  replies?: number;
-  total_interactions?: number;
-  follows?: number;
-  profile_visits?: number;
-  navigation?: number;
+  views: number | null;
+  reach?: number | null;
+  replies?: number | null;
+  total_interactions?: number | null;
+  follows?: number | null;
+  profile_visits?: number | null;
+  navigation?: number | null;
   thumbnail_url?: string;
 }
 
@@ -2158,7 +2158,7 @@ function InstagramContent({
 }) {
   const instagramSearchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<IGTab>(() => instagramSearchParams.get('igTab') === 'reels' ? 'reels' : 'overview');
-  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+  const [datePreset, setDatePreset] = useState<DatePreset>('thisWeek');
   const [storySortBy, setStorySortBy] = useState('views');
 
   const allReels: InstagramReel[] = (data?.reels?.data || []) as InstagramReel[];
@@ -2168,7 +2168,6 @@ function InstagramContent({
     () => buildInstagramDailyRows(allInsights, data?.instagramDailyContentStats?.data),
     [allInsights, data?.instagramDailyContentStats?.data],
   );
-  const latestInsight = dailyRows[0] || null;
   const followersCount = dailyRows.find(row => row.followers_count != null)?.followers_count ?? 0;
 
   // 日付範囲でフィルタリング（今日のデータも含める）
@@ -2262,12 +2261,6 @@ function InstagramContent({
           </select>
         </div>
       </div>
-
-      <p className="text-xs text-[color:var(--color-text-secondary)]">
-        データ最新日：{latestInsight?.date || '未取得'}（日本時間）。当日分は集計途中です。
-        {!summary.complete && ' 選択期間に未取得の日があります。集計値は取得が揃うまで「—」で表示します。'}
-        {summary.followerGrowth === null && ' フォロワー増減は過去のフォロワー数が揃ってから表示します。'}
-      </p>
 
       {/* 概要タブ */}
       {activeTab === 'overview' && (
@@ -2442,7 +2435,7 @@ function InstagramContent({
               </div>
               <div className="flex gap-4 overflow-x-auto pb-1">
                 {sortedStories.slice(0, 5).map((story) => {
-                  const viewRate = followersCount > 0 ? (((story.reach || 0) / followersCount) * 100).toFixed(1) : '0.0';
+                  const viewRate = story.reach != null && followersCount > 0 ? `${((story.reach / followersCount) * 100).toFixed(1)}%` : '—';
                   return (
                     <div key={story.id} className="flex min-w-[180px] flex-shrink-0 flex-col overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white shadow-sm">
                       <div className="relative aspect-[9/16] w-full bg-[color:var(--color-surface-muted)]">
@@ -2461,11 +2454,11 @@ function InstagramContent({
                         <dl className="space-y-1 text-sm text-[color:var(--color-text-secondary)]">
                           <div className="flex items-center justify-between">
                             <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧数</dt>
-                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd>
+                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.reach ?? null)}</dd>
                           </div>
                           <div className="flex items-center justify-between">
                             <dt className="font-medium text-[color:var(--color-text-muted)]">閲覧率</dt>
-                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}%</dd>
+                            <dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}</dd>
                           </div>
                         </dl>
                       </div>
@@ -2499,7 +2492,7 @@ function InstagramContent({
           </div>
           <div className="space-y-4">
             {sortedStories.map((story) => {
-              const viewRate = followersCount > 0 ? (((story.reach || 0) / followersCount) * 100).toFixed(1) : '0.0';
+              const viewRate = story.reach != null && followersCount > 0 ? `${((story.reach / followersCount) * 100).toFixed(1)}%` : '—';
               return (
                 <div key={story.id} className="flex gap-4 rounded-[var(--radius-md)] border border-[color:var(--color-border)] bg-white p-4 shadow-sm">
                   <div className="relative w-[90px] flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-[color:var(--color-surface-muted)]">
@@ -2518,10 +2511,10 @@ function InstagramContent({
                   <div className="flex-1 space-y-3">
                     <p className="text-xs text-[color:var(--color-text-muted)]">{safeFormatDate(story.timestamp)}</p>
                     <dl className="grid grid-cols-2 gap-y-2 text-sm text-[color:var(--color-text-secondary)] sm:grid-cols-3">
-                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.reach || 0).toLocaleString()}</dd></div>
-                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧率</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}%</dd></div>
-                      <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.views || 0).toLocaleString()}</dd></div>
-                      <div><dt className="text-[color:var(--color-text-muted)]">返信</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{(story.replies || 0)}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.reach ?? null)}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">閲覧率</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{viewRate}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">再生数</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.views ?? null)}</dd></div>
+                      <div><dt className="text-[color:var(--color-text-muted)]">返信</dt><dd className="font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(story.replies ?? null)}</dd></div>
                     </dl>
                   </div>
                 </div>

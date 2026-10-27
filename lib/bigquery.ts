@@ -217,14 +217,14 @@ export interface InstagramStory {
   drive_image_url?: string;
   thumbnail_url?: string;
   timestamp: Date;
-  views: number;
-  reach: number;
-  replies: number;
+  views: number | null;
+  reach: number | null;
+  replies: number | null;
   caption?: string;
-  total_interactions: number;
-  follows: number;
-  profile_visits: number;
-  navigation: number;
+  total_interactions: number | null;
+  follows: number | null;
+  profile_visits: number | null;
+  navigation: number | null;
 }
 
 export interface InstagramInsights {
@@ -1429,19 +1429,20 @@ export async function upsertInstagramStories(stories: InstagramStory[]): Promise
     const updateQuery = `
       UPDATE \`mark-454114.analyca.instagram_stories\`
       SET
-        views = @views,
-        reach = @reach,
-        replies = @replies,
-        total_interactions = @total_interactions,
-        follows = @follows,
-        profile_visits = @profile_visits,
-        navigation = @navigation,
+        views = COALESCE(@views, views),
+        reach = COALESCE(@reach, reach),
+        replies = COALESCE(@replies, replies),
+        total_interactions = COALESCE(@total_interactions, total_interactions),
+        follows = COALESCE(@follows, follows),
+        profile_visits = COALESCE(@profile_visits, profile_visits),
+        navigation = COALESCE(@navigation, navigation),
         thumbnail_url = @thumbnail_url,
         updated_at = CURRENT_TIMESTAMP()
       WHERE user_id = @user_id AND instagram_id = @instagram_id
     `;
     const [job] = await bigquery.createQueryJob({
       query: updateQuery,
+      types: { views: 'INT64', reach: 'INT64', replies: 'INT64', total_interactions: 'INT64', follows: 'INT64', profile_visits: 'INT64', navigation: 'INT64', thumbnail_url: 'STRING' },
       params: {
         user_id: story.user_id,
         instagram_id: story.instagram_id,
@@ -1479,7 +1480,15 @@ export async function upsertInstagramInsightBatch(userId: string, rows: Instagra
           CAST(JSON_VALUE(row, '$.reach') AS INT64) AS reach,
           CAST(JSON_VALUE(row, '$.engagement') AS INT64) AS engagement,
           CAST(JSON_VALUE(row, '$.profile_views') AS INT64) AS profile_views,
-          CAST(JSON_VALUE(row, '$.website_clicks') AS INT64) AS website_clicks
+          CAST(JSON_VALUE(row, '$.website_clicks') AS INT64) AS website_clicks,
+          CAST(JSON_VALUE(row, '$.views') AS INT64) AS views,
+          CAST(JSON_VALUE(row, '$.total_interactions') AS INT64) AS total_interactions,
+          CAST(JSON_VALUE(row, '$.likes') AS INT64) AS likes,
+          CAST(JSON_VALUE(row, '$.comments') AS INT64) AS comments,
+          CAST(JSON_VALUE(row, '$.shares') AS INT64) AS shares,
+          CAST(JSON_VALUE(row, '$.saves') AS INT64) AS saves,
+          CAST(JSON_VALUE(row, '$.follows') AS INT64) AS follows,
+          CAST(JSON_VALUE(row, '$.unfollows') AS INT64) AS unfollows
         FROM UNNEST(JSON_QUERY_ARRAY(@rows)) AS row
       ) S
       ON T.user_id = S.user_id AND T.date = S.date
@@ -1487,11 +1496,19 @@ export async function upsertInstagramInsightBatch(userId: string, rows: Instagra
         followers_count = COALESCE(S.followers_count, T.followers_count),
         posts_count = COALESCE(S.posts_count, T.posts_count),
         reach = S.reach, engagement = S.engagement,
-        profile_views = S.profile_views, website_clicks = S.website_clicks
+        profile_views = S.profile_views, website_clicks = S.website_clicks,
+        views = COALESCE(S.views, T.views),
+        total_interactions = COALESCE(S.total_interactions, T.total_interactions),
+        likes = COALESCE(S.likes, T.likes),
+        comments = COALESCE(S.comments, T.comments),
+        shares = COALESCE(S.shares, T.shares),
+        saves = COALESCE(S.saves, T.saves),
+        follows = COALESCE(S.follows, T.follows),
+        unfollows = COALESCE(S.unfollows, T.unfollows)
       WHEN NOT MATCHED THEN INSERT
-        (id, user_id, date, followers_count, posts_count, reach, engagement, profile_views, website_clicks, created_at)
+        (id, user_id, date, followers_count, posts_count, reach, engagement, profile_views, website_clicks, views, total_interactions, likes, comments, shares, saves, follows, unfollows, created_at)
         VALUES (GENERATE_UUID(), S.user_id, S.date, S.followers_count, S.posts_count,
-          S.reach, S.engagement, S.profile_views, S.website_clicks, CURRENT_TIMESTAMP())
+          S.reach, S.engagement, S.profile_views, S.website_clicks, S.views, S.total_interactions, S.likes, S.comments, S.shares, S.saves, S.follows, S.unfollows, CURRENT_TIMESTAMP())
     `,
     params: { user_id: userId, rows: JSON.stringify(rows) },
   });

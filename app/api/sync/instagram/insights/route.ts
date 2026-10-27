@@ -43,7 +43,8 @@ async function getInstagramBusinessAccount(graphBase: string, accessToken: strin
 async function syncUserInsights(
   userId: string,
   accessToken: string,
-  instagramUserId: string
+  instagramUserId: string,
+  range?: 'thisWeek',
 ): Promise<{ success: boolean; savedDays?: number; failedDates?: string[]; error?: string }> {
   try {
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
@@ -55,6 +56,7 @@ async function syncUserInsights(
 
     const result = await syncAccountInsightDays({
       graphBase,
+      range,
       accountId: instagramUserId,
       accessToken,
       followers: account.followers_count,
@@ -100,7 +102,8 @@ export async function GET(request: Request) {
       const result = await syncUserInsights(
         user.user_id,
         user.access_token,
-        user.instagram_user_id
+        user.instagram_user_id,
+        searchParams.get('period') === 'thisWeek' ? 'thisWeek' : undefined,
       );
 
       return NextResponse.json({

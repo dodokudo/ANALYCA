@@ -7,67 +7,10 @@ import {
 import { uploadImageToGCS } from '@/lib/gcs';
 import { detectGraphBase } from '@/lib/instagram-graph';
 import { v4 as uuidv4 } from 'uuid';
+import { fetchActiveInstagramStories, extractStoryMetrics } from '@/lib/instagram-stories-fetch';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 300;
-
-interface StoryWithInsights {
-  id: string;
-  media_type: string;
-  timestamp: string;
-  thumbnail_url?: string;
-  media_url?: string;
-  caption?: string;
-  insights?: {
-    data: Array<{
-      name: string;
-      values: Array<{ value: number | Record<string, number> }>;
-    }>;
-  };
-}
-
-/**
- * ストーリー一覧をインサイト込みで一括取得（GASと同じinline insights方式）
- * insights.metric()でfieldsに含めることで1リクエストでストーリー+insightsを同時取得
- */
-async function getStoriesWithInsights(graphBase: string, accessToken: string, accountId: string): Promise<StoryWithInsights[]> {
-  try {
-    const fields = 'id,media_type,timestamp,thumbnail_url,media_url,caption,insights.metric(views,reach,replies,total_interactions,follows,profile_visits,navigation)';
-    const response = await fetch(
-      `${graphBase}/${accountId}/stories?fields=${encodeURIComponent(fields)}&limit=50&access_token=${accessToken}`
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.warn('Failed to get stories:', response.status, errorText);
-      return [];
-    }
-
-    const data = await response.json();
-    return data.data || [];
-  } catch (error) {
-    console.error('Error fetching stories:', error);
-    return [];
-  }
-}
-
-/**
- * inline insightsからメトリクスを抽出するヘルパー
- */
-function extractMetrics(insights?: StoryWithInsights['insights']): Record<string, number> {
-  const metrics: Record<string, number> = {};
-  if (!insights?.data) return metrics;
-  for (const m of insights.data) {
-    const val = m.values?.[0]?.value;
-    if (typeof val === 'number') {
-      metrics[m.name] = val;
-    } else if (typeof val === 'object' && val !== null) {
-      // navigationはオブジェクト {forward, back, exited}
-      metrics[m.name] = Object.values(val).reduce((sum, v) => sum + (v || 0), 0);
-    }
-  }
-  return metrics;
-}
 
 /**
  * ユーザーのストーリーデータを同期
@@ -76,13 +19,13 @@ async function syncUserStories(
   userId: string,
   accessToken: string,
   instagramUserId: string
-): Promise<{ success: boolean; storiesCount: number; newCount: number; updatedCount: number; error?: string }> {
+): Promise<{ success: boolean; storiesCount: number; newCount: number; updatedCount: number; metricsFailed?: number; error?: string }> {
   try {
     // トークンタイプに応じたGraph API Base URLを検出
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
 
-    // ストーリー一覧をinsights込みで一括取得
-    const stories = await getStoriesWithInsights(graphBase, accessToken, instagramUserId);
+    // 有効な投稿IDを列挙し、インサイトを個別取得
+    const { stories, metricsFailed } = await fetchActiveInstagramStories(graphBase, instagramUserId, accessToken);
 
     if (stories.length === 0) {
       return { success: true, storiesCount: 0, newCount: 0, updatedCount: 0 };
@@ -91,7 +34,7 @@ async function syncUserStories(
     const storiesData: InstagramStory[] = [];
 
     for (const story of stories) {
-      const metrics = extractMetrics(story.insights);
+      const metrics = extractStoryMetrics(story.insights);
 
       // サムネイル取得（thumbnail_urlがなければmedia_urlを使用）
       const originalThumbnailUrl = story.thumbnail_url || story.media_url || null;
@@ -111,13 +54,13 @@ async function syncUserStories(
         thumbnail_url: thumbnailUrl,
         timestamp: new Date(story.timestamp),
         caption: story.caption,
-        views: metrics.views || 0,
-        reach: metrics.reach || 0,
-        replies: metrics.replies || 0,
-        total_interactions: metrics.total_interactions || 0,
-        follows: metrics.follows || 0,
-        profile_visits: metrics.profile_visits || 0,
-        navigation: metrics.navigation || 0,
+        views: metrics.views ?? null,
+        reach: metrics.reach ?? null,
+        replies: metrics.replies ?? null,
+        total_interactions: metrics.total_interactions ?? null,
+        follows: metrics.follows ?? null,
+        profile_visits: metrics.profile_visits ?? null,
+        navigation: metrics.navigation ?? null,
       });
 
       // API制限対策
@@ -128,7 +71,9 @@ async function syncUserStories(
     const result = await upsertInstagramStories(storiesData);
 
     return {
-      success: true,
+      success: metricsFailed === 0,
+      metricsFailed,
+      ...(metricsFailed ? { error: `Insights unavailable for ${metricsFailed} stories; metadata saved` } : {}),
       storiesCount: storiesData.length,
       newCount: result.newCount,
       updatedCount: result.updatedCount,
@@ -174,6 +119,7 @@ export async function GET(request: Request) {
         user.instagram_user_id
       );
 
+      console.info('Instagram stories sync', { userId: user.user_id, ...result });
       return NextResponse.json({
         success: result.success,
         userId: user.user_id,
@@ -225,7 +171,7 @@ export async function GET(request: Request) {
     const successCount = results.filter(r => r.success).length;
 
     return NextResponse.json({
-      success: true,
+      success: successCount === validUsers.length,
       message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
       results,
     });

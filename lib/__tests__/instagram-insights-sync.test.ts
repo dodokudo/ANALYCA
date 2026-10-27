@@ -53,3 +53,25 @@ test('failed or missing metrics do not overwrite records with zeros', async () =
   assert.equal(saved.length, 55);
   assert.ok(saved.every(row => row.date < '2026-10-26'));
 });
+
+test('thisWeek fetches only Sunday through today and preserves follow breakdown and additional metrics', async () => {
+  const saved: InstagramAccountSnapshot[] = [];
+  const fetcher: typeof fetch = async input => {
+    const url = new URL(String(input));
+    if (url.searchParams.get('metric') === 'follows_and_unfollows') {
+      return Response.json({ data: [{ name: 'follows_and_unfollows', total_value: { breakdowns: [{
+        dimension_keys: ['follow_type'], results: [
+          { dimension_values: ['FOLLOWER'], value: 7 }, { dimension_values: ['NON_FOLLOWER'], value: 3 },
+        ],
+      }] } }] });
+    }
+    return Response.json({ data: [...names, 'views', 'likes', 'saves', 'shares', 'comments', 'total_interactions'].map(name => ({ name, total_value: { value: 11 } })) });
+  };
+  const result = await syncAccountInsightDays({ range: 'thisWeek', now, graphBase: 'https://example.test', accountId: 'id', accessToken: 'test', followers: 123, posts: 10, fetcher, save: async rows => { saved.push(...rows); } });
+  assert.equal(result.savedDays, 3);
+  assert.deepEqual(saved.map(row => row.date), ['2026-10-27', '2026-10-26', '2026-10-25']);
+  assert.equal(saved[0].follows, 7);
+  assert.equal(saved[0].unfollows, 3);
+  assert.equal(saved[0].views, 11);
+  assert.equal(saved[0].saves, 11);
+});

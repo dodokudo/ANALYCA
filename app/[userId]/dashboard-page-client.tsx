@@ -6,6 +6,8 @@ import LoadingScreen from '@/components/LoadingScreen';
 import { buildInstagramDailyRows, summarizeInstagramDailyRows, instagramMetricExtent, type InstagramDailyContentStat } from '@/lib/instagram-daily';
 import { InstagramDailyTable } from './components/instagram-daily-table';
 import { InstagramReelsTab } from './components/instagram-reels-tab';
+import { InstagramMediaPeriod } from './components/instagram-media-period';
+import { requireSuccessfulSyncs } from '@/lib/sync-results';
 import { ScheduleTab } from './components/schedule-tab';
 import ThreadsContentCreationTab from './components/threads-content-creation-tab';
 import ThreadsMonthlyReportTab from './components/threads-monthly-report-tab';
@@ -702,6 +704,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   const [showSyncBanner, setShowSyncBanner] = useState(isSyncing);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [showLineModal, setShowLineModal] = useState(false);
 
   // LINE登録促進モーダル: 有料会員(current/trial/active)かつLINE未紐付けの場合のみ、
@@ -789,6 +792,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   // 手動同期関数（現在のユーザーのみ同期）
   const handleManualSync = async () => {
     setIsManualSyncing(true);
+    setSyncError(null);
     try {
       // 連携しているチャンネルに応じて同期APIを呼び出し（userIdを指定）
       const syncPromises: Promise<Response>[] = [];
@@ -803,11 +807,13 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
         syncPromises.push(fetch(`/api/sync/threads/comments?userId=${userId}`, { method: 'GET' }));
       }
       syncPromises.push(fetch(`/api/sync/profile-pictures?userId=${userId}`, { method: 'GET' }));
-      await Promise.all(syncPromises);
+      await requireSuccessfulSyncs(syncPromises);
       // 同期完了後にデータ再取得
       await fetchData(false);
     } catch (err) {
       console.error('Manual sync failed:', err);
+      setSyncError(err instanceof Error ? err.message : 'データの同期に失敗しました');
+      await fetchData(false);
     } finally {
       setIsManualSyncing(false);
     }
@@ -831,6 +837,8 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
     if (!authParam || !authParam.includes('complete')) return;
 
     const runFullSync = async () => {
+      setSyncError(null);
+      setShowSyncBanner(true);
       try {
         const syncPromises: Promise<Response>[] = [];
 
@@ -846,11 +854,13 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
         }
         syncPromises.push(fetch(`/api/sync/profile-pictures?userId=${userId}`, { method: 'GET' }));
 
-        await Promise.all(syncPromises);
+        await requireSuccessfulSyncs(syncPromises);
         // sync完了後にデータ再取得
         await fetchData(false);
       } catch (err) {
         console.error('Auto sync after login failed:', err);
+        setSyncError(err instanceof Error ? err.message : '初回データの取得に失敗しました');
+        await fetchData(false);
       } finally {
         setShowSyncBanner(false);
         // URLからauth/syncingパラメータを削除
@@ -867,6 +877,8 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   // 同期中の場合、30秒後に再取得し、60秒後にバナーを非表示
   useEffect(() => {
     if (!showSyncBanner) return;
+    // OAuth sync owns its completion state; a timer must not hide a running job.
+    if (searchParams?.get('auth')?.includes('complete')) return;
 
     // 30秒後にデータ再取得
     const refreshTimer = setTimeout(() => {
@@ -886,7 +898,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       clearTimeout(refreshTimer);
       clearTimeout(hideTimer);
     };
-  }, [showSyncBanner]);
+  }, [showSyncBanner, searchParams]);
 
   // プランに基づいてチャンネルタブを表示（未連携でもタブ表示してアップグレード誘導）
   const planId = resolveEffectivePlanId(user?.plan_id, {
@@ -1051,6 +1063,10 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
   return (
     <div className="min-h-screen max-w-full bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex">
       {/* 同期中バナー */}
+      {syncError && <div role="alert" className="fixed top-0 left-0 right-0 z-50 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <span className="font-semibold">一部のデータを取得できませんでした。</span> {syncError}
+        <button type="button" onClick={handleManualSync} disabled={isManualSyncing} className="ml-3 underline">{isManualSyncing ? '再取得中…' : '再取得'}</button>
+      </div>}
       {showSyncBanner && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-blue-500 text-white px-4 py-3 flex items-center justify-center gap-3">
           <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -2133,6 +2149,7 @@ interface InstagramStory {
 }
 
 interface InstagramInsight {
+  media_breakdown?: string | null;
   date: string;
   followers_count: number;
   posts_count?: number;
@@ -2184,6 +2201,7 @@ function InstagramContent({
   const insights = useMemo(() => {
     return dailyRows.filter(i => isDateInRange(`${i.date}T00:00:00`, dateRange));
   }, [dailyRows, dateRange]);
+  const expectedInsightDays = Math.round((new Date(formatDateForInput(dateRange.end)).getTime() - new Date(formatDateForInput(dateRange.start)).getTime()) / 86400000) + 1;
 
   const summary = useMemo(() => {
     const expectedDays = Math.round((new Date(formatDateForInput(dateRange.end)).getTime() - new Date(formatDateForInput(dateRange.start)).getTime()) / 86400000) + 1;
@@ -2261,6 +2279,10 @@ function InstagramContent({
           </select>
         </div>
       </div>
+
+      {(activeTab === 'overview' || activeTab === 'reels') && (
+        <InstagramMediaPeriod rows={insights} expectedDays={expectedInsightDays} type="REEL" />
+      )}
 
       {/* 概要タブ */}
       {activeTab === 'overview' && (
@@ -2473,11 +2495,15 @@ function InstagramContent({
 
       {/* リールタブ */}
       {activeTab === 'reels' && (
-        <InstagramReelsTab key={userId} userId={userId} reels={reels} allReels={allReels} />
+        <>
+          <InstagramReelsTab key={userId} userId={userId} reels={allReels} allReels={allReels} />
+        </>
       )}
 
       {/* ストーリータブ */}
       {activeTab === 'stories' && (
+        <>
+        <InstagramMediaPeriod rows={insights} expectedDays={expectedInsightDays} type="STORY" />
         <div className="ui-card p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div>
@@ -2521,10 +2547,11 @@ function InstagramContent({
               );
             })}
             {sortedStories.length === 0 && (
-              <p className="text-center text-[color:var(--color-text-muted)] py-8">ストーリーがありません</p>
+              <p className="text-center text-[color:var(--color-text-muted)] py-8">保存済みのストーリーはありません</p>
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* デイリータブ */}

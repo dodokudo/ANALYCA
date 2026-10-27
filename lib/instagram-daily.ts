@@ -6,6 +6,7 @@ export interface InstagramDailyContentStat {
 }
 
 export interface InstagramDailyInsight {
+  media_breakdown?: string | null;
   date: string;
   followers_count: number | null;
   reach?: number;

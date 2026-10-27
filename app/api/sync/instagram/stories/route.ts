@@ -25,7 +25,7 @@ async function syncUserStories(
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
 
     // 有効な投稿IDを列挙し、インサイトを個別取得
-    const { stories, metricsFailed } = await fetchActiveInstagramStories(graphBase, instagramUserId, accessToken);
+    const { stories, metricsFailed, apiErrors } = await fetchActiveInstagramStories(graphBase, instagramUserId, accessToken);
 
     if (stories.length === 0) {
       return { success: true, storiesCount: 0, newCount: 0, updatedCount: 0 };
@@ -73,7 +73,7 @@ async function syncUserStories(
     return {
       success: metricsFailed === 0,
       metricsFailed,
-      ...(metricsFailed ? { error: `Insights unavailable for ${metricsFailed} stories; metadata saved` } : {}),
+      ...(metricsFailed ? { error: apiErrors.join(' / ') } : {}),
       storiesCount: storiesData.length,
       newCount: result.newCount,
       updatedCount: result.updatedCount,

@@ -11,22 +11,27 @@ async function graphGet(base: string, path: string, token: string, params: Recor
   try {
     const response = await fetch(url, { signal: AbortSignal.timeout(12000), cache: 'no-store' });
     const body = await response.json();
-    return { ok: response.ok, body };
+    return { ok: response.ok, status: response.status, body };
   } catch {
-    return { ok: false, body: {} };
+    return { ok: false, status: 0, body: {} };
   }
 }
 
-export async function fetchReelInsightValues(base: string, id: string, token: string): Promise<Record<string, number>> {
+export async function fetchReelInsightValues(base: string, id: string, token: string, apiErrors: string[] = []): Promise<Record<string, number>> {
   const stable = await graphGet(base, `/${id}/insights`, token, { metric: BASE_METRICS.join(',') });
+  const recordError = (result: Awaited<ReturnType<typeof graphGet>>, metric: string) => {
+    if (!result.ok) apiErrors.push(`reel ${id} ${metric}: HTTP ${result.status}, code ${typeof result.body.error?.code === 'number' ? result.body.error.code : 'unknown'}`);
+  };
   let data: MediaInsight[] = stable.ok ? stable.body.data || [] : [];
   // One unsupported metric must not discard all remaining metrics. Auth/rate errors are not retried.
   if (!stable.ok && stable.body.error?.code === 100) {
     const parts = await Promise.all(BASE_METRICS.map(metric => graphGet(base, `/${id}/insights`, token, { metric })));
     data = parts.flatMap(part => part.ok ? part.body.data || [] : []);
-  }
+    parts.forEach((part, i) => recordError(part, BASE_METRICS[i]));
+  } else recordError(stable, 'insights');
   const skip = await graphGet(base, `/${id}/insights`, token, { metric: 'reels_skip_rate' });
   if (skip.ok) data.push(...(skip.body.data || []));
+  else recordError(skip, 'reels_skip_rate');
   return readInsightValues(data);
 }
 
@@ -55,11 +60,12 @@ export function getReelDuration(mediaUrl: string): Promise<number | null> {
 
 /** Collection only: imported by sync jobs, never by dashboard read routes. */
 export async function collectReelMetrics(id: string, token: string, base: string, knownDuration: number | null = null): Promise<InstagramReelMetrics> {
+  const apiErrors: string[] = [];
   const [values, media] = await Promise.all([
-    fetchReelInsightValues(base, id, token),
+    fetchReelInsightValues(base, id, token, apiErrors),
     knownDuration !== null && knownDuration > 0 ? Promise.resolve(null) : graphGet(base, `/${id}`, token, { fields: 'media_url' }),
   ]);
   const mediaUrl = media?.ok && typeof media.body.media_url === 'string' ? media.body.media_url : null;
   const duration = knownDuration !== null && knownDuration > 0 ? knownDuration : mediaUrl ? await getReelDuration(mediaUrl) : null;
-  return normalizeReelMetrics(id, values, duration);
+  return { ...normalizeReelMetrics(id, values, duration), apiErrors };
 }

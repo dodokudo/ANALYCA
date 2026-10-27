@@ -8,6 +8,7 @@ import { uploadImageToGCS } from '@/lib/gcs';
 import { detectGraphBase } from '@/lib/instagram-graph';
 import { v4 as uuidv4 } from 'uuid';
 import { syncInstagramReelMetrics } from '@/lib/instagram-reel-metrics-sync';
+import { instagramApiError } from '@/lib/instagram-api-error';
 
 // Vercel Functionの最大実行時間を延長
 export const maxDuration = 300;
@@ -51,14 +52,14 @@ async function getReelIds(graphBase: string, accessToken: string, accountId: str
         url += `&after=${cursor}`;
       }
 
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(15000), cache: 'no-store' });
       if (!response.ok) {
-        console.warn('Failed to get media list:', response.status);
-        break;
+        throw await instagramApiError(response, 'reels list');
       }
 
       const data = await response.json();
-      const media = data.data || [];
+      if (!Array.isArray(data.data)) throw new Error('Invalid Instagram media list');
+      const media = data.data;
       if (media.length === 0) break;
 
       // REELSのみフィルタ
@@ -67,14 +68,14 @@ async function getReelIds(graphBase: string, accessToken: string, accountId: str
       );
       allReels.push(...reels);
 
-      cursor = data.paging?.cursors?.after || null;
+      cursor = data.paging?.next ? data.paging.cursors?.after || null : null;
       if (!cursor) break;
     }
 
     return allReels.slice(0, limit);
   } catch (error) {
     console.error('Error fetching reel IDs:', error);
-    return allReels;
+    throw error;
   }
 }
 
@@ -86,18 +87,18 @@ async function getReelDetails(graphBase: string, accessToken: string, reelId: st
     const metrics = 'views,reach,total_interactions,likes,comments,saved,shares,ig_reels_video_view_total_time,ig_reels_avg_watch_time';
     const fields = `id,caption,media_product_type,media_type,permalink,timestamp,like_count,comments_count,thumbnail_url,insights.metric(${metrics})`;
     const response = await fetch(
-      `${graphBase}/${reelId}?fields=${encodeURIComponent(fields)}&access_token=${accessToken}`
+      `${graphBase}/${reelId}?fields=${encodeURIComponent(fields)}&access_token=${accessToken}`,
+      { signal: AbortSignal.timeout(15000), cache: 'no-store' }
     );
 
     if (!response.ok) {
-      console.warn(`Failed to get reel details for ${reelId}:`, response.status);
-      return null;
+      throw await instagramApiError(response, `reel ${reelId}`);
     }
 
     return await response.json();
   } catch (error) {
     console.error(`Error fetching reel details for ${reelId}:`, error);
-    return null;
+    throw error;
   }
 }
 
@@ -192,6 +193,7 @@ async function syncUserReels(
 
     return {
       success: metrics.metricsFailed === 0,
+      ...(metrics.metricsFailed ? { error: metrics.apiErrors?.join(' / ') || `Insights unavailable for ${metrics.metricsFailed} reels` } : {}),
       ...metrics,
       reelsCount: reelsWithInsights.length,
       newCount: result.newCount,
@@ -291,7 +293,7 @@ export async function GET(request: Request) {
     const successCount = results.filter(r => r.success).length;
 
     return NextResponse.json({
-      success: true,
+      success: successCount === validUsers.length,
       message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
       results,
     });

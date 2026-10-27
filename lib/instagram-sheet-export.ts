@@ -106,9 +106,9 @@ export function buildSheetExportPlan(snapshot: sheets_v4.Schema$Spreadsheet, dat
   const createdMonths: string[] = [];
   let nextId = Math.max(...sheets.map(s => s.properties!.sheetId!)) + 1;
   for (const month of monthsToPrepare(now)) {
-    if (months.some(item => item.month === month)) continue;
     const title = `${month.replace('-', '_')} ストーリーズ`;
-    if (sheets.some(s => s.properties!.title === title)) throw new Error(`Month selector differs from tab name: ${title}`);
+    // C2 can be changed manually for viewing. Do not reset it or stop raw exports.
+    if (months.some(item => item.month === month) || sheets.some(s => s.properties!.title === title)) continue;
     const sheetId = nextId++;
     const p = template.properties!;
     requests.push({ duplicateSheet: { sourceSheetId: p.sheetId!, newSheetId: sheetId, newSheetName: title, insertSheetIndex: p.index! } });

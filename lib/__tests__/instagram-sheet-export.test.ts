@@ -87,6 +87,9 @@ test('new month keeps layout but clears copied manual data, existing C2/manual f
   january.data![0].rowData![1].values![2] = cellValue(dateSerial('2027-01-01'));
   present.sheets!.push(january);
   assert.deepEqual(buildSheetExportPlan(present, data, new Date('2026-12-31T00:00Z')).createdMonths, []);
+  const changedSelector = fixture();
+  changedSelector.sheets![4].data![0].rowData![1].values![2] = cellValue(dateSerial('2026-11-01'));
+  assert.deepEqual(buildSheetExportPlan(changedSelector, data, new Date('2026-12-01T00:00Z')).createdMonths, []);
 });
 
 test('failed writes and readback mismatch cannot be reported as success', async () => {

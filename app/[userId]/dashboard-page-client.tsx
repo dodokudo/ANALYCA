@@ -2329,7 +2329,7 @@ function InstagramContent({
                 <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">ファネル分析</h2>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex flex-col items-center">
-                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2" title="日別リーチの合計です。同じアカウントの複数日の閲覧を含みます。">リーチ（日別合計）</span>
+                    <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2" title="日別リーチの合計です。同じアカウントの複数日の閲覧を含みます。">リーチ</span>
                     <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.totalReach)}</span>
                   </div>
                   <div className="flex flex-col items-center mx-2">
@@ -2356,7 +2356,7 @@ function InstagramContent({
                     <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">フォロワー増加</span>
                     <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.followerGrowth)}</span>
                   </div>
-                  {showLine && <div className="flex items-center gap-3"><div className="flex flex-col items-center mx-2"><div className="text-lg text-emerald-500">→</div><span className="text-xs font-medium text-emerald-500" title="LINE登録数 ÷ リンククリック数">CVR {insightRate(summary.lineRegistrations, summary.totalWebClicks)}</span></div><div className="flex flex-col items-center"><span className="text-xs font-medium text-[color:var(--color-text-secondary)] mb-2" title="公式LINE全体の登録数。Instagram経由に限定した数値ではありません。">LINE登録数</span><span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.lineRegistrations)}</span><span className="mt-1 text-xs text-[color:var(--color-text-muted)]">総数 {formatInsightNumber(summary.lineFollowers)}</span></div></div>}
+                  {showLine && <div className="flex items-center gap-3"><div className="flex flex-col items-center mx-2"><div className="text-lg text-emerald-500">→</div><span className="text-xs font-medium text-emerald-500" title="LINE登録数 ÷ リンククリック数">CVR {insightRate(summary.lineRegistrations, summary.totalWebClicks)}</span></div><div className="flex flex-col items-center"><span className="text-xs font-medium text-[color:var(--color-text-secondary)] mb-2" title="公式LINE全体の登録数。Instagram経由に限定した数値ではありません。">LINE登録数</span><span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.lineRegistrations)}</span></div></div>}
                 </div>
               </div>
             </div>

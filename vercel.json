@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/sync/instagram/sheet-export",
+      "schedule": "30 17 * * *"
+    },
+    {
       "path": "/api/sync/instagram/sheet-line",
       "schedule": "15 * * * *"
     },

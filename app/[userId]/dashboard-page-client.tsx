@@ -2289,7 +2289,7 @@ function InstagramContent({
             {/* アカウント情報 */}
             <div className="lg:col-span-3">
               <div className="ui-card p-4 md:p-6 h-full">
-                <div className="flex items-center gap-3 md:gap-4">
+                <div className="flex flex-col items-start gap-3 md:gap-4">
                   <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)]">
                     {profilePicture ? (
                       <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
@@ -2301,7 +2301,7 @@ function InstagramContent({
                   </div>
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
-                    <div className="mt-1 flex items-baseline gap-2">
+                    <div className="mt-1 flex flex-wrap items-baseline gap-2">
                       <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
                       <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
                       {summary.followerGrowth !== null && summary.followerGrowth !== 0 && (
@@ -2348,7 +2348,7 @@ function InstagramContent({
                     <span className="text-xs font-medium uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)] mb-2">フォロワー増加</span>
                     <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.followerGrowth)}</span>
                   </div>
-                  {showLine && <><div className="flex flex-col items-center mx-2"><div className="text-lg text-emerald-500">→</div><span className="text-xs font-medium text-emerald-500" title="LINE登録数 ÷ リンククリック数">CVR {insightRate(summary.lineRegistrations, summary.totalWebClicks)}</span></div><div className="flex flex-col items-center"><span className="text-xs font-medium text-[color:var(--color-text-secondary)] mb-2" title="公式LINE全体の登録数。Instagram経由に限定した数値ではありません。">LINE登録数</span><span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.lineRegistrations)}</span><span className="mt-1 text-xs text-[color:var(--color-text-muted)]">総数 {formatInsightNumber(summary.lineFollowers)}</span></div></>}
+                  {showLine && <div className="flex items-center gap-3"><div className="flex flex-col items-center mx-2"><div className="text-lg text-emerald-500">→</div><span className="text-xs font-medium text-emerald-500" title="LINE登録数 ÷ リンククリック数">CVR {insightRate(summary.lineRegistrations, summary.totalWebClicks)}</span></div><div className="flex flex-col items-center"><span className="text-xs font-medium text-[color:var(--color-text-secondary)] mb-2" title="公式LINE全体の登録数。Instagram経由に限定した数値ではありません。">LINE登録数</span><span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{formatInsightNumber(summary.lineRegistrations)}</span><span className="mt-1 text-xs text-[color:var(--color-text-muted)]">総数 {formatInsightNumber(summary.lineFollowers)}</span></div></div>}
                 </div>
               </div>
             </div>

@@ -2295,8 +2295,8 @@ function InstagramContent({
           <div className="grid lg:grid-cols-12 gap-4">
             {/* アカウント情報 */}
             <div className="lg:col-span-3">
-              <div className="ui-card p-4 md:p-6 h-full">
-                <div className="flex flex-col items-start gap-3 md:gap-4">
+              <div className="ui-card p-4 md:p-6 h-full flex items-center">
+                <div className="flex min-w-0 w-full items-center gap-3 md:gap-4">
                   <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-[color:var(--color-surface-muted)]">
                     {profilePicture ? (
                       <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xl font-bold">${username.charAt(0).toUpperCase()}</div>`; }} />
@@ -2307,7 +2307,7 @@ function InstagramContent({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
+                    <h2 className="break-words text-lg font-semibold text-[color:var(--color-text-primary)]">{username}</h2>
                     <div className="mt-1 flex flex-wrap items-baseline gap-2">
                       <span className="text-xs text-[color:var(--color-text-muted)]">フォロワー</span>
                       <span className="text-xl font-semibold text-[color:var(--color-text-primary)]">{followersCount.toLocaleString()}</span>
@@ -2324,7 +2324,7 @@ function InstagramContent({
 
             {/* ファネル分析 */}
             <div className="lg:col-span-9">
-              <div className="ui-card p-6">
+              <div className="ui-card p-6 h-full">
                 <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)] mb-6">ファネル分析</h2>
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex flex-col items-center">

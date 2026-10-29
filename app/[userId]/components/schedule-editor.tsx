@@ -5,6 +5,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { SchedulePreviewData, ScheduledPost, ScheduledPostMediaItem } from './schedule-types';
 import { classNames } from '@/lib/classNames';
 import { countThreadsText, THREADS_TEXT_LIMIT } from '@/lib/threads-text-length';
+import { THREADS_BEFORE_REAUTH_EVENT } from '@/lib/threads-reauth-client';
 
 const MAX_LENGTH = THREADS_TEXT_LIMIT;
 const MAX_MEDIA_ITEMS = 10;
@@ -79,6 +80,17 @@ export function ScheduleEditor({
   const [comment2MediaItems, setComment2MediaItems] = useState<ScheduledPostMediaItem[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const protectUpload = (event: Event) => {
+      if (uploadingMedia && (event as CustomEvent<{ userId: string }>).detail?.userId === userId) {
+        event.preventDefault();
+        alert('画像・動画のアップロードが完了してから再接続してください。');
+      }
+    };
+    window.addEventListener(THREADS_BEFORE_REAUTH_EVENT, protectUpload);
+    return () => window.removeEventListener(THREADS_BEFORE_REAUTH_EVENT, protectUpload);
+  }, [uploadingMedia, userId]);
 
   useEffect(() => {
     if (selectedItem) {
@@ -373,7 +385,7 @@ export function ScheduleEditor({
       <header className="mb-4">
         <h2 className="text-base font-semibold text-gray-900">予約エディタ</h2>
         <p className="mt-1 text-xs text-gray-500">
-          {selectedItem ? '選択中の予約を編集' : '新規予約を作成'}
+          {selectedItem?.scheduleId ? '選択中の予約を編集' : '新規予約を作成'}
         </p>
       </header>
 

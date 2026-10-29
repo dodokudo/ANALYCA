@@ -16,6 +16,7 @@ import { isChannelBlockedByPlan, resolveEffectivePlanId } from '@/lib/univapay/p
 
 import { GRANDPRIX_LOGIN_COOKIE, readGrandprixLoginSession } from '@/lib/threads-grandprix-login-session';
 import { GRANDPRIX_EVENTS, isGrandprixEntryOpen } from '@/lib/threads-grandprix-events';
+import { THREADS_REAUTH_COOKIE, readThreadsReauthSession } from '@/lib/threads-reauth-session';
 
 export const maxDuration = 300;
 
@@ -27,6 +28,18 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error');
   const errorReason = searchParams.get('error_reason');
   const stateParam = searchParams.get('state');
+  const isReauth = stateParam?.startsWith('reauth.') === true;
+  const reauthReceipt = request.cookies.get(THREADS_REAUTH_COOKIE)?.value;
+  const reauthSession = isReauth && stateParam === `reauth.${reauthReceipt}` ? readThreadsReauthSession(reauthReceipt) : null;
+  const reauthError = (reason: string) => {
+    const url = new URL(reauthSession?.returnTo || '/login/threads', request.url);
+    if (reauthSession) url.searchParams.set('reauth', reason);
+    else url.searchParams.set('error', '再接続の有効時間が過ぎました。元の画面からもう一度お試しください。');
+    const response = NextResponse.redirect(url);
+    response.cookies.delete(THREADS_REAUTH_COOKIE);
+    return response;
+  };
+  if (isReauth && !reauthSession) return reauthError('expired');
   const entryReceipt = request.cookies.get(GRANDPRIX_ENTRY_COOKIE)?.value;
   const isGrandprix = stateParam?.startsWith('grandprix.') === true;
   const grandprixSession = isGrandprix && stateParam === `grandprix.${entryReceipt}` ? readGrandprixEntrySession(entryReceipt) : null;
@@ -50,6 +63,7 @@ export async function GET(request: NextRequest) {
 
   // OAuth denied or error
   if (error) {
+    if (isReauth) return reauthError(error === 'access_denied' ? 'cancelled' : 'error');
     if (isGrandprixLogin) return loginError('接続が完了していません。必要な権限を許可して再度ログインしてください。');
     if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=denied', request.url));
     console.error('Threads OAuth error:', error, errorReason);
@@ -59,6 +73,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!code) {
+    if (isReauth) return reauthError('error');
     if (isGrandprixLogin) return loginError('ログインを完了できませんでした。もう一度お試しください。');
     if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=error', request.url));
     return NextResponse.redirect(
@@ -78,6 +93,7 @@ export async function GET(request: NextRequest) {
     // Step 3: Get account info (username + profile picture URL)
     const threads = new ThreadsAPI(longToken);
     const account = await threads.getAccountInfo();
+    if (reauthSession && account.id !== reauthSession.threadsUserId) return reauthError('wrong_account');
     // 申込IDの入力違いでも本人が認証したアカウントを保存する。
     // エントリーとの照合・修正は管理画面で行い、ここでは自動登録・付け替えしない。
 
@@ -89,7 +105,11 @@ export async function GET(request: NextRequest) {
         pendingUserId = state.pendingUserId;
       } catch { /* invalid state, ignore */ }
     }
-    const existingUserId = pendingUserId || await findUserIdByThreadsId(account.id || threadsUserId);
+    const existingUserId = reauthSession?.userId || pendingUserId || await findUserIdByThreadsId(account.id || threadsUserId);
+    if (reauthSession) {
+      const currentUser = await getUserById(reauthSession.userId);
+      if (currentUser?.threads_user_id !== reauthSession.threadsUserId) return reauthError('wrong_account');
+    }
 
     // 無料配布用ログインでは新規ダッシュボードを作成する。
     // 既存ユーザーだけ、契約済みプランの媒体制限を確認する。
@@ -126,9 +146,14 @@ export async function GET(request: NextRequest) {
 
     // Step 7: 即座にダッシュボードへリダイレクト（syncing=trueでフルsync自動実行）
     // Cookieで userId を渡す（ダッシュボード側でlocalStorageに保存）
-    const redirectUrl = new URL(grandprixSession
+    const redirectUrl = new URL(reauthSession?.returnTo || (grandprixSession
       ? '/threads-grandprix/autumn?connection=complete#entry-form'
-      : `/${userId}?tab=threads&auth=threads_complete&syncing=true`, request.url);
+      : `/${userId}?tab=threads&auth=threads_complete&syncing=true`), request.url);
+    if (reauthSession) {
+      redirectUrl.searchParams.set('reauth', 'success');
+      redirectUrl.searchParams.set('auth', 'threads_complete');
+      redirectUrl.searchParams.set('syncing', 'true');
+    }
     if (grandprixSession) {
       // ダッシュボードに立ち寄らない参加者も、接続直後に初回データ取得を開始する。
       after(async () => {
@@ -139,6 +164,7 @@ export async function GET(request: NextRequest) {
       });
     }
     const response = NextResponse.redirect(redirectUrl);
+    if (reauthSession) response.cookies.delete(THREADS_REAUTH_COOKIE);
     if (loginSession) response.cookies.delete(GRANDPRIX_LOGIN_COOKIE);
     response.cookies.set('analycaUserId', userId, {
       path: '/',
@@ -158,6 +184,7 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (err) {
     console.error('Threads OAuth callback error:', err);
+    if (isReauth) return reauthError('error');
     if (isGrandprixLogin) return loginError('接続を完了できませんでした。もう一度お試しください。');
     if (isGrandprix) return NextResponse.redirect(new URL('/threads-grandprix/autumn?connection=error', request.url));
     const message = err instanceof Error ? err.message : 'Unknown error';

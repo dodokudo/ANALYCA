@@ -1,6 +1,7 @@
 'use client';
 
 import { ThreadsReauthNotice } from '@/components/threads-reauth-notice';
+import { ThreadsConnectionBanner } from '@/components/threads-connection-banner';
 import { isThreadsAuthError } from '@/lib/threads-auth-error';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -1298,6 +1299,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
         </header>
 
         <div className="p-4 lg:p-6 min-w-0">
+          {channels.threads && !adminAccess && <ThreadsConnectionBanner key={userId} userId={userId} />}
           {activeChannel === 'threads' && (
             isChannelLocked('threads') ? (
               <UpgradeCard

@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { insertScheduledPost, listScheduledPosts, toJstIsoString } from '@/lib/bigqueryScheduledPosts';
 import { MAX_COMMENT_MEDIA_ITEMS, MAX_THREADS_MEDIA_ITEMS, normalizeThreadsMediaItems, serializeThreadsMediaItems } from '@/lib/threadsMedia';
 import { validateThreadsTextLength } from '@/lib/threads-text-length';
-import { getUserById } from '@/lib/bigquery';
-import { isThreadsAuthError } from '@/lib/threads-auth-error';
-import { getThreadsConnectionStatus, type ThreadsConnectionStatus } from '@/lib/threads-connection-status';
 
 function validateTextLength(label: string, value?: string) {
   return validateThreadsTextLength(label, value, { required: true });
@@ -25,16 +22,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('end') || undefined;
 
     const items = await listScheduledPosts(userId, { startDate, endDate });
-    let threadsConnectionStatus: ThreadsConnectionStatus | null = null;
-    if (items.some((item) => isThreadsAuthError(item.error_message))) {
-      try {
-        const user = await getUserById(userId);
-        threadsConnectionStatus = await getThreadsConnectionStatus(user?.threads_access_token);
-      } catch {
-        threadsConnectionStatus = 'unknown';
-      }
-    }
-    return NextResponse.json({ items, threadsConnectionStatus }, {
+    return NextResponse.json({ items }, {
       headers: { 'Cache-Control': 'private, no-store' },
     });
   } catch (error) {

@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ThreadsReauthNotice } from '@/components/threads-reauth-notice';
+import { reportThreadsAuthError, THREADS_BEFORE_REAUTH_EVENT } from '@/lib/threads-reauth-client';
+import { saveThreadsReauthDraft, takeThreadsReauthDraft } from '@/lib/threads-reauth-draft';
 import { isThreadsAuthError } from '@/lib/threads-auth-error';
-import type { ThreadsConnectionStatus } from '@/lib/threads-connection-status';
 import { useSearchParams } from 'next/navigation';
 import { ScheduleCalendar } from './schedule-calendar';
 import { ScheduleEditor } from './schedule-editor';
@@ -114,7 +114,8 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [threadsConnectionStatus, setThreadsConnectionStatus] = useState<ThreadsConnectionStatus | null>(null);
+  const restoredDraft = useRef(false);
+  const [draftRestored, setDraftRestored] = useState(false);
   const [previewData, setPreviewData] = useState<SchedulePreviewData>(EMPTY_PREVIEW_DATA);
 
   const range = useMemo(() => ({
@@ -134,7 +135,6 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       const mapped = Array.isArray(data.items) ? data.items.map(mapItem) : [];
       setItems(mapped);
-      setThreadsConnectionStatus(data.threadsConnectionStatus ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load schedules');
     } finally {
@@ -147,7 +147,39 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
   }, [loadSchedules]);
 
   useEffect(() => {
-    if (!requestedScheduleId) return;
+    try {
+      const draft = takeThreadsReauthDraft(window.sessionStorage, userId);
+      if (!draft) return;
+      restoredDraft.current = true;
+      setSelectedItem(draft);
+      setSelectedDate(draft.scheduledDate);
+      const [year, month] = draft.scheduledDate.split('-').map(Number);
+      setCurrentMonth(new Date(year, month - 1, 1));
+      setDraftRestored(true);
+    } catch { /* Storage can be disabled in private browsing. */ }
+  }, [userId]);
+
+  useEffect(() => {
+    const saveBeforeReconnect = (event: Event) => {
+      if ((event as CustomEvent<{ userId: string }>).detail?.userId !== userId) return;
+      if (saving || publishing) {
+        event.preventDefault();
+        alert('保存・投稿の処理が完了してから再接続してください。');
+        return;
+      }
+      try {
+        saveThreadsReauthDraft(window.sessionStorage, userId, previewData, selectedItem);
+      } catch {
+        event.preventDefault();
+        alert('編集内容を一時保存できませんでした。下書き保存してから再接続してください。');
+      }
+    };
+    window.addEventListener(THREADS_BEFORE_REAUTH_EVENT, saveBeforeReconnect);
+    return () => window.removeEventListener(THREADS_BEFORE_REAUTH_EVENT, saveBeforeReconnect);
+  }, [userId, previewData, selectedItem, saving, publishing]);
+
+  useEffect(() => {
+    if (!requestedScheduleId || restoredDraft.current) return;
 
     let cancelled = false;
     const loadRequestedSchedule = async () => {
@@ -218,7 +250,10 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       await loadSchedules();
     } catch (err) {
-      if (isThreadsAuthError(err)) setError(err instanceof Error ? err.message : String(err));
+      if (isThreadsAuthError(err)) {
+        reportThreadsAuthError(userId);
+        setError(err instanceof Error ? err.message : String(err));
+      }
       else alert(err instanceof Error ? err.message : '削除に失敗しました');
     } finally {
       setSaving(false);
@@ -289,7 +324,10 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       await loadSchedules();
     } catch (err) {
-      if (isThreadsAuthError(err)) setError(err instanceof Error ? err.message : String(err));
+      if (isThreadsAuthError(err)) {
+        reportThreadsAuthError(userId);
+        setError(err instanceof Error ? err.message : String(err));
+      }
       else alert(err instanceof Error ? err.message : '保存に失敗しました');
     } finally {
       setSaving(false);
@@ -335,7 +373,10 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       alert('投稿が完了しました！');
     } catch (err) {
-      if (isThreadsAuthError(err)) setError(err instanceof Error ? err.message : String(err));
+      if (isThreadsAuthError(err)) {
+        reportThreadsAuthError(userId);
+        setError(err instanceof Error ? err.message : String(err));
+      }
       else alert(err instanceof Error ? err.message : '投稿に失敗しました');
     } finally {
       setPublishing(false);
@@ -344,18 +385,12 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
 
   return (
     <div className="space-y-4">
-      {isThreadsAuthError(error) || threadsConnectionStatus === 'reauth_required' ? (
-        <ThreadsReauthNotice />
-      ) : error ? (
+      {error && !isThreadsAuthError(error) ? (
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
         </div>
       ) : null}
-      {threadsConnectionStatus === 'unknown' && !error ? (
-        <p role="status" className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
-          Threadsの連携状態を確認できませんでした。時間をおいて画面を再読み込みしてください。
-        </p>
-      ) : null}
+      {draftRestored && <p role="status" className="text-sm text-emerald-700">再接続前の編集内容を復元しました。</p>}
 
       <div
         className={classNames(
@@ -382,7 +417,7 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
             userId={userId}
             isSaving={saving}
             isPublishing={publishing}
-            onPreviewChange={previewEnabled ? setPreviewData : undefined}
+            onPreviewChange={setPreviewData}
             onSave={handleSave}
             onPublishNow={handlePublishNow}
           />

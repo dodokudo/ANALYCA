@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ThreadsReauthNotice } from '@/components/threads-reauth-notice';
+import { isThreadsAuthError } from '@/lib/threads-auth-error';
 import { useSearchParams } from 'next/navigation';
 import { ScheduleCalendar } from './schedule-calendar';
 import { ScheduleEditor } from './schedule-editor';
@@ -213,7 +215,8 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       await loadSchedules();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '削除に失敗しました');
+      if (isThreadsAuthError(err)) setError(err instanceof Error ? err.message : String(err));
+      else alert(err instanceof Error ? err.message : '削除に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -283,7 +286,8 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       await loadSchedules();
     } catch (err) {
-      alert(err instanceof Error ? err.message : '保存に失敗しました');
+      if (isThreadsAuthError(err)) setError(err instanceof Error ? err.message : String(err));
+      else alert(err instanceof Error ? err.message : '保存に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -328,7 +332,8 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       alert('投稿が完了しました！');
     } catch (err) {
-      alert(err instanceof Error ? err.message : '投稿に失敗しました');
+      if (isThreadsAuthError(err)) setError(err instanceof Error ? err.message : String(err));
+      else alert(err instanceof Error ? err.message : '投稿に失敗しました');
     } finally {
       setPublishing(false);
     }
@@ -336,7 +341,9 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
 
   return (
     <div className="space-y-4">
-      {error ? (
+      {isThreadsAuthError(error) || items.some((item) => isThreadsAuthError(item.errorMessage)) ? (
+        <ThreadsReauthNotice />
+      ) : error ? (
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
         </div>

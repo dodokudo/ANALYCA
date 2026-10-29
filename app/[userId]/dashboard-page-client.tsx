@@ -1,5 +1,7 @@
 'use client';
 
+import { ThreadsReauthNotice } from '@/components/threads-reauth-notice';
+import { isThreadsAuthError } from '@/lib/threads-auth-error';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
@@ -1007,7 +1009,7 @@ export function UserDashboardContent({ userId, adminAccess = false }: { userId: 
       <div className="min-h-screen bg-gradient-to-r from-pink-50/70 via-blue-50/50 to-teal-50/30 flex items-center justify-center p-8">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
           <h2 className="text-xl font-bold text-red-600 mb-4">エラー</h2>
-          <p className="text-gray-600">{error}</p>
+          <div>{isThreadsAuthError(error) ? <ThreadsReauthNotice /> : <p className="text-gray-600">{error}</p>}</div>
         </div>
       </div>
     );

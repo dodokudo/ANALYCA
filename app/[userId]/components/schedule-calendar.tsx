@@ -1,5 +1,6 @@
 'use client';
 
+import { isThreadsAuthError } from '@/lib/threads-auth-error';
 import { useState } from 'react';
 import { classNames } from '@/lib/classNames';
 import type { ScheduledPost } from './schedule-types';
@@ -249,7 +250,7 @@ export function ScheduleCalendar({
                 </p>
                 {item.errorMessage ? (
                   <p className="rounded-md bg-rose-50 px-2 py-1 text-[11px] leading-4 text-rose-700">
-                    {item.errorMessage}
+                    {isThreadsAuthError(item.errorMessage) ? 'Threadsの認証切れで投稿できませんでした。再ログイン後に再予約してください。' : item.errorMessage}
                   </p>
                 ) : null}
               </div>

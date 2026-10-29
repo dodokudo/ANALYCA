@@ -248,9 +248,9 @@ export function ScheduleCalendar({
                 <p className="text-xs text-gray-500 line-clamp-2">
                   {item.mainText}
                 </p>
-                {item.errorMessage ? (
+                {item.errorMessage && item.status !== 'posted' ? (
                   <p className="rounded-md bg-rose-50 px-2 py-1 text-[11px] leading-4 text-rose-700">
-                    {isThreadsAuthError(item.errorMessage) ? 'Threadsの認証切れで投稿できませんでした。再ログイン後に再予約してください。' : item.errorMessage}
+                    {isThreadsAuthError(item.errorMessage) ? '投稿時にThreadsの認証が切れていたため失敗しました。連携が復旧していれば、日時を変更して再予約できます。' : item.errorMessage}
                   </p>
                 ) : null}
               </div>

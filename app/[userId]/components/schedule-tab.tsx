@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ThreadsReauthNotice } from '@/components/threads-reauth-notice';
 import { isThreadsAuthError } from '@/lib/threads-auth-error';
+import type { ThreadsConnectionStatus } from '@/lib/threads-connection-status';
 import { useSearchParams } from 'next/navigation';
 import { ScheduleCalendar } from './schedule-calendar';
 import { ScheduleEditor } from './schedule-editor';
@@ -113,6 +114,7 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [threadsConnectionStatus, setThreadsConnectionStatus] = useState<ThreadsConnectionStatus | null>(null);
   const [previewData, setPreviewData] = useState<SchedulePreviewData>(EMPTY_PREVIEW_DATA);
 
   const range = useMemo(() => ({
@@ -132,6 +134,7 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       const mapped = Array.isArray(data.items) ? data.items.map(mapItem) : [];
       setItems(mapped);
+      setThreadsConnectionStatus(data.threadsConnectionStatus ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load schedules');
     } finally {
@@ -341,12 +344,17 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
 
   return (
     <div className="space-y-4">
-      {isThreadsAuthError(error) || items.some((item) => isThreadsAuthError(item.errorMessage)) ? (
+      {isThreadsAuthError(error) || threadsConnectionStatus === 'reauth_required' ? (
         <ThreadsReauthNotice />
       ) : error ? (
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
         </div>
+      ) : null}
+      {threadsConnectionStatus === 'unknown' && !error ? (
+        <p role="status" className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
+          Threadsの連携状態を確認できませんでした。時間をおいて画面を再読み込みしてください。
+        </p>
       ) : null}
 
       <div

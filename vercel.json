@@ -83,6 +83,11 @@
   ],
   "redirects": [
     {
+      "source": "/gem-queen",
+      "destination": "/33833959932919231?tab=instagram",
+      "permanent": false
+    },
+    {
       "source": "/course-sales/:path*",
       "destination": "https://lkit.jp/course-sales/",
       "permanent": true

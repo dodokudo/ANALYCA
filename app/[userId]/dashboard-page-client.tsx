@@ -196,15 +196,15 @@ function getDateRange(preset: DatePreset, options: { includeToday?: boolean } = 
     }
     case 'thisWeek': {
       // 今週（日曜日始まり）
-      const dayOfWeek = baseDate.getDay();
-      const start = new Date(baseDate);
+      const dayOfWeek = today.getDay();
+      const start = new Date(today);
       start.setDate(start.getDate() - dayOfWeek);
       return { start, end };
     }
     case 'lastWeek': {
       // 先週（日曜日〜土曜日）
-      const dayOfWeek = baseDate.getDay();
-      const start = new Date(baseDate);
+      const dayOfWeek = today.getDay();
+      const start = new Date(today);
       start.setDate(start.getDate() - dayOfWeek - 7);
       const endOfLastWeek = new Date(start);
       endOfLastWeek.setDate(endOfLastWeek.getDate() + 6);
@@ -212,12 +212,12 @@ function getDateRange(preset: DatePreset, options: { includeToday?: boolean } = 
       return { start, end: endOfLastWeek };
     }
     case 'thisMonth': {
-      const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
       return { start, end };
     }
     case 'lastMonth': {
-      const start = new Date(baseDate.getFullYear(), baseDate.getMonth() - 1, 1);
-      const endOfLastMonth = new Date(baseDate.getFullYear(), baseDate.getMonth(), 0);
+      const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
       endOfLastMonth.setHours(23, 59, 59, 999);
       return { start, end: endOfLastMonth };
     }
@@ -2162,8 +2162,12 @@ function InstagramContent({
   const instagramSearchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<IGTab>(() => instagramSearchParams.get('igTab') === 'reels' ? 'reels' : 'overview');
   const [datePreset, setDatePreset] = useState<DatePreset>('7d');
-  const [customStart, setCustomStart] = useState(() => formatDateForInput(getDateRange('thisMonth').start));
-  const [customEnd, setCustomEnd] = useState(() => formatDateForInput(new Date()));
+  const latestDisplayDate = formatDateForInput(getDateRange('7d', { includeToday: false }).end);
+  const [customStart, setCustomStart] = useState(() => {
+    const monthStart = formatDateForInput(getDateRange('thisMonth').start);
+    return monthStart > latestDisplayDate ? latestDisplayDate : monthStart;
+  });
+  const [customEnd, setCustomEnd] = useState(() => latestDisplayDate);
   const [storySortBy, setStorySortBy] = useState('views');
   const [showDailyTable, setShowDailyTable] = useState(true);
 
@@ -2177,10 +2181,10 @@ function InstagramContent({
   const showLine = Boolean(data?.lineData?.data?.length);
   const followersCount = dailyRows.find(row => row.followers_count != null)?.followers_count ?? 0;
 
-  // 日付範囲でフィルタリング（今日のデータも含める）
+  // 日別実績は昨日まで。当日分は保存しても翌日から表示する。
   const dateRange = useMemo(() => datePreset === 'custom' && customStart && customEnd && customStart <= customEnd
-    ? { start: new Date(`${customStart}T00:00:00+09:00`), end: new Date(`${customEnd}T23:59:59.999+09:00`) }
-    : getDateRange(datePreset, { includeToday: true }), [datePreset, customStart, customEnd]);
+    ? { start: new Date(`${customStart}T00:00:00+09:00`), end: new Date(`${customEnd > latestDisplayDate ? latestDisplayDate : customEnd}T23:59:59.999+09:00`) }
+    : getDateRange(datePreset, { includeToday: false }), [datePreset, customStart, customEnd, latestDisplayDate]);
 
   const reels = useMemo(() => {
     return allReels.filter(r => isDateInRange(r.timestamp, dateRange));
@@ -2286,7 +2290,7 @@ function InstagramContent({
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          {datePreset === 'custom' && <><input aria-label="Instagram開始日" type="date" value={customStart} max={customEnd} onChange={event => setCustomStart(event.target.value)} className="h-10 rounded border border-[color:var(--color-border)] px-2 text-sm" /><span>〜</span><input aria-label="Instagram終了日" type="date" value={customEnd} min={customStart} onChange={event => setCustomEnd(event.target.value)} className="h-10 rounded border border-[color:var(--color-border)] px-2 text-sm" /></>}
+          {datePreset === 'custom' && <><input aria-label="Instagram開始日" type="date" value={customStart} max={customEnd < latestDisplayDate ? customEnd : latestDisplayDate} onChange={event => setCustomStart(event.target.value)} className="h-10 rounded border border-[color:var(--color-border)] px-2 text-sm" /><span>〜</span><input aria-label="Instagram終了日" type="date" value={customEnd} min={customStart} max={latestDisplayDate} onChange={event => setCustomEnd(event.target.value)} className="h-10 rounded border border-[color:var(--color-border)] px-2 text-sm" /></>}
         </div>
       </div>
 

@@ -31,12 +31,13 @@ test('saves recent batches first, uses explicit day windows, and never invents h
   const result = await syncAccountInsightDays({ now, graphBase: 'https://example.test', accountId: 'id', accessToken: 'test', followers: 123, posts: 10, fetcher, save: async rows => { batches.push(rows); } });
   assert.equal(result.success, true);
   assert.equal(result.savedDays, 57);
-  assert.equal(batches.length, 9);
+  assert.equal(batches.length, 10);
   assert.equal(batches[0][0].date, '2026-10-27');
   assert.equal(batches[0][0].followers_count, 123);
-  assert.equal(batches[0][1].followers_count, null);
-  assert.equal(batches[0][1].posts_count, null);
-  assert.equal(batches[0][0].reach, 0);
+  assert.equal(batches[0][0].reach, null);
+  assert.equal(batches[1][1].followers_count, null);
+  assert.equal(batches[1][1].posts_count, null);
+  assert.equal(batches[1][0].reach, 0);
 });
 
 test('failed or missing metrics do not overwrite records with zeros', async () => {
@@ -50,8 +51,10 @@ test('failed or missing metrics do not overwrite records with zeros', async () =
   const result = await syncAccountInsightDays({ now, graphBase: 'https://example.test', accountId: 'id', accessToken: 'test', followers: 123, posts: 10, fetcher, save: async rows => { saved.push(...rows); } });
   assert.equal(result.success, false);
   assert.deepEqual(result.failedDates.sort(), ['2026-10-26', '2026-10-27']);
-  assert.equal(saved.length, 55);
-  assert.ok(saved.every(row => row.date < '2026-10-26'));
+  assert.equal(saved.length, 56);
+  assert.equal(saved[0].followers_count, 123);
+  assert.equal(saved[0].reach, null);
+  assert.ok(saved.slice(1).every(row => row.date < '2026-10-26'));
 });
 
 test('thisWeek fetches only Sunday through today and preserves follow breakdown and additional metrics', async () => {
@@ -69,9 +72,37 @@ test('thisWeek fetches only Sunday through today and preserves follow breakdown 
   };
   const result = await syncAccountInsightDays({ range: 'thisWeek', now, graphBase: 'https://example.test', accountId: 'id', accessToken: 'test', followers: 123, posts: 10, fetcher, save: async rows => { saved.push(...rows); } });
   assert.equal(result.savedDays, 3);
-  assert.deepEqual(saved.map(row => row.date), ['2026-10-27', '2026-10-26', '2026-10-25']);
-  assert.equal(saved[0].follows, 7);
-  assert.equal(saved[0].unfollows, 3);
-  assert.equal(saved[0].views, 11);
-  assert.equal(saved[0].saves, 11);
+  assert.deepEqual(saved.slice(1).map(row => row.date), ['2026-10-27', '2026-10-26', '2026-10-25']);
+  assert.equal(saved[1].follows, 7);
+  assert.equal(saved[1].unfollows, 3);
+  assert.equal(saved[1].views, 11);
+  assert.equal(saved[1].saves, 11);
+});
+
+test('saves current followers before fetching empty current-day insights', async () => {
+  const saved: InstagramAccountSnapshot[] = [];
+  const fetcher: typeof fetch = async input => {
+    assert.equal(saved[0].followers_count, 22497);
+    const url = new URL(String(input));
+    const since = Number(url.searchParams.get('since'));
+    if (since === Date.parse('2026-10-29T00:00:00+09:00') / 1000) return Response.json({ data: [] });
+    return Response.json({ data: names.map(name => ({ name, total_value: { value: 1 } })) });
+  };
+  const result = await syncAccountInsightDays({ range: 'thisWeek', now: new Date('2026-10-28T15:00:03Z'), graphBase: 'https://example.test', accountId: 'id', accessToken: 'test', followers: 22497, posts: 348, fetcher, save: async rows => { saved.push(...rows); } });
+  assert.equal(result.success, true);
+  assert.equal(result.accountSnapshotSaved, true);
+  assert.deepEqual(result.pendingDates, ['2026-10-29']);
+  assert.equal(saved[0].date, '2026-10-29');
+  assert.equal(saved[0].reach, null);
+  assert.ok(saved.filter(row => row.date < '2026-10-29').every(row => row.followers_count === null));
+});
+
+test('at exact JST midnight the account snapshot is saved even without an insight window', async () => {
+  const saved: InstagramAccountSnapshot[] = [];
+  const result = await syncAccountInsightDays({ range: 'thisWeek', now: new Date('2026-10-31T15:00:00Z'), graphBase: 'https://example.test', accountId: 'id', accessToken: 'test', followers: 0, posts: 0,
+    fetcher: async () => { throw new Error('No activity window exists yet'); }, save: async rows => { saved.push(...rows); } });
+  assert.equal(result.accountSnapshotSaved, true);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].date, '2026-11-01');
+  assert.equal(saved[0].followers_count, 0);
 });

@@ -154,3 +154,19 @@ test('uncollected month and missing account data remain unknown rather than zero
     assert.equal(result.complete, false);
   }
 });
+
+test('a newer follower-only snapshot keeps the collected funnel metrics visible', () => {
+  const rows = buildInstagramDailyRows([
+    { date: '2026-09-30', followers_count: 100 },
+    { date: '2026-10-01', followers_count: 103, reach: 10, profile_views: 2, website_clicks: 0 },
+    { date: '2026-10-02', followers_count: 107 },
+  ], []);
+  const result = summarizeInstagramDailyRange(rows, '2026-10-01', '2026-10-02', '2026-10-02');
+  assert.equal(result.totalReach, 10);
+  assert.equal(result.totalProfileViews, 2);
+  assert.equal(result.totalWebClicks, 0);
+  assert.equal(result.followerGrowth, 7);
+  const snapshotOnly = summarizeInstagramDailyRange(rows, '2026-10-02', '2026-10-02', '2026-10-02');
+  assert.equal(snapshotOnly.totalReach, null);
+  assert.equal(snapshotOnly.followerGrowth, 4);
+});

@@ -122,7 +122,17 @@ export function summarizeInstagramDailyRange(
   const periodRows = latestInsightDate
     ? rows.filter(row => row.date >= startDate && row.date <= availableEnd)
     : [];
-  return summarizeInstagramDailyRows(periodRows, expectedDays, baseline);
+  const summary = summarizeInstagramDailyRows(periodRows, expectedDays, baseline);
+  // Today's follower snapshot may arrive before its daily activity metrics.
+  // Keep the follower boundary current without hiding the collected activity.
+  const metricEnd = periodRows.filter(row => row.reach != null || row.profile_views != null || row.website_clicks != null)
+    .reduce<string | undefined>((latest, row) => !latest || row.date > latest ? row.date : latest, undefined);
+  if (metricEnd && metricEnd < availableEnd) {
+    const metricDays = Math.round((Date.parse(metricEnd) - Date.parse(startDate)) / 86400000) + 1;
+    const metrics = summarizeInstagramDailyRows(periodRows.filter(row => row.date <= metricEnd), metricDays, baseline);
+    return { ...summary, totalReach: metrics.totalReach, totalProfileViews: metrics.totalProfileViews, totalWebClicks: metrics.totalWebClicks };
+  }
+  return summary;
 }
 
 export function instagramMetricExtent(values: (number | null | undefined)[]) {

@@ -45,7 +45,7 @@ async function syncUserInsights(
   accessToken: string,
   instagramUserId: string,
   range?: 'thisWeek',
-): Promise<{ success: boolean; savedDays?: number; failedDates?: string[]; error?: string }> {
+): Promise<{ success: boolean; savedDays?: number; failedDates?: string[]; pendingDates?: string[]; accountSnapshotSaved?: boolean; error?: string }> {
   try {
     const graphBase = await detectGraphBase(accessToken, `/${instagramUserId}?fields=id`);
 
@@ -63,6 +63,7 @@ async function syncUserInsights(
       posts: account.media_count,
       save: rows => upsertInstagramInsightBatch(userId, rows),
     });
+    console.info('Instagram insights sync completed', { userId, ...result });
     return {
       ...result,
       ...(result.success ? {} : { error: `Insights unavailable for ${result.failedDates.length} days` }),
@@ -155,10 +156,10 @@ export async function GET(request: Request) {
     const successCount = results.filter(r => r.success).length;
 
     return NextResponse.json({
-      success: true,
+      success: successCount === validUsers.length,
       message: `Dispatched sync for ${successCount}/${validUsers.length} users`,
       results,
-    });
+    }, { status: successCount === validUsers.length ? 200 : 502 });
   } catch (error) {
     console.error('Instagram insights sync error:', error);
     return NextResponse.json({

@@ -2,10 +2,10 @@ export interface InstagramAccountSnapshot {
   date: string;
   followers_count: number | null;
   posts_count: number | null;
-  reach: number;
-  engagement: number;
-  profile_views: number;
-  website_clicks: number;
+  reach: number | null;
+  engagement: number | null;
+  profile_views: number | null;
+  website_clicks: number | null;
   views?: number | null;
   total_interactions?: number | null;
   likes?: number | null;
@@ -53,6 +53,17 @@ export async function syncAccountInsightDays(options: {
   const fetcher = options.fetcher ?? fetch;
   let savedDays = 0;
   const failedDates: string[] = [];
+  const pendingDates: string[] = [];
+
+  // Account totals are available before today's insights. Persist the observed
+  // JST snapshot first, even when insights are empty or a later request fails.
+  if (![options.followers, options.posts].every(value => Number.isInteger(value) && value >= 0)) {
+    throw new Error('Instagram account totals are unavailable');
+  }
+  await options.save([{
+    date: dates[0], followers_count: options.followers, posts_count: options.posts,
+    reach: null, engagement: null, profile_views: null, website_clicks: null,
+  }]);
 
   // Save the newest batch before fetching older days; never do one DML job per day.
   for (let offset = 0; offset < dates.length; offset += 7) {
@@ -75,6 +86,10 @@ export async function syncAccountInsightDays(options: {
         }
         if (!response.ok) throw new Error('Instagram insights request failed');
         const body = await response.json();
+        if (date === dates[0] && Array.isArray(body.data) && body.data.length === 0) {
+          pendingDates.push(date);
+          return null;
+        }
         const metrics = new Map<string, number>();
         for (const metric of body.data ?? []) {
           const value = metric.total_value?.value;
@@ -126,5 +141,5 @@ export async function syncAccountInsightDays(options: {
       savedDays += validRows.length;
     }
   }
-  return { success: failedDates.length === 0, savedDays, failedDates };
+  return { success: failedDates.length === 0, savedDays, failedDates, pendingDates, accountSnapshotSaved: true };
 }

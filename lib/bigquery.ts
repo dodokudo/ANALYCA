@@ -1471,9 +1471,22 @@ export async function upsertInstagramStories(stories: InstagramStory[]): Promise
 }
 
 // Instagram Insightsをupsert（日付ベースで更新）
+async function executeInstagramInsightDML(options: Parameters<typeof executeDML>[0]): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await executeDML(options);
+      return;
+    } catch (error) {
+      // The cron dispatches multiple accounts against this same table.
+      if (attempt >= 4 || !(error instanceof Error) || !/Could not serialize access.*concurrent update/i.test(error.message)) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** attempt + Math.random() * 500));
+    }
+  }
+}
+
 export async function upsertInstagramInsightBatch(userId: string, rows: InstagramAccountSnapshot[]): Promise<void> {
   if (!rows.length) return;
-  await executeDML({
+  await executeInstagramInsightDML({
     query: `
       MERGE \`mark-454114.analyca.instagram_insights\` T
       USING (
@@ -1499,8 +1512,8 @@ export async function upsertInstagramInsightBatch(userId: string, rows: Instagra
       WHEN MATCHED THEN UPDATE SET
         followers_count = COALESCE(S.followers_count, T.followers_count),
         posts_count = COALESCE(S.posts_count, T.posts_count),
-        reach = S.reach, engagement = S.engagement,
-        profile_views = S.profile_views, website_clicks = S.website_clicks,
+        reach = COALESCE(S.reach, T.reach), engagement = COALESCE(S.engagement, T.engagement),
+        profile_views = COALESCE(S.profile_views, T.profile_views), website_clicks = COALESCE(S.website_clicks, T.website_clicks),
         views = COALESCE(S.views, T.views),
         total_interactions = COALESCE(S.total_interactions, T.total_interactions),
         likes = COALESCE(S.likes, T.likes),

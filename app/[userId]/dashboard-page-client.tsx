@@ -1431,10 +1431,11 @@ function ThreadsContent({
   const isYokoDashboard = userId === YOKO_ANALYCA_USER_ID;
   const isManagedConversionDashboard = isYamazakiDashboard || isYokoDashboard;
   const hasLinkLineOption = Boolean(linkLineOption?.hasAccess);
+  const defaultEndDate = formatDateForInput(getDateRange('7d', { includeToday: false }).end);
+  const monthStartDate = formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const defaultStartDate = isYamazakiDashboard
     ? YAMAZAKI_METRICS_START_DATE
-    : formatDateForInput(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const defaultEndDate = formatDateForInput(new Date());
+    : monthStartDate > defaultEndDate ? defaultEndDate : monthStartDate;
 
   const router = useRouter();
   const pathname = usePathname();
@@ -1494,11 +1495,11 @@ function ThreadsContent({
   const latestMetrics = data?.threadsDailyMetrics?.latest;
   const followersCount = latestMetrics?.followers_count || 0;
 
-  // 日付範囲でフィルタリング（今日のデータも含める）
+  // 日付範囲でフィルタリング（昨日までのデータを表示）
   const dateRange = useMemo(() => {
     if (datePreset === 'custom' && appliedCustomStartDate && appliedCustomEndDate) {
-      const start = new Date(appliedCustomStartDate);
-      const end = new Date(appliedCustomEndDate);
+      const start = new Date(appliedCustomStartDate > defaultEndDate ? defaultEndDate : appliedCustomStartDate);
+      const end = new Date(appliedCustomEndDate > defaultEndDate ? defaultEndDate : appliedCustomEndDate);
       if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
         const normalizedStart = start <= end ? start : end;
         const normalizedEnd = start <= end ? end : start;
@@ -1507,8 +1508,8 @@ function ThreadsContent({
         return { start: normalizedStart, end: normalizedEnd };
       }
     }
-    return getDateRange(datePreset, { includeToday: true });
-  }, [datePreset, appliedCustomStartDate, appliedCustomEndDate]);
+    return getDateRange(datePreset, { includeToday: false });
+  }, [datePreset, appliedCustomStartDate, appliedCustomEndDate, defaultEndDate]);
 
   const previousDateRange = useMemo(() => {
     const dayMs = 24 * 60 * 60 * 1000;
@@ -1847,12 +1848,14 @@ function ThreadsContent({
                 <input
                   type="date"
                   value={customStartDate}
+                  max={defaultEndDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
                 />
                 <input
                   type="date"
                   value={customEndDate}
+                  max={defaultEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
                   className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] bg-white px-3 text-sm text-[color:var(--color-text-secondary)]"
                 />
@@ -1860,8 +1863,10 @@ function ThreadsContent({
                   type="button"
                   onClick={() => {
                     if (!customStartDate || !customEndDate) return;
-                    const normalizedStart = customStartDate <= customEndDate ? customStartDate : customEndDate;
-                    const normalizedEnd = customStartDate <= customEndDate ? customEndDate : customStartDate;
+                    const start = customStartDate > defaultEndDate ? defaultEndDate : customStartDate;
+                    const end = customEndDate > defaultEndDate ? defaultEndDate : customEndDate;
+                    const normalizedStart = start <= end ? start : end;
+                    const normalizedEnd = start <= end ? end : start;
                     setCustomStartDate(normalizedStart);
                     setCustomEndDate(normalizedEnd);
                     setAppliedCustomStartDate(normalizedStart);

@@ -9,7 +9,7 @@ import {
 export const reportButton = 'rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40';
 
 function Section({ number, title, hint, children }: { number: number; title: string; hint?: string; children: ReactNode }) {
-  return <section className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 md:p-6">
+  return <section data-report-section={number} aria-label={title} className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 md:p-6">
     <div><h4 className="flex items-start gap-3 text-base font-semibold text-gray-900">
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs text-violet-700">{number}</span>{title}
     </h4>{hint && <p className="mt-2 text-sm leading-6 text-gray-500">{hint}</p>}</div>

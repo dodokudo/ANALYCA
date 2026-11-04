@@ -112,12 +112,12 @@ export default function ReportReflection({ userId, month, onDirtyChange }: {
   const frozen = saving || !!model.pending;
   return <section className="ui-card p-4 md:p-6" aria-label="運用の説明レポート">
     <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-      <div><h3 className="text-lg font-semibold text-gray-900">運用の説明レポート</h3>
+      <div><h3 className="text-lg font-semibold text-gray-900">今月の運用振り返り</h3>
         <p className="mt-1 text-sm text-gray-500">実施したこと・結果・次の対応を、順番に確認できます。</p>
-        {!loading && !loadError && <p className="mt-2 text-xs text-gray-500">{state.submitted ? `提出済み：${savedTime(state.submitted.savedAt)}` : '書き直し版は未提出です。'}{state.current?.status === 'draft' ? ` ／ 下書き保存：${savedTime(state.current.savedAt)}` : ''}</p>}
+        {!loading && !loadError && <p className="mt-2 text-xs text-gray-500">{state.submitted ? `更新：${savedTime(state.submitted.savedAt)}` : 'レポートはまだ保存されていません。'}{state.current?.status === 'draft' ? ` ／ 下書き保存：${savedTime(state.current.savedAt)}` : ''}</p>}
       </div>
       {!loading && !loadError && <button type="button" className={reportButton} onClick={() => setMode(mode === 'read' ? 'edit' : 'read')}>
-        {mode === 'read' ? state.current ? '書き直し版を編集' : '書き直し版を作成' : '閲覧画面に戻る'}
+        {mode === 'read' ? state.current ? 'レポートを編集' : 'レポートを作成' : '閲覧画面に戻る'}
       </button>}
     </div>
 
@@ -127,29 +127,22 @@ export default function ReportReflection({ userId, month, onDirtyChange }: {
       <button type="button" className="mt-2 underline" onClick={() => { if (!dirty || window.confirm('未保存の入力を破棄して再読み込みしますか？')) void load(); }}>再読み込み</button>
     </div>}
 
-    {!loading && !originalError && <details key={state.submitted ? 'with-submitted' : 'without-submitted'} open={(mode === 'read' && !state.submitted) || undefined} className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
-      <summary className="cursor-pointer text-sm font-semibold text-gray-800">当初の原文を読む{original ? `（${savedTime(original.savedAt)} 保存）` : ''}</summary>
-      <p className="mt-3 text-xs leading-6 text-gray-500">担当者が以前記入した文章をそのまま保管しています。書き直し版を保存・提出しても、この原文は変わりません。</p>
-      {original ? <div className="mt-4 space-y-6">{REFLECTION_FIELDS.map(field => <section key={field.key}>
-        <h4 className="mb-2 text-sm font-semibold text-gray-900">{field.label}</h4>
-        <p data-original-field={field.key} className="whitespace-pre-wrap break-words text-sm leading-7 text-gray-700">{original.fields[field.key] || '（記入なし）'}</p>
-      </section>)}</div> : <p className="mt-3 text-sm text-gray-500">この月に保存された原文はありません。</p>}
-    </details>}
+
 
     {!loading && !loadError && mode === 'read' && (state.submitted
       ? <ReportRewriteView report={state.submitted.report} />
       : <div className="rounded-xl border border-dashed border-violet-200 bg-violet-50 p-6 text-sm leading-7 text-gray-700">
-        <p className="font-semibold">新しい項目でのレポートは、まだ提出されていません。</p>
-        <p>担当者は「書き直し版を{state.current ? '編集' : '作成'}」から記入してください。下書きは、提出するまでこの閲覧画面には反映されません。</p>
+        <p className="font-semibold">8項目のレポートは、まだ保存されていません。</p>
+        <p>「レポートを{state.current ? '編集' : '作成'}」から記入してください。下書きは、提出するまでこの閲覧画面には反映されません。</p>
       </div>)}
 
     {!loading && !loadError && mode !== 'read' && <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-violet-50 p-4">
-        <div><p className="text-sm font-semibold text-violet-900">{mode === 'preview' ? '書き直し版のプレビュー（未提出の内容を含みます）' : '担当者用：書き直し版の入力'}</p>
-          <p className="mt-1 text-xs leading-6 text-violet-800">原文を参照して、確認できた事実を記入してください。不明な点は「未確認」、推測は「仮説」と明記してください。</p></div>
+        <div><p className="text-sm font-semibold text-violet-900">{mode === 'preview' ? 'レポートのプレビュー（未反映の内容を含みます）' : 'レポートの編集'}</p>
+          <p className="mt-1 text-xs leading-6 text-violet-800">確認できた事実を、それぞれの項目に記入してください。不明な点は「未確認」、推測は「仮説」と明記してください。</p></div>
         <button type="button" className={reportButton} onClick={() => setMode(mode === 'preview' ? 'edit' : 'preview')}>{mode === 'preview' ? '入力に戻る' : 'プレビュー'}</button>
       </div>
-      {mode === 'edit' ? <fieldset disabled={frozen} className="min-w-0"><legend className="sr-only">書き直し版の8項目</legend>
+      {mode === 'edit' ? <fieldset disabled={frozen} className="min-w-0"><legend className="sr-only">レポートの8項目</legend>
         <ReportRewriteForm report={model.report} onChange={report => { model.report = report; redraw(value => value + 1); }} />
       </fieldset> : <ReportRewriteView report={model.report} />}
       {(error || issues.length > 0) && <div ref={errorBox} tabIndex={-1} role="alert" className="rounded-lg bg-red-50 p-4 text-sm text-red-800">
@@ -169,5 +162,14 @@ export default function ReportReflection({ userId, month, onDirtyChange }: {
         <p className="w-full text-xs text-gray-500">提出すると、このレポートの閲覧画面に反映されます。メール・LINE通知は送信されません。</p>
       </div>
     </div>}
+
+    {!loading && !originalError && original && <details data-report-history className="mt-8 border-t border-gray-200 pt-4">
+      <summary className="cursor-pointer text-sm font-semibold text-gray-800">保存履歴：変更前の報告{original ? `（${savedTime(original.savedAt)} 保存）` : ''}</summary>
+      <p className="mt-3 text-xs leading-6 text-gray-500">変更前の4項目を、保存時の文章のまま保管しています。</p>
+      {original ? <div className="mt-4 space-y-6">{REFLECTION_FIELDS.map(field => <section key={field.key}>
+        <h4 className="mb-2 text-sm font-semibold text-gray-900">{field.label}</h4>
+        <p data-original-field={field.key} className="whitespace-pre-wrap break-words text-sm leading-7 text-gray-700">{original.fields[field.key] || '（記入なし）'}</p>
+      </section>)}</div> : <p className="mt-3 text-sm text-gray-500">この月に保存された原文はありません。</p>}
+    </details>}
   </section>;
 }

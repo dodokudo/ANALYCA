@@ -62,12 +62,12 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
   if (!report || !month) return <div className="ui-card p-6">2026年8月以降のレポートを表示します。</div>;
   const monthIndex = months.indexOf(month);
   const cards = [
-    { label: '投稿数', value: formatNumber(report.posts.length), unit: '件', detail: '対象月に公開した投稿' },
-    { label: '閲覧数', value: formatNumber(report.views), unit: '回', detail: '対象月の投稿の最新累計' },
     { label: 'フォロワー数', value: formatNumber(report.followers), unit: '人', detail: report.followerDate ? `${shortDate(report.followerDate)}時点` : '記録なし' },
-    { label: 'フォロワー増減', value: formatGrowth(report.followerGrowth), unit: '人', detail: report.followerGrowth === null ? '月初・月末の記録が不足しています' : `${shortDate(report.startDate)}〜${shortDate(report.followerDate!)}` },
+    { label: 'フォロワー増加数', value: formatGrowth(report.followerGrowth), unit: '人', detail: report.followerGrowth === null ? '月初・月末の記録が不足しています' : `${shortDate(report.startDate)}〜${shortDate(report.followerDate!)}` },
     { label: 'リンククリック', value: formatNumber(report.linkClicks), unit: '回', detail: report.clickRecordsFrom ? `${shortDate(report.clickRecordsFrom)}〜${shortDate(report.endDate)}の記録` : '記録なし' },
     { label: 'LINE登録数', value: formatNumber(report.lineRegistrations), unit: '人', detail: report.lineRecordsThrough ? `Threads経由・${shortDate(report.lineRecordsThrough)}まで` : '記録なし' },
+    { label: '投稿数', value: formatNumber(report.posts.length), unit: '件', detail: '対象月に公開した投稿' },
+    { label: '閲覧数', value: formatNumber(report.views), unit: '回', detail: '対象月の投稿の最新累計' },
   ];
 
   return (
@@ -106,6 +106,39 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
       <ReportReflection key={`reflection-${month}`} userId={userId} month={month} onDirtyChange={setRewriteDirty} />
 
       <section className="ui-card p-4 md:p-6">
+        <div className="mb-6 border-b border-[color:var(--color-border)] pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の運用データ</h3>
+            <button type="button" aria-expanded={showDailyTable} aria-controls="report-daily-data"
+              onClick={() => setShowDailyTable(!showDailyTable)}
+              className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]">
+              {showDailyTable ? '表を閉じる' : '日別データを表示'}
+            </button>
+          </div>
+          {showDailyTable && (
+            <div id="report-daily-data" className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+              <table className="w-full min-w-[640px] text-sm tabular-nums">
+                <thead className="bg-gray-50">
+                  <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+                    <th className="px-3 py-2">日付</th>
+                    {['フォロワー', '増加数', 'リンククリック', 'LINE登録数', '投稿', '閲覧数'].map(label => <th key={label} className="whitespace-nowrap px-3 py-2 text-right">{label}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--color-border)]">
+                  {[...report.days].reverse().map(day => <tr key={day.date} className="hover:bg-[color:var(--color-surface-muted)]">
+                    <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{day.date}</td>
+                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{formatNumber(day.followers)}</td>
+                    <td className="px-3 py-2 text-right"><span className={(day.followerGrowth ?? 0) > 0 ? 'text-green-600' : (day.followerGrowth ?? 0) < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>{formatGrowth(day.followerGrowth)}</span></td>
+                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{formatNumber(day.linkClicks)}</td>
+                    <td className="px-3 py-2 text-right text-orange-500">{formatGrowth(day.lineRegistrations)}</td>
+                    <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{formatNumber(day.posts)}</td>
+                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{formatNumber(day.views)}</td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の推移</h3>
         <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">投稿日の閲覧数とフォロワー増加数</p>
         <div className="mt-5 h-64 md:h-80">
@@ -121,39 +154,6 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
               <Line yAxisId="followers" dataKey="followerGrowth" name="フォロワー増加数" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
-        <div className="mt-6 border-t border-[color:var(--color-border)] pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の運用データ</h3>
-            <button type="button" aria-expanded={showDailyTable} aria-controls="report-daily-data"
-              onClick={() => setShowDailyTable(!showDailyTable)}
-              className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]">
-              {showDailyTable ? '表を閉じる' : '日別データを表示'}
-            </button>
-          </div>
-          {showDailyTable && (
-            <div id="report-daily-data" className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
-              <table className="w-full min-w-[640px] text-sm tabular-nums">
-                <thead className="bg-gray-50">
-                  <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-                    <th className="px-3 py-2">日付</th>
-                    {['フォロワー', '増減', '投稿', '閲覧数', 'リンククリック', 'LINE登録数'].map(label => <th key={label} className="whitespace-nowrap px-3 py-2 text-right">{label}</th>)}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[color:var(--color-border)]">
-                  {[...report.days].reverse().map(day => <tr key={day.date} className="hover:bg-[color:var(--color-surface-muted)]">
-                    <td className="px-3 py-2 font-medium text-[color:var(--color-text-primary)]">{day.date}</td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{formatNumber(day.followers)}</td>
-                    <td className="px-3 py-2 text-right"><span className={(day.followerGrowth ?? 0) > 0 ? 'text-green-600' : (day.followerGrowth ?? 0) < 0 ? 'text-red-600' : 'text-[color:var(--color-text-secondary)]'}>{formatGrowth(day.followerGrowth)}</span></td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-secondary)]">{formatNumber(day.posts)}</td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{formatNumber(day.views)}</td>
-                    <td className="px-3 py-2 text-right text-[color:var(--color-text-primary)]">{formatNumber(day.linkClicks)}</td>
-                    <td className="px-3 py-2 text-right text-orange-500">{formatGrowth(day.lineRegistrations)}</td>
-                  </tr>)}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </section>
 

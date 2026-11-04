@@ -35,7 +35,6 @@ function shortDate(date: string): string {
 }
 
 export default function ThreadsMonthlyReportTab({ userId, comments, posts, followerMetrics, agencyMetrics }: ThreadsMonthlyReportTabProps) {
-  const [showDailyTable, setShowDailyTable] = useState(false);
   const [rewriteDirty, setRewriteDirty] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -107,16 +106,8 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
 
       <section className="ui-card p-4 md:p-6">
         <div className="mb-6 border-b border-[color:var(--color-border)] pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の運用データ</h3>
-            <button type="button" aria-expanded={showDailyTable} aria-controls="report-daily-data"
-              onClick={() => setShowDailyTable(!showDailyTable)}
-              className="rounded-[var(--radius-md)] border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]">
-              {showDailyTable ? '表を閉じる' : '日別データを表示'}
-            </button>
-          </div>
-          {showDailyTable && (
-            <div id="report-daily-data" className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+          <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の運用データ</h3>
+          <div id="report-daily-data" className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
               <table className="w-full min-w-[640px] text-sm tabular-nums">
                 <thead className="bg-gray-50">
                   <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
@@ -136,8 +127,7 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
                   </tr>)}
                 </tbody>
               </table>
-            </div>
-          )}
+          </div>
         </div>
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の推移</h3>
         <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">投稿日の閲覧数とフォロワー増加数</p>

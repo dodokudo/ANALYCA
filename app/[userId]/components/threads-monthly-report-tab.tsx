@@ -102,8 +102,6 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
         </dl>
       </section>
 
-      <ReportReflection key={`reflection-${month}`} userId={userId} month={month} onDirtyChange={setRewriteDirty} />
-
       <section className="ui-card p-4 md:p-6">
         <div className="mb-6 border-b border-[color:var(--color-border)] pb-4">
           <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の運用データ</h3>
@@ -146,6 +144,8 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
           </ResponsiveContainer>
         </div>
       </section>
+
+      <ReportReflection key={`reflection-${month}`} userId={userId} month={month} onDirtyChange={setRewriteDirty} />
 
       <ThreadsTopContent key={month} userId={userId} posts={report.posts} comments={comments} />
     </div>

@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/yoko-daily-report",
+      "schedule": "0 2 * * *"
+    },
+    {
       "path": "/api/sync/instagram/sheet-export",
       "schedule": "30 17 * * *"
     },

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server.js';
 import { isAgencyAccount } from '@/lib/agency-accounts';
-import { parseReflectionWrite } from '@/lib/report-reflection';
-import { ReflectionConflict, reflectionRepository } from '@/lib/report-reflection-repository';
+import { reflectionRepository } from '@/lib/report-reflection-repository';
 import { getReportMonths } from '@/lib/threads-monthly-report';
 
 export const runtime = 'nodejs';
@@ -28,18 +27,6 @@ export async function POST(request: Request, context: Context): Promise<NextResp
   if (origin !== new URL(request.url).origin) return json({ error: 'この画面から保存してください' }, 403);
   const { userId, month } = await context.params;
   if (!isAgencyAccount(userId) || !getReportMonths().includes(month)) return json({ error: '対象のレポートがありません' }, 404);
-  let input;
-  try {
-    const text = await request.text();
-    if (text.length > 250000) return json({ error: '入力が長すぎます' }, 400);
-    input = parseReflectionWrite(JSON.parse(text));
-  } catch (error) { return json({ error: error instanceof Error ? error.message : '入力を確認してください' }, 400); }
-  try {
-    const saved = await reflectionRepository().save(userId, month, input);
-    return json({ saved });
-  } catch (error) {
-    if (error instanceof ReflectionConflict) return json({ error: error.message }, 409);
-    console.error('[report-reflection] save failed', error);
-    return json({ error: '保存を確認できませんでした。文章を保持しています。再保存してください' }, 503);
-  }
+  // Freeze the original, including requests from browser tabs opened before this release.
+  return json({ error: '当初の原文は保管済みで変更できません。画面を再読み込みし、書き直し版に入力してください' }, 409);
 }

@@ -1,0 +1,37 @@
+# 月次レポートの書き直し
+
+既存の4項目は保存日時つきの「当初の原文」として閲覧専用にする。本文の変換・コピー・削除は行わない。既存の保存履歴もそのまま残す。書き直し版は本人が原文と実施記録を確認して記入する。
+
+## 操作
+
+1. 月次レポートで「書き直し版を作成」を開く。
+2. 8項目に記入する。③の作業と④の結果は同じ作業単位で対応する。
+3. 途中でも「下書き保存」ができる。「プレビュー」で見え方を確認する。
+4. 「提出して閲覧画面に反映」で完成した版を表示する。通知は送信しない。
+5. 提出後に下書きを更新しても、閲覧画面には最後に提出した版を表示する。
+
+目標が未設定、データが未計測、事実が未確認の場合はその旨を記入する。空欄を0や達成扱いにはしない。各投稿URLはHTTP(S)のみ。成果までの流れは集計期間・流入経路・参照元を明記し、転換率を自動計算しない。
+
+## 保存と互換性
+
+- 原文のGET `/api/reports/[userId]/[month]` は従来と同じ形式で返す。
+- 原文のPOSTは409を返す。リリース前に開かれた旧画面からも上書きできない。
+- 書き直し版のGET/POSTは `/api/reports/[userId]/[month]/rewrite`。
+- 保存先は `analyca.threads_report_rewrite_revisions` と `threads_report_rewrite_lock`。初回アクセスで作成する。原文テーブルへの書き込みはしない。
+- 保存履歴は追記のみ。`expectedRevision` とトランザクションで衝突を検出する。`requestId` が同じ再送では重複保存しない。
+- GETは最新の保存版 `current` と最後の提出版 `submitted` を別々に返す。
+- 下書きは未完成でも保存可。提出は必須項目をブラウザとAPIで検証する。
+- 保存結果が不明な場合、同じリクエストの再試行まで入力を固定する。衝突時は入力内容のダウンロードができる。
+- 未保存時はブラウザの終了・再読込とレポート月の切替に確認を表示する。下書きの自動保存は行わない。
+
+アクセス対象は既存の運用代行アカウント・対象月に従う。編集者の認証や閲覧者との権限分離は既存の仕組みを変更していない。
+
+## 検証
+
+```sh
+node --experimental-test-module-mocks --import ./scripts/register-ts-tests.mjs --test lib/__tests__/report-reflection.test.ts lib/__tests__/report-rewrite.test.ts lib/__tests__/report-rewrite-route.test.ts lib/__tests__/threads-monthly-report.test.ts
+node --import ./scripts/register-ts-tests.mjs scripts/verify-report-rewrite.mjs
+npm run build
+```
+
+DB検証スクリプトは一意な検証用テーブルのみ作成・削除する。下書き／提出／再下書き、再送、同時保存、月・アカウントの分離を確認し、実際の10月原文が変わらないことを読み取りで照合する。

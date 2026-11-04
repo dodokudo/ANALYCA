@@ -36,6 +36,7 @@ function shortDate(date: string): string {
 
 export default function ThreadsMonthlyReportTab({ userId, comments, posts, followerMetrics, agencyMetrics }: ThreadsMonthlyReportTabProps) {
   const [showDailyTable, setShowDailyTable] = useState(false);
+  const [rewriteDirty, setRewriteDirty] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -50,6 +51,7 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
 
   const selectMonth = (value: string): void => {
     if (!months.includes(value)) return;
+    if (rewriteDirty && !window.confirm('書き直し版に未保存の内容があります。保存せずに月を移動しますか？')) return;
     const params = new URLSearchParams(searchParams?.toString());
     params.set('tab', 'threads');
     params.set('threadsTab', 'report');
@@ -101,7 +103,7 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
         </dl>
       </section>
 
-      <ReportReflection key={`reflection-${month}`} userId={userId} month={month} />
+      <ReportReflection key={`reflection-${month}`} userId={userId} month={month} onDirtyChange={setRewriteDirty} />
 
       <section className="ui-card p-4 md:p-6">
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の推移</h3>

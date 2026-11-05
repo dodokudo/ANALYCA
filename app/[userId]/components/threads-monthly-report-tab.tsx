@@ -37,12 +37,12 @@ function shortDate(date: string): string {
 }
 
 export default function ThreadsMonthlyReportTab({ userId, comments, posts, followerMetrics, agencyMetrics }: ThreadsMonthlyReportTabProps) {
-  const [showDailyTable, setShowDailyTable] = useState(true);
+  const [showDailyData, setShowDailyData] = useState(true);
   const [rewriteDirty, setRewriteDirty] = useState(false);
   const [clientPreview, setClientPreview] = useState<ReportRewrite | null>(null);
   const openPreview = useCallback((content: ReportRewrite) => {
     setClientPreview(structuredClone(content));
-    setShowDailyTable(true);
+    setShowDailyData(true);
   }, []);
   const router = useRouter();
   const pathname = usePathname();
@@ -118,9 +118,17 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
       </section>
 
       <section className="ui-card p-4 md:p-6">
-        <div className="mb-6 border-b border-[color:var(--color-border)] pb-4">
+        <div className="flex items-center justify-between gap-3">
           <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の運用データ</h3>
-          <div id="report-daily-data" hidden={!showDailyTable} className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+          <button type="button" aria-expanded={showDailyData} aria-controls="report-daily-data"
+            onClick={() => setShowDailyData(value => !value)}
+            className="shrink-0 rounded-[var(--radius-md)] border border-[color:var(--color-border)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] transition-colors hover:bg-[color:var(--color-surface-muted)]">
+            {showDailyData ? '閉じる' : '日別データを表示'}
+          </button>
+        </div>
+        <div id="report-daily-data" hidden={!showDailyData}>
+        {showDailyData && <>
+          <div className="mb-6 mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
               <table className="w-full min-w-[640px] text-sm tabular-nums">
                 <thead className="bg-gray-50">
                   <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
@@ -141,12 +149,6 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
                 </tbody>
               </table>
           </div>
-          <button type="button" aria-expanded={showDailyTable} aria-controls="report-daily-data"
-            onClick={() => setShowDailyTable(!showDailyTable)}
-            className="mt-3 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700">
-            {showDailyTable ? '閉じる' : '日別データを表示'}
-          </button>
-        </div>
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の推移</h3>
         <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">投稿日の閲覧数とフォロワー増加数</p>
         <div className="mt-5 h-64 md:h-80">
@@ -162,6 +164,8 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
               <Line yAxisId="followers" dataKey="followerGrowth" name="フォロワー増加数" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
             </ComposedChart>
           </ResponsiveContainer>
+        </div>
+        </>}
         </div>
       </section>
 

@@ -26,6 +26,34 @@ test('途中の下書きを保存でき、未完成の提出は拒否する', ()
   assert.deepEqual(parseRewriteWrite({ ...input, report: complete(), status: 'submitted' }).report, complete());
 });
 
+test('3つの本文だけで提出でき、以前の詳細データを上書きしない', () => {
+  const narrative = { summary: '今月のまとめ', activities: 'やったことと結果', nextMonth: '来月の対応' };
+  const report = { ...emptyRewrite(), narrative };
+  const input = { expectedRevision: 0, requestId: randomUUID(), status: 'submitted', report };
+  assert.deepEqual(submissionIssues(report), []);
+  assert.deepEqual(parseRewriteWrite(input).report, report);
+  const existing = { ...complete(), narrative };
+  assert.deepEqual(parseRewriteWrite({ ...input, report: existing }).report, existing);
+  assert.throws(() => parseRewriteWrite({ ...input, report: { ...report, narrative: { ...narrative, activities: '' } } }), /やったこと/);
+  assert.throws(() => parseRewriteWrite({ ...input, report: { ...report, narrative: { ...narrative, summary: '長'.repeat(10001) } } }), /10,000/);
+});
+
+test('月次フォーマットは確認依頼なしで保存でき、根拠・判断・次月の確認方法を検証する', () => {
+  const monthly = {
+    evaluation: '通常投稿の閲覧水準は改善',
+    initiatives: [{ action: '再投稿を検証', purpose: '再現性の確認', result: '28本中1本', judgment: '少数の検証へ変更' }],
+    findings: { positive: '購入判断の題材に反応', problem: 'フォローへの接続', cause: '要因は未確定' },
+    plans: [{ action: '新規題材を増やす', reason: '再現性が低かった', check: '公開後の日数をそろえて比較' }],
+    requests: '',
+  };
+  const report = { ...complete(), monthly };
+  const input = { expectedRevision: 1, requestId: randomUUID(), status: 'submitted', report };
+  assert.deepEqual(parseRewriteWrite(input).report, report);
+  assert.throws(() => parseRewriteWrite({ ...input, report: { ...report, monthly: { ...monthly, plans: [{ ...monthly.plans[0], check: '' }] } } }), /何を見て/);
+  assert.throws(() => parseRewriteWrite({ ...input, report: { ...report, monthly: { ...monthly, initiatives: [{ ...monthly.initiatives[0], judgment: '' }] } } }), /判断/);
+  assert.throws(() => parseRewriteWrite({ ...input, report: { ...report, monthly: { ...monthly, initiatives: [null] } } }), /取り組み/);
+});
+
 test('行の構造・件数上限・選択肢・危険なURLをサーバーで検証する', () => {
   const input = { expectedRevision: 0, requestId: randomUUID(), report: complete(), status: 'draft' };
   for (const report of [

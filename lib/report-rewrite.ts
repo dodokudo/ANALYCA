@@ -54,7 +54,17 @@ export const REQUEST_FIELDS = [
 ] as const satisfies readonly ReportField[];
 
 type Row<T extends readonly ReportField[]> = Record<T[number]['key'], string>;
+export interface MonthlyClientReport {
+  evaluation: string;
+  initiatives: Array<{ action: string; purpose: string; result: string; judgment: string }>;
+  findings: { positive: string; problem: string; cause: string };
+  plans: Array<{ action: string; reason: string; check: string }>;
+  requests: string;
+}
+
 export interface ReportRewrite {
+  monthly?: MonthlyClientReport;
+  narrative?: { summary: string; activities: string; nextMonth: string };
   summary: string;
   issue: string;
   direction: string;
@@ -111,6 +121,32 @@ export const REWRITE_GROUPS = GROUPS;
 /** Missing facts stay explicitly unconfirmed; drafts can be saved before completion. */
 export function submissionIssues(report: ReportRewrite): string[] {
   const issues: string[] = [];
+  if (report.monthly) {
+    const monthly = report.monthly;
+    if (!monthly.evaluation.trim()) issues.push('今月の成果と評価を記入してください');
+    if (!monthly.initiatives.length) issues.push('今月行ったことと、その結果を1件以上記入してください');
+    monthly.initiatives.forEach((row, index) => {
+      for (const [key, label] of [['action', '実施したこと'], ['purpose', '狙い'], ['result', '結果・根拠'], ['judgment', '判断']] as const) {
+        if (!row[key].trim()) issues.push(`取り組み${index + 1}「${label}」を記入してください`);
+      }
+    });
+    for (const [key, label] of [['positive', '良かった点'], ['problem', '改善が必要な点'], ['cause', '原因についての考え']] as const) {
+      if (!monthly.findings[key].trim()) issues.push(`${label}を記入してください`);
+    }
+    if (!monthly.plans.length) issues.push('来月の運用方針を1件以上記入してください');
+    monthly.plans.forEach((row, index) => {
+      for (const [key, label] of [['action', '来月やること'], ['reason', 'そうする理由'], ['check', '何を見て効果を確認するか']] as const) {
+        if (!row[key].trim()) issues.push(`方針${index + 1}「${label}」を記入してください`);
+      }
+    });
+    return issues;
+  }
+  if (report.narrative) {
+    for (const [key, label] of [['summary', '今月のまとめ'], ['activities', '今月やったことと結果'], ['nextMonth', '来月どうするか']] as const) {
+      if (!report.narrative[key].trim()) issues.push(`${label}を記入してください`);
+    }
+    return issues;
+  }
   for (const [key, label] of [
     ['summary', '① 今月の結果'], ['issue', '① 課題・未確認のこと'], ['direction', '① 次の対応'],
     ['objective', '② 運用の目的'], ['funnelNote', '⑥ 改善が必要な箇所とその理由'],
@@ -139,6 +175,33 @@ export function parseRewriteWrite(value: unknown): RewriteWrite {
     if (typeof value !== 'string' || value.length > max) throw new Error(`${label}は${max.toLocaleString()}文字以内で入力してください`);
     return value;
   };
+  if (input.report.monthly !== undefined) {
+    const monthly = input.report.monthly;
+    if (!monthly || typeof monthly !== 'object' || Array.isArray(monthly) || !monthly.findings) throw new Error('月次報告の内容を確認してください');
+    if (!Array.isArray(monthly.initiatives) || monthly.initiatives.length > 10 || !Array.isArray(monthly.plans) || monthly.plans.length > 3) throw new Error('取り組みは10件、来月の方針は3件以内で入力してください');
+    report.monthly = {
+      evaluation: string(monthly.evaluation, '今月の成果と評価'),
+      initiatives: monthly.initiatives.map(row => {
+        if (!row || typeof row !== 'object') throw new Error('取り組みの内容を確認してください');
+        return { action: string(row.action, '実施したこと'), purpose: string(row.purpose, '狙い'), result: string(row.result, '結果・根拠'), judgment: string(row.judgment, '判断') };
+      }),
+      findings: { positive: string(monthly.findings.positive, '良かった点'), problem: string(monthly.findings.problem, '改善が必要な点'), cause: string(monthly.findings.cause, '原因についての考え') },
+      plans: monthly.plans.map(row => {
+        if (!row || typeof row !== 'object') throw new Error('来月の方針を確認してください');
+        return { action: string(row.action, '来月やること'), reason: string(row.reason, 'そうする理由'), check: string(row.check, '何を見て効果を確認するか') };
+      }),
+      requests: string(monthly.requests, 'クライアント様への確認・お願い'),
+    };
+  }
+  if (input.report.narrative !== undefined) {
+    const narrative = input.report.narrative;
+    if (!narrative || typeof narrative !== 'object' || Array.isArray(narrative)) throw new Error('レポート本文を確認してください');
+    report.narrative = {
+      summary: string(narrative.summary, '今月のまとめ', 10000),
+      activities: string(narrative.activities, '今月やったことと結果', 10000),
+      nextMonth: string(narrative.nextMonth, '来月どうするか', 10000),
+    };
+  }
   for (const key of ['summary', 'issue', 'direction', 'objective', 'postsNote', 'funnelNote', 'requestsNote'] as const) {
     report[key] = string(input.report[key], key, ['summary', 'issue', 'direction'].includes(key) ? 600 : 4000);
   }

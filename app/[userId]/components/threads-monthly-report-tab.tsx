@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ThreadsTopContent, type ThreadsContentComment } from './threads-top-content';
 import ReportReflection from './report-reflection';
+import { ReportRewriteView } from './report-rewrite-content';
+import type { ReportRewrite } from '@/lib/report-rewrite';
 import {
   buildThreadsMonthlyReport,
   formatReportMonth,
@@ -35,7 +37,13 @@ function shortDate(date: string): string {
 }
 
 export default function ThreadsMonthlyReportTab({ userId, comments, posts, followerMetrics, agencyMetrics }: ThreadsMonthlyReportTabProps) {
+  const [showDailyTable, setShowDailyTable] = useState(true);
   const [rewriteDirty, setRewriteDirty] = useState(false);
+  const [clientPreview, setClientPreview] = useState<ReportRewrite | null>(null);
+  const openPreview = useCallback((content: ReportRewrite) => {
+    setClientPreview(structuredClone(content));
+    setShowDailyTable(true);
+  }, []);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -70,14 +78,21 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
   ];
 
   return (
-    <div className="section-stack">
+    <div className={clientPreview ? 'fixed inset-0 z-[100] overflow-y-auto bg-gray-100 p-4 md:p-8' : ''}
+      role={clientPreview ? 'dialog' : undefined} aria-modal={clientPreview ? true : undefined}
+      aria-label={clientPreview ? '提出用プレビュー' : undefined}
+      onKeyDown={event => { if (clientPreview && event.key === 'Escape') setClientPreview(null); }}>
+    <div className={`section-stack ${clientPreview ? 'mx-auto max-w-6xl' : ''}`}>
+      {clientPreview && <div className="sticky top-0 z-10 flex justify-end bg-gray-100/95 py-2 print:hidden">
+        <button type="button" autoFocus onClick={() => setClientPreview(null)} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">戻る</button>
+      </div>}
       <section className="ui-card p-4 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             {report.isCurrentMonth && <span className="mb-2 inline-block rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-700">集計中</span>}
             <h2 className="text-xl font-semibold text-[color:var(--color-text-primary)] md:text-2xl">{formatReportMonth(month)} 運用レポート</h2>
           </div>
-          <div className="flex items-center gap-2">
+          {!clientPreview && <div className="flex items-center gap-2">
             <button type="button" aria-label="前の月" disabled={monthIndex === 0} onClick={() => selectMonth(months[monthIndex - 1])}
               className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] px-3 text-sm disabled:opacity-30">←</button>
             <label className="sr-only" htmlFor="report-month">レポート月</label>
@@ -87,7 +102,7 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
             </select>
             <button type="button" aria-label="次の月" disabled={monthIndex === months.length - 1} onClick={() => selectMonth(months[monthIndex + 1])}
               className="h-10 rounded-[var(--radius-sm)] border border-[color:var(--color-border)] px-3 text-sm disabled:opacity-30">→</button>
-          </div>
+          </div>}
         </div>
         <dl className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           {cards.map(card => (
@@ -105,7 +120,7 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
       <section className="ui-card p-4 md:p-6">
         <div className="mb-6 border-b border-[color:var(--color-border)] pb-4">
           <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の運用データ</h3>
-          <div id="report-daily-data" className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
+          <div id="report-daily-data" hidden={!showDailyTable} className="mt-4 overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--color-border)]">
               <table className="w-full min-w-[640px] text-sm tabular-nums">
                 <thead className="bg-gray-50">
                   <tr className="border-b border-[color:var(--color-border)] text-left text-xs uppercase tracking-wide text-[color:var(--color-text-secondary)]">
@@ -126,6 +141,11 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
                 </tbody>
               </table>
           </div>
+          {!clientPreview && <button type="button" aria-expanded={showDailyTable} aria-controls="report-daily-data"
+            onClick={() => setShowDailyTable(!showDailyTable)}
+            className="mt-3 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700">
+            {showDailyTable ? '閉じる' : '日別データを表示'}
+          </button>}
         </div>
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の推移</h3>
         <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">投稿日の閲覧数とフォロワー増加数</p>
@@ -145,9 +165,16 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
         </div>
       </section>
 
-      <ReportReflection key={`reflection-${month}`} userId={userId} month={month} onDirtyChange={setRewriteDirty} />
+      <div hidden={!!clientPreview}>
+        <ReportReflection key={`reflection-${month}`} userId={userId} month={month} onDirtyChange={setRewriteDirty} onPreview={openPreview} />
+      </div>
+      {clientPreview && <section className="ui-card p-4 md:p-6" aria-label="提出するレポート本文">
+        <h3 className="mb-6 text-lg font-semibold text-gray-900">今月の振り返り</h3>
+        <ReportRewriteView report={clientPreview} />
+      </section>}
 
-      <ThreadsTopContent key={month} userId={userId} posts={report.posts} comments={comments} />
+      {!clientPreview && <ThreadsTopContent key={month} userId={userId} posts={report.posts} comments={comments} />}
+    </div>
     </div>
   );
 }

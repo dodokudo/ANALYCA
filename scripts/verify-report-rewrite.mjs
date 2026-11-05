@@ -7,7 +7,7 @@ import { BigQuery } from '@google-cloud/bigquery';
 const require = createRequire(import.meta.url);
 require('@next/env').loadEnvConfig(process.cwd());
 const { createRewriteRepository } = await import('../lib/report-rewrite-repository.ts');
-const { emptyRewrite, REWRITE_GROUPS } = await import('../lib/report-rewrite.ts');
+const { emptyRewrite } = await import('../lib/report-rewrite.ts');
 const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.PROJECT_ID;
 const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS || '{}');
 const client = new BigQuery({ projectId, credentials, location: 'asia-northeast1' });
@@ -33,12 +33,15 @@ try {
   console.log('PASS: exact draft roundtrip, retry idempotency, stale write conflict');
 
   const report = emptyRewrite();
-  Object.assign(report, { summary: '結果', issue: '未確認', direction: '確認する', objective: '目的', postsNote: '未確認', funnelNote: '要確認', requestsNote: 'お願いはありません' });
-  for (const group of REWRITE_GROUPS.filter(group => !['posts', 'requests'].includes(group.key))) {
-    report[group.key] = [Object.fromEntries(group.fields.map(field => [field.key, field.options?.[0] ?? '未確認']))];
-  }
+  report.monthly = {
+    evaluation: '今月の成果と評価\n改行を保持',
+    initiatives: [{ action: '投稿の改善', purpose: '読みやすくする', result: '検証で確認した結果', judgment: '継続する' }],
+    findings: { positive: '良かった点', problem: '残った課題', cause: '未検証の仮説' },
+    plans: [{ action: '来月やること', reason: 'そうする理由', check: '同じ集計条件で比較する' }],
+    requests: '',
+  };
   const submitted = await store.save('verification-only', '2026-10', { expectedRevision: 1, requestId: randomUUID(), status: 'submitted', report });
-  const nextDraft = await store.save('verification-only', '2026-10', { expectedRevision: 2, requestId: randomUUID(), status: 'draft', report: { ...report, summary: '次の下書き' } });
+  const nextDraft = await store.save('verification-only', '2026-10', { expectedRevision: 2, requestId: randomUUID(), status: 'draft', report: { ...report, monthly: { ...report.monthly, evaluation: '次の下書き' } } });
   assert.deepEqual(await store.read('verification-only', '2026-10'), { current: nextDraft, submitted });
   assert.deepEqual(await store.read('verification-only', '2026-09'), { current: null, submitted: null });
   assert.deepEqual(await store.read('other-user', '2026-10'), { current: null, submitted: null });

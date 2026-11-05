@@ -141,11 +141,11 @@ export default function ThreadsMonthlyReportTab({ userId, comments, posts, follo
                 </tbody>
               </table>
           </div>
-          {!clientPreview && <button type="button" aria-expanded={showDailyTable} aria-controls="report-daily-data"
+          <button type="button" aria-expanded={showDailyTable} aria-controls="report-daily-data"
             onClick={() => setShowDailyTable(!showDailyTable)}
             className="mt-3 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700">
             {showDailyTable ? '閉じる' : '日別データを表示'}
-          </button>}
+          </button>
         </div>
         <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">日別の推移</h3>
         <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">投稿日の閲覧数とフォロワー増加数</p>

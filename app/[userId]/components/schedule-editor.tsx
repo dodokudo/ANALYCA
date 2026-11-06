@@ -416,7 +416,7 @@ export function ScheduleEditor({
                 disabled={isSaving || isPublishing || uploadingMedia}
                 onClick={() => handleSubmit('scheduled')}
               >
-                {isSaving ? '登録中...' : hasPublishedPart ? '続きを予約' : '予約登録'}
+                {isSaving ? '登録中...' : hasPublishedPart ? '続きを予約' : selectedItem?.scheduleId ? '予約を更新' : '予約登録'}
               </button>
               <button
                 type="button"
@@ -539,7 +539,7 @@ export function ScheduleEditor({
             disabled={isSaving}
             onClick={() => handleSubmit('scheduled')}
           >
-            {isSaving ? '登録中...' : '予約登録'}
+            {isSaving ? '登録中...' : hasPublishedPart ? '続きを予約' : selectedItem?.scheduleId ? '予約を更新' : '予約登録'}
           </button>
         </div>
       </div>

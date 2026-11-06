@@ -307,11 +307,8 @@ export function ScheduleTab({ userId, username, profilePicture }: { userId: stri
       }
       const savedItem = data.item ? mapItem(data.item) : null;
       if (savedItem) {
-        if (hasId) {
-          setSelectedItem(savedItem);
-        } else {
-          setSelectedItem(null);
-        }
+        // Keep the created ID so subsequent saves update this reservation.
+        setSelectedItem(savedItem);
         if (savedItem.scheduledDate) {
           setSelectedDate(savedItem.scheduledDate);
           if (monthKey(savedItem.scheduledDate) !== monthKey(formatDateKey(currentMonth))) {

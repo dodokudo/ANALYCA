@@ -113,7 +113,7 @@ export default function ReportReflection({ userId, month, onDirtyChange, onPrevi
   }
 
   const frozen = saving || !!model.pending;
-  return <section aria-label="新式レポート">
+  return <section aria-label="レポート本文">
     <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
       {!loading && !loadError && <button type="button" className={reportButton} onClick={() => setMode(mode === 'read' ? 'edit' : 'read')}>
         {mode === 'read' ? state.current ? 'レポートを編集' : 'レポートを作成' : '閲覧画面に戻る'}
@@ -163,7 +163,7 @@ export default function ReportReflection({ userId, month, onDirtyChange, onPrevi
       </div>}
     </div>}
 
-    {!loading && !originalError && original && <details data-report-history className="mt-8 border-t border-gray-200 pt-4">
+    {!loading && mode === 'edit' && !originalError && original && <details data-report-history className="mt-8 border-t border-gray-200 pt-4">
       <summary className="cursor-pointer text-sm font-semibold text-gray-800">保存履歴：変更前の報告{original ? `（${savedTime(original.savedAt)} 保存）` : ''}</summary>
       <p className="mt-3 text-xs leading-6 text-gray-500">変更前の4項目を、保存時の文章のまま保管しています。</p>
       {original ? <div className="mt-4 space-y-6">{REFLECTION_FIELDS.map(field => <section key={field.key}>

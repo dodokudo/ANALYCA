@@ -1,25 +1,26 @@
-import { after, NextRequest, NextResponse } from 'next/server';
-import { completionFriends, validSignature } from '@/lib/course-applications/domain';
-import { processSubmission, queueSubmission } from '@/lib/course-applications/service';
+import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120;
-export function GET() { return NextResponse.json({ service: 'lme-course-documents', status: 'ready', operationsHandoff: process.env.COURSE_OPERATIONS_LINE_TOKEN ? 'configured' : 'not-configured', version: '2026-10-23-handoff' }); }
+export const maxDuration = 30;
+const receiver = 'https://guardian-webhook-zdpkrgcsua-an.a.run.app/api/webhooks/lme';
+
+export function GET() {
+  return NextResponse.json({ service: 'lme-compatibility-relay', owner: 'Guardian', receiver, version: 'guardian-course-v1' });
+}
+
+// Compatibility for in-flight deliveries to the old URL. Authentication,
+// persistence and business processing belong exclusively to Guardian.
 export async function POST(request: NextRequest) {
-  if (!process.env.LME_WEBHOOK_SECRET) return NextResponse.json({ error: 'Not configured' }, { status: 503 });
-  if (!validSignature(request.headers.get('x-lme-signature'))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (process.env.LME_AUTOMATION_ENABLED !== 'true') return NextResponse.json({ error: 'Disabled' }, { status: 503 });
-  const delivery = request.headers.get('x-lme-delivery-id') || '';
-  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(delivery)) return NextResponse.json({ error: 'Invalid delivery ID' }, { status: 400 });
+  const signature = request.headers.get('x-lme-signature');
+  if (!signature) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const body = await request.text();
   if (Buffer.byteLength(body) > 1_000_000) return NextResponse.json({ error: 'Too large' }, { status: 413 });
-  let friends: number[];
-  try { friends = completionFriends(JSON.parse(body)); }
-  catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }); }
-  // Persist before acknowledging. Only the dedicated form-completion tag is retained.
   try {
-    const tasks = await Promise.all(friends.map(id => queueSubmission(delivery, id)));
-    after(async () => { for (const key of tasks) { try { await processSubmission(key); } catch { console.error('[lme] Deferred processing pending', { key }); } } });
-    return NextResponse.json({ accepted: tasks.length });
-  } catch { return NextResponse.json({ error: 'Try again' }, { status: 503 }); }
+    const response = await fetch(receiver, {
+      method: 'POST', signal: AbortSignal.timeout(20_000), redirect: 'error',
+      headers: { 'Content-Type': 'application/json', 'x-lme-signature': signature, 'x-lme-delivery-id': request.headers.get('x-lme-delivery-id') || '' },
+      body,
+    });
+    return new NextResponse(await response.text(), { status: response.status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+  } catch { return NextResponse.json({ error: 'Guardian temporarily unavailable' }, { status: 503 }); }
 }

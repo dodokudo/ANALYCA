@@ -13,10 +13,6 @@
       "schedule": "15 * * * *"
     },
     {
-      "path": "/api/cron/course-applications",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/receipts",
       "schedule": "0 * * * *"
     },

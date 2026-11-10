@@ -4,6 +4,7 @@ import { amountFor, downloadToken, emailText, hash, issueId, jstDate, kindsFor, 
 import { ensureMonthFolders, reserveDriveId, saveDocumentToDrive } from './drive';
 import { renderDocument } from './pdf';
 import { readRecord, receiptBucket, withLock, writeRecord } from './store';
+import { notifyDocumentOwner } from './owner-notification';
 
 export const issueKey = (id: string) => `issues/${id}.json`;
 async function persist(issue: Issue) {
@@ -73,14 +74,24 @@ export async function deliverIssue(id: string): Promise<Issue> {
       console.error('[receipts] Drive save pending', { id, code: (e as { code?: number }).code });
     }
     const pendingKey = `pending/${id}.json`;
-    if (archived && issue.mail === 'sent') {
+    if (issue.ownerNotification === 'pending') {
+      try {
+        await notifyDocumentOwner(issue);
+        issue.ownerNotification = 'sent'; issue.ownerNotifiedAt = new Date().toISOString();
+        await persist(issue);
+      } catch {
+        issue.ownerNotification = 'pending';
+        console.error('[receipts] Owner notification pending', { id });
+      }
+    }
+    if (archived && issue.mail === 'sent' && issue.ownerNotification !== 'pending') {
       await bucket.file(pendingKey).delete({ ignoreNotFound: true });
     } else if (issue.mail === 'uncertain') {
       console.error('[receipts] Manual email delivery review required', { id });
       const reviewKey = `review/${id}.json`;
       const prior = await readRecord(reviewKey);
       await writeRecord(reviewKey, { id, reason: 'smtp-delivery-uncertain', at: new Date().toISOString() }, prior?.generation || 0);
-      if (archived) await bucket.file(pendingKey).delete({ ignoreNotFound: true });
+      if (archived && issue.ownerNotification !== 'pending') await bucket.file(pendingKey).delete({ ignoreNotFound: true });
     }
     return issue;
   });
@@ -99,6 +110,7 @@ export async function issueDocuments(input: ReceiptInput, sample = false, course
     } else {
       issue = { ...input, id, sample, issuedDate: jstDate(), createdAt: new Date().toISOString(), number: `${sample ? 'TEST-' : ''}${jstDate().replaceAll('-', '')}-${randomBytes(6).toString('hex').toUpperCase()}`, amount: course?.amount ?? amountFor(input.method), ...(course ? { applicationId: course.applicationId, productName: course.productName, bankAmount: course.bankAmount, cardAmount: course.cardAmount, invoiceAmount: course.bankAmount } : {}), documents: {}, mail: 'pending' };
       // Queue first: a stopped request can safely resume using the same issuance ID.
+      if (!sample && !course) issue.ownerNotification = 'pending';
       await writeRecord(`pending/${id}.json`, { id }).catch(e => { if (e.code !== 412) throw e; });
       await writeRecord(issueKey(id), issue);
     }

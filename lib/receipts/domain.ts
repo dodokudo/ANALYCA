@@ -15,6 +15,8 @@ export type Issue = ReceiptInput & {
   documents: Partial<Record<DocumentKind, { path: string; filename: string; driveId?: string }>>;
   mail: 'pending' | 'sending' | 'sent' | 'failed' | 'uncertain';
   mailedAt?: string;
+  ownerNotification?: 'pending' | 'sent';
+  ownerNotifiedAt?: string;
 };
 export class ReceiptError extends Error {
   status: number;
